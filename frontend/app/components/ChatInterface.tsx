@@ -1,0 +1,281 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  PaperAirplaneIcon, 
+  SparklesIcon,
+  PlayIcon,
+  ExclamationTriangleIcon,
+  MagnifyingGlassIcon,
+  MicrophoneIcon,
+  PhotoIcon,
+  PlusIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline'
+import { useWorkflowStore } from '../store/workflowStore'
+import toast from 'react-hot-toast'
+
+interface Message {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  workflowTriggered?: {
+    name: string
+    inputs: Record<string, any>
+  }
+}
+
+interface ChatInterfaceProps {
+  githubToken?: string
+}
+
+export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { triggerWorkflow } = useWorkflowStore()
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: input.trim(),
+      timestamp: new Date()
+    }
+
+    // Limpiar mensajes anteriores y solo mostrar el último
+    setMessages([userMessage])
+    setInput('')
+    setIsLoading(true)
+
+    try {
+      // Enviar mensaje al LLM para procesar
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input.trim() })
+      })
+
+      if (!response.ok) throw new Error('Error al procesar mensaje')
+
+      const data = await response.json()
+      
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: data.response,
+        timestamp: new Date(),
+        workflowTriggered: data.workflowTriggered
+      }
+
+      setMessages(prev => [...prev, assistantMessage])
+
+      // Si se activó un workflow, ejecutarlo
+      if (data.workflowTriggered) {
+        await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
+        toast.success(`Workflow "${data.workflowTriggered.name}" ejecutado exitosamente`)
+      }
+
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: 'Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo.',
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+      toast.error('Error al procesar la solicitud')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const examplePrompts = [
+    "Corré los tests de search en QA para iOS",
+    "Ejecuta los tests de login en staging para Android", 
+    "Lanza los tests de checkout en QA",
+    "Corré los tests de API en prod"
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto pb-40">
+      {/* Header estilo Google AI - Solo cuando no hay mensajes */}
+      {messages.length === 0 && (
+        <div className="text-center mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-4xl font-light text-white mb-4">
+              Meet AI Mode
+            </h1>
+            <p className="text-gray-400 text-lg">
+              Ask detailed questions for better responses
+            </p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Resultado de la última acción - Arriba como Google AI */}
+      {messages.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto mb-8"
+        >
+          {messages.slice(-1).map((message) => (
+            <motion.div
+              key={message.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-gray-800 rounded-xl border border-gray-700 p-6"
+            >
+              <div className="text-center">
+                <div className="text-gray-300 mb-4">
+                  <p className="text-sm mb-2">Comando ejecutado:</p>
+                  <p className="bg-gray-700 rounded-lg p-3 text-left font-mono text-sm">
+                    {message.content}
+                  </p>
+                </div>
+
+                {message.workflowTriggered ? (
+                  <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center space-x-2 text-green-300">
+                      <CheckCircleIcon className="w-5 h-5" />
+                      <span className="font-medium">
+                        ✅ Workflow "{message.workflowTriggered.name}" ejecutado exitosamente
+                      </span>
+                    </div>
+                    <p className="text-green-400 text-sm mt-2">
+                      Los tests se están ejecutando en GitHub Actions
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+                    <div className="flex items-center justify-center space-x-2 text-blue-300">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                      <span className="font-medium">Procesando comando...</span>
+                    </div>
+                    <p className="text-blue-400 text-sm mt-2">
+                      Detectando el tipo de test y ambiente requerido
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="max-w-4xl mx-auto mb-8"
+        >
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="text-center">
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent"></div>
+                <span className="text-white font-medium">Analizando comando...</span>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Detectando el tipo de test y ambiente requerido
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Input y sugerencias al final - Como Google AI */}
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
+        {/* Input principal estilo Google */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative mb-6"
+        >
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="relative">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask anything"
+                className="google-input w-full pr-20 pl-6 py-4 text-lg"
+                disabled={isLoading}
+              />
+
+              {/* Iconos dentro del input */}
+              <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <PhotoIcon className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <PlusIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Botones de la derecha */}
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <MicrophoneIcon className="w-5 h-5" />
+                </button>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="google-button disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </form>
+        </motion.div>
+
+        {/* Sugerencias estilo Google */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+        >
+          {examplePrompts.map((prompt, index) => (
+            <button
+              key={index}
+              onClick={() => setInput(prompt)}
+              className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-sm text-white flex items-start space-x-2"
+            >
+              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+              <span className="text-xs">{prompt}</span>
+            </button>
+          ))}
+        </motion.div>
+      </div>
+    </div>
+  )
+}

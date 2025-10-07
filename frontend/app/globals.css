@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-900 text-white;
+  }
+}
+
+@layer components {
+  .chat-message {
+    @apply p-4 rounded-lg max-w-3xl mx-auto;
+  }
+  
+  .chat-message.user {
+    @apply bg-blue-600 text-white ml-auto;
+  }
+  
+  .chat-message.assistant {
+    @apply bg-gray-800 border border-gray-700 mr-auto;
+  }
+  
+  .workflow-card {
+    @apply bg-gray-800 rounded-lg border border-gray-700 p-6 hover:bg-gray-700 transition-colors duration-200;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-badge.success {
+    @apply bg-green-900 text-green-300;
+  }
+  
+  .status-badge.error {
+    @apply bg-red-900 text-red-300;
+  }
+  
+  .status-badge.running {
+    @apply bg-blue-900 text-blue-300;
+  }
+  
+  .status-badge.pending {
+    @apply bg-yellow-900 text-yellow-300;
+  }
+  
+  .google-input {
+    @apply bg-gray-800 border border-gray-600 rounded-full px-6 py-4 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-lg transition-all duration-200;
+  }
+  
+  .google-button {
+    @apply bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 transition-colors duration-200;
+  }
+}
