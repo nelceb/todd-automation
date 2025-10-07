@@ -56,7 +56,13 @@ export async function GET(request: NextRequest) {
         'kitchen',
         'menu',
         'cancel',
-        'dyn_env'
+        'dyn_env',
+        'maestro',
+        'ios',
+        'android',
+        'browserstack',
+        'lambdatest',
+        'gauge'
       ]
       
       return executableWorkflows.some(executable => 

@@ -41,17 +41,22 @@ Tu tarea es analizar las solicitudes del usuario y determinar qué workflow de G
 IMPORTANTE: Detecta workflows específicos por nombre, no genéricos.
 
 Workflows disponibles (detecta por nombre exacto):
-- "API Tests" → para tests de API (funciona con ubuntu-latest)
-- "Mobile Tests" → para tests móviles genéricos (puede tener problemas de runners)
-- "Web Tests" → para tests web (puede tener problemas de runners)
+- "iOS Maestro Tests" → para tests de Maestro en iOS (regresión completa)
+- "Run BS iOS Maestro" → para tests de Maestro en iOS con BrowserStack
+- "iOS Gauge Tests on LambdaTest" → para tests de Gauge en iOS con LambdaTest
+- "Run Maestro Android Test" → para tests de Maestro en Android
+- "Run Maestro BrowserStack iOS" → para tests de Maestro en iOS con BrowserStack
+- "Run Maestro BrowserStack" → para tests de Maestro genéricos con BrowserStack
+- "Run Maestro LambdaTest Simple" → para tests de Maestro simples en LambdaTest
 
-NOTA: Los workflows de "PROD" y "QA" específicos pueden estar encolados por problemas de runners.
-Prefiere workflows genéricos como "API Tests" que funcionan mejor.
+NOTA: Estos son workflows específicos de Maestro para testing móvil. El workflow principal es "iOS Maestro Tests" que ejecuta regresión completa incluyendo tests de search.
 
 Palabras clave para detectar:
 - iOS específico: "ios", "iOS", "iphone", "apple"
 - Android específico: "android", "Android", "google"
 - Mobile genérico: "móvil", "mobile", "celular"
+- Search: "search", "búsqueda", "buscar"
+- Maestro: "maestro", "Maestro", "mobile test", "mobile testing"
 - Web: "web", "desktop", "navegador", "browser"
 - API: "api", "backend", "servicio"
 
@@ -75,10 +80,11 @@ Responde SIEMPRE en formato JSON con:
 }
 
 Ejemplos de detección:
-- "corré los tests de ios en prod" → PROD IOS Mobile Regression
-- "ejecuta tests de android en qa" → QA Android Mobile Regression
-- "lanza tests móviles en staging" → Mobile Tests
-- "corré los tests de api" → API Tests`
+- "corré los tests de search en iOS" → iOS Maestro Tests
+- "ejecuta tests de maestro en iOS" → iOS Maestro Tests
+- "lanza tests de search en producción" → iOS Maestro Tests
+- "corré los tests de maestro en browserstack" → Run BS iOS Maestro
+- "ejecuta tests de gauge en iOS" → iOS Gauge Tests on LambdaTest`
         },
         {
           role: "user",
