@@ -9,7 +9,6 @@ import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   MicrophoneIcon,
-  PhotoIcon,
   PlusIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline'
@@ -31,10 +30,21 @@ interface ChatInterfaceProps {
   githubToken?: string
 }
 
+interface TestSuggestion {
+  text: string
+  tag: string
+  environment: string
+  platform: string
+  category: string
+}
+
 export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
+  const [isListening, setIsListening] = useState(false)
+  const [recognition, setRecognition] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { triggerWorkflow } = useWorkflowStore()
 
@@ -45,6 +55,50 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Cargar sugerencias dinámicas
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const response = await fetch('/api/test-tags')
+        const data = await response.json()
+        setSuggestions(data.suggestions || [])
+      } catch (error) {
+        console.error('Error loading suggestions:', error)
+      }
+    }
+    fetchSuggestions()
+  }, [])
+
+  // Configurar reconocimiento de voz
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const recognitionInstance = new SpeechRecognition()
+        recognitionInstance.continuous = false
+        recognitionInstance.interimResults = false
+        recognitionInstance.lang = 'es-ES'
+        
+        recognitionInstance.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript
+          setInput(transcript)
+          setIsListening(false)
+        }
+        
+        recognitionInstance.onerror = () => {
+          setIsListening(false)
+          toast.error('Error en el reconocimiento de voz')
+        }
+        
+        recognitionInstance.onend = () => {
+          setIsListening(false)
+        }
+        
+        setRecognition(recognitionInstance)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,12 +158,21 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
     }
   }
 
-  const examplePrompts = [
-    "Corré los tests de search en QA para iOS",
-    "Ejecuta los tests de login en staging para Android", 
-    "Lanza los tests de checkout en QA",
-    "Corré los tests de API en prod"
-  ]
+  const handleMicrophoneClick = () => {
+    if (!recognition) {
+      toast.error('Reconocimiento de voz no disponible')
+      return
+    }
+
+    if (isListening) {
+      recognition.stop()
+      setIsListening(false)
+    } else {
+      recognition.start()
+      setIsListening(true)
+      toast.success('Escuchando...')
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto pb-40">
@@ -221,29 +284,28 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
                 disabled={isLoading}
               />
 
-              {/* Iconos dentro del input */}
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <PhotoIcon className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <PlusIcon className="w-5 h-5" />
-                </button>
-              </div>
+                {/* Iconos dentro del input */}
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                  </button>
+                </div>
 
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                 <button
                   type="button"
-                  className="text-gray-400 hover:text-white transition-colors"
+                  onClick={handleMicrophoneClick}
+                  className={`transition-colors ${
+                    isListening 
+                      ? 'text-red-400 hover:text-red-300' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
                 >
-                  <MicrophoneIcon className="w-5 h-5" />
+                  <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
                 </button>
                 <button
                   type="submit"
@@ -257,24 +319,24 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
           </form>
         </motion.div>
 
-        {/* Sugerencias estilo Google */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
-        >
-          {examplePrompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => setInput(prompt)}
-              className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-sm text-white flex items-start space-x-2"
-            >
-              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-              <span className="text-xs">{prompt}</span>
-            </button>
-          ))}
-        </motion.div>
+          {/* Sugerencias dinámicas estilo Google */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+          >
+            {suggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => setInput(suggestion.text)}
+                className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-sm text-white flex items-start space-x-2"
+              >
+                <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                <span className="text-xs">{suggestion.text}</span>
+              </button>
+            ))}
+          </motion.div>
       </div>
     </div>
   )
