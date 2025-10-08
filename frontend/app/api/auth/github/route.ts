@@ -7,8 +7,10 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     // Iniciar el flujo OAuth
-    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liOTVDroWvPtCB4s'
-    const redirectUri = 'http://localhost:3000/api/auth/github'
+    const clientId = process.env.GITHUB_CLIENT_ID
+    const redirectUri = process.env.NODE_ENV === 'production' 
+      ? 'https://test-runner-ai.vercel.app/api/auth/github'
+      : 'http://localhost:3000/api/auth/github'
     const state = Math.random().toString(36).substring(7)
     
     const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${state}`
@@ -18,8 +20,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Intercambiar código por token
-    const clientId = process.env.GITHUB_CLIENT_ID || 'Ov23liOTVDroWvPtCB4s'
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET || 'f33259578c6b5571a9b6b6c0317661b830b46e07'
+    const clientId = process.env.GITHUB_CLIENT_ID
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET
     
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
