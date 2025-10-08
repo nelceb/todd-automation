@@ -26,17 +26,42 @@ export interface Workflow {
   html_url: string
 }
 
+export interface WorkflowLogs {
+  run: {
+    id: number
+    status: string
+    conclusion?: string
+    createdAt: string
+    updatedAt: string
+    htmlUrl: string
+  }
+  jobs: any[]
+  logs: Array<{
+    jobName: string
+    status: string
+    conclusion?: string
+    logs: string
+    startedAt: string
+    completedAt?: string
+  }>
+}
+
 interface WorkflowStore {
   workflows: Workflow[]
   workflowRuns: WorkflowRun[]
   isLoading: boolean
   error: string | null
   githubToken: string
-  
+  currentLogs: WorkflowLogs | null
+  isPollingLogs: boolean
+
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
   fetchWorkflowRuns: (token?: string) => Promise<void>
-  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string) => Promise<void>
+  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string) => Promise<any>
+  fetchWorkflowLogs: (runId: string, token?: string) => Promise<void>
+  startPollingLogs: (runId: string, token?: string) => void
+  stopPollingLogs: () => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
 }
@@ -47,6 +72,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   isLoading: false,
   error: null,
   githubToken: '',
+  currentLogs: null,
+  isPollingLogs: false,
 
   fetchWorkflows: async (token?: string) => {
     set({ isLoading: true, error: null })
@@ -95,7 +122,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
-      
+
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
         headers,
@@ -103,15 +130,70 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       })
       if (!response.ok) throw new Error('Error al ejecutar workflow')
       const result = await response.json()
-      
+
       // Refresh workflow runs after triggering
       await get().fetchWorkflowRuns(token)
       set({ isLoading: false })
+      
+      return result
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Error desconocido', isLoading: false })
+      throw error
     }
   },
 
   setError: (error) => set({ error }),
-  setGithubToken: (token) => set({ githubToken: token })
+  setGithubToken: (token) => set({ githubToken: token }),
+
+  fetchWorkflowLogs: async (runId: string, token?: string) => {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`/api/workflow-logs?runId=${runId}`, { headers })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`)
+      }
+      const logs = await response.json()
+      set({ currentLogs: logs })
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Unknown error' })
+    }
+  },
+
+  startPollingLogs: (runId: string, token?: string) => {
+    const { isPollingLogs } = get()
+    if (isPollingLogs) return
+
+    set({ isPollingLogs: true })
+    
+    const pollInterval = setInterval(async () => {
+      const { isPollingLogs: stillPolling, currentLogs } = get()
+      if (!stillPolling) {
+        clearInterval(pollInterval)
+        return
+      }
+
+      await get().fetchWorkflowLogs(runId, token)
+      
+      // Stop polling if workflow is completed
+      if (currentLogs?.run.status === 'completed') {
+        get().stopPollingLogs()
+      }
+    }, 5000) // Poll every 5 seconds
+
+    // Store interval ID for cleanup
+    ;(get() as any).pollInterval = pollInterval
+  },
+
+  stopPollingLogs: () => {
+    const { pollInterval } = get() as any
+    if (pollInterval) {
+      clearInterval(pollInterval)
+    }
+    set({ isPollingLogs: false })
+  }
 }))

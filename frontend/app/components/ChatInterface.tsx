@@ -50,7 +50,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { triggerWorkflow } = useWorkflowStore()
+  const { triggerWorkflow, startPollingLogs, currentLogs, isPollingLogs } = useWorkflowStore()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -144,9 +144,14 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
 
         // Si se activó un workflow, ejecutarlo
         if (data.workflowTriggered) {
-          await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
+          const result = await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
           toast.success(`Workflow "${data.workflowTriggered.name}" executed successfully`)
           onWorkflowExecuted() // Trigger glow effect
+          
+          // Start polling logs if we have a run ID
+          if (result && result.workflowId) {
+            startPollingLogs(result.workflowId.toString(), githubToken)
+          }
         }
 
     } catch (error) {
@@ -265,6 +270,53 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
           </motion.div>
         )}
 
+        {/* Logs en tiempo real */}
+        {currentLogs && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto mb-8"
+          >
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-medium">Workflow Execution Logs</h3>
+                <div className="flex items-center space-x-2">
+                  {isPollingLogs && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                  )}
+                  <span className="text-sm text-gray-400">
+                    Status: {currentLogs.run.status}
+                  </span>
+                </div>
+              </div>
+              
+              {currentLogs.logs.map((log, index) => (
+                <div key={index} className="mb-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="text-sm font-medium text-blue-300">{log.jobName}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      log.status === 'completed' 
+                        ? 'bg-green-900 text-green-300'
+                        : log.status === 'in_progress'
+                        ? 'bg-blue-900 text-blue-300'
+                        : 'bg-gray-700 text-gray-300'
+                    }`}>
+                      {log.status}
+                    </span>
+                  </div>
+                  
+                  {log.logs && (
+                    <div className="bg-gray-900 rounded p-3 max-h-64 overflow-y-auto">
+                      <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono">
+                        {log.logs}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
       {/* Input y sugerencias al final - Como Google AI */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
