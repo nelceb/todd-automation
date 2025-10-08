@@ -22,18 +22,8 @@ interface Message {
   type: 'user' | 'assistant'
   content: string
   timestamp: Date
-  workflowTriggered?: {
-    name: string
-    inputs: Record<string, any>
-  }
-}
-
-interface ChatInterfaceProps {
-  githubToken?: string
-  messages: Message[]
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
-  clearMessages: () => void
-  onWorkflowExecuted: () => void
+  workflowResult?: any
+  workflowTriggered?: any
 }
 
 interface TestSuggestion {
@@ -44,158 +34,86 @@ interface TestSuggestion {
   category: string
 }
 
-// Función para extraer resumen de tests de los logs
-function extractTestSummary(logs: string) {
-  if (!logs || !logs.trim()) return null
-
-  const lines = logs.split('\n')
-  let passed = 0
-  let failed = 0
-  let skipped = 0
-  const failedTests: string[] = []
-  const passedTests: string[] = []
-
-  // Patrones específicos para Maestro Cloud
-  const maestroPatterns = {
-    // Patrón: "1/1 Flow Passed" o "2/3 Flows Passed"
-    flowPassed: /(\d+)\/(\d+)\s+Flow(?:s?)\s+Passed/gi,
-    // Patrón: "[Passed] iOS Login Test Suite"
-    suitePassed: /\[Passed\]\s+([A-Za-z0-9\s\-_]+)/gi,
-    // Patrón: "[Failed] Test Suite Name"
-    suiteFailed: /\[Failed\]\s+([A-Za-z0-9\s\-_]+)/gi,
-    // Patrón: "X/Y Flows Failed"
-    flowFailed: /(\d+)\/(\d+)\s+Flow(?:s?)\s+Failed/gi,
-    // Patrón: "Running flow: FlowName"
-    flowRunning: /Running flow:\s+([A-Za-z0-9\s\-_]+)/gi,
-    // Patrón: "Flow 'FlowName' completed"
-    flowCompleted: /Flow\s+'([A-Za-z0-9\s\-_]+)'\s+completed/gi
-  }
-
-  // Buscar patrones específicos de Maestro primero
-  lines.forEach(line => {
-    // Buscar "X/Y Flow Passed"
-    const flowPassedMatch = line.match(maestroPatterns.flowPassed)
-    if (flowPassedMatch) {
-      flowPassedMatch.forEach(match => {
-        const numbers = match.match(/(\d+)\/(\d+)/)
-        if (numbers) {
-          const passedCount = parseInt(numbers[1])
-          const totalCount = parseInt(numbers[2])
-          passed = passedCount
-          failed = totalCount - passedCount
-        }
-      })
-    }
-
-    // Buscar "X/Y Flow Failed"
-    const flowFailedMatch = line.match(maestroPatterns.flowFailed)
-    if (flowFailedMatch) {
-      flowFailedMatch.forEach(match => {
-        const numbers = match.match(/(\d+)\/(\d+)/)
-        if (numbers) {
-          const failedCount = parseInt(numbers[1])
-          const totalCount = parseInt(numbers[2])
-          failed = failedCount
-          passed = totalCount - failedCount
-        }
-      })
-    }
-
-    // Buscar suites pasadas
-    const suitePassedMatch = line.match(maestroPatterns.suitePassed)
-    if (suitePassedMatch) {
-      suitePassedMatch.forEach(match => {
-        const suiteName = match.replace(/\[Passed\]\s*/gi, '').trim()
-        if (suiteName && !passedTests.includes(suiteName)) {
-          passedTests.push(suiteName)
-        }
-      })
-    }
-
-    // Buscar suites fallidas
-    const suiteFailedMatch = line.match(maestroPatterns.suiteFailed)
-    if (suiteFailedMatch) {
-      suiteFailedMatch.forEach(match => {
-        const suiteName = match.replace(/\[Failed\]\s*/gi, '').trim()
-        if (suiteName && !failedTests.includes(suiteName)) {
-          failedTests.push(suiteName)
-        }
-      })
-    }
-
-    // Buscar flows ejecutándose
-    const flowRunningMatch = line.match(maestroPatterns.flowRunning)
-    if (flowRunningMatch) {
-      flowRunningMatch.forEach(match => {
-        const flowName = match.replace(/Running flow:\s*/gi, '').trim()
-        if (flowName && !passedTests.includes(flowName) && !failedTests.includes(flowName)) {
-          passedTests.push(flowName) // Asumimos que se está ejecutando correctamente
-        }
-      })
-    }
-
-    // Buscar flows completados
-    const flowCompletedMatch = line.match(maestroPatterns.flowCompleted)
-    if (flowCompletedMatch) {
-      flowCompletedMatch.forEach(match => {
-        const flowName = match.replace(/Flow\s+'([^']+)'\s+completed/gi, '$1').trim()
-        if (flowName && !passedTests.includes(flowName)) {
-          passedTests.push(flowName)
-        }
-      })
-    }
-  })
-
-  // Si no encontramos patrones de Maestro, buscar patrones genéricos
-  if (passed === 0 && failed === 0) {
-    const genericPatterns = {
-      passed: /(?:✅|PASS|PASSED|✓|SUCCESS).*?(\d+)/gi,
-      failed: /(?:❌|FAIL|FAILED|✗|ERROR).*?(\d+)/gi,
-      skipped: /(?:⏭️|SKIP|SKIPPED|⏸️).*?(\d+)/gi
-    }
-
-    lines.forEach(line => {
-      const passedMatch = line.match(genericPatterns.passed)
-      if (passedMatch) {
-        passedMatch.forEach(match => {
-          const num = parseInt(match.match(/\d+/)?.[0] || '0')
-          if (num > 0 && num < 1000) { // Evitar números muy grandes que pueden ser timestamps
-            passed += num
-          }
-        })
-      }
-
-      const failedMatch = line.match(genericPatterns.failed)
-      if (failedMatch) {
-        failedMatch.forEach(match => {
-          const num = parseInt(match.match(/\d+/)?.[0] || '0')
-          if (num > 0 && num < 1000) {
-            failed += num
-          }
-        })
-      }
-
-      const skippedMatch = line.match(genericPatterns.skipped)
-      if (skippedMatch) {
-        skippedMatch.forEach(match => {
-          const num = parseInt(match.match(/\d+/)?.[0] || '0')
-          if (num > 0 && num < 1000) {
-            skipped += num
-          }
-        })
-      }
-    })
-  }
-
-  // Solo retornar si encontramos información útil
-  if (passed > 0 || failed > 0 || skipped > 0 || failedTests.length > 0 || passedTests.length > 0) {
-    return { passed, failed, skipped, failedTests, passedTests }
-  }
-
-  return null
+interface ChatInterfaceProps {
+  githubToken?: string
+  messages: Message[]
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+  clearMessages: () => void
+  onWorkflowExecuted: () => void
 }
 
-export default function ChatInterface({ githubToken, messages, setMessages, clearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
+// Helper function to extract test summary from logs
+function extractTestSummary(logs: string) {
+  const summary = {
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    failedTests: [] as string[],
+    passedTests: [] as string[]
+  }
+
+  if (!logs) return summary
+
+  // Maestro Cloud specific patterns
+  const flowPassedPattern = /(\d+)\/(\d+)\s+Flow\s+Passed/g
+  const flowFailedPattern = /(\d+)\/(\d+)\s+Flow\s+Failed/g
+  const testSuitePattern = /\[(Passed|Failed)\]\s+(.+?)\s+Test\s+Suite/g
+  const flowRunningPattern = /Flow\s+Running:\s+(.+?)(?:\n|$)/g
+  const flowCompletedPattern = /Flow\s+Completed:\s+(.+?)(?:\n|$)/g
+
+  // Count passed flows
+  let match
+  while ((match = flowPassedPattern.exec(logs)) !== null) {
+    const passed = parseInt(match[1])
+    if (passed > 0 && passed < 1000) { // Avoid counting timestamps
+      summary.passed += passed
+    }
+  }
+
+  // Count failed flows
+  while ((match = flowFailedPattern.exec(logs)) !== null) {
+    const failed = parseInt(match[1])
+    if (failed > 0 && failed < 1000) { // Avoid counting timestamps
+      summary.failed += failed
+    }
+  }
+
+  // Extract test suite names
+  while ((match = testSuitePattern.exec(logs)) !== null) {
+    const status = match[1]
+    const testName = match[2]
+    if (status === 'Passed') {
+      summary.passedTests.push(testName)
+    } else {
+      summary.failedTests.push(testName)
+    }
+  }
+
+  // Extract flow names
+  while ((match = flowRunningPattern.exec(logs)) !== null) {
+    const flowName = match[1].trim()
+    if (flowName && !summary.passedTests.includes(flowName) && !summary.failedTests.includes(flowName)) {
+      summary.passedTests.push(flowName)
+    }
+  }
+
+  while ((match = flowCompletedPattern.exec(logs)) !== null) {
+    const flowName = match[1].trim()
+    if (flowName && !summary.passedTests.includes(flowName) && !summary.failedTests.includes(flowName)) {
+      summary.passedTests.push(flowName)
+    }
+  }
+
+  return summary
+}
+
+export default function ChatInterface({ 
+  githubToken, 
+  messages, 
+  setMessages, 
+  clearMessages, 
+  onWorkflowExecuted 
+}: ChatInterfaceProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
@@ -203,7 +121,15 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   const [recognition, setRecognition] = useState<any>(null)
   const [showPreview, setShowPreview] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { triggerWorkflow, startPollingLogs, currentLogs, isPollingLogs, previewWorkflows, workflowPreview } = useWorkflowStore()
+  
+  const { 
+    triggerWorkflow, 
+    startPollingLogs, 
+    currentLogs, 
+    isPollingLogs,
+    previewWorkflows,
+    workflowPreview
+  } = useWorkflowStore()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -213,9 +139,9 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     scrollToBottom()
   }, [messages])
 
-  // Cargar sugerencias dinámicas
+  // Load dynamic suggestions
   useEffect(() => {
-    const fetchSuggestions = async () => {
+    async function fetchSuggestions() {
       try {
         const response = await fetch('/api/test-tags')
         const data = await response.json()
@@ -227,7 +153,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     fetchSuggestions()
   }, [])
 
-  // Configurar reconocimiento de voz
+  // Configure voice recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -235,7 +161,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
         const recognitionInstance = new SpeechRecognition()
         recognitionInstance.continuous = false
         recognitionInstance.interimResults = false
-        recognitionInstance.lang = 'es-ES'
+        recognitionInstance.lang = 'en-US'
         
         recognitionInstance.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript
@@ -356,7 +282,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
 
   const handleMicrophoneClick = () => {
     if (!recognition) {
-        toast.error('Voice recognition not available')
+      toast.error('Voice recognition not available')
       return
     }
 
@@ -366,7 +292,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     } else {
       recognition.start()
       setIsListening(true)
-        toast.success('Listening...')
+      toast.success('Listening...')
     }
   }
 
@@ -381,213 +307,193 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             className="mb-8"
           >
             <h1 className="text-4xl font-light text-white mb-4">
-                Multi-Repository Test Automation AI
+              Multi-Repository Test Automation AI
             </h1>
             <p className="text-gray-400 text-lg">
-                Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
+              Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
             </p>
           </motion.div>
         </div>
       )}
 
-        {/* Botón para limpiar historial - Solo cuando hay mensajes */}
-        {messages.length > 0 && (
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={clearMessages}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              <TrashIcon className="w-4 h-4" />
-              <span>Clear history</span>
-            </button>
-          </div>
-        )}
-
-        {/* Resultado de la última acción - Estilo Google AI (texto fluido) */}
+      {/* Botón para limpiar historial - Solo cuando hay mensajes */}
       {messages.length > 0 && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={clearMessages}
+            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            <TrashIcon className="w-4 h-4" />
+            <span>Clear History</span>
+          </button>
+        </div>
+      )}
+
+      {/* Mensajes */}
+      <div className="space-y-6">
+        {messages.map((message) => (
+          <motion.div
+            key={message.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div className={`max-w-3xl px-6 py-4 rounded-2xl ${
+              message.type === 'user' 
+                ? 'bg-airforce-600 text-white' 
+                : 'bg-gray-800/50 text-gray-100 border border-gray-700/50'
+            }`}>
+              <p className="text-sm leading-relaxed">{message.content}</p>
+              <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
+                <span>{message.type === 'user' ? 'You' : 'AI'}</span>
+                <span>
+                  {typeof window !== 'undefined' && message.timestamp.toLocaleTimeString()}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+          >
+            <div className="bg-gray-800/50 text-gray-100 border border-gray-700/50 px-6 py-4 rounded-2xl">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-airforce-400"></div>
+                <span className="text-sm">Processing your request...</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Workflow Execution Logs */}
+      {currentLogs && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto mb-8"
+          className="mt-8 p-6 bg-gray-800/30 rounded-xl border border-gray-700/50"
         >
-          {messages.slice(-1).map((message) => (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-                className="text-white"
-              >
-                <div className="space-y-4">
-                  {/* Comando ejecutado - Estilo texto simple */}
-                  <div className="text-gray-300">
-                    <p className="text-sm text-gray-400 mb-2">Command executed:</p>
-                    <p className="font-mono text-sm bg-gray-800/50 rounded-md px-3 py-2 inline-block">
-                    {message.content}
-                  </p>
-                </div>
-
-                  {/* Estado del workflow - Estilo texto fluido */}
-                {message.workflowTriggered ? (
-                    <div className="text-green-300">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                      <span className="font-medium">
-                          ✅ Workflow "{message.workflowTriggered.name}" executed successfully
-                      </span>
-                    </div>
-                      <p className="text-green-400/80 text-sm mt-1 ml-7">
-                        Tests are running in GitHub Actions
-                    </p>
-                  </div>
-                ) : (
-                    <div className="text-blue-300">
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
-                        <span className="font-medium">Processing command...</span>
-                    </div>
-                      <p className="text-blue-400/80 text-sm mt-1 ml-6">
-                        Analyzing request and preparing workflow execution
-                    </p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-
-          {/* Logs en tiempo real - Estilo fluido como Google AI */}
-          {currentLogs && (
-        <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto mb-8"
-        >
-              <div className="text-white space-y-4">
-                {/* Header de logs - Estilo texto simple */}
-                <div className="text-gray-300">
-                  <p className="text-sm text-gray-400 mb-2">Workflow Execution Logs:</p>
-                  <div className="flex items-center space-x-3">
-                    {isPollingLogs && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
-                    )}
-                    <span className={`font-medium ${
-                      currentLogs.run.status === 'completed' && currentLogs.run.conclusion === 'success'
-                        ? 'text-green-300'
-                        : currentLogs.run.status === 'completed' && currentLogs.run.conclusion === 'failure'
-                        ? 'text-red-300'
-                        : 'text-blue-300'
-                    }`}>
-                      Status: {currentLogs.run.status}
-                      {currentLogs.run.conclusion && ` (${currentLogs.run.conclusion})`}
-                    </span>
-                    <span className="text-gray-400 text-sm">
-                      • Real-time monitoring active
-                    </span>
-                  </div>
-                </div>
-
-                {/* Resumen de resultados - Solo si hay logs */}
-                {currentLogs.logs.some(log => log.logs && log.logs.trim()) && (
-                  <div className="bg-gray-800/20 rounded-lg p-4 border border-gray-700/50">
-                    <h4 className="text-white font-medium mb-3 flex items-center space-x-2">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                      <span>Test Results Summary</span>
-                    </h4>
-                    {currentLogs.logs.map((log, index) => {
-                      if (!log.logs || !log.logs.trim()) return null
-                      
-                      const summary = extractTestSummary(log.logs)
-                      if (!summary) return null
-                      
-                      return (
-                        <div key={index} className="mb-4 last:mb-0">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-blue-300 font-medium text-sm">{log.jobName}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              log.status === 'completed'
-                                ? 'bg-green-900 text-green-300'
-                                : log.status === 'in_progress'
-                                ? 'bg-blue-900 text-blue-300'
-                                : 'bg-gray-700 text-gray-300'
-                            }`}>
-                              {log.status}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                            {summary.passed > 0 && (
-                              <div className="flex items-center space-x-2 text-green-300">
-                                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                                <span>{summary.passed} flow{summary.passed !== 1 ? 's' : ''} passed</span>
-                              </div>
-                            )}
-                            {summary.failed > 0 && (
-                              <div className="flex items-center space-x-2 text-red-300">
-                                <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                                <span>{summary.failed} flow{summary.failed !== 1 ? 's' : ''} failed</span>
-                              </div>
-                            )}
-                            {summary.skipped > 0 && (
-                              <div className="flex items-center space-x-2 text-yellow-300">
-                                <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                                <span>{summary.skipped} skipped</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Mostrar nombres de flows específicos */}
-                          {summary.passedTests && summary.passedTests.length > 0 && (
-                            <div className="mt-3">
-                              <p className="text-green-300 text-xs font-medium mb-1">Passed Tests:</p>
-                              <div className="space-y-1">
-                                {summary.passedTests.slice(0, 3).map((test, i) => (
-                                  <div key={i} className="text-green-400 text-xs bg-green-900/20 rounded px-2 py-1">
-                                    {test}
-                                  </div>
-                                ))}
-                                {summary.passedTests.length > 3 && (
-                                  <div className="text-green-400 text-xs">
-                                    +{summary.passedTests.length - 3} more...
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Enlace a Maestro Cloud si está disponible */}
-                          {log.logs && log.logs.includes('https://app.maestro.dev/') && (
-                            <div className="mt-3">
-                              <a 
-                                href={log.logs.match(/https:\/\/app\.maestro\.dev\/[^\s]+/)?.[0]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-300 hover:text-blue-200 text-xs underline flex items-center space-x-1"
-                              >
-                                <span>View detailed results in Maestro Cloud</span>
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </a>
-                            </div>
-                          )}
-                          
-                          {summary.failedTests.length > 0 && (
-                            <div className="mt-3">
-                              <p className="text-red-300 text-xs font-medium mb-1">Failed Tests:</p>
-                              <div className="space-y-1">
-                                {summary.failedTests.slice(0, 3).map((test, i) => (
-                                  <div key={i} className="text-red-400 text-xs bg-red-900/20 rounded px-2 py-1">
-                                    {test}
-                                  </div>
-                                ))}
-                                {summary.failedTests.length > 3 && (
-                                  <div className="text-red-400 text-xs">
-                                    +{summary.failedTests.length - 3} more...
-              </div>
-                                )}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">Workflow Execution Logs</h3>
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${
+                currentLogs.run.status === 'completed' 
+                  ? 'bg-green-400' 
+                  : currentLogs.run.status === 'in_progress'
+                  ? 'bg-blue-400 animate-pulse'
+                  : 'bg-red-400'
+              }`}></div>
+              <span className="text-sm text-gray-400 capitalize">{currentLogs.run.status}</span>
             </div>
           </div>
+
+          {/* Test Results Summary */}
+          {currentLogs.logs.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+              <h4 className="text-md font-semibold text-white mb-3">Test Results Summary</h4>
+              {(() => {
+                const allLogs = currentLogs.logs.map(log => log.logs).join('\n')
+                const summary = extractTestSummary(allLogs)
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <span className="text-green-400">✓ {summary.passed} passed</span>
+                      <span className="text-red-400">✗ {summary.failed} failed</span>
+                      <span className="text-gray-400">⊘ {summary.skipped} skipped</span>
+                    </div>
+                    
+                    {summary.passedTests.length > 0 && (
+                      <div>
+                        <p className="text-sm text-green-400 font-medium mb-1">Passed Tests:</p>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          {summary.passedTests.slice(0, 3).map((test, index) => (
+                            <div key={index}>• {test}</div>
+                          ))}
+                          {summary.passedTests.length > 3 && (
+                            <div className="text-gray-400">+{summary.passedTests.length - 3} more...</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {summary.failedTests.length > 0 && (
+                      <div>
+                        <p className="text-sm text-red-400 font-medium mb-1">Failed Tests:</p>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          {summary.failedTests.slice(0, 3).map((test, index) => (
+                            <div key={index}>• {test}</div>
+                          ))}
+                          {summary.failedTests.length > 3 && (
+                            <div className="text-red-400 text-xs">+{summary.failedTests.length - 3} more...</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Jobs */}
+          {currentLogs.logs.map((log, index) => (
+            <div key={index} className="text-gray-300 space-y-2">
+              <div className="flex items-center space-x-3">
+                <span className="text-blue-300 font-medium">{log.jobName}</span>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  log.status === 'completed'
+                    ? 'bg-green-900 text-green-300'
+                    : log.status === 'in_progress'
+                    ? 'bg-blue-900 text-blue-300'
+                    : 'bg-gray-700 text-gray-300'
+                }`}>
+                  {log.status}
+                </span>
+              </div>
+
+              {log.logs && (
+                <div className="ml-4">
+                  <p className="text-sm text-gray-400 mb-1">Full Output:</p>
+                  <div className="bg-gray-800/30 rounded-md p-3 max-h-48 overflow-y-auto border-l-2 border-blue-500/30">
+                    <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                      {log.logs}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Message when no logs yet */}
+          {currentLogs.logs.length === 0 && (
+            <div className="text-gray-400 text-sm">
+              <p>Waiting for job execution to begin...</p>
+              <p className="text-xs mt-1">Logs will appear here as the workflow progresses</p>
+            </div>
+          )}
+
+          {/* Link to Maestro Cloud */}
+          {currentLogs.run.htmlUrl && (
+            <div className="mt-4 pt-4 border-t border-gray-700/50">
+              <a
+                href={currentLogs.run.htmlUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <span>View in Maestro Cloud</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
+          )}
+        </motion.div>
       )}
 
       {/* Workflow Preview Modal */}
