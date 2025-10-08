@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { workflowId, inputs, repository } = await request.json()
     
     const token = process.env.GITHUB_TOKEN
-    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
+    const owner = process.env.GITHUB_OWNER || 'cook-unity'
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
