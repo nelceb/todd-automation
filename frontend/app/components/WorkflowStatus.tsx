@@ -27,14 +27,17 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const [expandedRepository, setExpandedRepository] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchRepositories(githubToken)
-    fetchWorkflowRuns(githubToken)
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
+    // Only fetch data if we have a GitHub token
+    if (githubToken) {
       fetchRepositories(githubToken)
       fetchWorkflowRuns(githubToken)
-    }, 30000)
-    return () => clearInterval(interval)
+      // Refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchRepositories(githubToken)
+        fetchWorkflowRuns(githubToken)
+      }, 30000)
+      return () => clearInterval(interval)
+    }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
   const getStatusIcon = (status: string, conclusion?: string) => {
@@ -126,8 +129,41 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     run.status === 'completed'
   ).slice(0, 5) // Solo los últimos 5
 
+  // Show authentication required message if no GitHub token
+  if (!githubToken) {
+    return (
+      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
+          <p className="text-gray-400 mt-2 text-lg">
+            Real-time monitoring of test execution across multiple repositories
+          </p>
+        </div>
+        
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-3">GitHub Authentication Required</h3>
+            <p className="text-gray-400 mb-6">
+              Please connect to GitHub to view and manage your testing workflows.
+            </p>
+            <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
+              <p className="text-gray-300 text-sm">
+                Click the "Connect to GitHub" button in the header to get started.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-      <div className="max-w-[98vw] mx-auto px-6 sm:px-8 lg:px-12">
+      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
@@ -136,7 +172,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-16">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-20">
         {/* Available Repositories */}
         <div className="lg:col-span-1">
             <h3 className="text-2xl font-bold text-white mb-8 flex items-center space-x-3">
