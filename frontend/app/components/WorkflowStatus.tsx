@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   CheckCircleIcon, 
@@ -24,6 +24,7 @@ interface WorkflowStatusProps {
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories } = useWorkflowStore()
+  const [expandedRepository, setExpandedRepository] = useState<string | null>(null)
 
   useEffect(() => {
     fetchRepositories(githubToken)
@@ -126,7 +127,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ).slice(0, 5) // Solo los últimos 5
 
   return (
-    <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-[95vw] mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
@@ -135,7 +136,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Available Repositories */}
         <div className="lg:col-span-2">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
@@ -149,7 +150,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 key={repository.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer"
+                onClick={() => setExpandedRepository(expandedRepository === repository.name ? null : repository.name)}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1 min-w-0">
@@ -190,6 +192,44 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     ))}
                   </div>
                 </div>
+
+                {/* Expanded workflows section */}
+                {expandedRepository === repository.name && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 pt-4 border-t border-gray-700/50"
+                  >
+                    <h5 className="text-sm font-medium text-gray-300 mb-3">Workflows ({repository.workflow_count})</h5>
+                    <div className="space-y-2">
+                      {repository.workflows.slice(0, 5).map((workflow) => (
+                        <div key={workflow.id} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{workflow.name}</p>
+                            <p className="text-gray-400 text-xs">
+                              {workflow.state === 'active' ? 'Active' : 'Disabled'}
+                            </p>
+                          </div>
+                          <a
+                            href={workflow.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-400 hover:text-white transition-colors ml-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                          </a>
+                        </div>
+                      ))}
+                      {repository.workflow_count > 5 && (
+                        <p className="text-gray-400 text-xs text-center py-2">
+                          +{repository.workflow_count - 5} more workflows
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             ))}
           </div>

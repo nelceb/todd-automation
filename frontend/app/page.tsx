@@ -84,17 +84,23 @@ export default function Home() {
               {/* Logo Google-style */}
               <div className="flex items-center space-x-2">
                 <motion.div 
-                  className="w-8 h-8 bg-gradient-to-br from-airforce-500 to-asparagus-500 rounded-lg flex items-center justify-center shadow-sm"
-                  animate={{ 
-                    scale: [1, 1.05, 1]
-                  }}
-                  transition={{ 
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
+                  className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center shadow-sm border border-gray-600"
                 >
-                  <span className="text-white font-bold text-sm">CU</span>
+                  <motion.div
+                    className="w-6 h-6 text-yellow-400"
+                    animate={{ 
+                      rotate: 360
+                    }}
+                    transition={{ 
+                      duration: 8,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                  </motion.div>
                 </motion.div>
                 <span className="text-white font-medium">Test Runner AI</span>
               </div>
