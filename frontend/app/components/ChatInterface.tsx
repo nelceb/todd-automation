@@ -14,6 +14,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
+import WorkflowPreviewComponent from './WorkflowPreview'
 import toast from 'react-hot-toast'
 
 interface Message {
@@ -200,8 +201,9 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
+  const [showPreview, setShowPreview] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { triggerWorkflow, startPollingLogs, currentLogs, isPollingLogs } = useWorkflowStore()
+  const { triggerWorkflow, startPollingLogs, currentLogs, isPollingLogs, previewWorkflows, workflowPreview } = useWorkflowStore()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -259,65 +261,97 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: input.trim(),
-      timestamp: new Date()
-    }
-
-    // Limpiar mensajes anteriores y solo mostrar el último
-    setMessages([userMessage])
+    const userMessage = input.trim()
     setInput('')
     setIsLoading(true)
 
+    // Clear previous messages and add new user message
+    setMessages([{
+      id: Date.now().toString(),
+      type: 'user',
+      content: userMessage,
+      timestamp: new Date()
+    }])
+
     try {
-      // Enviar mensaje al LLM para procesar
+      // First, get preview of workflows
+      const preview = await previewWorkflows(userMessage)
+      
+      if (preview && preview.workflows.length > 0) {
+        // Show preview modal
+        setShowPreview(true)
+        setIsLoading(false)
+        return
+      }
+
+      // If no preview or single workflow, execute directly
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input.trim() })
+        body: JSON.stringify({ message: userMessage })
       })
 
-      if (!response.ok) throw new Error('Error al procesar mensaje')
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`)
+      }
 
       const data = await response.json()
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: data.response,
-        timestamp: new Date(),
-        workflowTriggered: data.workflowTriggered
-      }
-
-      setMessages((prev: Message[]) => [...prev, assistantMessage])
-
-      // Si se activó un workflow, ejecutarlo
       if (data.workflowTriggered) {
-            const result = await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
-            toast.success(`Workflow "${data.workflowTriggered.name}" executed successfully`)
-            onWorkflowExecuted() // Trigger glow effect
+        // Execute workflow
+        const result = await triggerWorkflow(
+          data.workflowTriggered.workflowId, 
+          data.workflowTriggered.inputs,
+          githubToken
+        )
 
-            // Start polling logs if we have a run ID
-            if (result && result.runId) {
-              startPollingLogs(result.runId.toString(), githubToken)
-            }
+        if (result && result.runId) {
+          // Start polling for logs
+          startPollingLogs(result.runId, githubToken)
+        }
+
+        // Add assistant response
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: data.response || 'Workflow executed successfully',
+          timestamp: new Date(),
+          workflowResult: result
+        }])
+
+        // Trigger workflow executed callback
+        onWorkflowExecuted()
+      } else {
+        // Add assistant response without workflow
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: data.response || 'I understand your request',
+          timestamp: new Date()
+        }])
       }
-
     } catch (error) {
-      const errorMessage: Message = {
+      console.error('Error:', error)
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, there was an error processing your request. Please try again.',
+        content: 'Sorry, I encountered an error processing your request.',
         timestamp: new Date()
-      }
-      setMessages((prev: Message[]) => [...prev, errorMessage])
-      toast.error('Error processing request')
+      }])
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleExecuteFromPreview = () => {
+    setShowPreview(false)
+    // The WorkflowPreview component will handle the execution
+    onWorkflowExecuted()
+  }
+
+  const handleCancelPreview = () => {
+    setShowPreview(false)
+    setIsLoading(false)
   }
 
   const handleMicrophoneClick = () => {
@@ -550,57 +584,22 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                                 {summary.failedTests.length > 3 && (
                                   <div className="text-red-400 text-xs">
                                     +{summary.failedTests.length - 3} more...
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* Jobs - Estilo texto fluido */}
-                {currentLogs.logs.map((log, index) => (
-                  <div key={index} className="text-gray-300 space-y-2">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-blue-300 font-medium">{log.jobName}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        log.status === 'completed'
-                          ? 'bg-green-900 text-green-300'
-                          : log.status === 'in_progress'
-                          ? 'bg-blue-900 text-blue-300'
-                          : 'bg-gray-700 text-gray-300'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </div>
-
-                    {log.logs && (
-                      <div className="ml-4">
-                        <p className="text-sm text-gray-400 mb-1">Full Output:</p>
-                        <div className="bg-gray-800/30 rounded-md p-3 max-h-48 overflow-y-auto border-l-2 border-blue-500/30">
-                          <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
-                            {log.logs}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
               </div>
-                ))}
-
-                {/* Mensaje cuando no hay logs aún */}
-                {currentLogs.logs.length === 0 && (
-                  <div className="text-gray-400 text-sm">
-                    <p>Waiting for job execution to begin...</p>
-                    <p className="text-xs mt-1">Logs will appear here as the workflow progresses</p>
+                                )}
             </div>
-                )}
           </div>
-        </motion.div>
       )}
 
+      {/* Workflow Preview Modal */}
+      {showPreview && (
+        <WorkflowPreviewComponent
+          onExecute={handleExecuteFromPreview}
+          onCancel={handleCancelPreview}
+        />
+      )}
+    </div>
+  )
+}
       {/* Input y sugerencias al final - Como Google AI */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
         {/* Input principal estilo Google */}
@@ -667,3 +666,4 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     </div>
   )
 }
+

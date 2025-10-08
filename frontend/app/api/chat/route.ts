@@ -28,7 +28,7 @@ const WORKFLOW_MAPPING = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message } = await request.json()
+    const { message, preview = false } = await request.json()
 
     // Procesar el mensaje con OpenAI
     const completion = await openai.chat.completions.create({
@@ -149,6 +149,29 @@ IMPORTANT:
 - If environment not specified, default to "prod"
 - For Playwright: use appropriate groups (@e2e, @landings, @signup, @growth, @visual, @lighthouse)
 - For Selenium: use appropriate groups (e2e, api, mobile, regression, logistics, menu, kitchen)
+
+RESPONSE FORMAT:
+If preview=true, return:
+{
+  "workflows": [
+    {
+      "repository": "Cook-Unity/maestro-test",
+      "workflowName": "iOS Maestro Cloud Tests",
+      "technology": "maestro",
+      "inputs": {"test_suite": "login"},
+      "description": "Execute iOS Maestro login tests"
+    }
+  ],
+  "totalWorkflows": 1,
+  "technologies": ["maestro"]
+}
+
+If preview=false, return:
+{
+  "workflowId": "ios-maestro-tests.yml",
+  "name": "iOS Maestro Cloud Tests",
+  "inputs": {"test_suite": "login"}
+}
 - "Run Maestro BrowserStack iOS" → for Maestro tests on iOS with BrowserStack
 - "Run Maestro BrowserStack" → for generic Maestro tests with BrowserStack
 - "Run Maestro LambdaTest Simple" → for simple Maestro tests with LambdaTest
@@ -172,12 +195,12 @@ Environments:
 PRIORITY: If specific platform (iOS/Android) and environment (prod/qa) are mentioned, use the specific workflow.
 
     Always respond in JSON format with:
-    {
+{
       "response": "I will execute [type] tests in [environment]",
-      "workflowTriggered": {
+  "workflowTriggered": {
         "workflowId": "ios-maestro-tests.yml",
         "name": "iOS Maestro Cloud Tests",
-        "inputs": {
+    "inputs": {
           "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
           "bitrise_build_number": "",
           "user_email": "email@example.com", // Only include if user specifies an email
@@ -227,7 +250,7 @@ IMPORTANT: The iOS Maestro Cloud Tests workflow accepts these test_suite values:
         },
         {
           role: "user",
-          content: message
+          content: preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
         }
       ],
       temperature: 0.3,

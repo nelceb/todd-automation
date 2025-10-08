@@ -65,10 +65,25 @@ export interface WorkflowLogs {
   }>
 }
 
+export interface WorkflowPreview {
+  repository: string
+  workflowName: string
+  technology: string
+  inputs: Record<string, any>
+  description: string
+}
+
+export interface MultiWorkflowExecution {
+  workflows: WorkflowPreview[]
+  totalWorkflows: number
+  technologies: string[]
+}
+
 interface WorkflowStore {
   workflows: Workflow[]
   workflowRuns: WorkflowRun[]
   repositories: Repository[]
+  workflowPreview: MultiWorkflowExecution | null
   isLoading: boolean
   error: string | null
   githubToken: string
@@ -79,18 +94,22 @@ interface WorkflowStore {
   fetchWorkflows: (token?: string) => Promise<void>
   fetchWorkflowRuns: (token?: string) => Promise<void>
   fetchRepositories: (token?: string) => Promise<void>
+  previewWorkflows: (command: string) => Promise<MultiWorkflowExecution | null>
   triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string) => Promise<any>
+  triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string) => Promise<any[]>
   fetchWorkflowLogs: (runId: string, token?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string) => void
   stopPollingLogs: () => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
+  clearPreview: () => void
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   workflows: [],
   workflowRuns: [],
   repositories: [],
+  workflowPreview: null,
   isLoading: false,
   error: null,
   githubToken: '',
@@ -182,6 +201,44 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   setError: (error) => set({ error }),
   setGithubToken: (token) => set({ githubToken: token }),
+
+  previewWorkflows: async (command: string) => {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: command, preview: true })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      set({ workflowPreview: data })
+      return data
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Error generating preview' })
+      return null
+    }
+  },
+
+  triggerMultipleWorkflows: async (workflows: WorkflowPreview[], token?: string) => {
+    const results = []
+    for (const workflow of workflows) {
+      try {
+        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token)
+        results.push({ ...result, workflow })
+      } catch (error) {
+        results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
+      }
+    }
+    return results
+  },
+
+  clearPreview: () => {
+    set({ workflowPreview: null })
+  },
 
   fetchWorkflowLogs: async (runId: string, token?: string) => {
     try {
