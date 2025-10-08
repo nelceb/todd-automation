@@ -83,6 +83,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     )
   }
 
+  const extractEnvironmentFromName = (workflowName: string): string => {
+    const name = workflowName.toLowerCase()
+    if (name.includes('prod')) return 'prod'
+    if (name.includes('qa')) return 'qa'
+    if (name.includes('staging')) return 'staging'
+    return 'unknown'
+  }
+
   if (error) {
     return (
       <div className="bg-red-900 border border-red-700 rounded-lg p-6">
@@ -129,7 +137,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </div>
         <button
           onClick={() => {
-            fetchWorkflows(githubToken)
+            fetchRepositories(githubToken)
             fetchWorkflowRuns(githubToken)
           }}
           disabled={isLoading}
@@ -145,32 +153,42 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         <div>
             <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
               <PlayIcon className="w-5 h-5" />
-              <span>Available Workflows</span>
+              <span>Available Repositories</span>
             </h3>
           
           <div className="space-y-3">
-            {workflows.map((workflow) => (
+            {repositories.map((repository) => (
               <motion.div
-                key={workflow.id}
+                key={repository.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:bg-gray-700 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-white font-medium">{workflow.name}</h4>
+                    <h4 className="text-white font-medium">{repository.name}</h4>
                     <p className="text-gray-400 text-sm">
-                      {workflow.path.replace('.github/workflows/', '')}
+                      {repository.technology} • {repository.workflow_count} workflows
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      workflow.state === 'active' 
-                        ? 'bg-green-900 text-green-300' 
-                        : 'bg-gray-700 text-gray-400'
+                      repository.technology === 'maestro' 
+                        ? 'bg-blue-900 text-blue-300' 
+                        : repository.technology === 'playwright'
+                        ? 'bg-green-900 text-green-300'
+                        : 'bg-orange-900 text-orange-300'
                     }`}>
-                        {workflow.state === 'active' ? 'Active' : 'Inactive'}
+                        {repository.technology.toUpperCase()}
                     </span>
+                    <a
+                      href={repository.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                    </a>
                   </div>
                 </div>
               </motion.div>
@@ -209,7 +227,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   
                   <div className="text-sm text-gray-400 space-y-1">
                     <div className="flex items-center space-x-4">
-                        <span>Environment: {getEnvironmentBadge(run.environment)}</span>
+                        <span>Environment: {getEnvironmentBadge(extractEnvironmentFromName(run.name))}</span>
                         {run.platform && <span>Platform: {run.platform}</span>}
                     </div>
                     <div className="flex items-center justify-between">
@@ -248,7 +266,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(run.status, run.conclusion)}
                         <span className="text-white text-sm">{run.name}</span>
-                        {getEnvironmentBadge(run.environment)}
+                        {getEnvironmentBadge(extractEnvironmentFromName(run.name))}
                       </div>
                       <span className="text-gray-400 text-xs">
                         {formatDistanceToNow(new Date(run.created_at), { 
