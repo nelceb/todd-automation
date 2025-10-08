@@ -16,7 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStore'
 import { formatDistanceToNow } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { enUS } from 'date-fns/locale'
 
 interface WorkflowStatusProps {
   githubToken?: string
@@ -141,7 +141,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             fetchWorkflowRuns(githubToken)
           }}
           disabled={isLoading}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2 shadow-lg"
+          className="px-6 py-3 bg-airforce-600 text-white rounded-lg hover:bg-airforce-700 disabled:opacity-50 transition-colors flex items-center space-x-2 shadow-lg"
         >
           <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -152,7 +152,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Available Repositories */}
         <div className="xl:col-span-1">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
-              <PlayIcon className="w-6 h-6 text-blue-400" />
+              <PlayIcon className="w-6 h-6 text-airforce-400" />
               <span>Available Repositories</span>
             </h3>
           
@@ -189,10 +189,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 <div className="flex items-center justify-between">
                   <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                     repository.technology === 'maestro' 
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
+                      ? 'bg-airforce-500/20 text-airforce-300 border border-airforce-500/30' 
                       : repository.technology === 'playwright'
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                      : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+                      ? 'bg-asparagus-500/20 text-asparagus-300 border border-asparagus-500/30'
+                      : 'bg-earth-500/20 text-earth-300 border border-earth-500/30'
                   }`}>
                       {repository.technology.toUpperCase()}
                   </span>
@@ -216,7 +216,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Running Workflows */}
         <div className="xl:col-span-1">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
-              <ArrowPathIcon className="w-6 h-6 text-green-400" />
+              <ArrowPathIcon className="w-6 h-6 text-asparagus-400" />
               <span>Running</span>
             </h3>
           
@@ -270,7 +270,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       <span>
                         Started: {formatDistanceToNow(new Date(run.created_at), { 
                           addSuffix: true, 
-                          locale: es 
+                          locale: enUS 
                         })}
                       </span>
                     </div>
@@ -308,7 +308,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       <span className="text-gray-400 text-xs flex-shrink-0 ml-3">
                         {formatDistanceToNow(new Date(run.created_at), { 
                           addSuffix: true, 
-                          locale: es 
+                          locale: enUS 
                         })}
                       </span>
                     </div>

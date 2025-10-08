@@ -8,17 +8,67 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Subtle color palette inspired by earthy tones
+        redwood: {
+          50: '#fdf2f2',
+          100: '#fce7e7',
+          200: '#f8d1d2',
+          300: '#f1a8aa',
+          400: '#e87578',
+          500: '#A63D40', // Main redwood
+          600: '#8a3235',
+          700: '#6e282a',
+          800: '#5a2123',
+          900: '#4a1c1e',
+        },
+        earth: {
+          50: '#fefbf5',
+          100: '#fdf6e8',
+          200: '#f9ecc5',
+          300: '#f4dd9a',
+          400: '#eec86f',
+          500: '#E9B872', // Main earth yellow
+          600: '#d4a565',
+          700: '#b89058',
+          800: '#9c7b4b',
+          900: '#80663e',
+        },
+        asparagus: {
+          50: '#f6f8f2',
+          100: '#eef2e6',
+          200: '#dde5cc',
+          300: '#c5d3a8',
+          400: '#a8c080',
+          500: '#90A959', // Main asparagus
+          600: '#7d954a',
+          700: '#6a813b',
+          800: '#576d2f',
+          900: '#475925',
+        },
+        airforce: {
+          50: '#f0f4f7',
+          100: '#e1e9ef',
+          200: '#c3d3df',
+          300: '#a5bdcf',
+          400: '#87a7bf',
+          500: '#6494AA', // Main air force blue
+          600: '#5a8399',
+          700: '#507288',
+          800: '#466177',
+          900: '#3c5066',
+        },
+        // Keep primary for compatibility
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#f0f4f7',
+          100: '#e1e9ef',
+          200: '#c3d3df',
+          300: '#a5bdcf',
+          400: '#87a7bf',
+          500: '#6494AA',
+          600: '#5a8399',
+          700: '#507288',
+          800: '#466177',
+          900: '#3c5066',
         },
         gray: {
           50: '#f9fafb',
