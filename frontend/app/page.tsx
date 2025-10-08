@@ -9,8 +9,7 @@ import {
   MagnifyingGlassIcon,
   MicrophoneIcon,
   PhotoIcon,
-  PlusIcon,
-  SparklesIcon
+  PlusIcon
 } from '@heroicons/react/24/outline'
 import ChatInterface from './components/ChatInterface'
 import WorkflowStatus from './components/WorkflowStatus'
@@ -85,34 +84,17 @@ export default function Home() {
               {/* Logo Google-style */}
               <div className="flex items-center space-x-2">
                 <motion.div 
-                  className="w-8 h-8 bg-gradient-to-br from-airforce-500 to-asparagus-500 rounded-lg flex items-center justify-center shadow-lg"
+                  className="w-8 h-8 bg-gradient-to-br from-airforce-500 to-asparagus-500 rounded-lg flex items-center justify-center shadow-sm"
                   animate={{ 
-                    rotate: [0, 360],
-                    scale: [1, 1.2, 1],
-                    boxShadow: [
-                      "0 0 0 0 rgba(100, 148, 170, 0.4)",
-                      "0 0 0 8px rgba(100, 148, 170, 0.1)",
-                      "0 0 0 0 rgba(100, 148, 170, 0.4)"
-                    ]
+                    scale: [1, 1.05, 1]
                   }}
                   transition={{ 
-                    duration: 3,
+                    duration: 4,
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
                 >
-                  <motion.div
-                    animate={{
-                      rotate: [0, -360]
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "linear"
-                    }}
-                  >
-                    <SparklesIcon className="w-5 h-5 text-white" />
-                  </motion.div>
+                  <span className="text-white font-bold text-sm">CU</span>
                 </motion.div>
                 <span className="text-white font-medium">Test Runner AI</span>
               </div>

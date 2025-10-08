@@ -356,7 +356,7 @@ export default function ChatInterface({
             className="flex items-start space-x-4 py-2"
           >
             {/* Timestamp */}
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
               {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
             </div>
             
@@ -368,11 +368,11 @@ export default function ChatInterface({
                     ? 'bg-airforce-400' 
                     : 'bg-asparagus-400'
                 }`}></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                   {message.type === 'user' ? 'COMMAND' : 'EXECUTION'}
                 </span>
               </div>
-              <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono">
+              <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
                 {message.content}
               </p>
             </div>
@@ -386,17 +386,17 @@ export default function ChatInterface({
             animate={{ opacity: 1, x: 0 }}
             className="flex items-start space-x-4 py-2"
           >
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
               now
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3 mb-1">
                 <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                   PROCESSING
                 </span>
               </div>
-              <p className="text-gray-200 text-sm leading-relaxed font-mono">
+              <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
                 Processing your request...
               </p>
             </div>
@@ -414,7 +414,7 @@ export default function ChatInterface({
           {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
             <div key={index} className="flex items-start space-x-4 py-2">
               {/* Timestamp */}
-              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                 now
               </div>
               
@@ -422,7 +422,7 @@ export default function ChatInterface({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-1">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                     WORKFLOW
                   </span>
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -435,7 +435,7 @@ export default function ChatInterface({
                     {workflow.technology.toUpperCase()}
                   </span>
                 </div>
-                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
+                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
                   <div>→ {workflow.workflowName}</div>
                   <div className="text-gray-400 text-xs">  Repository: {workflow.repository}</div>
                   {Object.keys(workflow.inputs).length > 0 && (
@@ -462,7 +462,7 @@ export default function ChatInterface({
         >
           {/* Status log entry */}
           <div className="flex items-start space-x-4 py-2">
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
               now
             </div>
             <div className="flex-1 min-w-0">
@@ -474,14 +474,14 @@ export default function ChatInterface({
                     ? 'bg-blue-400 animate-pulse'
                     : 'bg-red-400'
                 }`}></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                   STATUS
                 </span>
                 <span className="text-xs text-gray-500 capitalize">
                   {currentLogs.run.status}
                 </span>
               </div>
-              <p className="text-gray-200 text-sm leading-relaxed font-mono">
+              <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
                 Workflow execution {currentLogs.run.status}
               </p>
             </div>

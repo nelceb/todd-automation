@@ -126,31 +126,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ).slice(0, 5) // Solo los últimos 5
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 space-y-4 sm:space-y-0">
-        <div className="flex-1">
-            <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
-            <p className="text-gray-400 mt-2 text-lg">
-              Real-time monitoring of test execution across multiple repositories
-            </p>
-        </div>
-        <button
-          onClick={() => {
-            fetchRepositories(githubToken)
-            fetchWorkflowRuns(githubToken)
-          }}
-          disabled={isLoading}
-          className="px-6 py-3 bg-airforce-600 text-white rounded-lg hover:bg-airforce-700 disabled:opacity-50 transition-colors flex items-center space-x-2 shadow-lg"
-        >
-          <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-        </button>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
+        <p className="text-gray-400 mt-2 text-lg">
+          Real-time monitoring of test execution across multiple repositories
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Available Repositories */}
-        <div className="xl:col-span-2">
+        <div className="lg:col-span-2">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
               <PlayIcon className="w-6 h-6 text-airforce-400" />
               <span>Available Repositories</span>
@@ -209,7 +196,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </div>
 
         {/* Running Workflows */}
-        <div className="xl:col-span-1">
+        <div className="lg:col-span-1">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
               <ArrowPathIcon className="w-6 h-6 text-asparagus-400" />
               <span>Running</span>
@@ -275,41 +262,49 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             </div>
           )}
 
-          {/* Recent History */}
-          {completedWorkflows.length > 0 && (
-            <div className="mt-8">
-                <h4 className="text-lg font-medium text-white mb-4 flex items-center space-x-2">
-                  <ClockIcon className="w-5 h-5 text-gray-400" />
-                  <span>Recent History</span>
-                </h4>
-              <div className="space-y-3">
-                {completedWorkflows.map((run) => (
-                  <motion.div
-                    key={run.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-gray-800/30 rounded-lg border border-gray-700/50 p-4 hover:bg-gray-800/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        {getStatusIcon(run.status, run.conclusion)}
-                        <div className="flex-1 min-w-0">
-                          <span className="text-white text-sm font-medium truncate block">{run.name}</span>
-                          <div className="flex items-center space-x-2 mt-1">
-                            {getEnvironmentBadge(extractEnvironmentFromName(run.name))}
-                          </div>
+        </div>
+
+        {/* Recent History */}
+        <div className="lg:col-span-1">
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
+              <ClockIcon className="w-6 h-6 text-gray-400" />
+              <span>Recent History</span>
+            </h3>
+          
+          {completedWorkflows.length === 0 ? (
+            <div className="text-center py-12 bg-gray-800/30 rounded-xl border border-gray-700/50">
+              <ClockIcon className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400 text-sm">No recent history</p>
+              <p className="text-gray-500 text-xs mt-1">Completed workflows will appear here</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {completedWorkflows.map((run) => (
+                <motion.div
+                  key={run.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="bg-gray-800/30 rounded-lg border border-gray-700/50 p-4 hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      {getStatusIcon(run.status, run.conclusion)}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-white text-sm font-medium truncate block">{run.name}</span>
+                        <div className="flex items-center space-x-2 mt-1">
+                          {getEnvironmentBadge(extractEnvironmentFromName(run.name))}
                         </div>
                       </div>
-                      <span className="text-gray-400 text-xs flex-shrink-0 ml-3">
-                        {formatDistanceToNow(new Date(run.created_at), { 
-                          addSuffix: true, 
-                          locale: enUS 
-                        })}
-                      </span>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
+                    <span className="text-gray-400 text-xs flex-shrink-0 ml-3">
+                      {formatDistanceToNow(new Date(run.created_at), { 
+                        addSuffix: true, 
+                        locale: enUS 
+                      })}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           )}
         </div>
