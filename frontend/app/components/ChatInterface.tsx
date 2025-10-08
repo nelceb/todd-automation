@@ -657,8 +657,8 @@ export default function ChatInterface({
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Run login tests in prod for iOS"
-                className="google-input w-full max-w-6xl pr-24 pl-6 py-4 text-lg"
+                placeholder="Enter your test command..."
+                className="w-full max-w-7xl pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
                 disabled={isLoading}
               />
 
@@ -678,7 +678,7 @@ export default function ChatInterface({
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="google-button disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
                 >
                   <PaperAirplaneIcon className="w-5 h-5" />
                 </button>
