@@ -205,7 +205,7 @@ export default function ChatInterface({
       
       if (preview && preview.workflows.length > 0) {
         // Execute all workflows directly and show info in logs
-        const results = []
+        const results: any[] = []
         for (const workflow of preview.workflows) {
           try {
             const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken)
