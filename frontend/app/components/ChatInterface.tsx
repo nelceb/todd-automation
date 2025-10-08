@@ -179,7 +179,9 @@ export default function ChatInterface({
 
     try {
       // First, get preview of workflows
+      console.log('Getting preview for message:', userMessage)
       const preview = await previewWorkflows(userMessage)
+      console.log('Preview result:', preview)
       
       if (preview && preview.workflows.length > 0) {
         // Clear previous multiple logs
@@ -191,7 +193,9 @@ export default function ChatInterface({
         
         for (const workflow of preview.workflows) {
           try {
+            console.log('Executing workflow:', workflow.workflowName, 'with inputs:', workflow.inputs)
             const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken)
+            console.log('Workflow result:', result)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
