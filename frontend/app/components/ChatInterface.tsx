@@ -25,6 +25,7 @@ interface Message {
   timestamp: Date
   workflowResult?: any
   workflowTriggered?: any
+  workflowPreview?: any
 }
 
 interface TestSuggestion {
