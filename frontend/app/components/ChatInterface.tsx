@@ -28,13 +28,6 @@ interface Message {
   workflowPreview?: any
 }
 
-interface TestSuggestion {
-  text: string
-  tag: string
-  environment: string
-  platform: string
-  category: string
-}
 
 interface ChatInterfaceProps {
   githubToken?: string
@@ -118,7 +111,6 @@ export default function ChatInterface({
 }: ChatInterfaceProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -153,19 +145,6 @@ export default function ChatInterface({
     }
   }, [])
 
-  // Load dynamic suggestions
-  useEffect(() => {
-    async function fetchSuggestions() {
-      try {
-        const response = await fetch('/api/test-tags')
-        const data = await response.json()
-        setSuggestions(data.suggestions || [])
-      } catch (error) {
-        console.error('Error loading suggestions:', error)
-      }
-    }
-    fetchSuggestions()
-  }, [])
 
   // Configure voice recognition
   useEffect(() => {
@@ -708,27 +687,6 @@ export default function ChatInterface({
           </form>
         </motion.div>
 
-        {/* Sugerencias dinámicas estilo Google */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex justify-center"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
-            {suggestions.slice(0, 4).map((suggestion, index) => (
-              <button
-                key={index}
-                onClick={() => setInput(suggestion.text)}
-                className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
-              >
-                <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
-                  {suggestion.text}
-                </span>
-              </button>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </div>
   )

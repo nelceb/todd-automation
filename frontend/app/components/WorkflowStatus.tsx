@@ -175,91 +175,97 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       {/* Log-style workflow information */}
       <div className="flex justify-center">
         <div className="max-w-4xl w-full space-y-3">
-        {/* Available Repositories - Log style */}
-        <div className="flex items-start space-x-4 py-2">
-          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-            now
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-1">
-              <div className="w-2 h-2 rounded-full bg-airforce-400"></div>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                REPOSITORIES
-              </span>
+        {/* Available Repositories - Log style with subtle card */}
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+          <div className="flex items-start space-x-4 py-2">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+              now
             </div>
-            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-              <div>→ {repositories.length} repositories available</div>
-              {repositories.map((repository) => (
-                <div key={repository.id} className="text-gray-400 text-xs">
-                  <div>  {repository.name}: {repository.technology} • {repository.workflow_count} workflows</div>
-                  <div className="ml-2">    Platforms: {repository.platforms.join(', ')}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Running Workflows - Log style */}
-        <div className="flex items-start space-x-4 py-2">
-          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-            now
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-1">
-              <div className={`w-2 h-2 rounded-full ${
-                runningWorkflows.length > 0 ? 'bg-asparagus-400 animate-pulse' : 'bg-gray-400'
-              }`}></div>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                RUNNING
-              </span>
-            </div>
-            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-              {runningWorkflows.length === 0 ? (
-                <div>→ No workflows currently running</div>
-              ) : (
-                <>
-                  <div>→ {runningWorkflows.length} workflow{runningWorkflows.length > 1 ? 's' : ''} in progress</div>
-                  {runningWorkflows.map((run) => (
-                    <div key={run.id} className="text-gray-400 text-xs">
-                      <div>  {run.name}</div>
-                      <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
-                      <div className="ml-2">    Started: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
-                    </div>
-                  ))}
-                </>
-              )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className="w-2 h-2 rounded-full bg-airforce-400"></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                  REPOSITORIES
+                </span>
+              </div>
+              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                <div>→ {repositories.length} repositories available</div>
+                {repositories.map((repository) => (
+                  <div key={repository.id} className="text-gray-400 text-xs">
+                    <div>  {repository.name}: {repository.technology} • {repository.workflow_count} workflows</div>
+                    <div className="ml-2">    Platforms: {repository.platforms.join(', ')}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Recent History - Log style */}
-        <div className="flex items-start space-x-4 py-2">
-          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-            now
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3 mb-1">
-              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                HISTORY
-              </span>
+        {/* Running Workflows - Log style with subtle card */}
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+          <div className="flex items-start space-x-4 py-2">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+              now
             </div>
-            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-              {completedWorkflows.length === 0 ? (
-                <div>→ No recent workflow history</div>
-              ) : (
-                <>
-                  <div>→ {completedWorkflows.length} recent completed workflow{completedWorkflows.length > 1 ? 's' : ''}</div>
-                  {completedWorkflows.map((run) => (
-                    <div key={run.id} className="text-gray-400 text-xs">
-                      <div>  {run.name}</div>
-                      <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
-                      <div className="ml-2">    Status: {run.conclusion === 'success' ? 'SUCCESS' : 'FAILURE'}</div>
-                      <div className="ml-2">    Completed: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
-                    </div>
-                  ))}
-                </>
-              )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  runningWorkflows.length > 0 ? 'bg-asparagus-400 animate-pulse' : 'bg-gray-400'
+                }`}></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                  RUNNING
+                </span>
+              </div>
+              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                {runningWorkflows.length === 0 ? (
+                  <div>→ No workflows currently running</div>
+                ) : (
+                  <>
+                    <div>→ {runningWorkflows.length} workflow{runningWorkflows.length > 1 ? 's' : ''} in progress</div>
+                    {runningWorkflows.map((run) => (
+                      <div key={run.id} className="text-gray-400 text-xs">
+                        <div>  {run.name}</div>
+                        <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
+                        <div className="ml-2">    Started: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent History - Log style with subtle card */}
+        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+          <div className="flex items-start space-x-4 py-2">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+              now
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                  HISTORY
+                </span>
+              </div>
+              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                {completedWorkflows.length === 0 ? (
+                  <div>→ No recent workflow history</div>
+                ) : (
+                  <>
+                    <div>→ {completedWorkflows.length} recent completed workflow{completedWorkflows.length > 1 ? 's' : ''}</div>
+                    {completedWorkflows.map((run) => (
+                      <div key={run.id} className="text-gray-400 text-xs">
+                        <div>  {run.name}</div>
+                        <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
+                        <div className="ml-2">    Status: {run.conclusion === 'success' ? 'SUCCESS' : 'FAILURE'}</div>
+                        <div className="ml-2">    Completed: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
