@@ -15,6 +15,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
 import toast from 'react-hot-toast'
+import { formatDistanceToNow } from 'date-fns'
+import { enUS } from 'date-fns/locale'
 
 interface Message {
   id: string
@@ -293,16 +295,6 @@ export default function ChatInterface({
     }
   }
 
-  const handleExecuteFromPreview = () => {
-    setShowPreview(false)
-    // The WorkflowPreview component will handle the execution
-    onWorkflowExecuted()
-  }
-
-  const handleCancelPreview = () => {
-    setShowPreview(false)
-    setIsLoading(false)
-  }
 
   const handleMicrophoneClick = () => {
     if (!recognition) {
@@ -607,13 +599,6 @@ export default function ChatInterface({
         </motion.div>
       )}
 
-      {/* Workflow Preview Modal */}
-      {showPreview && (
-        <WorkflowPreviewComponent
-          onExecute={handleExecuteFromPreview}
-          onCancel={handleCancelPreview}
-        />
-      )}
 
       {/* Input y sugerencias al final - Como Google AI */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-6xl px-4">

@@ -156,18 +156,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
               <span>Available Repositories</span>
             </h3>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-4">
             {repositories.map((repository) => (
               <motion.div
                 key={repository.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-semibold text-base mb-1 truncate">{repository.name}</h4>
-                    <p className="text-gray-400 text-xs">
+                    <h4 className="text-white font-semibold text-lg mb-2 truncate">{repository.name}</h4>
+                    <p className="text-gray-400 text-sm">
                       {repository.technology} • {repository.workflow_count} workflows
                     </p>
                   </div>
@@ -175,14 +175,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     href={repository.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors ml-3 flex-shrink-0"
+                    className="text-gray-400 hover:text-white transition-colors ml-4 flex-shrink-0"
                   >
-                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                    <ArrowTopRightOnSquareIcon className="w-5 h-5" />
                   </a>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${
                     repository.technology === 'maestro' 
                       ? 'bg-airforce-500/20 text-airforce-300 border border-airforce-500/30' 
                       : repository.technology === 'playwright'
@@ -192,11 +192,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       {repository.technology.toUpperCase()}
                   </span>
                   
-                  <div className="flex space-x-1">
+                  <div className="flex space-x-2">
                     {repository.platforms.map((platform) => (
                       <span
                         key={platform}
-                        className="px-1.5 py-0.5 bg-gray-700/50 text-gray-300 text-xs rounded-md"
+                        className="px-2 py-1 bg-gray-700/50 text-gray-300 text-xs rounded-md"
                       >
                         {platform}
                       </span>

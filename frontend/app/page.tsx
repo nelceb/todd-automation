@@ -85,18 +85,34 @@ export default function Home() {
               {/* Logo Google-style */}
               <div className="flex items-center space-x-2">
                 <motion.div 
-                  className="w-8 h-8 bg-gradient-to-br from-airforce-500 to-asparagus-500 rounded-lg flex items-center justify-center"
+                  className="w-8 h-8 bg-gradient-to-br from-airforce-500 to-asparagus-500 rounded-lg flex items-center justify-center shadow-lg"
                   animate={{ 
                     rotate: [0, 360],
-                    scale: [1, 1.1, 1]
+                    scale: [1, 1.2, 1],
+                    boxShadow: [
+                      "0 0 0 0 rgba(100, 148, 170, 0.4)",
+                      "0 0 0 8px rgba(100, 148, 170, 0.1)",
+                      "0 0 0 0 rgba(100, 148, 170, 0.4)"
+                    ]
                   }}
                   transition={{ 
-                    duration: 4,
+                    duration: 3,
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
                 >
-                  <SparklesIcon className="w-5 h-5 text-white" />
+                  <motion.div
+                    animate={{
+                      rotate: [0, -360]
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                  >
+                    <SparklesIcon className="w-5 h-5 text-white" />
+                  </motion.div>
                 </motion.div>
                 <span className="text-white font-medium">Test Runner AI</span>
               </div>
