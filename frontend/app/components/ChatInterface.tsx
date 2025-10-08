@@ -254,7 +254,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
         workflowTriggered: data.workflowTriggered
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages((prev: Message[]) => [...prev, assistantMessage])
 
       // Si se activó un workflow, ejecutarlo
       if (data.workflowTriggered) {
@@ -275,7 +275,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
         content: 'Sorry, there was an error processing your request. Please try again.',
         timestamp: new Date()
       }
-      setMessages(prev => [...prev, errorMessage])
+      setMessages((prev: Message[]) => [...prev, errorMessage])
       toast.error('Error processing request')
     } finally {
       setIsLoading(false)
