@@ -91,7 +91,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
         
         recognitionInstance.onerror = () => {
           setIsListening(false)
-          toast.error('Error en el reconocimiento de voz')
+          toast.error('Error in voice recognition')
         }
         
         recognitionInstance.onend = () => {
@@ -151,11 +151,11 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo.',
+        content: 'Sorry, there was an error processing your request. Please try again.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
-      toast.error('Error al procesar la solicitud')
+        toast.error('Error processing request')
     } finally {
       setIsLoading(false)
     }
@@ -163,7 +163,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
 
   const handleMicrophoneClick = () => {
     if (!recognition) {
-      toast.error('Reconocimiento de voz no disponible')
+        toast.error('Voice recognition not available')
       return
     }
 
@@ -173,7 +173,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     } else {
       recognition.start()
       setIsListening(true)
-      toast.success('Escuchando...')
+        toast.success('Listening...')
     }
   }
 
@@ -299,8 +299,6 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                 className="google-input w-full pr-20 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
-
-                {/* Sin iconos dentro del input para evitar overlap */}
 
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">

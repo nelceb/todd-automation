@@ -60,69 +60,31 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
     onAuthSuccess('')
   }
 
-  if (isAuthenticated) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-green-900 border border-green-700 rounded-lg p-4 mb-6"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <CheckCircleIcon className="w-5 h-5 text-green-400" />
-            <div>
-              <h3 className="text-green-300 font-medium">Conectado a GitHub</h3>
-              <p className="text-green-400 text-sm">Puedes ejecutar workflows reales</p>
-            </div>
-          </div>
+    if (isAuthenticated) {
+      return (
+        <div className="flex items-center space-x-2">
+          <CheckCircleIcon className="w-4 h-4 text-green-400" />
+          <span className="text-green-300 text-sm font-medium">Connected to GitHub</span>
           <button
             onClick={handleLogout}
-            className="text-green-400 hover:text-green-300 text-sm underline"
+            className="text-green-400 hover:text-green-300 text-xs underline"
           >
-            Desconectar
+            Disconnect
           </button>
         </div>
-      </motion.div>
-    )
-  }
+      )
+    }
 
-  // Mostrar mensaje cuando no está conectado
+  // Mostrar botón cuando no está conectado
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-yellow-900 border border-yellow-700 rounded-lg p-6 mb-6"
+    <button
+      onClick={handleGitHubLogin}
+      disabled={isLoading}
+      className="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm disabled:opacity-50"
     >
-      <div className="text-center">
-        <ExclamationTriangleIcon className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-        <h3 className="text-yellow-300 font-medium mb-2">Conecta con GitHub</h3>
-        <p className="text-yellow-400 text-sm mb-4">
-          Necesitas conectarte con GitHub para ver y ejecutar workflows reales
-        </p>
-        
-        {error && (
-          <div className="bg-red-900 border border-red-700 rounded-lg p-3 mb-4">
-            <div className="flex items-center space-x-2 text-red-300">
-              <ExclamationTriangleIcon className="w-4 h-4" />
-              <span className="text-sm">{error}</span>
-            </div>
-          </div>
-        )}
-        
-        <button
-          onClick={handleGitHubLogin}
-          disabled={isLoading}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2 mx-auto disabled:opacity-50"
-        >
-          <GithubIcon className="w-5 h-5" />
-          <span>{isLoading ? 'Conectando...' : 'Conectar con GitHub'}</span>
-        </button>
-        
-        <p className="text-yellow-500 text-xs mt-3">
-          Conecta con tu cuenta de GitHub para ejecutar workflows reales.
-        </p>
-      </div>
-    </motion.div>
+      <GithubIcon className="w-4 h-4" />
+      <span>{isLoading ? 'Connecting...' : 'Connect to GitHub'}</span>
+    </button>
   )
 
 }

@@ -81,7 +81,11 @@ export default function Home() {
               </div>
             </div>
             
-            <nav className="flex space-x-1">
+            <nav className="flex items-center space-x-4">
+              {/* GitHub Authentication - Estilo botón */}
+              <GitHubAuth onAuthSuccess={handleAuthSuccess} />
+              
+              <div className="flex space-x-1">
                 <button
                   onClick={() => setActiveTab('chat')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -98,26 +102,25 @@ export default function Home() {
                     </span>
                   )}
                 </button>
-              <button
-                onClick={() => setActiveTab('workflows')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'workflows'
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
-              >
-                <Cog6ToothIcon className="w-4 h-4 inline mr-2" />
-                Workflows
-              </button>
+                <button
+                  onClick={() => setActiveTab('workflows')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'workflows'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <Cog6ToothIcon className="w-4 h-4 inline mr-2" />
+                  Workflows
+                </button>
+              </div>
             </nav>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Estilo Google AI */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* GitHub Authentication */}
-        <GitHubAuth onAuthSuccess={handleAuthSuccess} />
+        {/* Main Content - Estilo Google AI */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         <AnimatePresence mode="wait">
           {activeTab === 'chat' ? (

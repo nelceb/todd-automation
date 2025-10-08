@@ -53,18 +53,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const getStatusBadge = (status: string, conclusion?: string) => {
     if (status === 'completed') {
       return conclusion === 'success' ? (
-        <span className="status-badge success">Exitoso</span>
+        <span className="status-badge success">Success</span>
       ) : (
-        <span className="status-badge error">Falló</span>
+        <span className="status-badge error">Failed</span>
       )
     }
     if (status === 'in_progress') {
-      return <span className="status-badge running">Ejecutando</span>
+      return <span className="status-badge running">Running</span>
     }
     if (status === 'queued') {
-      return <span className="status-badge pending">En cola</span>
+      return <span className="status-badge pending">Pending</span>
     }
-    return <span className="status-badge pending">Desconocido</span>
+    return <span className="status-badge pending">Unknown</span>
   }
 
   const getEnvironmentBadge = (environment: string) => {
@@ -86,10 +86,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         <div className="flex items-center space-x-3">
           <ExclamationTriangleIcon className="w-6 h-6 text-red-400" />
           <div>
-            <h3 className="text-red-300 font-medium">Error de Autenticación</h3>
+            <h3 className="text-red-300 font-medium">Authentication Error</h3>
             <p className="text-red-400 text-sm mt-1">{error}</p>
             <p className="text-red-500 text-xs mt-2">
-              Asegúrate de tener un token válido de GitHub con permisos de repo y workflow.
+              Make sure you have a valid GitHub token with repo and workflow permissions.
             </p>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-gray-600">Cargando workflows...</span>
+          <span className="ml-3 text-gray-600">Loading workflows...</span>
       </div>
     )
   }
@@ -119,10 +119,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white">Workflows de Testing</h2>
-          <p className="text-gray-400 mt-1">
-            Monitoreo en tiempo real de la ejecución de tests
-          </p>
+            <h2 className="text-2xl font-bold text-white">Testing Workflows</h2>
+            <p className="text-gray-400 mt-1">
+              Real-time monitoring of test execution
+            </p>
         </div>
         <button
           onClick={() => {
@@ -133,17 +133,17 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
         >
           <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Actualizar</span>
+            <span>Refresh</span>
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Workflows Disponibles */}
         <div>
-          <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
-            <PlayIcon className="w-5 h-5" />
-            <span>Workflows Disponibles</span>
-          </h3>
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
+              <PlayIcon className="w-5 h-5" />
+              <span>Available Workflows</span>
+            </h3>
           
           <div className="space-y-3">
             {workflows.map((workflow) => (
@@ -166,7 +166,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                         ? 'bg-green-900 text-green-300' 
                         : 'bg-gray-700 text-gray-400'
                     }`}>
-                      {workflow.state === 'active' ? 'Activo' : 'Inactivo'}
+                        {workflow.state === 'active' ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                 </div>
@@ -177,15 +177,15 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
         {/* Workflows en Ejecución */}
         <div>
-          <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
-            <ArrowPathIcon className="w-5 h-5" />
-            <span>En Ejecución</span>
-          </h3>
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
+              <ArrowPathIcon className="w-5 h-5" />
+              <span>Running</span>
+            </h3>
           
           {runningWorkflows.length === 0 ? (
             <div className="text-center py-8 bg-gray-800 rounded-lg border border-gray-700">
               <PlayIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-400 text-sm">No hay workflows ejecutándose</p>
+              <p className="text-gray-400 text-sm">No workflows running</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -206,12 +206,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   
                   <div className="text-sm text-gray-400 space-y-1">
                     <div className="flex items-center space-x-4">
-                      <span>Ambiente: {getEnvironmentBadge(run.environment)}</span>
-                      {run.platform && <span>Plataforma: {run.platform}</span>}
+                        <span>Environment: {getEnvironmentBadge(run.environment)}</span>
+                        {run.platform && <span>Platform: {run.platform}</span>}
                     </div>
                     <div className="flex items-center justify-between">
                       <span>
-                        Iniciado: {formatDistanceToNow(new Date(run.created_at), { 
+                        Started: {formatDistanceToNow(new Date(run.created_at), { 
                           addSuffix: true, 
                           locale: es 
                         })}
@@ -234,7 +234,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           {/* Historial Reciente */}
           {completedWorkflows.length > 0 && (
             <div className="mt-8">
-              <h4 className="text-lg font-medium text-white mb-3">Historial Reciente</h4>
+                <h4 className="text-lg font-medium text-white mb-3">Recent History</h4>
               <div className="space-y-2">
                 {completedWorkflows.map((run) => (
                   <div
