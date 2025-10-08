@@ -8,6 +8,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
+import TypingText from './TypingText'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -429,7 +430,12 @@ export default function ChatInterface({
                         </span>
                       </div>
                       <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
-                        {message.content}
+                        <TypingText 
+                          text={message.content} 
+                          speed={20} 
+                          delay={index * 200}
+                          showCursor={false}
+                        />
                     </p>
                   </div>
                   </motion.div>
@@ -495,13 +501,41 @@ export default function ChatInterface({
                             </span>
                           </div>
                           <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                            <div>→ {workflow.workflowName}</div>
-                            <div className="text-gray-400 text-xs">  Repository: {workflow.repository}</div>
+                            <div>
+                              <TypingText 
+                                text={`→ ${workflow.workflowName}`} 
+                                speed={15} 
+                                delay={index * 300 + 100}
+                                showCursor={false}
+                              />
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              <TypingText 
+                                text={`  Repository: ${workflow.repository}`} 
+                                speed={15} 
+                                delay={index * 300 + 200}
+                                showCursor={false}
+                              />
+                            </div>
                             {Object.keys(workflow.inputs).length > 0 && (
                               <div className="text-gray-400 text-xs">
-                                <div>  Inputs:</div>
-                                {Object.entries(workflow.inputs).map(([key, value]) => (
-                                  <div key={key} className="ml-2">    {key}: {String(value)}</div>
+                                <div>
+                                  <TypingText 
+                                    text="  Inputs:" 
+                                    speed={15} 
+                                    delay={index * 300 + 300}
+                                    showCursor={false}
+                                  />
+                                </div>
+                                {Object.entries(workflow.inputs).map(([key, value], inputIndex) => (
+                                  <div key={key} className="ml-2">
+                                    <TypingText 
+                                      text={`    ${key}: ${String(value)}`} 
+                                      speed={15} 
+                                      delay={index * 300 + 400 + inputIndex * 100}
+                                      showCursor={false}
+                                    />
+                                  </div>
                                 ))}
                               </div>
                             )}
