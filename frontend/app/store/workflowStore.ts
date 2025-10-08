@@ -98,9 +98,9 @@ interface WorkflowStore {
   previewWorkflows: (command: string) => Promise<MultiWorkflowExecution | null>
   triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => Promise<any>
   triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string) => Promise<any[]>
-  fetchWorkflowLogs: (runId: string, token?: string) => Promise<void>
-  startPollingLogs: (runId: string, token?: string) => void
-  startPollingMultipleLogs: (runIds: string[], token?: string) => void
+  fetchWorkflowLogs: (runId: string, token?: string, repository?: string) => Promise<void>
+  startPollingLogs: (runId: string, token?: string, repository?: string) => void
+  startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => void
   stopPollingLogs: () => void
   clearMultipleLogs: () => void
   setError: (error: string | null) => void
