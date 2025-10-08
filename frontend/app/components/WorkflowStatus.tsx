@@ -126,7 +126,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ).slice(0, 5) // Solo los últimos 5
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 space-y-4 sm:space-y-0">
         <div className="flex-1">
@@ -148,33 +148,28 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Available Repositories */}
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-2">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
               <PlayIcon className="w-6 h-6 text-airforce-400" />
               <span>Available Repositories</span>
             </h3>
           
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {repositories.map((repository) => (
               <motion.div
                 key={repository.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-4 hover:bg-gray-800/70 hover:border-gray-600/50 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-semibold text-lg mb-1 truncate">{repository.name}</h4>
-                    <p className="text-gray-400 text-sm mb-3">
+                    <h4 className="text-white font-semibold text-base mb-1 truncate">{repository.name}</h4>
+                    <p className="text-gray-400 text-xs">
                       {repository.technology} • {repository.workflow_count} workflows
                     </p>
-                    {repository.description && (
-                      <p className="text-gray-500 text-xs leading-relaxed">
-                        {repository.description}
-                      </p>
-                    )}
                   </div>
                   <a
                     href={repository.html_url}
@@ -182,12 +177,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors ml-3 flex-shrink-0"
                   >
-                    <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                    <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                   </a>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                     repository.technology === 'maestro' 
                       ? 'bg-airforce-500/20 text-airforce-300 border border-airforce-500/30' 
                       : repository.technology === 'playwright'
@@ -201,7 +196,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     {repository.platforms.map((platform) => (
                       <span
                         key={platform}
-                        className="px-2 py-1 bg-gray-700/50 text-gray-300 text-xs rounded-md"
+                        className="px-1.5 py-0.5 bg-gray-700/50 text-gray-300 text-xs rounded-md"
                       >
                         {platform}
                       </span>

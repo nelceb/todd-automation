@@ -297,7 +297,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-40">
+    <div className="max-w-6xl mx-auto pb-40">
       {/* Header estilo Google AI - Solo cuando no hay mensajes */}
       {messages.length === 0 && (
         <div className="text-center mb-12">
@@ -505,7 +505,7 @@ export default function ChatInterface({
       )}
 
       {/* Input y sugerencias al final - Como Google AI */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-6xl px-4">
         {/* Input principal estilo Google */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -553,7 +553,7 @@ export default function ChatInterface({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-3"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
         >
           {suggestions.slice(0, 4).map((suggestion, index) => (
             <button

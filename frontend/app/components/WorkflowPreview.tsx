@@ -68,10 +68,10 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
       <motion.div
         initial={{ scale: 0.95 }}
         animate={{ scale: 1 }}
-        className="bg-gray-900 rounded-2xl border border-gray-700 max-w-4xl w-full max-h-[80vh] overflow-hidden"
+        className="bg-gray-900 rounded-2xl border border-gray-700 max-w-5xl w-full max-h-[70vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-700">
+        <div className="p-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">Workflow Execution Preview</h2>
@@ -89,10 +89,10 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-4 overflow-y-auto max-h-[50vh]">
           {/* Technology Tags */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-white mb-3">Technologies</h3>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-white mb-2">Technologies</h3>
             <div className="flex flex-wrap gap-2">
               {workflowPreview.technologies.map((tech) => (
                 <span
@@ -106,26 +106,26 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
           </div>
 
           {/* Workflows List */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white mb-3">Workflows to Execute</h3>
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-white mb-2">Workflows to Execute</h3>
             {workflowPreview.workflows.map((workflow, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4"
+                className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-3"
               >
                 <div className="flex items-start space-x-3">
                   {getTechnologyIcon(workflow.technology)}
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-white font-semibold">{workflow.workflowName}</h4>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-white font-semibold text-sm">{workflow.workflowName}</h4>
                       <span className={`px-2 py-1 rounded-md text-xs font-medium ${getTechnologyColor(workflow.technology)}`}>
                         {workflow.technology.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-gray-400 text-sm mb-3">{workflow.description}</p>
+                    <p className="text-gray-400 text-xs mb-2">{workflow.description}</p>
                     <div className="text-xs text-gray-500">
                       <span className="font-medium">Repository:</span> {workflow.repository}
                     </div>
@@ -149,7 +149,7 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-700 flex items-center justify-end space-x-3">
+        <div className="p-4 border-t border-gray-700 flex items-center justify-end space-x-3">
           <button
             onClick={onCancel}
             className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
@@ -158,9 +158,9 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
           </button>
           <button
             onClick={handleExecute}
-            className="px-6 py-2 bg-airforce-600 text-white rounded-lg hover:bg-airforce-700 transition-colors flex items-center space-x-2"
+            className="px-6 py-3 bg-airforce-600 text-white rounded-lg hover:bg-airforce-700 transition-colors flex items-center space-x-2 font-semibold shadow-lg"
           >
-            <PlayIcon className="w-4 h-4" />
+            <PlayIcon className="w-5 h-5" />
             <span>Execute {workflowPreview.totalWorkflows} Workflow{workflowPreview.totalWorkflows > 1 ? 's' : ''}</span>
           </button>
         </div>
