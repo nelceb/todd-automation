@@ -84,10 +84,11 @@
   }
   
 .google-input {
-  @apply bg-gray-800 border border-gray-600 rounded-full px-6 py-4 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-lg transition-all duration-200;
+  @apply bg-gray-800/80 border border-gray-600/60 rounded-full px-6 py-4 text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+  backdrop-filter: blur(8px);
 }
   
   .google-button {

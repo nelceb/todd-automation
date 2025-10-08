@@ -122,6 +122,7 @@ export default function ChatInterface({
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   
   const { 
     triggerWorkflow, 
@@ -144,6 +145,13 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Auto-focus input when component mounts
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [])
 
   // Load dynamic suggestions
   useEffect(() => {
@@ -656,11 +664,12 @@ export default function ChatInterface({
           <form onSubmit={handleSubmit} className="relative flex justify-center">
             <div className="relative">
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Run login tests in prod for iOS"
-                className="google-input w-full max-w-4xl pr-24 pl-6 py-6 text-xl"
+                className="google-input w-full max-w-5xl pr-24 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
 
