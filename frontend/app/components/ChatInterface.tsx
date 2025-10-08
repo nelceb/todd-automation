@@ -688,14 +688,14 @@ export default function ChatInterface({
               </div>
       )}
 
-            {/* Fixed input field at bottom when there are messages */}
+            {/* Input field at bottom when there are messages */}
         <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-              className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full px-8 sm:px-12 lg:px-16 xl:px-20"
-            >
-              <form onSubmit={handleSubmit} className="relative flex justify-center">
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="mt-8 flex justify-center"
+        >
+              <form onSubmit={handleSubmit} className="relative w-full max-w-4xl">
             <div className="relative">
               <input
                     ref={inputRef}
@@ -703,7 +703,7 @@ export default function ChatInterface({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter your test command..."
-                    className="w-full max-w-7xl pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
+                    className="w-full pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
                 disabled={isLoading}
               />
 
