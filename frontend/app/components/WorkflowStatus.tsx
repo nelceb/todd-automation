@@ -172,217 +172,97 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-20">
-        {/* Available Repositories */}
-        <div className="lg:col-span-1">
-            <h3 className="text-2xl font-bold text-white mb-8 flex items-center space-x-3">
-              <PlayIcon className="w-7 h-7 text-airforce-400" />
-              <span>Available Repositories</span>
-            </h3>
-          
-          <div className="space-y-6">
-            {repositories.map((repository) => (
-              <motion.div
-                key={repository.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/40 p-8 hover:bg-gray-800/80 hover:border-gray-600/60 transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer"
-                onClick={() => setExpandedRepository(expandedRepository === repository.name ? null : repository.name)}
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-semibold text-xl mb-3 truncate">{repository.name}</h4>
-                    <p className="text-gray-400 text-base">
-                      {repository.technology} • {repository.workflow_count} workflows
-                    </p>
-                  </div>
-                  <a
-                    href={repository.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors ml-4 flex-shrink-0"
-                  >
-                    <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-                  </a>
+      {/* Log-style workflow information */}
+      <div className="flex justify-center">
+        <div className="max-w-4xl w-full space-y-3">
+        {/* Available Repositories - Log style */}
+        <div className="flex items-start space-x-4 py-2">
+          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+            now
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-3 mb-1">
+              <div className="w-2 h-2 rounded-full bg-airforce-400"></div>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                REPOSITORIES
+              </span>
+            </div>
+            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+              <div>→ {repositories.length} repositories available</div>
+              {repositories.map((repository) => (
+                <div key={repository.id} className="text-gray-400 text-xs">
+                  <div>  {repository.name}: {repository.technology} • {repository.workflow_count} workflows</div>
+                  <div className="ml-2">    Platforms: {repository.platforms.join(', ')}</div>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className={`px-4 py-2 rounded-xl text-base font-bold ${
-                    repository.technology === 'maestro' 
-                      ? 'bg-airforce-500/25 text-airforce-200 border border-airforce-500/40' 
-                      : repository.technology === 'playwright'
-                      ? 'bg-asparagus-500/25 text-asparagus-200 border border-asparagus-500/40'
-                      : 'bg-earth-500/25 text-earth-200 border border-earth-500/40'
-                  }`}>
-                      {repository.technology.toUpperCase()}
-                  </span>
-                  
-                  <div className="flex space-x-3">
-                    {repository.platforms.map((platform) => (
-                      <span
-                        key={platform}
-                        className="px-3 py-1.5 bg-gray-700/60 text-gray-200 text-sm rounded-lg font-medium"
-                      >
-                        {platform}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Expanded workflows section */}
-                {expandedRepository === repository.name && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mt-4 pt-4 border-t border-gray-700/50"
-                  >
-                    <h5 className="text-sm font-medium text-gray-300 mb-3">Workflows ({repository.workflow_count})</h5>
-                    <div className="space-y-2">
-                      {repository.workflows.slice(0, 5).map((workflow) => (
-                        <div key={workflow.id} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{workflow.name}</p>
-                            <p className="text-gray-400 text-xs">
-                              {workflow.state === 'active' ? 'Active' : 'Disabled'}
-                            </p>
-                          </div>
-                          <a
-                            href={workflow.html_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-white transition-colors ml-3"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                          </a>
-                        </div>
-                      ))}
-                      {repository.workflow_count > 5 && (
-                        <p className="text-gray-400 text-xs text-center py-2">
-                          +{repository.workflow_count - 5} more workflows
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Running Workflows */}
-        <div className="lg:col-span-1">
-            <h3 className="text-2xl font-bold text-white mb-8 flex items-center space-x-3">
-              <ArrowPathIcon className="w-7 h-7 text-asparagus-400" />
-              <span>Running</span>
-            </h3>
-          
-          {runningWorkflows.length === 0 ? (
-            <div className="text-center py-12 bg-gray-800/30 rounded-xl border border-gray-700/50">
-              <PlayIcon className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400 text-sm">No workflows running</p>
-              <p className="text-gray-500 text-xs mt-1">Workflows will appear here when executed</p>
+        {/* Running Workflows - Log style */}
+        <div className="flex items-start space-x-4 py-2">
+          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+            now
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-3 mb-1">
+              <div className={`w-2 h-2 rounded-full ${
+                runningWorkflows.length > 0 ? 'bg-asparagus-400 animate-pulse' : 'bg-gray-400'
+              }`}></div>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                RUNNING
+              </span>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {runningWorkflows.map((run) => (
-                <motion.div
-                  key={run.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700/40 p-8 hover:bg-gray-800/80 transition-all duration-300 shadow-xl"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-start space-x-4 flex-1 min-w-0">
-                      {getStatusIcon(run.status, run.conclusion)}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-semibold text-lg leading-tight mb-3 line-clamp-2">{run.name}</h4>
-                        {getStatusBadge(run.status, run.conclusion)}
-                      </div>
+            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+              {runningWorkflows.length === 0 ? (
+                <div>→ No workflows currently running</div>
+              ) : (
+                <>
+                  <div>→ {runningWorkflows.length} workflow{runningWorkflows.length > 1 ? 's' : ''} in progress</div>
+                  {runningWorkflows.map((run) => (
+                    <div key={run.id} className="text-gray-400 text-xs">
+                      <div>  {run.name}</div>
+                      <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
+                      <div className="ml-2">    Started: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
                     </div>
-                    <a
-                      href={run.html_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-white transition-colors ml-3 flex-shrink-0"
-                    >
-                      <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-                    </a>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-gray-400 text-sm font-medium">Environment:</span>
-                      {getEnvironmentBadge(extractEnvironmentFromName(run.name))}
-                      {run.platform && (
-                        <>
-                          <span className="text-gray-400 text-sm font-medium">Platform:</span>
-                          <span className="px-3 py-1.5 bg-gray-700/60 text-gray-200 text-sm rounded-lg font-medium">
-                            {run.platform}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>
-                        Started: {formatDistanceToNow(new Date(run.created_at), { 
-                          addSuffix: true, 
-                          locale: enUS 
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                  ))}
+                </>
+              )}
             </div>
-          )}
-
+          </div>
         </div>
 
-        {/* Recent History */}
-        <div className="lg:col-span-1">
-            <h3 className="text-2xl font-bold text-white mb-8 flex items-center space-x-3">
-              <ClockIcon className="w-7 h-7 text-gray-400" />
-              <span>Recent History</span>
-            </h3>
-          
-          {completedWorkflows.length === 0 ? (
-            <div className="text-center py-12 bg-gray-800/30 rounded-xl border border-gray-700/50">
-              <ClockIcon className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400 text-sm">No recent history</p>
-              <p className="text-gray-500 text-xs mt-1">Completed workflows will appear here</p>
+        {/* Recent History - Log style */}
+        <div className="flex items-start space-x-4 py-2">
+          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+            now
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-3 mb-1">
+              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                HISTORY
+              </span>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {completedWorkflows.map((run) => (
-                <motion.div
-                  key={run.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="bg-gray-800/50 rounded-xl border border-gray-700/40 p-6 hover:bg-gray-800/70 transition-all duration-300 shadow-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1 min-w-0">
-                      {getStatusIcon(run.status, run.conclusion)}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-white text-base font-semibold truncate block mb-2">{run.name}</span>
-                        <div className="flex items-center space-x-2">
-                          {getEnvironmentBadge(extractEnvironmentFromName(run.name))}
-                        </div>
-                      </div>
+            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+              {completedWorkflows.length === 0 ? (
+                <div>→ No recent workflow history</div>
+              ) : (
+                <>
+                  <div>→ {completedWorkflows.length} recent completed workflow{completedWorkflows.length > 1 ? 's' : ''}</div>
+                  {completedWorkflows.map((run) => (
+                    <div key={run.id} className="text-gray-400 text-xs">
+                      <div>  {run.name}</div>
+                      <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
+                      <div className="ml-2">    Status: {run.conclusion === 'success' ? 'SUCCESS' : 'FAILURE'}</div>
+                      <div className="ml-2">    Completed: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
                     </div>
-                    <span className="text-gray-400 text-sm flex-shrink-0 ml-4">
-                      {formatDistanceToNow(new Date(run.created_at), { 
-                        addSuffix: true, 
-                        locale: enUS 
-                      })}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+                  ))}
+                </>
+              )}
             </div>
-          )}
+          </div>
+        </div>
         </div>
       </div>
     </div>

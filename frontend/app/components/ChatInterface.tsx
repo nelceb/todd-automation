@@ -370,7 +370,8 @@ export default function ChatInterface({
       )}
 
       {/* Log informativo - Estilo sutil */}
-      <div className="space-y-3">
+      <div className="flex justify-center">
+        <div className="max-w-4xl w-full space-y-3">
         {messages.map((message) => (
           <motion.div
             key={message.id}
@@ -425,15 +426,18 @@ export default function ChatInterface({
             </div>
           </motion.div>
         )}
+        </div>
       </div>
 
       {/* Workflow Execution Info - Estilo log */}
       {messages.length > 0 && messages[messages.length - 1]?.workflowPreview && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="mt-6 space-y-3"
-        >
+        <div className="flex justify-center">
+          <div className="max-w-4xl w-full">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="mt-6 space-y-3"
+            >
           {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
             <div key={index} className="flex items-start space-x-4 py-2">
               {/* Timestamp */}
@@ -473,16 +477,20 @@ export default function ChatInterface({
               </div>
             </div>
           ))}
-        </motion.div>
+            </motion.div>
+          </div>
+        </div>
       )}
 
       {/* Workflow Execution Logs - Estilo log */}
       {(currentLogs || multipleLogs.length > 0) && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="mt-6 space-y-3"
-        >
+        <div className="flex justify-center">
+          <div className="max-w-4xl w-full">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="mt-6 space-y-3"
+            >
           {/* Show consolidated summary for multiple workflows */}
           {multipleLogs.length > 0 && (
             <div className="flex items-start space-x-4 py-2">
@@ -649,7 +657,9 @@ export default function ChatInterface({
               )}
             </div>
           ))}
-        </motion.div>
+            </motion.div>
+          </div>
+        </div>
       )}
 
 
@@ -669,7 +679,7 @@ export default function ChatInterface({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Run login tests in prod for iOS"
-                className="google-input w-full max-w-5xl pr-24 pl-6 py-4 text-lg"
+                className="google-input w-full max-w-6xl pr-24 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
 
@@ -712,16 +722,9 @@ export default function ChatInterface({
                 onClick={() => setInput(suggestion.text)}
                 className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
               >
-                <div className="flex flex-col space-y-2">
-                  <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
-                    {suggestion.text}
-                  </span>
-                  <div className="flex items-center space-x-2 text-xs text-gray-400">
-                    <span>{suggestion.environment}</span>
-                    <span>•</span>
-                    <span>{suggestion.platform}</span>
-                  </div>
-                </div>
+                <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
+                  {suggestion.text}
+                </span>
               </button>
             ))}
           </div>
