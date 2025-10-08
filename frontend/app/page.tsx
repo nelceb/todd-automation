@@ -16,13 +16,53 @@ import WorkflowStatus from './components/WorkflowStatus'
 import GitHubAuth from './components/GitHubAuth'
 import { useWorkflowStore } from './store/workflowStore'
 
+interface Message {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  workflowTriggered?: {
+    name: string
+    inputs: Record<string, any>
+  }
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
+  const [messages, setMessages] = useState<Message[]>([]) // Move messages state here
   const { workflows, isLoading } = useWorkflowStore()
+
+  // Load messages from localStorage on component mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('test-runner-messages')
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }))
+        setMessages(parsedMessages)
+      } catch (error) {
+        console.error('Error loading saved messages:', error)
+      }
+    }
+  }, [])
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('test-runner-messages', JSON.stringify(messages))
+    }
+  }, [messages])
 
   const handleAuthSuccess = (token: string) => {
     setGithubToken(token)
+  }
+
+  const clearMessages = () => {
+    setMessages([])
+    localStorage.removeItem('test-runner-messages')
   }
 
   return (
@@ -42,17 +82,22 @@ export default function Home() {
             </div>
             
             <nav className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab('chat')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'chat'
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                }`}
-              >
-                <ChatBubbleLeftRightIcon className="w-4 h-4 inline mr-2" />
-                AI Mode
-              </button>
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'chat'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <ChatBubbleLeftRightIcon className="w-4 h-4 inline mr-2" />
+                  AI Mode
+                  {messages.length > 0 && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                      {messages.length}
+                    </span>
+                  )}
+                </button>
               <button
                 onClick={() => setActiveTab('workflows')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -83,7 +128,12 @@ export default function Home() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <ChatInterface githubToken={githubToken} />
+                <ChatInterface 
+                  githubToken={githubToken} 
+                  messages={messages}
+                  setMessages={setMessages}
+                  clearMessages={clearMessages}
+                />
             </motion.div>
           ) : (
             <motion.div

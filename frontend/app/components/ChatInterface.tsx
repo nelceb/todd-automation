@@ -10,7 +10,8 @@ import {
   MagnifyingGlassIcon,
   MicrophoneIcon,
   PlusIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
 import toast from 'react-hot-toast'
@@ -28,6 +29,9 @@ interface Message {
 
 interface ChatInterfaceProps {
   githubToken?: string
+  messages: Message[]
+  setMessages: (messages: Message[]) => void
+  clearMessages: () => void
 }
 
 interface TestSuggestion {
@@ -38,8 +42,7 @@ interface TestSuggestion {
   category: string
 }
 
-export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>([])
+export default function ChatInterface({ githubToken, messages, setMessages, clearMessages }: ChatInterfaceProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
@@ -176,23 +179,36 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
 
   return (
     <div className="max-w-4xl mx-auto pb-40">
-      {/* Header estilo Google AI - Solo cuando no hay mensajes */}
-      {messages.length === 0 && (
-        <div className="text-center mb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h1 className="text-4xl font-light text-white mb-4">
-              Meet AI Mode
-            </h1>
-            <p className="text-gray-400 text-lg">
-              Ask detailed questions for better responses
-            </p>
-          </motion.div>
-        </div>
-      )}
+        {/* Header estilo Google AI - Solo cuando no hay mensajes */}
+        {messages.length === 0 && (
+          <div className="text-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <h1 className="text-4xl font-light text-white mb-4">
+                Meet AI Mode
+              </h1>
+              <p className="text-gray-400 text-lg">
+                Ask detailed questions for better responses
+              </p>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Botón para limpiar historial - Solo cuando hay mensajes */}
+        {messages.length > 0 && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={clearMessages}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              <TrashIcon className="w-4 h-4" />
+              <span>Clear history</span>
+            </button>
+          </div>
+        )}
 
         {/* Resultado de la última acción - Estilo Google AI (texto fluido) */}
         {messages.length > 0 && (
