@@ -69,8 +69,28 @@ export async function POST(request: NextRequest) {
       throw new Error(`Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
     }
 
-    // Generar un runId simulado para el polling
-    const runId = `run-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    // Esperar un momento para que se cree el run
+    await new Promise(resolve => setTimeout(resolve, 3000))
+
+    // Obtener el run más reciente para este workflow
+    const runsResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/runs?per_page=1`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
+
+    let runId = null
+    if (runsResponse.ok) {
+      const runsData = await runsResponse.json()
+      if (runsData.workflow_runs && runsData.workflow_runs.length > 0) {
+        const latestRun = runsData.workflow_runs[0]
+        runId = latestRun.id.toString()
+      }
+    }
 
     return NextResponse.json({
       success: true,

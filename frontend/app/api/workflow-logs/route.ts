@@ -7,9 +7,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const runId = searchParams.get('runId')
+    const repository = searchParams.get('repository')
     const token = getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'nelceb'
-    const repo = process.env.GITHUB_REPO || 'test-runner'
+    const owner = process.env.GITHUB_OWNER || 'cook-unity'
+    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!runId) {
       return NextResponse.json({ error: 'Run ID is required' }, { status: 400 })
