@@ -32,6 +32,7 @@ interface ChatInterfaceProps {
   messages: Message[]
   setMessages: (messages: Message[]) => void
   clearMessages: () => void
+  onWorkflowExecuted: () => void
 }
 
 interface TestSuggestion {
@@ -42,7 +43,7 @@ interface TestSuggestion {
   category: string
 }
 
-export default function ChatInterface({ githubToken, messages, setMessages, clearMessages }: ChatInterfaceProps) {
+export default function ChatInterface({ githubToken, messages, setMessages, clearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
@@ -141,11 +142,12 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
 
       setMessages(prev => [...prev, assistantMessage])
 
-      // Si se activó un workflow, ejecutarlo
-      if (data.workflowTriggered) {
-        await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
-        toast.success(`Workflow "${data.workflowTriggered.name}" ejecutado exitosamente`)
-      }
+        // Si se activó un workflow, ejecutarlo
+        if (data.workflowTriggered) {
+          await triggerWorkflow(data.workflowTriggered.workflowId, data.workflowTriggered.inputs, githubToken)
+          toast.success(`Workflow "${data.workflowTriggered.name}" executed successfully`)
+          onWorkflowExecuted() // Trigger glow effect
+        }
 
     } catch (error) {
       const errorMessage: Message = {

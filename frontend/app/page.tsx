@@ -31,6 +31,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([]) // Move messages state here
+  const [workflowExecuted, setWorkflowExecuted] = useState(false) // For glow effect
   const { workflows, isLoading } = useWorkflowStore()
 
   // Load messages from localStorage on component mount
@@ -65,6 +66,14 @@ export default function Home() {
     localStorage.removeItem('test-runner-messages')
   }
 
+  const handleWorkflowExecuted = () => {
+    setWorkflowExecuted(true)
+    // Remove glow effect after 3 seconds
+    setTimeout(() => {
+      setWorkflowExecuted(false)
+    }, 3000)
+  }
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Header - Estilo Google */}
@@ -96,18 +105,17 @@ export default function Home() {
                 >
                   <ChatBubbleLeftRightIcon className="w-4 h-4 inline mr-2" />
                   AI Mode
-                  {messages.length > 0 && (
-                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
-                      {messages.length}
-                    </span>
-                  )}
                 </button>
                 <button
                   onClick={() => setActiveTab('workflows')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                     activeTab === 'workflows'
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  } ${
+                    workflowExecuted && activeTab !== 'workflows'
+                      ? 'animate-pulse shadow-lg shadow-blue-500/50 bg-blue-600/20 text-blue-300'
+                      : ''
                   }`}
                 >
                   <Cog6ToothIcon className="w-4 h-4 inline mr-2" />
@@ -136,6 +144,7 @@ export default function Home() {
                   messages={messages}
                   setMessages={setMessages}
                   clearMessages={clearMessages}
+                  onWorkflowExecuted={handleWorkflowExecuted}
                 />
             </motion.div>
           ) : (
