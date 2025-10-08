@@ -188,10 +188,10 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               className="mb-8"
             >
               <h1 className="text-4xl font-light text-white mb-4">
-                Meet AI Mode
+                Test Automation AI
               </h1>
               <p className="text-gray-400 text-lg">
-                Ask detailed questions for better responses
+                Execute iOS Maestro tests with natural language commands
               </p>
             </motion.div>
           </div>
@@ -295,7 +295,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything"
+                  placeholder="Run login tests in prod for iOS"
                 className="google-input w-full pr-20 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
