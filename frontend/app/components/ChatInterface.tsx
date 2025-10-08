@@ -347,10 +347,10 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             className="mb-8"
           >
             <h1 className="text-4xl font-light text-white mb-4">
-                Test Automation AI
+                Multi-Repository Test Automation AI
             </h1>
             <p className="text-gray-400 text-lg">
-                Execute iOS Maestro tests with natural language commands
+                Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
             </p>
           </motion.div>
         </div>

@@ -24,6 +24,25 @@ export interface Workflow {
   updated_at: string
   url: string
   html_url: string
+  technology?: string
+  platforms?: string[]
+  category?: string
+  environment?: string
+  region?: string
+  description?: string
+}
+
+export interface Repository {
+  id: number
+  name: string
+  full_name: string
+  description: string
+  html_url: string
+  technology: string
+  platforms: string[]
+  workflows: Workflow[]
+  workflow_count: number
+  error?: string
 }
 
 export interface WorkflowLogs {
@@ -49,6 +68,7 @@ export interface WorkflowLogs {
 interface WorkflowStore {
   workflows: Workflow[]
   workflowRuns: WorkflowRun[]
+  repositories: Repository[]
   isLoading: boolean
   error: string | null
   githubToken: string
@@ -58,6 +78,7 @@ interface WorkflowStore {
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
   fetchWorkflowRuns: (token?: string) => Promise<void>
+  fetchRepositories: (token?: string) => Promise<void>
   triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string) => Promise<any>
   fetchWorkflowLogs: (runId: string, token?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string) => void
@@ -69,6 +90,7 @@ interface WorkflowStore {
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   workflows: [],
   workflowRuns: [],
+  repositories: [],
   isLoading: false,
   error: null,
   githubToken: '',
@@ -89,6 +111,25 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
       const workflows = await response.json()
       set({ workflows, isLoading: false })
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Error desconocido', isLoading: false })
+    }
+  },
+
+  fetchRepositories: async (token?: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      // Always use the token from Vercel environment variables
+      // The API will handle token fallback automatically
+      
+      const response = await fetch('/api/repositories', { headers })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`)
+      }
+      const data = await response.json()
+      set({ repositories: data.repositories, isLoading: false })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Error desconocido', isLoading: false })
     }

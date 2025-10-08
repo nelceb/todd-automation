@@ -9,9 +9,12 @@ import {
   PlayIcon,
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CodeBracketIcon,
+  DevicePhoneMobileIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline'
-import { useWorkflowStore, WorkflowRun } from '../store/workflowStore'
+import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStore'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -20,18 +23,18 @@ interface WorkflowStatusProps {
 }
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
-  const { workflows, workflowRuns, isLoading, error, fetchWorkflows, fetchWorkflowRuns } = useWorkflowStore()
+  const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories } = useWorkflowStore()
 
   useEffect(() => {
-    fetchWorkflows(githubToken)
+    fetchRepositories(githubToken)
     fetchWorkflowRuns(githubToken)
     // Refresh every 30 seconds
     const interval = setInterval(() => {
-      fetchWorkflows(githubToken)
+      fetchRepositories(githubToken)
       fetchWorkflowRuns(githubToken)
     }, 30000)
     return () => clearInterval(interval)
-  }, [fetchWorkflows, fetchWorkflowRuns, githubToken])
+  }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
   const getStatusIcon = (status: string, conclusion?: string) => {
     if (status === 'completed') {
