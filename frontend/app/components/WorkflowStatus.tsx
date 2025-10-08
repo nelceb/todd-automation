@@ -136,9 +136,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Available Repositories */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center space-x-2">
               <PlayIcon className="w-6 h-6 text-airforce-400" />
               <span>Available Repositories</span>

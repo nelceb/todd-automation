@@ -88,6 +88,7 @@ interface WorkflowStore {
   error: string | null
   githubToken: string
   currentLogs: WorkflowLogs | null
+  multipleLogs: WorkflowLogs[]
   isPollingLogs: boolean
 
   // Actions
@@ -99,7 +100,9 @@ interface WorkflowStore {
   triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string) => Promise<any[]>
   fetchWorkflowLogs: (runId: string, token?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string) => void
+  startPollingMultipleLogs: (runIds: string[], token?: string) => void
   stopPollingLogs: () => void
+  clearMultipleLogs: () => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
   clearPreview: () => void
@@ -114,6 +117,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   error: null,
   githubToken: '',
   currentLogs: null,
+  multipleLogs: [],
   isPollingLogs: false,
 
   fetchWorkflows: async (token?: string) => {
@@ -284,11 +288,59 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     ;(get() as any).pollInterval = pollInterval
   },
 
+  startPollingMultipleLogs: (runIds: string[], token?: string) => {
+    const { isPollingLogs } = get()
+    if (isPollingLogs) return
+
+    set({ isPollingLogs: true, multipleLogs: [] })
+    
+    const pollInterval = setInterval(async () => {
+      const { isPollingLogs: stillPolling } = get()
+      if (!stillPolling) {
+        clearInterval(pollInterval)
+        return
+      }
+
+      // Fetch logs for all run IDs
+      const logsPromises = runIds.map(async (runId) => {
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+          const response = await fetch(`/api/workflow-logs?runId=${runId}`, { headers })
+          if (response.ok) {
+            return await response.json()
+          }
+          return null
+        } catch (error) {
+          console.error(`Error fetching logs for run ${runId}:`, error)
+          return null
+        }
+      })
+
+      const logs = await Promise.all(logsPromises)
+      const validLogs = logs.filter(log => log !== null)
+      
+      set({ multipleLogs: validLogs })
+      
+      // Stop polling if all workflows are completed
+      const allCompleted = validLogs.every(log => log.run.status === 'completed')
+      if (allCompleted) {
+        get().stopPollingLogs()
+      }
+    }, 5000) // Poll every 5 seconds
+
+    // Store interval ID for cleanup
+    ;(get() as any).pollInterval = pollInterval
+  },
+
   stopPollingLogs: () => {
     const { pollInterval } = get() as any
     if (pollInterval) {
       clearInterval(pollInterval)
     }
     set({ isPollingLogs: false })
+  },
+
+  clearMultipleLogs: () => {
+    set({ multipleLogs: [] })
   }
 }))

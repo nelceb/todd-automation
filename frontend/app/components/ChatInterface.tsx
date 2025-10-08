@@ -126,10 +126,15 @@ export default function ChatInterface({
   const { 
     triggerWorkflow, 
     startPollingLogs, 
+    startPollingMultipleLogs,
     currentLogs, 
+    multipleLogs,
     isPollingLogs,
     previewWorkflows,
-    workflowPreview
+    workflowPreview,
+    triggerMultipleWorkflows,
+    clearPreview,
+    clearMultipleLogs
   } = useWorkflowStore()
 
   const scrollToBottom = () => {
@@ -205,20 +210,30 @@ export default function ChatInterface({
       const preview = await previewWorkflows(userMessage)
       
       if (preview && preview.workflows.length > 0) {
+        // Clear previous multiple logs
+        clearMultipleLogs()
+        
         // Execute all workflows directly and show info in logs
         const results: any[] = []
+        const runIds: string[] = []
+        
         for (const workflow of preview.workflows) {
           try {
             const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
-              startPollingLogs(result.runId, githubToken)
+              runIds.push(result.runId)
             }
           } catch (error) {
             console.error('Error executing workflow:', error)
             results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
           }
+        }
+
+        // Start polling for multiple logs if we have run IDs
+        if (runIds.length > 0) {
+          startPollingMultipleLogs(runIds, githubToken)
         }
 
         // Add assistant response with workflow info
@@ -454,23 +469,50 @@ export default function ChatInterface({
       )}
 
       {/* Workflow Execution Logs - Estilo log */}
-      {currentLogs && (
+      {(currentLogs || multipleLogs.length > 0) && (
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="mt-6 space-y-3"
         >
-          {/* Status log entry */}
-          <div className="flex items-start space-x-4 py-2">
+          {/* Show consolidated summary for multiple workflows */}
+          {multipleLogs.length > 0 && (
+            <div className="flex items-start space-x-4 py-2">
+              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                now
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-3 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                    SUMMARY
+                  </span>
+                </div>
+                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                  <div>→ Executing {multipleLogs.length} workflow{multipleLogs.length > 1 ? 's' : ''} across multiple repositories</div>
+                  <div className="text-gray-400 text-xs">
+                    <div>  Technologies: {Array.from(new Set(multipleLogs.map(log => log.run.htmlUrl.split('/')[4]))).join(', ')}</div>
+                    <div>  Status: {multipleLogs.filter(log => log.run.status === 'completed').length}/{multipleLogs.length} completed</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Individual workflow logs */}
+          {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
+            <div key={index} className="space-y-3">
+              {/* Status log entry */}
+              <div className="flex items-start space-x-4 py-2">
             <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
               now
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3 mb-1">
                 <div className={`w-2 h-2 rounded-full ${
-                  currentLogs.run.status === 'completed' 
+                  logs.run.status === 'completed' 
                     ? 'bg-green-400' 
-                    : currentLogs.run.status === 'in_progress'
+                    : logs.run.status === 'in_progress'
                     ? 'bg-blue-400 animate-pulse'
                     : 'bg-red-400'
                 }`}></div>
@@ -478,18 +520,18 @@ export default function ChatInterface({
                   STATUS
                 </span>
                 <span className="text-xs text-gray-500 capitalize">
-                  {currentLogs.run.status}
+                  {logs.run.status}
                 </span>
               </div>
               <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
-                Workflow execution {currentLogs.run.status}
+                Workflow execution {logs.run.status}
               </p>
             </div>
           </div>
 
-          {/* Test Results Summary - Estilo log */}
-          {currentLogs.logs.length > 0 && (() => {
-            const allLogs = currentLogs.logs.map(log => log.logs).join('\n')
+              {/* Test Results Summary - Estilo log */}
+              {logs.logs.length > 0 && (() => {
+                const allLogs = logs.logs.map(log => log.logs).join('\n')
             const summary = extractTestSummary(allLogs)
             return (
               <div className="flex items-start space-x-4 py-2">
@@ -522,9 +564,9 @@ export default function ChatInterface({
             )
           })()}
 
-          {/* Jobs - Estilo log */}
-          {currentLogs.logs.map((log, index) => (
-            <div key={index} className="flex items-start space-x-4 py-2">
+              {/* Jobs - Estilo log */}
+              {logs.logs.map((log, jobIndex) => (
+                <div key={jobIndex} className="flex items-start space-x-4 py-2">
               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
                 now
               </div>
@@ -561,8 +603,8 @@ export default function ChatInterface({
             </div>
           ))}
 
-          {/* Message when no logs yet - Estilo log */}
-          {currentLogs.logs.length === 0 && (
+              {/* Message when no logs yet - Estilo log */}
+              {logs.logs.length === 0 && (
             <div className="flex items-start space-x-4 py-2">
               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
                 now
@@ -581,22 +623,24 @@ export default function ChatInterface({
             </div>
           )}
 
-          {/* Link to Maestro Cloud */}
-          {currentLogs.run.htmlUrl && (
+              {/* Link to GitHub */}
+              {logs.run.htmlUrl && (
             <div className="mt-4 pt-4 border-t border-gray-700/50">
               <a
-                href={currentLogs.run.htmlUrl}
+                href={logs.run.htmlUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
               >
-                <span>View in Maestro Cloud</span>
+                <span>View on GitHub</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </a>
             </div>
-          )}
+              )}
+            </div>
+          ))}
         </motion.div>
       )}
 
@@ -616,7 +660,7 @@ export default function ChatInterface({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Run login tests in prod for iOS"
-                className="google-input w-full max-w-2xl pr-20 pl-6 py-4 text-lg"
+                className="google-input w-full max-w-4xl pr-24 pl-6 py-6 text-xl"
                 disabled={isLoading}
               />
 
@@ -660,14 +704,9 @@ export default function ChatInterface({
                 className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
               >
                 <div className="flex flex-col space-y-2">
-                  <div className="flex items-start justify-between">
-                    <span className="text-white text-sm font-medium group-hover:text-white transition-colors flex-1 pr-2">
-                      {suggestion.text}
-                    </span>
-                    <span className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded-md flex-shrink-0">
-                      {suggestion.category}
-                    </span>
-                  </div>
+                  <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
+                    {suggestion.text}
+                  </span>
                   <div className="flex items-center space-x-2 text-xs text-gray-400">
                     <span>{suggestion.environment}</span>
                     <span>•</span>
