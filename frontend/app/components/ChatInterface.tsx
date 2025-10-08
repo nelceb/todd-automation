@@ -255,7 +255,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                         <span className="font-medium">Processing command...</span>
                       </div>
                       <p className="text-blue-400/80 text-sm mt-1 ml-6">
-                        Detecting test type and required environment
+                        Analyzing request and preparing workflow execution
                       </p>
                     </div>
                   )}
@@ -265,23 +265,6 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
           </motion.div>
         )}
 
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="max-w-4xl mx-auto mb-8"
-          >
-            <div className="text-white">
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
-                <span className="font-medium text-blue-300">Analyzing command...</span>
-              </div>
-              <p className="text-blue-400/80 text-sm mt-1 ml-6">
-                Detecting test type and required environment
-              </p>
-            </div>
-          </motion.div>
-        )}
 
       {/* Input y sugerencias al final - Como Google AI */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
