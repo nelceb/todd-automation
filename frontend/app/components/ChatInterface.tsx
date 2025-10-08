@@ -52,17 +52,22 @@ function extractTestSummary(logs: string) {
   let failed = 0
   let skipped = 0
   const failedTests: string[] = []
+  const passedTests: string[] = []
 
   // Patrones específicos para Maestro Cloud
   const maestroPatterns = {
     // Patrón: "1/1 Flow Passed" o "2/3 Flows Passed"
     flowPassed: /(\d+)\/(\d+)\s+Flow(?:s?)\s+Passed/gi,
     // Patrón: "[Passed] iOS Login Test Suite"
-    suitePassed: /\[Passed\]\s+([A-Za-z0-9\s]+)/gi,
+    suitePassed: /\[Passed\]\s+([A-Za-z0-9\s\-_]+)/gi,
     // Patrón: "[Failed] Test Suite Name"
-    suiteFailed: /\[Failed\]\s+([A-Za-z0-9\s]+)/gi,
+    suiteFailed: /\[Failed\]\s+([A-Za-z0-9\s\-_]+)/gi,
     // Patrón: "X/Y Flows Failed"
-    flowFailed: /(\d+)\/(\d+)\s+Flow(?:s?)\s+Failed/gi
+    flowFailed: /(\d+)\/(\d+)\s+Flow(?:s?)\s+Failed/gi,
+    // Patrón: "Running flow: FlowName"
+    flowRunning: /Running flow:\s+([A-Za-z0-9\s\-_]+)/gi,
+    // Patrón: "Flow 'FlowName' completed"
+    flowCompleted: /Flow\s+'([A-Za-z0-9\s\-_]+)'\s+completed/gi
   }
 
   // Buscar patrones específicos de Maestro primero
@@ -95,6 +100,17 @@ function extractTestSummary(logs: string) {
       })
     }
 
+    // Buscar suites pasadas
+    const suitePassedMatch = line.match(maestroPatterns.suitePassed)
+    if (suitePassedMatch) {
+      suitePassedMatch.forEach(match => {
+        const suiteName = match.replace(/\[Passed\]\s*/gi, '').trim()
+        if (suiteName && !passedTests.includes(suiteName)) {
+          passedTests.push(suiteName)
+        }
+      })
+    }
+
     // Buscar suites fallidas
     const suiteFailedMatch = line.match(maestroPatterns.suiteFailed)
     if (suiteFailedMatch) {
@@ -102,6 +118,28 @@ function extractTestSummary(logs: string) {
         const suiteName = match.replace(/\[Failed\]\s*/gi, '').trim()
         if (suiteName && !failedTests.includes(suiteName)) {
           failedTests.push(suiteName)
+        }
+      })
+    }
+
+    // Buscar flows ejecutándose
+    const flowRunningMatch = line.match(maestroPatterns.flowRunning)
+    if (flowRunningMatch) {
+      flowRunningMatch.forEach(match => {
+        const flowName = match.replace(/Running flow:\s*/gi, '').trim()
+        if (flowName && !passedTests.includes(flowName) && !failedTests.includes(flowName)) {
+          passedTests.push(flowName) // Asumimos que se está ejecutando correctamente
+        }
+      })
+    }
+
+    // Buscar flows completados
+    const flowCompletedMatch = line.match(maestroPatterns.flowCompleted)
+    if (flowCompletedMatch) {
+      flowCompletedMatch.forEach(match => {
+        const flowName = match.replace(/Flow\s+'([^']+)'\s+completed/gi, '$1').trim()
+        if (flowName && !passedTests.includes(flowName)) {
+          passedTests.push(flowName)
         }
       })
     }
@@ -149,8 +187,8 @@ function extractTestSummary(logs: string) {
   }
 
   // Solo retornar si encontramos información útil
-  if (passed > 0 || failed > 0 || skipped > 0 || failedTests.length > 0) {
-    return { passed, failed, skipped, failedTests }
+  if (passed > 0 || failed > 0 || skipped > 0 || failedTests.length > 0 || passedTests.length > 0) {
+    return { passed, failed, skipped, failedTests, passedTests }
   }
 
   return null
@@ -463,6 +501,25 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                               </div>
                             )}
                           </div>
+                          
+                          {/* Mostrar nombres de flows específicos */}
+                          {summary.passedTests && summary.passedTests.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-green-300 text-xs font-medium mb-1">Passed Tests:</p>
+                              <div className="space-y-1">
+                                {summary.passedTests.slice(0, 3).map((test, i) => (
+                                  <div key={i} className="text-green-400 text-xs bg-green-900/20 rounded px-2 py-1">
+                                    {test}
+                                  </div>
+                                ))}
+                                {summary.passedTests.length > 3 && (
+                                  <div className="text-green-400 text-xs">
+                                    +{summary.passedTests.length - 3} more...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           
                           {/* Enlace a Maestro Cloud si está disponible */}
                           {log.logs && log.logs.includes('https://app.maestro.dev/') && (

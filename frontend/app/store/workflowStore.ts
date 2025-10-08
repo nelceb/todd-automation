@@ -171,7 +171,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isPollingLogs: true })
     
     const pollInterval = setInterval(async () => {
-      const { isPollingLogs: stillPolling, currentLogs } = get()
+      const { isPollingLogs: stillPolling } = get()
       if (!stillPolling) {
         clearInterval(pollInterval)
         return
@@ -179,8 +179,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
       await get().fetchWorkflowLogs(runId, token)
       
-      // Stop polling if workflow is completed
-      if (currentLogs?.run.status === 'completed') {
+      // Check the updated logs after fetching
+      const { currentLogs: updatedLogs } = get()
+      if (updatedLogs?.run.status === 'completed') {
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds
