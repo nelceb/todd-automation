@@ -339,7 +339,7 @@ export default function ChatInterface({
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-              className="w-full max-w-7xl"
+              className="w-full max-w-4xl"
             >
               <form onSubmit={handleSubmit} className="relative">
                 <input
