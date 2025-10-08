@@ -179,9 +179,7 @@ export default function ChatInterface({
 
     try {
       // First, get preview of workflows
-      console.log('Getting preview for message:', userMessage)
       const preview = await previewWorkflows(userMessage)
-      console.log('Preview result:', preview)
       
       if (preview && preview.workflows.length > 0) {
         // Clear previous multiple logs
@@ -193,26 +191,17 @@ export default function ChatInterface({
         
         for (const workflow of preview.workflows) {
           try {
-            console.log('Executing workflow:', workflow.workflowName, 'with inputs:', workflow.inputs)
-            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken)
-            console.log('Workflow result:', result)
+            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, workflow.repository)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
-              console.log('Adding runId to polling:', result.runId)
               runIds.push(result.runId)
-            } else {
-              console.log('No runId in result:', result)
             }
           } catch (error) {
             console.error('Error executing workflow:', error)
-            console.error('Error details:', error)
             results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
           }
         }
-        
-        console.log('All workflow results:', results)
-        console.log('Run IDs for polling:', runIds)
 
         // Start polling for multiple logs if we have run IDs
         if (runIds.length > 0) {

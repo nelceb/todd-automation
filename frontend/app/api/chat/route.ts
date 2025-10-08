@@ -261,15 +261,11 @@ IMPORTANT: The iOS Maestro Cloud Tests workflow accepts these test_suite values:
       throw new Error('No response from OpenAI')
     }
 
-    console.log('OpenAI Response:', response)
-
     // Parsear la respuesta JSON
     let parsedResponse
     try {
       parsedResponse = JSON.parse(response)
-      console.log('Parsed Response:', parsedResponse)
     } catch (error) {
-      console.log('JSON Parse Error:', error)
       // Si no es JSON válido, devolver como respuesta simple
       parsedResponse = { response }
     }

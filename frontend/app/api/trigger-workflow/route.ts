@@ -4,15 +4,11 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { workflowId, inputs } = await request.json()
+    const { workflowId, inputs, repository } = await request.json()
     
     const token = process.env.GITHUB_TOKEN
-    const owner = process.env.GITHUB_OWNER || 'cookunity'
-    const repo = process.env.GITHUB_REPO || 'test-runner-ai'
-
-    console.log('GitHub Token:', token ? `${token.substring(0, 10)}...` : 'NOT SET')
-    console.log('Owner:', owner)
-    console.log('Repo:', repo)
+    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
+    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
       throw new Error('GitHub token no configurado')
@@ -26,7 +22,6 @@ export async function POST(request: NextRequest) {
 
     // Si el token es de prueba, usar datos de demostración
     const isDemoMode = !token || token === 'test_token' || token === 'your_github_personal_access_token_here'
-    console.log('Demo mode:', isDemoMode)
     
     if (isDemoMode) {
       const demoWorkflows = [

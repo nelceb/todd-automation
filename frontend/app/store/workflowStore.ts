@@ -177,7 +177,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string) => {
+  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => {
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -187,7 +187,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ workflowId, inputs })
+        body: JSON.stringify({ workflowId, inputs, repository })
       })
       if (!response.ok) throw new Error('Error al ejecutar workflow')
       const result = await response.json()
@@ -231,7 +231,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const results = []
     for (const workflow of workflows) {
       try {
-        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token)
+        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, workflow.repository)
         results.push({ ...result, workflow })
       } catch (error) {
         results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
