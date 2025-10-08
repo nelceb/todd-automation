@@ -53,12 +53,14 @@ NOTA: Estos son workflows específicos de Maestro para testing móvil. El workfl
 
 Palabras clave para detectar:
 - iOS específico: "ios", "iOS", "iphone", "apple"
-- Android específico: "android", "Android", "google"
-- Mobile genérico: "móvil", "mobile", "celular"
 - Search: "search", "búsqueda", "buscar"
+- Login: "login", "authentication", "auth"
+- Signup: "signup", "register", "registration"
+- Menu: "menu", "navigation", "navegación"
+- Cart: "cart", "shopping", "carrito"
+- Complete Order: "complete order", "checkout", "finalizar pedido"
+- Home: "home", "main", "principal"
 - Maestro: "maestro", "Maestro", "mobile test", "mobile testing"
-- Web: "web", "desktop", "navegador", "browser"
-- API: "api", "backend", "servicio"
 
 Ambientes:
 - qa, staging, prod, producción
@@ -69,22 +71,37 @@ Responde SIEMPRE en formato JSON con:
 {
   "response": "Voy a ejecutar los tests [tipo] en [ambiente]",
   "workflowTriggered": {
-    "workflowId": "nombre-del-workflow.yml",
-    "name": "Nombre del workflow",
+    "workflowId": "ios-maestro-tests.yml",
+    "name": "iOS Maestro Tests",
     "inputs": {
-      "environment": "qa",
-      "platform": "ios",
-      "test_type": "regression"
+      "test_suite": "all|login|signup|smoke|regression",
+      "device_type": "iPhone 15",
+      "ios_version": "17.5",
+      "bitrise_build_number": ""
     }
   }
 }
 
+Mapeo de test_suite:
+- "login" → para tests de login
+- "signup" → para tests de signup  
+- "all" → para search, menu, cart, completeOrder, home (todos los demás)
+- "smoke" → para tests básicos
+- "regression" → para regresión completa
+
 Ejemplos de detección:
-- "corré los tests de search en iOS" → iOS Maestro Tests
-- "ejecuta tests de maestro en iOS" → iOS Maestro Tests
-- "lanza tests de search en producción" → iOS Maestro Tests
-- "corré los tests de maestro en browserstack" → Run BS iOS Maestro
-- "ejecuta tests de gauge en iOS" → iOS Gauge Tests on LambdaTest`
+- "run search tests in prod" → iOS Maestro Tests con test_suite: "all" (incluye search)
+- "run login tests in qa" → iOS Maestro Tests con test_suite: "login"
+- "run signup tests in staging" → iOS Maestro Tests con test_suite: "signup"
+- "run complete order tests in prod" → iOS Maestro Tests con test_suite: "all" (incluye completeOrder)
+- "run menu tests in qa" → iOS Maestro Tests con test_suite: "all" (incluye menu)
+
+IMPORTANTE: El workflow iOS Maestro Tests acepta estos test_suite:
+- "all" → ejecuta todos los tests (incluye search, menu, cart, completeOrder, etc.)
+- "login" → solo tests de login
+- "signup" → solo tests de signup
+- "smoke" → tests básicos
+- "regression" → tests de regresión completa`
         },
         {
           role: "user",

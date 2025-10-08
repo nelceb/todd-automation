@@ -1,55 +1,55 @@
 import { NextResponse } from 'next/server'
 
-// Tags dinámicos basados en los tests de Maestro disponibles
+// Tags dinámicos basados en los tests de Maestro disponibles (solo iOS)
 const TEST_TAGS = [
   {
     id: 'search',
     name: 'Search',
-    description: 'Tests de búsqueda de comidas',
+    description: 'Search functionality tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'login',
     name: 'Login',
-    description: 'Tests de autenticación',
+    description: 'Authentication tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'cart',
     name: 'Cart',
-    description: 'Tests del carrito de compras',
+    description: 'Shopping cart tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'menu',
     name: 'Menu',
-    description: 'Tests del menú y navegación',
+    description: 'Menu and navigation tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'signup',
     name: 'Signup',
-    description: 'Tests de registro de usuarios',
+    description: 'User registration tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'completeOrder',
     name: 'Complete Order',
-    description: 'Tests de finalización de pedidos',
+    description: 'Order completion tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   },
   {
     id: 'home',
     name: 'Home',
-    description: 'Tests de la pantalla principal',
+    description: 'Home screen tests',
     environments: ['qa', 'staging', 'prod'],
-    platforms: ['ios', 'android']
+    platforms: ['ios']
   }
 ]
 
@@ -62,7 +62,7 @@ export async function GET() {
       tag.environments.forEach(env => {
         tag.platforms.forEach(platform => {
           suggestions.push({
-            text: `Corré los tests de ${tag.name.toLowerCase()} en ${env} para ${platform}`,
+            text: `Run ${tag.name.toLowerCase()} tests in ${env} for ${platform}`,
             tag: tag.id,
             environment: env,
             platform: platform,

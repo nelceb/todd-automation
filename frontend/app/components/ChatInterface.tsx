@@ -284,15 +284,7 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
                 disabled={isLoading}
               />
 
-                {/* Iconos dentro del input */}
-                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
-                  <button
-                    type="button"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <PlusIcon className="w-5 h-5" />
-                  </button>
-                </div>
+                {/* Sin iconos dentro del input para evitar overlap */}
 
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
