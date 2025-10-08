@@ -199,13 +199,20 @@ export default function ChatInterface({
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
+              console.log('Adding runId to polling:', result.runId)
               runIds.push(result.runId)
+            } else {
+              console.log('No runId in result:', result)
             }
           } catch (error) {
             console.error('Error executing workflow:', error)
+            console.error('Error details:', error)
             results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
           }
         }
+        
+        console.log('All workflow results:', results)
+        console.log('Run IDs for polling:', runIds)
 
         // Start polling for multiple logs if we have run IDs
         if (runIds.length > 0) {
