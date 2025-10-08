@@ -44,21 +44,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Disparar el workflow directamente
-    const triggerResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ref: 'main',
-          inputs: inputs || {}
-        }),
-      }
-    )
+    const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
+    console.log('Trigger URL:', triggerUrl)
+    console.log('Workflow ID:', workflow.id)
+    console.log('Owner:', owner)
+    console.log('Repo:', repo)
+    console.log('Inputs:', inputs)
+    
+    const triggerResponse = await fetch(triggerUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: 'main'
+        // Removemos inputs temporalmente para debug
+      }),
+    })
 
     if (!triggerResponse.ok) {
       const errorText = await triggerResponse.text()
