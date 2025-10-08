@@ -68,18 +68,20 @@ Environments:
 
 PRIORITY: If specific platform (iOS/Android) and environment (prod/qa) are mentioned, use the specific workflow.
 
-Always respond in JSON format with:
-{
-  "response": "I will execute [type] tests in [environment]",
-  "workflowTriggered": {
-    "workflowId": "ios-maestro-tests.yml",
-    "name": "iOS Maestro Cloud Tests",
-    "inputs": {
-      "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
-      "bitrise_build_number": ""
+    Always respond in JSON format with:
+    {
+      "response": "I will execute [type] tests in [environment]",
+      "workflowTriggered": {
+        "workflowId": "ios-maestro-tests.yml",
+        "name": "iOS Maestro Cloud Tests",
+        "inputs": {
+          "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
+          "bitrise_build_number": "",
+          "user_email": "email@example.com", // Only include if user specifies an email
+          "user_password": "password123" // Only include if user specifies a password
+        }
+      }
     }
-  }
-}
 
 test_suite mapping:
 - "login" → for login tests
@@ -92,13 +94,22 @@ test_suite mapping:
 - "smoke" → for basic tests
 - "regression" → for full regression
 
-Detection examples:
-- "run search tests in prod" → iOS Maestro Cloud Tests with test_suite: "search"
-- "run login tests in qa" → iOS Maestro Cloud Tests with test_suite: "login"
-- "run signup tests in staging" → iOS Maestro Cloud Tests with test_suite: "signup"
-- "run complete order tests in prod" → iOS Maestro Cloud Tests with test_suite: "completeOrder"
-- "run menu tests in qa" → iOS Maestro Cloud Tests with test_suite: "menu"
-- "run cart tests in prod" → iOS Maestro Cloud Tests with test_suite: "cart"
+    Detection examples:
+    - "run search tests in prod" → iOS Maestro Cloud Tests with test_suite: "search"
+    - "run login tests in qa" → iOS Maestro Cloud Tests with test_suite: "login"
+    - "run signup tests in staging" → iOS Maestro Cloud Tests with test_suite: "signup"
+    - "run complete order tests in prod" → iOS Maestro Cloud Tests with test_suite: "completeOrder"
+    - "run menu tests in qa" → iOS Maestro Cloud Tests with test_suite: "menu"
+    - "run cart tests in prod" → iOS Maestro Cloud Tests with test_suite: "cart"
+    
+    USER CREDENTIALS DETECTION:
+    - If user mentions an email address, include it in user_email input
+    - If user mentions a password, include it in user_password input
+    - Examples: "run login tests in prod with user@example.com" → include user_email: "user@example.com"
+    - Examples: "run tests for john.doe@company.com with password mypass123" → include user_email: "john.doe@company.com", user_password: "mypass123"
+    - Examples: "run tests with email test@test.com and password secret123" → include both user_email and user_password
+    - If no email is mentioned, omit the user_email field entirely
+    - If no password is mentioned, omit the user_password field entirely (workflow will use default password)
 
 IMPORTANT: The iOS Maestro Cloud Tests workflow accepts these test_suite values:
 - "all" → runs all tests (includes search, menu, cart, completeOrder, etc.)

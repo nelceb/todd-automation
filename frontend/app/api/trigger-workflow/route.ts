@@ -88,6 +88,34 @@ export async function POST(request: NextRequest) {
         const errorText = await triggerResponse.text()
         throw new Error(`Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
       }
+
+      // Esperar un momento para que se cree el run
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Obtener el run más reciente para este workflow
+      const runsResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/runs?per_page=1`,
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+
+      if (runsResponse.ok) {
+        const runsData = await runsResponse.json()
+        if (runsData.workflow_runs && runsData.workflow_runs.length > 0) {
+          const latestRun = runsData.workflow_runs[0]
+          return NextResponse.json({
+            success: true,
+            message: `Workflow ${workflow.name} ejecutado exitosamente`,
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+            runId: latestRun.id
+          })
+        }
+      }
     }
 
     return NextResponse.json({

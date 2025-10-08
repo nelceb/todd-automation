@@ -56,7 +56,13 @@ const TEST_TAGS = [
 export async function GET() {
   try {
     // Generar sugerencias dinámicas basadas en los tags
-    const suggestions = []
+    const suggestions: Array<{
+      text: string
+      tag: string
+      environment: string
+      platform: string
+      category: string
+    }> = []
     
     TEST_TAGS.forEach(tag => {
       tag.environments.forEach(env => {
