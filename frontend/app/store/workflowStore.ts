@@ -79,9 +79,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
+      // Always use the token from Vercel environment variables
+      // The API will handle token fallback automatically
       
       const response = await fetch('/api/workflows', { headers })
       if (!response.ok) {
@@ -99,9 +98,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
+      // Always use the token from Vercel environment variables
+      // The API will handle token fallback automatically
       
       const response = await fetch('/api/workflow-runs', { headers })
       if (!response.ok) {
@@ -119,9 +117,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
+      // Always use the token from Vercel environment variables
+      // The API will handle token fallback automatically
 
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
@@ -148,9 +145,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   fetchWorkflowLogs: async (runId: string, token?: string) => {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
+      // Always use the token from Vercel environment variables
+      // The API will handle token fallback automatically
 
       const response = await fetch(`/api/workflow-logs?runId=${runId}`, { headers })
       if (!response.ok) {
