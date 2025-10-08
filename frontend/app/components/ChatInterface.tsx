@@ -30,7 +30,7 @@ interface Message {
 interface ChatInterfaceProps {
   githubToken?: string
   messages: Message[]
-  setMessages: (messages: Message[]) => void
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   clearMessages: () => void
   onWorkflowExecuted: () => void
 }
