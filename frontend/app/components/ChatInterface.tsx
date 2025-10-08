@@ -316,46 +316,109 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 pb-40">
-      {/* Header estilo Google AI - Solo cuando no hay mensajes */}
-      {messages.length === 0 && (
-        <div className="text-center mb-12">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20">
+      <AnimatePresence mode="wait">
+        {/* Initial centered layout when no messages */}
+        {messages.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            key="centered-layout"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, y: -50 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="min-h-screen flex flex-col items-center justify-center"
           >
-            <h1 className="text-4xl font-light text-white mb-4">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+              className="text-center mb-12"
+          >
+            <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
               Multi-Repository Test Automation AI
             </h1>
-            <p className="text-gray-400 text-lg">
+            <p className="text-gray-400 text-lg font-mono">
               Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
             </p>
           </motion.div>
-        </div>
-      )}
+            
+            {/* Centered input field */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+              className="w-full max-w-7xl"
+            >
+            <form onSubmit={handleSubmit} className="relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Enter your test command..."
+                className="w-full pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
+                disabled={isLoading}
+              />
 
-      {/* Botón para limpiar historial - Solo cuando hay mensajes */}
-      {messages.length > 0 && (
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={clearMessages}
-            className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              {/* Botones de la derecha */}
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleMicrophoneClick}
+                  className={`transition-colors ${
+                    isListening 
+                      ? 'text-red-400 hover:text-red-300' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
+                </button>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </form>
+            </motion.div>
+          </motion.div>
+        ) : (
+          /* Layout with messages - input field at bottom */
+          <motion.div
+            key="messages-layout"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="pb-40"
           >
-            <TrashIcon className="w-4 h-4" />
-            <span>Clear History</span>
-          </button>
-        </div>
-      )}
+          {/* Botón para limpiar historial */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={clearMessages}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              <TrashIcon className="w-4 h-4" />
+              <span>Clear History</span>
+            </button>
+          </div>
+
 
       {/* Log informativo - Estilo sutil */}
       <div className="flex justify-center">
         <div className="max-w-4xl w-full space-y-3">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <motion.div
             key={message.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, x: -30, y: 10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ 
+              duration: 0.6, 
+              delay: index * 0.1, 
+              ease: "easeOut" 
+            }}
             className="flex items-start space-x-4 py-2"
           >
             {/* Timestamp */}
@@ -376,9 +439,9 @@ export default function ChatInterface({
                 </span>
               </div>
               <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
-                {message.content}
-              </p>
-            </div>
+                    {message.content}
+                  </p>
+                </div>
           </motion.div>
         ))}
 
@@ -397,12 +460,12 @@ export default function ChatInterface({
                 <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
                 <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                   PROCESSING
-                </span>
-              </div>
+                      </span>
+                    </div>
               <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
                 Processing your request...
-              </p>
-            </div>
+                    </p>
+                  </div>
           </motion.div>
         )}
         </div>
@@ -452,11 +515,11 @@ export default function ChatInterface({
                       ))}
                     </div>
                   )}
-                </div>
+                  </div>
               </div>
             </div>
           ))}
-            </motion.div>
+        </motion.div>
           </div>
         </div>
       )}
@@ -465,7 +528,7 @@ export default function ChatInterface({
       {(currentLogs || multipleLogs.length > 0) && (
         <div className="flex justify-center">
           <div className="max-w-4xl w-full">
-            <motion.div
+        <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="mt-6 space-y-3"
@@ -638,19 +701,14 @@ export default function ChatInterface({
           ))}
             </motion.div>
           </div>
-        </div>
-      )}
-
-
-      {/* Input y sugerencias al final - Como Google AI */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full px-8 sm:px-12 lg:px-16 xl:px-20">
-        {/* Input principal estilo Google */}
+          {/* Fixed input field at bottom when there are messages */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative mb-6"
-        >
-          <form onSubmit={handleSubmit} className="relative flex justify-center">
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+            className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full px-8 sm:px-12 lg:px-16 xl:px-20"
+          >
+            <form onSubmit={handleSubmit} className="relative flex justify-center">
             <div className="relative">
               <input
                 ref={inputRef}
@@ -686,8 +744,9 @@ export default function ChatInterface({
             </div>
           </form>
         </motion.div>
-
-      </div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
