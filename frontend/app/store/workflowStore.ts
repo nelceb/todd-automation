@@ -246,13 +246,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ workflowPreview: null })
   },
 
-  fetchWorkflowLogs: async (runId: string, token?: string) => {
+  fetchWorkflowLogs: async (runId: string, token?: string, repository?: string) => {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       // Always use the token from Vercel environment variables
       // The API will handle token fallback automatically
 
-      const response = await fetch(`/api/workflow-logs?runId=${runId}`, { headers })
+      const repoParam = repository ? `&repository=${repository}` : ''
+      const response = await fetch(`/api/workflow-logs?runId=${runId}${repoParam}`, { headers })
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`)
@@ -264,7 +265,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  startPollingLogs: (runId: string, token?: string) => {
+  startPollingLogs: (runId: string, token?: string, repository?: string) => {
     const { isPollingLogs } = get()
     if (isPollingLogs) return
 
@@ -277,7 +278,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         return
       }
 
-      await get().fetchWorkflowLogs(runId, token)
+      await get().fetchWorkflowLogs(runId, token, repository)
       
       // Check the updated logs after fetching
       const { currentLogs: updatedLogs } = get()
@@ -290,7 +291,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     ;(get() as any).pollInterval = pollInterval
   },
 
-  startPollingMultipleLogs: (runIds: string[], token?: string) => {
+  startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => {
     const { isPollingLogs } = get()
     if (isPollingLogs) return
 
@@ -304,10 +305,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       }
 
       // Fetch logs for all run IDs
-      const logsPromises = runIds.map(async (runId) => {
+      const logsPromises = runIds.map(async (runId, index) => {
         try {
+          const repository = repositories?.[index] || 'maestro-test'
+          const repoParam = repository ? `&repository=${repository}` : ''
           const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-          const response = await fetch(`/api/workflow-logs?runId=${runId}`, { headers })
+          const response = await fetch(`/api/workflow-logs?runId=${runId}${repoParam}`, { headers })
           if (response.ok) {
             return await response.json()
           }

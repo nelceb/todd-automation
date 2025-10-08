@@ -207,7 +207,11 @@ export default function ChatInterface({
 
         // Start polling for multiple logs if we have run IDs
         if (runIds.length > 0) {
-          startPollingMultipleLogs(runIds, githubToken)
+          const repositories = results.map(result => {
+            const repoName = result.workflow?.repository ? result.workflow.repository.split('/').pop() : 'maestro-test'
+            return repoName
+          })
+          startPollingMultipleLogs(runIds, githubToken, repositories)
         }
 
         // Add assistant response with workflow info
