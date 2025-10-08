@@ -90,7 +90,7 @@ interface WorkflowStore {
   currentLogs: WorkflowLogs | null
   multipleLogs: WorkflowLogs[]
   isPollingLogs: boolean
-
+  
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
   fetchWorkflowRuns: (token?: string) => Promise<void>
@@ -183,7 +183,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       // Always use the token from Vercel environment variables
       // The API will handle token fallback automatically
-
+      
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
         headers,
@@ -191,7 +191,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       })
       if (!response.ok) throw new Error('Error al ejecutar workflow')
       const result = await response.json()
-
+      
       // Refresh workflow runs after triggering
       await get().fetchWorkflowRuns(token)
       set({ isLoading: false })

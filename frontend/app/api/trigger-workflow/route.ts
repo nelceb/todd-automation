@@ -10,6 +10,10 @@ export async function POST(request: NextRequest) {
     const owner = process.env.GITHUB_OWNER || 'cookunity'
     const repo = process.env.GITHUB_REPO || 'test-runner-ai'
 
+    console.log('GitHub Token:', token ? `${token.substring(0, 10)}...` : 'NOT SET')
+    console.log('Owner:', owner)
+    console.log('Repo:', repo)
+
     if (!token) {
       throw new Error('GitHub token no configurado')
     }
@@ -21,7 +25,10 @@ export async function POST(request: NextRequest) {
     let workflow: any
 
     // Si el token es de prueba, usar datos de demostración
-    if (!token || token === 'test_token' || token === 'your_github_personal_access_token_here') {
+    const isDemoMode = !token || token === 'test_token' || token === 'your_github_personal_access_token_here'
+    console.log('Demo mode:', isDemoMode)
+    
+    if (isDemoMode) {
       const demoWorkflows = [
         { id: 1, name: 'Mobile Tests', path: '.github/workflows/mobile-tests.yml' },
         { id: 2, name: 'Web Tests', path: '.github/workflows/web-tests.yml' },
