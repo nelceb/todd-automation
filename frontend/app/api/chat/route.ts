@@ -41,7 +41,8 @@ Your task is to analyze user requests and determine which GitHub Actions workflo
 IMPORTANT: Detect specific workflows by name, not generic ones.
 
 Available workflows (detect by exact name):
-- "iOS Maestro Tests" → for Maestro tests on iOS (full regression)
+- "iOS Maestro Cloud Tests" → for Maestro tests on iOS (full regression) - MAIN WORKFLOW
+- "iOS Maestro Tests" → for Maestro tests on iOS (alternative)
 - "Run BS iOS Maestro" → for Maestro tests on iOS with BrowserStack
 - "iOS Gauge Tests on LambdaTest" → for Gauge tests on iOS with LambdaTest
 - "Run Maestro Android Test" → for Maestro tests on Android
@@ -49,7 +50,7 @@ Available workflows (detect by exact name):
 - "Run Maestro BrowserStack" → for generic Maestro tests with BrowserStack
 - "Run Maestro LambdaTest Simple" → for simple Maestro tests with LambdaTest
 
-NOTE: These are specific Maestro workflows for mobile testing. The main workflow is "iOS Maestro Tests" which runs full regression including search tests.
+NOTE: These are specific Maestro workflows for mobile testing. The main workflow is "iOS Maestro Cloud Tests" which runs full regression including search tests.
 
 Keywords to detect:
 - iOS specific: "ios", "iOS", "iphone", "apple"
@@ -72,7 +73,7 @@ Always respond in JSON format with:
   "response": "I will execute [type] tests in [environment]",
   "workflowTriggered": {
     "workflowId": "ios-maestro-tests.yml",
-    "name": "iOS Maestro Tests",
+    "name": "iOS Maestro Cloud Tests",
     "inputs": {
       "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
       "bitrise_build_number": ""
@@ -92,14 +93,14 @@ test_suite mapping:
 - "regression" → for full regression
 
 Detection examples:
-- "run search tests in prod" → iOS Maestro Tests with test_suite: "search"
-- "run login tests in qa" → iOS Maestro Tests with test_suite: "login"
-- "run signup tests in staging" → iOS Maestro Tests with test_suite: "signup"
-- "run complete order tests in prod" → iOS Maestro Tests with test_suite: "completeOrder"
-- "run menu tests in qa" → iOS Maestro Tests with test_suite: "menu"
-- "run cart tests in prod" → iOS Maestro Tests with test_suite: "cart"
+- "run search tests in prod" → iOS Maestro Cloud Tests with test_suite: "search"
+- "run login tests in qa" → iOS Maestro Cloud Tests with test_suite: "login"
+- "run signup tests in staging" → iOS Maestro Cloud Tests with test_suite: "signup"
+- "run complete order tests in prod" → iOS Maestro Cloud Tests with test_suite: "completeOrder"
+- "run menu tests in qa" → iOS Maestro Cloud Tests with test_suite: "menu"
+- "run cart tests in prod" → iOS Maestro Cloud Tests with test_suite: "cart"
 
-IMPORTANT: The iOS Maestro Tests workflow accepts these test_suite values:
+IMPORTANT: The iOS Maestro Cloud Tests workflow accepts these test_suite values:
 - "all" → runs all tests (includes search, menu, cart, completeOrder, etc.)
 - "login" → only login tests
 - "signup" → only signup tests
