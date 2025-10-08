@@ -74,9 +74,7 @@ Always respond in JSON format with:
     "workflowId": "ios-maestro-tests.yml",
     "name": "iOS Maestro Tests",
     "inputs": {
-      "test_suite": "all|login|signup|smoke|regression",
-      "device_type": "iPhone 15",
-      "ios_version": "17.5",
+      "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
       "bitrise_build_number": ""
     }
   }
@@ -85,21 +83,30 @@ Always respond in JSON format with:
 test_suite mapping:
 - "login" → for login tests
 - "signup" → for signup tests  
-- "all" → for search, menu, cart, completeOrder, home (all others)
+- "cart" → for cart tests
+- "completeOrder" → for complete order tests
+- "menu" → for menu tests
+- "search" → for search tests
+- "all" → for all tests (includes everything)
 - "smoke" → for basic tests
 - "regression" → for full regression
 
 Detection examples:
-- "run search tests in prod" → iOS Maestro Tests with test_suite: "all" (includes search)
+- "run search tests in prod" → iOS Maestro Tests with test_suite: "search"
 - "run login tests in qa" → iOS Maestro Tests with test_suite: "login"
 - "run signup tests in staging" → iOS Maestro Tests with test_suite: "signup"
-- "run complete order tests in prod" → iOS Maestro Tests with test_suite: "all" (includes completeOrder)
-- "run menu tests in qa" → iOS Maestro Tests with test_suite: "all" (includes menu)
+- "run complete order tests in prod" → iOS Maestro Tests with test_suite: "completeOrder"
+- "run menu tests in qa" → iOS Maestro Tests with test_suite: "menu"
+- "run cart tests in prod" → iOS Maestro Tests with test_suite: "cart"
 
 IMPORTANT: The iOS Maestro Tests workflow accepts these test_suite values:
 - "all" → runs all tests (includes search, menu, cart, completeOrder, etc.)
 - "login" → only login tests
 - "signup" → only signup tests
+- "cart" → only cart tests
+- "completeOrder" → only complete order tests
+- "menu" → only menu tests
+- "search" → only search tests
 - "smoke" → basic tests
 - "regression" → full regression tests`
         },
