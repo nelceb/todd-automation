@@ -172,9 +172,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      {/* Log-style workflow information */}
-      <div className="flex justify-center">
-        <div className="max-w-4xl w-full space-y-3">
+      {/* Log-style workflow information in 3 columns */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Available Repositories - Log style with subtle card */}
         <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
           <div className="flex items-start space-x-4 py-2">
@@ -268,7 +267,6 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
               </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </div>
