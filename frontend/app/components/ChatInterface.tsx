@@ -191,7 +191,9 @@ export default function ChatInterface({
         
         for (const workflow of preview.workflows) {
           try {
-            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, workflow.repository)
+            // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
+            const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
+            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, repoName)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {

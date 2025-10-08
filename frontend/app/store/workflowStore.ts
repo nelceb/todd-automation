@@ -231,7 +231,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const results = []
     for (const workflow of workflows) {
       try {
-        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, workflow.repository)
+        // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
+        const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
+        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName)
         results.push({ ...result, workflow })
       } catch (error) {
         results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
