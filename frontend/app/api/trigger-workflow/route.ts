@@ -20,7 +20,13 @@ export async function POST(request: NextRequest) {
 
     // Mapeo directo de workflow names a IDs conocidos
     const workflowMapping: Record<string, { id: string, name: string }> = {
-      'iOS Maestro Cloud Tests': { id: 'ios-maestro-tests.yml', name: 'iOS Maestro Cloud Tests' },
+      'iOS Maestro Cloud Tests': { id: '170992579', name: 'iOS Maestro Cloud Tests' },
+      'Run BS iOS Maestro Test (Minimal Zip)': { id: '178419154', name: 'Run BS iOS Maestro Test (Minimal Zip)' },
+      'iOS Gauge Tests on LambdaTest': { id: '170481042', name: 'iOS Gauge Tests on LambdaTest' },
+      'Maestro Mobile Tests - iOS and Android': { id: '170481043', name: 'Maestro Mobile Tests - iOS and Android' },
+      'Run Maestro Test on BrowserStack (iOS)': { id: '179332733', name: 'Run Maestro Test on BrowserStack (iOS)' },
+      'Run Maestro Test on BrowserStack': { id: '167743620', name: 'Run Maestro Test on BrowserStack' },
+      'Maestro iOS Tests': { id: '170712159', name: 'Maestro iOS Tests' },
       'QA US - E2E': { id: 'qa-e2e-web.yml', name: 'QA US - E2E' },
       'QA E2E Web Regression': { id: 'qa_e2e_web_regression.yml', name: 'QA E2E Web Regression' },
       'QA Android Regression': { id: 'qa_android_regression.yml', name: 'QA Android Regression' },
