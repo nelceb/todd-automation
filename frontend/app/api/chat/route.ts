@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic' // Fix for Next.js static generation
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
