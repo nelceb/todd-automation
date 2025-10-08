@@ -609,14 +609,14 @@ export default function ChatInterface({
           animate={{ opacity: 1, y: 0 }}
           className="relative mb-6"
         >
-          <form onSubmit={handleSubmit} className="relative">
+          <form onSubmit={handleSubmit} className="relative flex justify-center">
             <div className="relative">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Run login tests in prod for iOS"
-                className="google-input w-full pr-20 pl-6 py-4 text-lg"
+                className="google-input w-full max-w-2xl pr-20 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
 
@@ -650,29 +650,33 @@ export default function ChatInterface({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+          className="flex justify-center"
         >
-          {suggestions.slice(0, 4).map((suggestion, index) => (
-            <button
-              key={index}
-              onClick={() => setInput(suggestion.text)}
-              className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
-                  {suggestion.text}
-                </span>
-                <span className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded-md">
-                  {suggestion.category}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 text-xs text-gray-400">
-                <span>{suggestion.environment}</span>
-                <span>•</span>
-                <span>{suggestion.platform}</span>
-              </div>
-            </button>
-          ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
+            {suggestions.slice(0, 4).map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => setInput(suggestion.text)}
+                className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
+              >
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-start justify-between">
+                    <span className="text-white text-sm font-medium group-hover:text-white transition-colors flex-1 pr-2">
+                      {suggestion.text}
+                    </span>
+                    <span className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded-md flex-shrink-0">
+                      {suggestion.category}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-xs text-gray-400">
+                    <span>{suggestion.environment}</span>
+                    <span>•</span>
+                    <span>{suggestion.platform}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </motion.div>
       </div>
     </div>

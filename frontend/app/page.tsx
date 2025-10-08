@@ -92,7 +92,7 @@ export default function Home() {
                       rotate: 360
                     }}
                     transition={{ 
-                      duration: 8,
+                      duration: 20,
                       repeat: Infinity,
                       ease: "linear"
                     }}
