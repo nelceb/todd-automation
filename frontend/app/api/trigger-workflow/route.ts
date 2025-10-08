@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         `https://api.github.com/repos/${owner}/${repo}/actions/workflows`,
         {
           headers: {
-            'Authorization': `token ${token}`,
+            'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json',
           },
         }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         {
           method: 'POST',
           headers: {
-            'Authorization': `token ${token}`,
+            'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json',
             'Content-Type': 'application/json',
           },
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/runs?per_page=1`,
         {
           headers: {
-            'Authorization': `token ${token}`,
+            'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json',
           },
         }

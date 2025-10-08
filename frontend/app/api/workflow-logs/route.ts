@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
       {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
       }
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs`,
       {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
       }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
             `https://api.github.com/repos/${owner}/${repo}/actions/jobs/${job.id}/logs`,
             {
               headers: {
-                'Authorization': `token ${token}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github.v3+json',
               },
             }
