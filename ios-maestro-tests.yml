@@ -1,0 +1,125 @@
+name: iOS Maestro Cloud Tests
+
+on:
+  push:
+    branches: [ feature/TC1028-complete-order-from-search ]
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: Test suite
+        required: false
+        default: all
+        type: choice
+        options: [all, smoke, regression, login, signup, cart, completeOrder, menu, search]
+      bitrise_build_number:
+        description: Bitrise build number (optional)
+        required: false
+        default: ''
+        type: string
+      user_email:
+        description: User email for testing (optional)
+        required: false
+        default: ''
+        type: string
+      user_password:
+        description: User password for testing (optional)
+        required: false
+        default: ''
+        type: string
+
+env:
+  MAESTRO_PROJECT_ID: proj_01k4mzc40wenj9d0v7e44x3wa6
+
+jobs:
+  smoke-tests:
+    name: Smoke Tests (Maestro Cloud)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event.inputs.test_suite == 'smoke' || github.event.inputs.test_suite == 'all' || (github.event_name == 'push' && !github.event.inputs)
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set App Binary ID
+        id: app_id
+        run: |
+          # Use the already uploaded binary ID
+          echo "app_binary_id=e399de3e19a72ddd5c2c30e95ebbf705fa77dec2" >> $GITHUB_OUTPUT
+
+      - name: Run Smoke Tests on Maestro Cloud
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: rb_nuy7QlPLVzj64SiaD0QgCxeBni24gsktJZWRk8IoBOSHLElDWyG2jkr2Zv3OZJqeMI1RMBlTevtNlFYptodDPOzj26oQRD2M6Of
+          project-id: ${{ env.MAESTRO_PROJECT_ID }}
+          app-binary-id: ${{ steps.app_id.outputs.app_binary_id }}
+          workspace: maestro
+          include-tags: smoke
+          name: "Smoke Tests - ${{ github.ref_name }} - ${{ github.sha }}"
+          timeout: 45
+          env: |
+            APP_BUNDLE_ID=us.CookUnity
+            USER_EMAIL=${{ github.event.inputs.user_email || 'coreux@cookunity.com' }}
+            USER_PASSWORD=${{ github.event.inputs.user_password || 'Welcome01!' }}
+
+  regression-tests:
+    name: Regression Tests (Maestro Cloud)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: (github.event.inputs.test_suite == 'regression' || github.event.inputs.test_suite == 'all') && github.event_name != 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set App Binary ID
+        id: app_id
+        run: |
+          # Use the already uploaded binary ID
+          echo "app_binary_id=e399de3e19a72ddd5c2c30e95ebbf705fa77dec2" >> $GITHUB_OUTPUT
+
+      - name: Run Regression Tests on Maestro Cloud
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: rb_nuy7QlPLVzj64SiaD0QgCxeBni24gsktJZWRk8IoBOSHLElDWyG2jkr2Zv3OZJqeMI1RMBlTevtNlFYptodDPOzj26oQRD2M6Of
+          project-id: ${{ env.MAESTRO_PROJECT_ID }}
+          app-binary-id: ${{ steps.app_id.outputs.app_binary_id }}
+          workspace: maestro
+          include-tags: regression
+          name: "Regression Tests - ${{ github.ref_name }} - ${{ github.sha }}"
+          timeout: 75
+          env: |
+            APP_BUNDLE_ID=us.CookUnity
+            USER_EMAIL=${{ github.event.inputs.user_email || 'coreux@cookunity.com' }}
+            USER_PASSWORD=${{ github.event.inputs.user_password || 'Welcome01!' }}
+
+  specific-tests:
+    name: Specific Tests (Maestro Cloud)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event.inputs.test_suite != 'smoke' && github.event.inputs.test_suite != 'regression' && github.event.inputs.test_suite != 'all' && github.event_name != 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set App Binary ID
+        id: app_id
+        run: |
+          # Use the already uploaded binary ID
+          echo "app_binary_id=e399de3e19a72ddd5c2c30e95ebbf705fa77dec2" >> $GITHUB_OUTPUT
+
+      - name: Run Specific Tests on Maestro Cloud
+        uses: mobile-dev-inc/action-maestro-cloud@v1
+        with:
+          api-key: rb_nuy7QlPLVzj64SiaD0QgCxeBni24gsktJZWRk8IoBOSHLElDWyG2jkr2Zv3OZJqeMI1RMBlTevtNlFYptodDPOzj26oQRD2M6Of
+          project-id: ${{ env.MAESTRO_PROJECT_ID }}
+          app-binary-id: ${{ steps.app_id.outputs.app_binary_id }}
+          workspace: maestro
+          include-tags: ${{ github.event.inputs.test_suite }}
+          name: "${{ github.event.inputs.test_suite }} Tests - ${{ github.ref_name }} - ${{ github.sha }}"
+          timeout: 45
+          env: |
+            APP_BUNDLE_ID=us.CookUnity
+            USER_EMAIL=${{ github.event.inputs.user_email || 'coreux.prod@cookunity.com' }}
+            USER_PASSWORD=${{ github.event.inputs.user_password || 'Welcome01!' }}
