@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { 
   PlayIcon, 
   CheckCircleIcon,
@@ -19,6 +20,7 @@ interface WorkflowPreviewProps {
 
 export default function WorkflowPreviewComponent({ onExecute, onCancel }: WorkflowPreviewProps) {
   const { workflowPreview, triggerMultipleWorkflows, githubToken, clearPreview } = useWorkflowStore()
+  const [selectedWorkflows, setSelectedWorkflows] = useState<number[]>([])
 
   if (!workflowPreview) return null
 
@@ -50,12 +52,24 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
 
   const handleExecute = async () => {
     try {
-      await triggerMultipleWorkflows(workflowPreview.workflows, githubToken)
+      const workflowsToExecute = selectedWorkflows.length > 0 
+        ? workflowPreview.workflows.filter((_, index) => selectedWorkflows.includes(index))
+        : workflowPreview.workflows
+      
+      await triggerMultipleWorkflows(workflowsToExecute, githubToken)
       onExecute()
       clearPreview()
     } catch (error) {
       console.error('Error executing workflows:', error)
     }
+  }
+
+  const toggleWorkflowSelection = (index: number) => {
+    setSelectedWorkflows(prev => 
+      prev.includes(index) 
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
+    )
   }
 
   return (
@@ -68,7 +82,7 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
       <motion.div
         initial={{ scale: 0.95 }}
         animate={{ scale: 1 }}
-        className="bg-gray-900 rounded-2xl border border-gray-700 max-w-5xl w-full max-h-[70vh] overflow-hidden"
+        className="bg-gray-900 rounded-2xl border border-gray-700 max-w-3xl w-full max-h-[60vh] overflow-hidden"
       >
         {/* Header */}
         <div className="p-4 border-b border-gray-700">
@@ -89,7 +103,7 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[50vh]">
+        <div className="p-4 overflow-y-auto max-h-[40vh]">
           {/* Technology Tags */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold text-white mb-2">Technologies</h3>
@@ -114,7 +128,12 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-3"
+                className={`bg-gray-800/50 rounded-xl border p-3 cursor-pointer transition-all duration-200 ${
+                  selectedWorkflows.includes(index) 
+                    ? 'border-airforce-500/50 bg-airforce-500/10' 
+                    : 'border-gray-700/50 hover:border-gray-600/50'
+                }`}
+                onClick={() => toggleWorkflowSelection(index)}
               >
                 <div className="flex items-start space-x-3">
                   {getTechnologyIcon(workflow.technology)}

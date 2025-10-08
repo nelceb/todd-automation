@@ -14,7 +14,6 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
-import WorkflowPreviewComponent from './WorkflowPreview'
 import toast from 'react-hot-toast'
 
 interface Message {
@@ -119,7 +118,6 @@ export default function ChatInterface({
   const [suggestions, setSuggestions] = useState<TestSuggestion[]>([])
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
-  const [showPreview, setShowPreview] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   const { 
@@ -204,8 +202,34 @@ export default function ChatInterface({
       const preview = await previewWorkflows(userMessage)
       
       if (preview && preview.workflows.length > 0) {
-        // Show preview modal
-        setShowPreview(true)
+        // Execute all workflows directly and show info in logs
+        const results = []
+        for (const workflow of preview.workflows) {
+          try {
+            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken)
+            results.push({ ...result, workflow })
+            
+            if (result && result.runId) {
+              startPollingLogs(result.runId, githubToken)
+            }
+          } catch (error) {
+            console.error('Error executing workflow:', error)
+            results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
+          }
+        }
+
+        // Add assistant response with workflow info
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `Executing ${preview.totalWorkflows} workflow${preview.totalWorkflows > 1 ? 's' : ''} across ${preview.technologies.join(', ')} frameworks...`,
+          timestamp: new Date(),
+          workflowResult: results,
+          workflowPreview: preview
+        }])
+
+        // Trigger workflow executed callback
+        onWorkflowExecuted()
         setIsLoading(false)
         return
       }
@@ -329,151 +353,238 @@ export default function ChatInterface({
         </div>
       )}
 
-      {/* Mensajes */}
-      <div className="space-y-6">
+      {/* Log informativo - Estilo sutil */}
+      <div className="space-y-3">
         {messages.map((message) => (
           <motion.div
             key={message.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-start space-x-4 py-2"
           >
-            <div className={`max-w-3xl px-6 py-4 rounded-2xl ${
-              message.type === 'user' 
-                ? 'bg-airforce-600 text-white' 
-                : 'bg-gray-800/50 text-gray-100 border border-gray-700/50'
-            }`}>
-              <p className="text-sm leading-relaxed">{message.content}</p>
-              <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
-                <span>{message.type === 'user' ? 'You' : 'AI'}</span>
-                <span>
-                  {typeof window !== 'undefined' && message.timestamp.toLocaleTimeString()}
+            {/* Timestamp */}
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+              {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
+            </div>
+            
+            {/* Log entry */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  message.type === 'user' 
+                    ? 'bg-airforce-400' 
+                    : 'bg-asparagus-400'
+                }`}></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  {message.type === 'user' ? 'COMMAND' : 'EXECUTION'}
                 </span>
               </div>
+              <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono">
+                {message.content}
+              </p>
             </div>
           </motion.div>
         ))}
 
-        {/* Loading indicator */}
+        {/* Loading indicator - Estilo log */}
         {isLoading && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-start space-x-4 py-2"
           >
-            <div className="bg-gray-800/50 text-gray-100 border border-gray-700/50 px-6 py-4 rounded-2xl">
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-airforce-400"></div>
-                <span className="text-sm">Processing your request...</span>
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+              now
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  PROCESSING
+                </span>
               </div>
+              <p className="text-gray-200 text-sm leading-relaxed font-mono">
+                Processing your request...
+              </p>
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Workflow Execution Logs */}
+      {/* Workflow Execution Info - Estilo log */}
+      {messages.length > 0 && messages[messages.length - 1]?.workflowPreview && (
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="mt-6 space-y-3"
+        >
+          {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
+            <div key={index} className="flex items-start space-x-4 py-2">
+              {/* Timestamp */}
+              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+                now
+              </div>
+              
+              {/* Log entry */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-3 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    WORKFLOW
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    workflow.technology === 'maestro' 
+                      ? 'bg-airforce-500/20 text-airforce-300' 
+                      : workflow.technology === 'playwright'
+                      ? 'bg-asparagus-500/20 text-asparagus-300'
+                      : 'bg-earth-500/20 text-earth-300'
+                  }`}>
+                    {workflow.technology.toUpperCase()}
+                  </span>
+                </div>
+                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
+                  <div>→ {workflow.workflowName}</div>
+                  <div className="text-gray-400 text-xs">  Repository: {workflow.repository}</div>
+                  {Object.keys(workflow.inputs).length > 0 && (
+                    <div className="text-gray-400 text-xs">
+                      <div>  Inputs:</div>
+                      {Object.entries(workflow.inputs).map(([key, value]) => (
+                        <div key={key} className="ml-2">    {key}: {String(value)}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Workflow Execution Logs - Estilo log */}
       {currentLogs && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-8 p-6 bg-gray-800/30 rounded-xl border border-gray-700/50"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="mt-6 space-y-3"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Workflow Execution Logs</h3>
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                currentLogs.run.status === 'completed' 
-                  ? 'bg-green-400' 
-                  : currentLogs.run.status === 'in_progress'
-                  ? 'bg-blue-400 animate-pulse'
-                  : 'bg-red-400'
-              }`}></div>
-              <span className="text-sm text-gray-400 capitalize">{currentLogs.run.status}</span>
+          {/* Status log entry */}
+          <div className="flex items-start space-x-4 py-2">
+            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+              now
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-3 mb-1">
+                <div className={`w-2 h-2 rounded-full ${
+                  currentLogs.run.status === 'completed' 
+                    ? 'bg-green-400' 
+                    : currentLogs.run.status === 'in_progress'
+                    ? 'bg-blue-400 animate-pulse'
+                    : 'bg-red-400'
+                }`}></div>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  STATUS
+                </span>
+                <span className="text-xs text-gray-500 capitalize">
+                  {currentLogs.run.status}
+                </span>
+              </div>
+              <p className="text-gray-200 text-sm leading-relaxed font-mono">
+                Workflow execution {currentLogs.run.status}
+              </p>
             </div>
           </div>
 
-          {/* Test Results Summary */}
-          {currentLogs.logs.length > 0 && (
-            <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
-              <h4 className="text-md font-semibold text-white mb-3">Test Results Summary</h4>
-              {(() => {
-                const allLogs = currentLogs.logs.map(log => log.logs).join('\n')
-                const summary = extractTestSummary(allLogs)
-                return (
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-4 text-sm">
-                      <span className="text-green-400">✓ {summary.passed} passed</span>
-                      <span className="text-red-400">✗ {summary.failed} failed</span>
-                      <span className="text-gray-400">⊘ {summary.skipped} skipped</span>
-                    </div>
-                    
-                    {summary.passedTests.length > 0 && (
-                      <div>
-                        <p className="text-sm text-green-400 font-medium mb-1">Passed Tests:</p>
-                        <div className="text-xs text-gray-300 space-y-1">
-                          {summary.passedTests.slice(0, 3).map((test, index) => (
-                            <div key={index}>• {test}</div>
-                          ))}
-                          {summary.passedTests.length > 3 && (
-                            <div className="text-gray-400">+{summary.passedTests.length - 3} more...</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {summary.failedTests.length > 0 && (
-                      <div>
-                        <p className="text-sm text-red-400 font-medium mb-1">Failed Tests:</p>
-                        <div className="text-xs text-gray-300 space-y-1">
-                          {summary.failedTests.slice(0, 3).map((test, index) => (
-                            <div key={index}>• {test}</div>
-                          ))}
-                          {summary.failedTests.length > 3 && (
-                            <div className="text-red-400 text-xs">+{summary.failedTests.length - 3} more...</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+          {/* Test Results Summary - Estilo log */}
+          {currentLogs.logs.length > 0 && (() => {
+            const allLogs = currentLogs.logs.map(log => log.logs).join('\n')
+            const summary = extractTestSummary(allLogs)
+            return (
+              <div className="flex items-start space-x-4 py-2">
+                <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+                  now
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-3 mb-1">
+                    <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                      RESULTS
+                    </span>
                   </div>
-                )
-              })()}
-            </div>
-          )}
-
-          {/* Jobs */}
-          {currentLogs.logs.map((log, index) => (
-            <div key={index} className="text-gray-300 space-y-2">
-              <div className="flex items-center space-x-3">
-                <span className="text-blue-300 font-medium">{log.jobName}</span>
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  log.status === 'completed'
-                    ? 'bg-green-900 text-green-300'
-                    : log.status === 'in_progress'
-                    ? 'bg-blue-900 text-blue-300'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
-                  {log.status}
-                </span>
-              </div>
-
-              {log.logs && (
-                <div className="ml-4">
-                  <p className="text-sm text-gray-400 mb-1">Full Output:</p>
-                  <div className="bg-gray-800/30 rounded-md p-3 max-h-48 overflow-y-auto border-l-2 border-blue-500/30">
-                    <pre className="text-xs text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
-                      {log.logs}
-                    </pre>
+                  <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
+                    <div>→ Tests: {summary.passed} passed, {summary.failed} failed, {summary.skipped} skipped</div>
+                    {summary.failedTests.length > 0 && (
+                      <div className="text-red-400 text-xs">
+                        <div>  Failed tests:</div>
+                        {summary.failedTests.slice(0, 3).map((test, index) => (
+                          <div key={index} className="ml-2">    • {test}</div>
+                        ))}
+                        {summary.failedTests.length > 3 && (
+                          <div className="ml-2">    +{summary.failedTests.length - 3} more...</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
+            )
+          })()}
+
+          {/* Jobs - Estilo log */}
+          {currentLogs.logs.map((log, index) => (
+            <div key={index} className="flex items-start space-x-4 py-2">
+              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+                now
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-3 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    log.status === 'completed'
+                      ? 'bg-green-400'
+                      : log.status === 'in_progress'
+                      ? 'bg-blue-400 animate-pulse'
+                      : 'bg-gray-400'
+                  }`}></div>
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    JOB
+                  </span>
+                  <span className="text-xs text-gray-500 capitalize">
+                    {log.status}
+                  </span>
+                </div>
+                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
+                  <div>→ {log.jobName}</div>
+                  {log.logs && (
+                    <div className="text-gray-400 text-xs">
+                      <div>  Output:</div>
+                      <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap leading-relaxed">
+                          {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
 
-          {/* Message when no logs yet */}
+          {/* Message when no logs yet - Estilo log */}
           {currentLogs.logs.length === 0 && (
-            <div className="text-gray-400 text-sm">
-              <p>Waiting for job execution to begin...</p>
-              <p className="text-xs mt-1">Logs will appear here as the workflow progresses</p>
+            <div className="flex items-start space-x-4 py-2">
+              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+                now
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-3 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    WAITING
+                  </span>
+                </div>
+                <p className="text-gray-200 text-sm leading-relaxed font-mono">
+                  Waiting for job execution to begin...
+                </p>
+              </div>
             </div>
           )}
 
