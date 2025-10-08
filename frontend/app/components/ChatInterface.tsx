@@ -597,9 +597,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
           onCancel={handleCancelPreview}
         />
       )}
-    </div>
-  )
-}
+
       {/* Input y sugerencias al final - Como Google AI */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4">
         {/* Input principal estilo Google */}
@@ -614,7 +612,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                  placeholder="Run login tests in prod for iOS"
+                placeholder="Run login tests in prod for iOS"
                 className="google-input w-full pr-20 pl-6 py-4 text-lg"
                 disabled={isLoading}
               />
@@ -644,21 +642,32 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
           </form>
         </motion.div>
 
-          {/* Sugerencias dinámicas estilo Google */}
+        {/* Sugerencias dinámicas estilo Google */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"
+          className="grid grid-cols-1 md:grid-cols-2 gap-3"
         >
-            {suggestions.map((suggestion, index) => (
+          {suggestions.slice(0, 4).map((suggestion, index) => (
             <button
               key={index}
-                onClick={() => setInput(suggestion.text)}
-              className="text-left p-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-sm text-white flex items-start space-x-2"
+              onClick={() => setInput(suggestion.text)}
+              className="text-left p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl border border-gray-700/50 transition-all duration-200 hover:border-gray-600/50 group"
             >
-              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                <span className="text-xs">{suggestion.text}</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white text-sm font-medium group-hover:text-white transition-colors">
+                  {suggestion.text}
+                </span>
+                <span className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded-md">
+                  {suggestion.category}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2 text-xs text-gray-400">
+                <span>{suggestion.environment}</span>
+                <span>•</span>
+                <span>{suggestion.platform}</span>
+              </div>
             </button>
           ))}
         </motion.div>
@@ -666,4 +675,3 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     </div>
   )
 }
-
