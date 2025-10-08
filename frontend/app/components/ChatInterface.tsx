@@ -337,7 +337,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-40">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 pb-40">
       {/* Header estilo Google AI - Solo cuando no hay mensajes */}
       {messages.length === 0 && (
         <div className="text-center mb-12">
@@ -654,7 +654,7 @@ export default function ChatInterface({
 
 
       {/* Input y sugerencias al final - Como Google AI */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full max-w-6xl px-4">
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 w-full px-8 sm:px-12 lg:px-16 xl:px-20">
         {/* Input principal estilo Google */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

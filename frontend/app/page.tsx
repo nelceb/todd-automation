@@ -78,7 +78,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-900">
       {/* Header - Estilo Google */}
       <header className="bg-gray-900 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               {/* Logo Google-style */}
@@ -144,7 +144,7 @@ export default function Home() {
       </header>
 
         {/* Main Content - Estilo Google AI */}
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="w-full py-8">
         
         <AnimatePresence mode="wait">
           {activeTab === 'chat' ? (
