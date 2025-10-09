@@ -10,6 +10,7 @@ import {
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
 import UsefulTips from './UsefulTips'
+import LinearBlob from './LinearBlob'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -328,21 +329,31 @@ export default function ChatInterface({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="min-h-screen flex flex-col items-center justify-center"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-              className="text-center mb-12"
-            >
-              <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
-                Multi-Repository Test Automation AI
-            </h1>
-              <p className="text-gray-400 text-lg font-mono">
-                Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
-            </p>
-          </motion.div>
+                className="min-h-screen flex flex-col items-center justify-center"
+              >
+                {/* 3D Blob Animation */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
+                  className="mb-8"
+                >
+                  <LinearBlob />
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+                  className="text-center mb-12"
+                >
+                  <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
+                    Multi-Repository Test Automation AI
+                  </h1>
+                  <p className="text-gray-400 text-lg font-mono">
+                    Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
+                  </p>
+                </motion.div>
             
             {/* Centered input field */}
             <motion.div
