@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+function extractInputsFromYaml(yamlContent: string): Record<string, any> {
+  const inputs: Record<string, any> = {}
+  
+  // Buscar la sección inputs en el YAML
+  const inputsMatch = yamlContent.match(/inputs:\s*\n((?:\s+.*\n)*)/)
+  if (inputsMatch) {
+    const inputsSection = inputsMatch[1]
+    const inputLines = inputsSection.split('\n')
+    
+    for (const line of inputLines) {
+      const trimmedLine = line.trim()
+      if (trimmedLine && !trimmedLine.startsWith('#')) {
+        const inputMatch = trimmedLine.match(/^(\w+):\s*(.*)$/)
+        if (inputMatch) {
+          const [, inputName, inputValue] = inputMatch
+          inputs[inputName] = inputValue || ''
+        }
+      }
+    }
+  }
+  
+  return inputs
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { workflowId, inputs, repository } = await request.json()
@@ -80,13 +104,49 @@ export async function POST(request: NextRequest) {
       throw new Error(`Workflow ${workflowId} no encontrado. Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
     }
 
+    // Obtener información del workflow para verificar inputs válidos
+    let validInputs = {}
+    try {
+      // Obtener el archivo YAML del workflow para ver los inputs
+      const yamlResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${workflow.path}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+      
+      if (yamlResponse.ok) {
+        const yamlData = await yamlResponse.json()
+        if (yamlData.content) {
+          const yamlContent = Buffer.from(yamlData.content, 'base64').toString('utf-8')
+          const availableInputs = extractInputsFromYaml(yamlContent)
+          
+          // Solo incluir inputs que el workflow acepta
+          if (inputs && Object.keys(availableInputs).length > 0) {
+            validInputs = Object.keys(inputs).reduce((acc, key) => {
+              if (availableInputs.hasOwnProperty(key)) {
+                acc[key] = inputs[key]
+              }
+              return acc
+            }, {} as Record<string, any>)
+          }
+        }
+      }
+    } catch (error) {
+      console.log('No se pudo obtener información del workflow, usando inputs sin validar')
+      validInputs = inputs || {}
+    }
+
     // Disparar el workflow directamente
     const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)
     console.log('Owner:', owner)
     console.log('Repo:', repo)
-    console.log('Inputs:', inputs)
+    console.log('Valid Inputs:', validInputs)
     
     const triggerResponse = await fetch(triggerUrl, {
       method: 'POST',
@@ -97,7 +157,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         ref: 'main',
-        inputs: inputs || {}
+        inputs: validInputs
       }),
     })
 
