@@ -10,7 +10,7 @@ import {
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
 import UsefulTips from './UsefulTips'
-import LinearBlob from './LinearBlob'
+import AnimatedAI from './AnimatedAI'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -407,15 +407,6 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="flex-1 flex flex-col items-center justify-center"
           >
-            {/* 3D Blob Animation */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-              className="mb-6 w-full max-w-4xl flex justify-center"
-            >
-              <LinearBlob />
-            </motion.div>
             
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -424,7 +415,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               className="text-center mb-8"
             >
               <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
-                Multi-Repository Test Automation AI
+                Multi-Repository Test Automation <AnimatedAI className="font-bold" />
               </h1>
               <p className="text-gray-400 text-lg font-mono">
                 Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
@@ -444,8 +435,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="flex-1 flex flex-col min-h-0"
           >
-            {/* Scrollable logs area - takes available space */}
-            <div className="flex-1 overflow-y-auto min-h-0">
+            {/* Scrollable logs area - fixed height to prevent search bar movement */}
+            <div className="h-[calc(100vh-200px)] overflow-y-auto">
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
