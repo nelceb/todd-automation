@@ -99,11 +99,50 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     if (name.includes('prod')) return 'prod'
     if (name.includes('qa')) return 'qa'
     if (name.includes('staging')) return 'staging'
-    return 'unknown'
+    if (name.includes('ios') || name.includes('android') || name.includes('maestro')) return 'mobile'
+    if (name.includes('e2e') || name.includes('regression')) return 'test'
+    return 'default'
   }
 
   const handleRepositoryClick = (repoName: string) => {
     setExpandedRepository(expandedRepository === repoName ? null : repoName)
+  }
+
+  const getWorkflowInputs = (workflowName: string, repository: string) => {
+    // Default inputs for different workflow types
+    const repoName = repository.split('/').pop() || 'maestro-test'
+    
+    if (repoName === 'maestro-test') {
+      // Maestro workflows - use specific test suite
+      if (workflowName.includes('iOS Maestro Cloud Tests')) {
+        return { test_suite: 'login' } // Default to login tests
+      }
+      return { test_suite: 'all' }
+    }
+    
+    if (repoName === 'pw-cookunity-automation') {
+      // Playwright workflows
+      if (workflowName.includes('QA US - E2E')) {
+        return { environment: 'qa', groups: '@e2e' }
+      }
+      if (workflowName.includes('Regression')) {
+        return { environment: 'qa', groups: 'regression' }
+      }
+      return { environment: 'qa' }
+    }
+    
+    if (repoName === 'automation-framework') {
+      // Selenium workflows
+      if (workflowName.includes('QA')) {
+        return { environment: 'qa', groups: 'e2e' }
+      }
+      if (workflowName.includes('Prod')) {
+        return { environment: 'prod', groups: 'regression' }
+      }
+      return { environment: 'qa' }
+    }
+    
+    return {}
   }
 
   const handleWorkflowClick = async (workflowName: string, repository: string) => {
@@ -116,8 +155,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       // Extract repo name from full path
       const repoName = repository.split('/').pop() || 'maestro-test'
       
-      // Trigger workflow with default inputs
-      const result = await triggerWorkflow(workflowName, {}, githubToken, repoName)
+      // Get appropriate inputs for this workflow
+      const inputs = getWorkflowInputs(workflowName, repository)
+      
+      // Trigger workflow with specific inputs
+      const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName)
       
       if (result && result.runId) {
         // Set to success after a delay (simulate completion)
@@ -331,16 +373,37 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                         className={`border rounded-lg p-3 cursor-pointer transition-all duration-200 ${getWorkflowStateColor(workflowId)}`}
                         onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">
-                              {workflowName}
-                            </p>
-                            <p className="text-gray-400 text-xs">
-                              {extractEnvironmentFromName(workflowName)} • {repo.technology}
-                            </p>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <p className="text-white text-sm font-medium truncate">
+                                {workflowName}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                extractEnvironmentFromName(workflowName) === 'prod' 
+                                  ? 'bg-red-500/20 text-red-300' 
+                                  : extractEnvironmentFromName(workflowName) === 'qa'
+                                  ? 'bg-blue-500/20 text-blue-300'
+                                  : extractEnvironmentFromName(workflowName) === 'mobile'
+                                  ? 'bg-purple-500/20 text-purple-300'
+                                  : 'bg-gray-500/20 text-gray-300'
+                              }`}>
+                                {extractEnvironmentFromName(workflowName).toUpperCase()}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                repo.technology === 'maestro' 
+                                  ? 'bg-airforce-500/20 text-airforce-300' 
+                                  : repo.technology === 'playwright'
+                                  ? 'bg-asparagus-500/20 text-asparagus-300'
+                                  : 'bg-earth-500/20 text-earth-300'
+                              }`}>
+                                {repo.technology.toUpperCase()}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
+                          <div className="flex-shrink-0 ml-2 mt-1">
                             {getWorkflowStateIcon(workflowId)}
                           </div>
                         </div>
