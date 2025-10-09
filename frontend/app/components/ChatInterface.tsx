@@ -412,7 +412,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-              className="mb-6 w-full max-w-4xl"
+              className="mb-6 w-full max-w-4xl flex justify-center"
             >
               <LinearBlob />
             </motion.div>

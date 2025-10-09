@@ -54,14 +54,19 @@ function WireframeCube() {
 
 export default function LinearBlob() {
   return (
-    <div className="w-full h-32 relative overflow-hidden flex items-center justify-center">
+    <div className="w-96 h-32 relative overflow-hidden flex items-center justify-center mx-auto">
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
         style={{ 
           background: 'transparent', 
           width: '100%', 
-          height: '100%', 
-          minWidth: '400px'
+          height: '100%',
+          display: 'block'
+        }}
+        onCreated={({ gl, camera, scene }) => {
+          // Force center the scene on creation
+          camera.position.set(0, 0, 4)
+          camera.lookAt(0, 0, 0)
         }}
       >
         <ambientLight intensity={0.4} />
