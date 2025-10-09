@@ -5,18 +5,19 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const repository = searchParams.get('repository') || 'maestro-test'
+    const repository = searchParams.get('repository')
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
+    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
-      throw new Error('GitHub token no configurado')
+      return NextResponse.json({ error: 'GitHub token required' }, { status: 401 })
     }
 
-    // Obtener workflows del repositorio
+    // Get workflows from the repository
     const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repository}/actions/workflows`,
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -26,32 +27,24 @@ export async function GET(request: NextRequest) {
     )
 
     if (!workflowsResponse.ok) {
-      const errorText = await workflowsResponse.text()
-      throw new Error(`Error al obtener workflows: ${workflowsResponse.status} - ${errorText}`)
+      throw new Error(`GitHub API error: ${workflowsResponse.status}`)
     }
 
     const workflowsData = await workflowsResponse.json()
-    
+
     return NextResponse.json({
-      success: true,
-      repository: `${owner}/${repository}`,
-      workflows: workflowsData.workflows.map((w: any) => ({
-        id: w.id,
-        name: w.name,
-        path: w.path,
-        state: w.state,
-        created_at: w.created_at,
-        updated_at: w.updated_at
+      workflows: workflowsData.workflows.map((workflow: any) => ({
+        id: workflow.id,
+        name: workflow.name,
+        path: workflow.path,
+        state: workflow.state
       }))
     })
 
   } catch (error) {
-    console.error('Error listing workflows:', error)
+    console.error('Error fetching workflows:', error)
     return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Error desconocido' 
-      },
+      { error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

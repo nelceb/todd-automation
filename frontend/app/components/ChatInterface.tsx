@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
+import UsefulTips from './UsefulTips'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -100,6 +101,7 @@ export default function ChatInterface({
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
+  const [showTips, setShowTips] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   
@@ -124,6 +126,14 @@ export default function ChatInterface({
   useEffect(() => {
     scrollToBottom()
   }, [messages, currentLogs, multipleLogs])
+
+  // Show tips when workflows are running
+  useEffect(() => {
+    const hasRunningWorkflows = isPollingLogs || multipleLogs.some(log => 
+      log.run.status === 'in_progress' || log.run.status === 'queued'
+    )
+    setShowTips(hasRunningWorkflows)
+  }, [isPollingLogs, multipleLogs])
 
   // Auto-focus input when component mounts
   useEffect(() => {
@@ -373,10 +383,13 @@ export default function ChatInterface({
                     <PaperAirplaneIcon className="w-5 h-5" />
                   </button>
                 </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        ) : (
+                </form>
+                </motion.div>
+                
+                {/* Useful Tips */}
+                <UsefulTips isVisible={showTips} />
+              </motion.div>
+            ) : (
           /* Layout with messages - input field at bottom */
           <motion.div
             key="messages-layout"
@@ -771,6 +784,9 @@ export default function ChatInterface({
             </div>
           </form>
         </motion.div>
+
+            {/* Useful Tips */}
+            <UsefulTips isVisible={showTips} />
         </motion.div>
         )}
       </AnimatePresence>

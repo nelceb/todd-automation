@@ -30,12 +30,13 @@ interface WorkflowState {
     runId?: string
     htmlUrl?: string
     startTime?: Date
+    canCancel?: boolean
   }
 }
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
-  const [expandedRepository, setExpandedRepository] = useState<string | null>(null)
+  const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set(['maestro-test', 'pw-cookunity-automation', 'automation-framework']))
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
   useEffect(() => {
@@ -110,7 +111,15 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   const handleRepositoryClick = (repoName: string) => {
-    setExpandedRepository(expandedRepository === repoName ? null : repoName)
+    setExpandedRepositories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(repoName)) {
+        newSet.delete(repoName)
+      } else {
+        newSet.add(repoName)
+      }
+      return newSet
+    })
   }
 
   const getWorkflowInputs = (workflowName: string, repository: string) => {
@@ -216,7 +225,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
-                status: data.conclusion === 'success' ? 'success' : 'error'
+                status: data.conclusion === 'success' ? 'success' : 'error',
+                canCancel: false
               } 
             }))
             clearInterval(pollInterval)
@@ -226,7 +236,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
-                status: 'in_progress'
+                status: 'in_progress',
+                canCancel: true
               } 
             }))
           }
@@ -241,6 +252,30 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     setTimeout(() => {
       clearInterval(pollInterval)
     }, 30 * 60 * 1000)
+  }
+
+  const handleCancelWorkflow = async (workflowId: string, runId: string, repository: string) => {
+    try {
+      const repoName = repository.split('/').pop() || 'maestro-test'
+      const response = await fetch('/api/cancel-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, repository: repoName })
+      })
+
+      if (response.ok) {
+        setWorkflowStates(prev => ({ 
+          ...prev, 
+          [workflowId]: { 
+            ...prev[workflowId],
+            status: 'error',
+            canCancel: false
+          } 
+        }))
+      }
+    } catch (error) {
+      console.error('Error canceling workflow:', error)
+    }
   }
 
   const getWorkflowStateIcon = (workflowId: string) => {
@@ -386,10 +421,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
   return (
     <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
-      {/* Header */}
+      {/* Header - AI Mode Style */}
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
-        <p className="text-gray-400 mt-2 text-lg">
+        <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
+          Testing Workflows
+        </h1>
+        <p className="text-gray-400 text-lg font-mono">
           Click on repositories to view and execute workflows
         </p>
       </div>
@@ -397,7 +434,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       {/* 3 Repository Columns */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {repositoryData.map((repo) => {
-          const isExpanded = expandedRepository === repo.name
+          const isExpanded = expandedRepositories.has(repo.name)
           const IconComponent = repo.icon
           
           return (
@@ -477,7 +514,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                           </div>
                         </div>
                         
-                        {/* State indicator with GitHub link */}
+                        {/* State indicator with GitHub link and Cancel button */}
                         {state !== 'idle' && (
                           <div className="mt-2 flex items-center justify-between">
                             <div className="text-xs">
@@ -500,18 +537,32 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 </span>
                               )}
                             </div>
-                            {workflowState?.htmlUrl && (
-                              <a
-                                href={workflowState.htmlUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
-                                View on GitHub
-                              </a>
-                            )}
+                            <div className="flex items-center space-x-2">
+                              {workflowState?.canCancel && workflowState?.runId && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCancelWorkflow(workflowId, workflowState.runId!, repo.fullName)
+                                  }}
+                                  className="text-xs text-red-400 hover:text-red-300 flex items-center px-2 py-1 rounded border border-red-500/30 hover:border-red-500/50 transition-colors"
+                                >
+                                  <XCircleIcon className="w-3 h-3 mr-1" />
+                                  Cancel Run
+                                </button>
+                              )}
+                              {workflowState?.htmlUrl && (
+                                <a
+                                  href={workflowState.htmlUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                  View on GitHub
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
