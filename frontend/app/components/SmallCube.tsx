@@ -6,8 +6,8 @@ import { MeshDistortMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 
 function SmallWireframeCube() {
-  const meshRef = useRef()
-  const materialRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null)
+  const materialRef = useRef<any>(null)
 
   // Create small wireframe cube geometry
   const geometry = useMemo(() => {
