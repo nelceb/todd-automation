@@ -180,6 +180,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   const [recognition, setRecognition] = useState<any>(null)
   const [showTips, setShowTips] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const logsContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   
       const { 
@@ -198,12 +199,28 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTo({
+        top: logsContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   useEffect(() => {
     scrollToBottom()
   }, [messages, currentLogs, multipleLogs])
+
+  // Auto-scroll when new logs arrive
+  useEffect(() => {
+    if (currentLogs || multipleLogs.length > 0) {
+      const timer = setTimeout(() => {
+        scrollToBottom()
+      }, 100) // Small delay to ensure DOM is updated
+      return () => clearTimeout(timer)
+    }
+  }, [currentLogs?.logs, multipleLogs])
 
   // Show tips when workflows are running
   useEffect(() => {
@@ -446,7 +463,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             className="flex-1 flex flex-col min-h-0"
           >
             {/* Scrollable logs area - fixed height to prevent search bar movement */}
-            <div className="h-[calc(100vh-200px)] overflow-y-auto">
+            <div ref={logsContainerRef} className="h-[calc(100vh-200px)] overflow-y-auto">
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
