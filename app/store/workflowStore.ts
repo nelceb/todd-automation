@@ -103,6 +103,7 @@ interface WorkflowStore {
   startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => void
   stopPollingLogs: () => void
   clearMultipleLogs: () => void
+  clearAllLogs: () => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
   clearPreview: () => void
