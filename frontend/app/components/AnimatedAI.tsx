@@ -20,7 +20,7 @@ export default function AnimatedAI({ className = "" }: AnimatedAIProps) {
         ],
       }}
       transition={{
-        duration: 3,
+        duration: 2.5,
         repeat: Infinity,
         ease: "easeInOut"
       }}
