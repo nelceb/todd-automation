@@ -7,5 +7,6 @@
     "frontend/app/api/**/*.ts": {
       "runtime": "nodejs18.x"
     }
-  }
+  },
+  "version": 2
 }
