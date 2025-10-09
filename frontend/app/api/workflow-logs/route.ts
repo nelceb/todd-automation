@@ -79,10 +79,39 @@ export async function GET(request: NextRequest) {
               startedAt: job.started_at,
               completedAt: job.completed_at
             })
+          } else {
+            // If logs are not available yet, show job status
+            logs.push({
+              jobName: job.name,
+              status: job.status,
+              conclusion: job.conclusion,
+              logs: `Job ${job.name} is ${job.status}. Waiting for execution to begin...`,
+              startedAt: job.started_at,
+              completedAt: job.completed_at
+            })
           }
         } catch (error) {
           console.error(`Error fetching logs for job ${job.id}:`, error)
+          // Show job info even if logs fail
+          logs.push({
+            jobName: job.name,
+            status: job.status,
+            conclusion: job.conclusion,
+            logs: `Job ${job.name} is ${job.status}. Logs not available yet.`,
+            startedAt: job.started_at,
+            completedAt: job.completed_at
+          })
         }
+      } else {
+        // Show queued jobs
+        logs.push({
+          jobName: job.name,
+          status: job.status,
+          conclusion: job.conclusion,
+          logs: `Job ${job.name} is ${job.status}. Waiting in queue...`,
+          startedAt: job.started_at,
+          completedAt: job.completed_at
+        })
       }
     }
 
