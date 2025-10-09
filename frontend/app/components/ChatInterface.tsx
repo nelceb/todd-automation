@@ -764,7 +764,7 @@ export default function ChatInterface({
             {/* Fixed input field at bottom */}
             <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
               <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
-                <div className="relative">
+            <div className="relative">
               <input
                     ref={inputRef}
                 type="text"
@@ -775,10 +775,10 @@ export default function ChatInterface({
                 disabled={isLoading}
               />
 
-              {/* Botones de la derecha */}
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                <button
-                  type="button"
+                  {/* Botones de la derecha */}
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                    <button
+                      type="button"
                       onClick={handleMicrophoneClick}
                       className={`transition-colors ${
                         isListening 
@@ -787,22 +787,22 @@ export default function ChatInterface({
                       }`}
                     >
                       <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                </button>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || isLoading}
                       className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
-                >
-                  <PaperAirplaneIcon className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+                    >
+                      <PaperAirplaneIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
           </form>
               
               {/* Useful Tips */}
               <UsefulTips isVisible={showTips} />
             </div>
-          </motion.div>
+        </motion.div>
         )}
       </AnimatePresence>
     </div>
