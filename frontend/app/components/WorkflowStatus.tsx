@@ -25,7 +25,12 @@ interface WorkflowStatusProps {
 }
 
 interface WorkflowState {
-  [workflowId: string]: 'idle' | 'in_progress' | 'success' | 'error'
+  [workflowId: string]: {
+    status: 'idle' | 'in_progress' | 'success' | 'error'
+    runId?: string
+    htmlUrl?: string
+    startTime?: Date
+  }
 }
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
@@ -37,13 +42,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     // Only fetch data if we have a GitHub token
     if (githubToken) {
       fetchRepositories(githubToken)
-      fetchWorkflowRuns(githubToken)
-      // Refresh every 30 seconds
-      const interval = setInterval(() => {
+    fetchWorkflowRuns(githubToken)
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
         fetchRepositories(githubToken)
-        fetchWorkflowRuns(githubToken)
-      }, 30000)
-      return () => clearInterval(interval)
+      fetchWorkflowRuns(githubToken)
+    }, 30000)
+    return () => clearInterval(interval)
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
@@ -148,8 +153,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const handleWorkflowClick = async (workflowName: string, repository: string) => {
     const workflowId = `${repository}-${workflowName}`
     
-    // Set to in_progress
-    setWorkflowStates(prev => ({ ...prev, [workflowId]: 'in_progress' }))
+    // Set to in_progress immediately
+    setWorkflowStates(prev => ({ 
+      ...prev, 
+      [workflowId]: { 
+        status: 'in_progress',
+        startTime: new Date()
+      } 
+    }))
     
     try {
       // Extract repo name from full path
@@ -162,21 +173,78 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName)
       
       if (result && result.runId) {
-        // Set to success after a delay (simulate completion)
-        setTimeout(() => {
-          setWorkflowStates(prev => ({ ...prev, [workflowId]: 'success' }))
-        }, 3000)
+        // Update with real run information
+        setWorkflowStates(prev => ({ 
+          ...prev, 
+          [workflowId]: { 
+            status: 'in_progress',
+            runId: result.runId,
+            htmlUrl: result.htmlUrl || `https://github.com/${repository}/actions/runs/${result.runId}`,
+            startTime: new Date()
+          } 
+        }))
+        
+        // Start polling for real status updates
+        startWorkflowPolling(workflowId, result.runId, repository)
       } else {
-        setWorkflowStates(prev => ({ ...prev, [workflowId]: 'error' }))
+        setWorkflowStates(prev => ({ 
+          ...prev, 
+          [workflowId]: { status: 'error' } 
+        }))
       }
     } catch (error) {
       console.error('Error executing workflow:', error)
-      setWorkflowStates(prev => ({ ...prev, [workflowId]: 'error' }))
+      setWorkflowStates(prev => ({ 
+        ...prev, 
+        [workflowId]: { status: 'error' } 
+      }))
     }
   }
 
+  const startWorkflowPolling = (workflowId: string, runId: string, repository: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const repoName = repository.split('/').pop() || 'maestro-test'
+        const response = await fetch(`/api/workflow-status?runId=${runId}&repository=${repoName}`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.status === 'completed') {
+            // Workflow completed
+            setWorkflowStates(prev => ({ 
+              ...prev, 
+              [workflowId]: { 
+                ...prev[workflowId],
+                status: data.conclusion === 'success' ? 'success' : 'error'
+              } 
+            }))
+            clearInterval(pollInterval)
+          } else if (data.status === 'in_progress' || data.status === 'queued') {
+            // Still running, keep polling
+            setWorkflowStates(prev => ({ 
+              ...prev, 
+              [workflowId]: { 
+                ...prev[workflowId],
+                status: 'in_progress'
+              } 
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Error polling workflow status:', error)
+        clearInterval(pollInterval)
+      }
+    }, 5000) // Poll every 5 seconds
+
+    // Clean up after 30 minutes
+    setTimeout(() => {
+      clearInterval(pollInterval)
+    }, 30 * 60 * 1000)
+  }
+
   const getWorkflowStateIcon = (workflowId: string) => {
-    const state = workflowStates[workflowId] || 'idle'
+    const state = workflowStates[workflowId]?.status || 'idle'
     
     switch (state) {
       case 'in_progress':
@@ -191,7 +259,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   const getWorkflowStateColor = (workflowId: string) => {
-    const state = workflowStates[workflowId] || 'idle'
+    const state = workflowStates[workflowId]?.status || 'idle'
     
     switch (state) {
       case 'in_progress':
@@ -353,7 +421,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 ) : (
                   <ChevronRightIcon className="w-5 h-5 text-gray-400" />
                 )}
-              </div>
+        </div>
 
               {/* Workflows List - Only show when expanded */}
               {isExpanded && (
@@ -365,7 +433,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 >
                   {repo.workflows.map((workflowName) => {
                     const workflowId = `${repo.fullName}-${workflowName}`
-                    const state = workflowStates[workflowId] || 'idle'
+                    const workflowState = workflowStates[workflowId]
+                    const state = workflowState?.status || 'idle'
                     
                     return (
                       <div
@@ -408,17 +477,40 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                           </div>
                         </div>
                         
-                        {/* State indicator */}
+                        {/* State indicator with GitHub link */}
                         {state !== 'idle' && (
-                          <div className="mt-2 text-xs">
-                            {state === 'in_progress' && (
-                              <span className="text-blue-400">Executing...</span>
-                            )}
-                            {state === 'success' && (
-                              <span className="text-green-400">Completed successfully</span>
-                            )}
-                            {state === 'error' && (
-                              <span className="text-red-400">Execution failed</span>
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="text-xs">
+                              {state === 'in_progress' && (
+                                <span className="text-blue-400 flex items-center">
+                                  <ArrowPathIcon className="w-3 h-3 mr-1 animate-spin" />
+                                  Executing...
+                                </span>
+                              )}
+                              {state === 'success' && (
+                                <span className="text-green-400 flex items-center">
+                                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                  Completed successfully
+                                </span>
+                              )}
+                              {state === 'error' && (
+                                <span className="text-red-400 flex items-center">
+                                  <XCircleIcon className="w-3 h-3 mr-1" />
+                                  Execution failed
+                                </span>
+                              )}
+                            </div>
+                            {workflowState?.htmlUrl && (
+                              <a
+                                href={workflowState.htmlUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                View on GitHub
+                              </a>
                             )}
                           </div>
                         )}
