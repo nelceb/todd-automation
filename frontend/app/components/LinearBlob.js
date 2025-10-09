@@ -11,18 +11,20 @@ function WireframeCube() {
 
   // Create wireframe cube geometry - smaller to fit properly
   const geometry = useMemo(() => {
-    const cube = new THREE.BoxGeometry(1.8, 1.8, 1.8, 8, 8, 8)
+    const cube = new THREE.BoxGeometry(1.5, 1.5, 1.5, 8, 8, 8)
     return cube
   }, [])
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
     
-    // Animate the cube rotation - smooth and elegant
+    // Animate the cube rotation - smooth and elegant, keep position fixed
     if (meshRef.current) {
       meshRef.current.rotation.x = Math.sin(time * 0.3) * 0.2 + time * 0.1
       meshRef.current.rotation.y = time * 0.2
       meshRef.current.rotation.z = Math.sin(time * 0.15) * 0.1
+      // Keep position fixed to prevent size changes
+      meshRef.current.position.set(0, 0, 0)
     }
 
     // Animate the material colors - slower, more elegant transitions
@@ -54,7 +56,7 @@ export default function LinearBlob() {
   return (
     <div className="w-full h-64 relative overflow-hidden">
       <Canvas
-        camera={{ position: [0, 0, 5], fov: 45 }}
+        camera={{ position: [0, 0, 4], fov: 40 }}
         style={{ background: 'transparent' }}
       >
         <ambientLight intensity={0.4} />
