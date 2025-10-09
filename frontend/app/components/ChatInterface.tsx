@@ -21,7 +21,6 @@ interface Message {
   content: string
   timestamp: Date
   workflowResult?: any
-  workflowTriggered?: any
   workflowPreview?: any
 }
 
@@ -34,15 +33,12 @@ interface ChatInterfaceProps {
 }
 
 // Helper function to extract test summary from logs
-function extractTestSummary(logs: string) {
-  const summary = {
-    passed: 0,
-    failed: 0,
-    skipped: 0,
-    total: 0,
-    failedTests: [] as string[],
-    passedTests: [] as string[]
-  }
+const extractTestSummary = (logs: string) => {
+  let passed = 0
+  let failed = 0
+  let skipped = 0
+  const failedTests: string[] = []
+  const passedTests: string[] = []
 
   // Maestro Cloud specific patterns
   const flowPassedPattern = /(\d+)\/(\d+) Flow Passed/g
@@ -56,15 +52,15 @@ function extractTestSummary(logs: string) {
 
   // Extract passed/failed counts
   while ((match = flowPassedPattern.exec(logs)) !== null) {
-    summary.passed += parseInt(match[1])
+    passed += parseInt(match[1])
   }
   while ((match = flowFailedPattern.exec(logs)) !== null) {
-    summary.failed += parseInt(match[1])
+    failed += parseInt(match[1])
   }
 
   // Extract failed test names
   while ((match = testSuiteFailedPattern.exec(logs)) !== null) {
-    summary.failedTests.push(match[1].trim())
+    failedTests.push(match[1].trim())
   }
 
   // Extract passed test names (flows that completed and are not in failedTests)
@@ -79,25 +75,26 @@ function extractTestSummary(logs: string) {
   }
 
   completedFlows.forEach(flowName => {
-    if (!summary.failedTests.includes(flowName) && !summary.passedTests.includes(flowName)) {
-      summary.passedTests.push(flowName)
+    if (!failedTests.includes(flowName) && !passedTests.includes(flowName)) {
+      passedTests.push(flowName)
     }
   })
 
   // Calculate total and skipped
-  summary.total = allFlows.length > 0 ? allFlows.length : (summary.passed + summary.failed)
-  summary.skipped = summary.total - summary.passed - summary.failed
+  const total = allFlows.length > 0 ? allFlows.length : (passed + failed)
+  skipped = total - passed - failed
 
-  return summary
+  return {
+    passed,
+    failed,
+    skipped,
+    total,
+    failedTests: Array.from(new Set(failedTests)), // Unique failed test names
+    passedTests: Array.from(new Set(passedTests)) // Unique passed test names
+  }
 }
 
-export default function ChatInterface({ 
-  githubToken, 
-  messages, 
-  setMessages, 
-  clearMessages, 
-  onWorkflowExecuted 
-}: ChatInterfaceProps) {
+export default function ChatInterface({ githubToken, messages, setMessages, clearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
@@ -151,7 +148,7 @@ export default function ChatInterface({
         const recognitionInstance = new SpeechRecognition()
         recognitionInstance.continuous = false
         recognitionInstance.interimResults = false
-        recognitionInstance.lang = 'en-US'
+        recognitionInstance.lang = 'en-US' // Set language to English
         
         recognitionInstance.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript
@@ -329,31 +326,31 @@ export default function ChatInterface({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-                className="flex-1 flex flex-col items-center justify-center"
-              >
-                {/* 3D Blob Animation */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-                  className="mb-8 w-full max-w-4xl"
-                >
-                  <LinearBlob />
-                </motion.div>
-                
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                  className="text-center mb-12"
+            className="flex-1 flex flex-col items-center justify-center"
           >
-                  <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
-                    Multi-Repository Test Automation AI
-            </h1>
-                  <p className="text-gray-400 text-lg font-mono">
-                    Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
-            </p>
-          </motion.div>
+            {/* 3D Blob Animation */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
+              className="mb-8 w-full max-w-4xl"
+            >
+              <LinearBlob />
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+              className="text-center mb-12"
+            >
+              <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
+                Multi-Repository Test Automation AI
+              </h1>
+              <p className="text-gray-400 text-lg font-mono">
+                Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
+              </p>
+            </motion.div>
             
             {/* Centered input field */}
             <motion.div
@@ -394,13 +391,13 @@ export default function ChatInterface({
                     <PaperAirplaneIcon className="w-5 h-5" />
                   </button>
                 </div>
-                </form>
-                </motion.div>
-                
-                {/* Useful Tips */}
-                <UsefulTips isVisible={showTips} />
-              </motion.div>
-            ) : (
+              </form>
+            </motion.div>
+            
+            {/* Useful Tips */}
+            <UsefulTips isVisible={showTips} />
+          </motion.div>
+        ) : (
           /* Layout with messages - scrollable logs with fixed input */
           <motion.div
             key="messages-layout"
@@ -412,368 +409,369 @@ export default function ChatInterface({
           >
             {/* Scrollable logs area */}
             <div className="flex-1 overflow-y-auto">
-            {/* Botón para limpiar historial */}
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={clearMessages}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                <TrashIcon className="w-4 h-4" />
-                <span>Clear History</span>
-              </button>
-            </div>
-
-            {/* Log informativo - Estilo sutil */}
-            <div className="flex justify-center">
-              <div className="max-w-4xl w-full space-y-3">
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, x: -30, y: 10 }}
-                    animate={{ opacity: 1, x: 0, y: 0 }}
-                    transition={{ 
-                      duration: 0.6, 
-                      delay: index * 0.1, 
-                      ease: "easeOut" 
-                    }}
-                    className="flex items-start space-x-4 py-2"
-                  >
-                    {/* Timestamp */}
-                    <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                      {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
-                    </div>
-                    
-                    {/* Log entry */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-3 mb-1">
-                        <div className={`w-2 h-2 rounded-full ${
-                          message.type === 'user' 
-                            ? 'bg-airforce-400' 
-                            : 'bg-asparagus-400'
-                        }`}></div>
-                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                          {message.type === 'user' ? 'COMMAND' : 'EXECUTION'}
-                        </span>
-                      </div>
-                      <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
-                        <TypingText 
-                          text={message.content} 
-                          speed={20} 
-                          delay={index * 200}
-                          showCursor={false}
-                        />
-                    </p>
-                  </div>
-                  </motion.div>
-                ))}
-
-                {/* Loading indicator - Estilo log */}
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-start space-x-4 py-2"
-                  >
-                    <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                      now
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-3 mb-1">
-                        <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
-                        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                          PROCESSING
-                        </span>
-                      </div>
-                      <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
-                        Processing your request...
-                    </p>
-                  </div>
-                  </motion.div>
-                )}
+              {/* Botón para limpiar historial */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={clearMessages}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  <span>Clear History</span>
+                </button>
               </div>
-            </div>
 
-            {/* Workflow Execution Info - Estilo log */}
-            {messages.length > 0 && messages[messages.length - 1]?.workflowPreview && (
+              {/* Log informativo - Estilo sutil */}
               <div className="flex justify-center">
-                <div className="max-w-4xl w-full">
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="mt-6 space-y-3"
-                  >
-                    {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
-                      <div key={index} className="flex items-start space-x-4 py-2">
-                        {/* Timestamp */}
-                        <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                          now
+                <div className="max-w-4xl w-full space-y-3">
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, x: -30, y: 10 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      transition={{ 
+                        duration: 0.6, 
+                        delay: index * 0.1, 
+                        ease: "easeOut" 
+                      }}
+                      className="flex items-start space-x-4 py-2"
+                    >
+                      {/* Timestamp */}
+                      <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                        {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
+                      </div>
+                      
+                      {/* Log entry */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-1">
+                          <div className={`w-2 h-2 rounded-full ${
+                            message.type === 'user' 
+                              ? 'bg-airforce-400' 
+                              : 'bg-asparagus-400'
+                          }`}></div>
+                          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                            {message.type === 'user' ? 'COMMAND' : 'EXECUTION'}
+                          </span>
                         </div>
-                        
-                        {/* Log entry */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-3 mb-1">
-                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                              WORKFLOW
-                            </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              workflow.technology === 'maestro' 
-                                ? 'bg-airforce-500/20 text-airforce-300' 
-                                : workflow.technology === 'playwright'
-                                ? 'bg-asparagus-500/20 text-asparagus-300'
-                                : 'bg-earth-500/20 text-earth-300'
-                            }`}>
-                              {workflow.technology.toUpperCase()}
-                            </span>
+                        <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
+                          <TypingText 
+                            text={message.content} 
+                            speed={20} 
+                            delay={index * 200}
+                            showCursor={false}
+                          />
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Loading indicator - Estilo log */}
+                  {isLoading && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-start space-x-4 py-2"
+                    >
+                      <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                        now
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-1">
+                          <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                            PROCESSING
+                          </span>
+                        </div>
+                        <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
+                          Processing your request...
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              {/* Workflow Execution Info - Estilo log */}
+              {messages.length > 0 && messages[messages.length - 1]?.workflowPreview && (
+                <div className="flex justify-center">
+                  <div className="max-w-4xl w-full">
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="mt-6 space-y-3"
+                    >
+                      {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
+                        <div key={index} className="flex items-start space-x-4 py-2">
+                          {/* Timestamp */}
+                          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                            now
                           </div>
-                          <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                            <div>
-                              <TypingText 
-                                text={`→ ${workflow.workflowName}`} 
-                                speed={15} 
-                                delay={index * 300 + 100}
-                                showCursor={false}
-                              />
+                          
+                          {/* Log entry */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-3 mb-1">
+                              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                              <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                                WORKFLOW
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                workflow.technology === 'maestro' 
+                                  ? 'bg-airforce-500/20 text-airforce-300' 
+                                  : workflow.technology === 'playwright'
+                                  ? 'bg-asparagus-500/20 text-asparagus-300'
+                                  : 'bg-earth-500/20 text-earth-300'
+                              }`}>
+                                {workflow.technology.toUpperCase()}
+                              </span>
                             </div>
-                            <div className="text-gray-400 text-xs">
-                              <TypingText 
-                                text={`  Repository: ${workflow.repository}`} 
-                                speed={15} 
-                                delay={index * 300 + 200}
-                                showCursor={false}
-                              />
-                            </div>
-                            {Object.keys(workflow.inputs).length > 0 && (
+                            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                              <div>
+                                <TypingText 
+                                  text={`→ ${workflow.workflowName}`} 
+                                  speed={15} 
+                                  delay={index * 300 + 100}
+                                  showCursor={false}
+                                />
+                              </div>
                               <div className="text-gray-400 text-xs">
-                                <div>
-                                  <TypingText 
-                                    text="  Inputs:" 
-                                    speed={15} 
-                                    delay={index * 300 + 300}
-                                    showCursor={false}
-                                  />
-                                </div>
-                                {Object.entries(workflow.inputs).map(([key, value], inputIndex) => (
-                                  <div key={key} className="ml-2">
+                                <TypingText 
+                                  text={`  Repository: ${workflow.repository}`} 
+                                  speed={15} 
+                                  delay={index * 300 + 200}
+                                  showCursor={false}
+                                />
+                              </div>
+                              {Object.keys(workflow.inputs).length > 0 && (
+                                <div className="text-gray-400 text-xs">
+                                  <div>
                                     <TypingText 
-                                      text={`    ${key}: ${String(value)}`} 
+                                      text="  Inputs:" 
                                       speed={15} 
-                                      delay={index * 300 + 400 + inputIndex * 100}
+                                      delay={index * 300 + 300}
                                       showCursor={false}
                                     />
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-          ))}
-        </motion.div>
-                </div>
-              </div>
-      )}
-
-            {/* Workflow Execution Logs - Estilo log */}
-            {(currentLogs || multipleLogs.length > 0) && (
-              <div className="flex justify-center">
-                <div className="max-w-4xl w-full">
-        <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="mt-6 space-y-3"
-                  >
-                    {/* Show consolidated summary for multiple workflows */}
-                    {multipleLogs.length > 0 && (
-                      <div className="flex items-start space-x-4 py-2">
-                        <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                          now
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-3 mb-1">
-                            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-                            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                              SUMMARY
-                            </span>
-                          </div>
-                          <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                            <div>→ Executing {multipleLogs.length} workflow{multipleLogs.length > 1 ? 's' : ''} across multiple repositories</div>
-                            <div className="text-gray-400 text-xs">
-                              <div>  Technologies: {Array.from(new Set(multipleLogs.map(log => log.run.htmlUrl.split('/')[4]))).join(', ')}</div>
-                              <div>  Status: {multipleLogs.filter(log => log.run.status === 'completed').length}/{multipleLogs.length} completed</div>
+                                  {Object.entries(workflow.inputs).map(([key, value], inputIndex) => (
+                                    <div key={key} className="ml-2">
+                                      <TypingText 
+                                        text={`    ${key}: ${String(value)}`} 
+                                        speed={15} 
+                                        delay={index * 300 + 400 + inputIndex * 100}
+                                        showCursor={false}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </motion.div>
+                  </div>
+                </div>
+              )}
 
-                    {/* Individual workflow logs */}
-                    {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
-                      <div key={index} className="space-y-3">
-                        {/* Status log entry */}
+              {/* Workflow Execution Logs - Estilo log */}
+              {(currentLogs || multipleLogs.length > 0) && (
+                <div className="flex justify-center">
+                  <div className="max-w-4xl w-full">
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="mt-6 space-y-3"
+                    >
+                      {/* Show consolidated summary for multiple workflows */}
+                      {multipleLogs.length > 0 && (
                         <div className="flex items-start space-x-4 py-2">
                           <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                             now
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-3 mb-1">
-                              <div className={`w-2 h-2 rounded-full ${
-                                logs.run.status === 'completed' 
-                                  ? 'bg-green-400' 
-                                  : logs.run.status === 'in_progress'
-                                  ? 'bg-blue-400 animate-pulse'
-                                  : 'bg-red-400'
-                              }`}></div>
+                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
                               <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                                STATUS
-                              </span>
-                              <span className="text-xs text-gray-500 capitalize">
-                                {logs.run.status}
+                                SUMMARY
                               </span>
                             </div>
-                            <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
-                              Workflow execution {logs.run.status}
-                            </p>
+                            <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                              <div>→ Executing {multipleLogs.length} workflow{multipleLogs.length > 1 ? 's' : ''} across multiple repositories</div>
+                              <div className="text-gray-400 text-xs">
+                                <div>  Technologies: {Array.from(new Set(multipleLogs.map(log => log.run.htmlUrl.split('/')[4]))).join(', ')}</div>
+                                <div>  Status: {multipleLogs.filter(log => log.run.status === 'completed').length}/{multipleLogs.length} completed</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      )}
 
-                        {/* Test Results Summary - Estilo log */}
-                        {logs.logs.length > 0 && (() => {
-                          const allLogs = logs.logs.map(log => log.logs).join('\n')
-                          const summary = extractTestSummary(allLogs)
-                          
-                          // Solo mostrar resultados si hay tests reales o si es un job de tests
-                          const hasRealTests = summary.total > 0 || allLogs.toLowerCase().includes('test') || 
-                                             logs.logs.some(log => log.jobName.toLowerCase().includes('test'))
-                          
-                          if (!hasRealTests) return null
-                          
-                          return (
+                      {/* Individual workflow logs */}
+                      {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
+                        <div key={index} className="space-y-3">
+                          {/* Status log entry */}
+                          <div className="flex items-start space-x-4 py-2">
+                            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                              now
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-3 mb-1">
+                                <div className={`w-2 h-2 rounded-full ${
+                                  logs.run.status === 'completed' 
+                                    ? 'bg-green-400' 
+                                    : logs.run.status === 'in_progress'
+                                    ? 'bg-blue-400 animate-pulse'
+                                    : 'bg-red-400'
+                                }`}></div>
+                                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                                  STATUS
+                                </span>
+                                <span className="text-xs text-gray-500 capitalize">
+                                  {logs.run.status}
+                                </span>
+                              </div>
+                              <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
+                                Workflow execution {logs.run.status}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Test Results Summary - Estilo log */}
+                          {logs.logs.length > 0 && (() => {
+                            const allLogs = logs.logs.map(log => log.logs).join('\n')
+                            const summary = extractTestSummary(allLogs)
+                            
+                            // Solo mostrar resultados si hay tests reales o si es un job de tests
+                            const hasRealTests = summary.total > 0 || allLogs.toLowerCase().includes('test') || 
+                                               logs.logs.some(log => log.jobName.toLowerCase().includes('test'))
+                            
+                            if (!hasRealTests) return null
+                            
+                            return (
+                              <div className="flex items-start space-x-4 py-2">
+                                <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                                  now
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-3 mb-1">
+                                    <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                                      RESULTS
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                                    <div>→ Tests: {summary.passed} passed, {summary.failed} failed, {summary.skipped} skipped</div>
+                                    {summary.failedTests.length > 0 && (
+                                      <div className="text-red-400 text-xs">
+                                        <div>  Failed tests:</div>
+                                        {summary.failedTests.slice(0, 3).map((test, index) => (
+                                          <div key={index} className="ml-2">    • {test}</div>
+                                        ))}
+                                        {summary.failedTests.length > 3 && (
+                                          <div className="ml-2">    +{summary.failedTests.length - 3} more...</div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {/* Jobs - Estilo log */}
+                          {logs.logs.map((log, jobIndex) => (
+                            <div key={jobIndex} className="flex items-start space-x-4 py-2">
+                              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                                now
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-3 mb-1">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    log.status === 'completed'
+                                      ? 'bg-green-400'
+                                      : log.status === 'in_progress'
+                                      ? 'bg-blue-400 animate-pulse'
+                                      : 'bg-gray-400'
+                                  }`}></div>
+                                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                                    JOB
+                                  </span>
+                                  <span className="text-xs text-gray-500 capitalize">
+                                    {log.status}
+                                  </span>
+                                </div>
+                                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                                  <div>→ {log.jobName}</div>
+                                  {log.logs && (
+                                    <div className="text-gray-400 text-xs">
+                                      <div>  Output:</div>
+                                      <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
+                                        <pre className="whitespace-pre-wrap leading-relaxed">
+                                          {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Message when no logs yet - Estilo log */}
+                          {logs.logs.length === 0 && (
                             <div className="flex items-start space-x-4 py-2">
                               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                                 now
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3 mb-1">
-                                  <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                                    RESULTS
+                                  <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
+                                    WAITING
                                   </span>
                                 </div>
-                                <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
-                                  <div>→ Tests: {summary.passed} passed, {summary.failed} failed, {summary.skipped} skipped</div>
-                                  {summary.failedTests.length > 0 && (
-                                    <div className="text-red-400 text-xs">
-                                      <div>  Failed tests:</div>
-                                      {summary.failedTests.slice(0, 3).map((test, index) => (
-                                        <div key={index} className="ml-2">    • {test}</div>
-                                      ))}
-                                      {summary.failedTests.length > 3 && (
-                                        <div className="ml-2">    +{summary.failedTests.length - 3} more...</div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
+                                <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
+                                  Waiting for job execution to begin...
+                                </p>
                               </div>
                             </div>
-                          )
-                        })()}
+                          )}
 
-                        {/* Jobs - Estilo log */}
-                        {logs.logs.map((log, jobIndex) => (
-                          <div key={jobIndex} className="flex items-start space-x-4 py-2">
-                            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
-                              now
+                          {/* Link to GitHub */}
+                          {logs.run.htmlUrl && (
+                            <div className="mt-4 pt-4 border-t border-gray-700/50">
+                              <a
+                                href={logs.run.htmlUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                              >
+                                <span>View on GitHub</span>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </a>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-1">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  log.status === 'completed'
-                                    ? 'bg-green-400'
-                                    : log.status === 'in_progress'
-                                    ? 'bg-blue-400 animate-pulse'
-                                    : 'bg-gray-400'
-                                }`}></div>
-                                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                                  JOB
-                                </span>
-                                <span className="text-xs text-gray-500 capitalize">
-                                  {log.status}
-                                </span>
-                              </div>
-                              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1">
-                                <div>→ {log.jobName}</div>
-                                {log.logs && (
-                                  <div className="text-gray-400 text-xs">
-                                    <div>  Output:</div>
-                                    <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
-                                      <pre className="whitespace-pre-wrap leading-relaxed">
-                                        {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
-                                      </pre>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Message when no logs yet - Estilo log */}
-                        {logs.logs.length === 0 && (
-                          <div className="flex items-start space-x-4 py-2">
-                            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
-                              now
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-1">
-                                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
-                                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-                                  WAITING
-                                </span>
-              </div>
-                              <p className="text-gray-200 text-sm leading-relaxed font-mono">
-                                Waiting for job execution to begin...
-              </p>
-            </div>
-          </div>
-                        )}
-
-                        {/* Link to GitHub */}
-                        {logs.run.htmlUrl && (
-                          <div className="mt-4 pt-4 border-t border-gray-700/50">
-                            <a
-                              href={logs.run.htmlUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-                            >
-                              <span>View on GitHub</span>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </motion.div>
+                          )}
+                        </div>
+                      ))}
+                    </motion.div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             
             {/* Fixed input field at bottom */}
             <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
               <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
-            <div className="relative">
-              <input
+                <div className="relative">
+                  <input
                     ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter your test command..."
                     className="w-full pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
-                disabled={isLoading}
-              />
+                    disabled={isLoading}
+                  />
 
                   {/* Botones de la derecha */}
                   <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
@@ -797,12 +795,12 @@ export default function ChatInterface({
                     </button>
                   </div>
                 </div>
-          </form>
+              </form>
               
               {/* Useful Tips */}
               <UsefulTips isVisible={showTips} />
             </div>
-        </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
