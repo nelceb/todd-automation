@@ -139,6 +139,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       if (workflowName.includes('QA US - E2E')) {
         return { environment: 'qa', groups: '@e2e' }
       }
+      if (workflowName.includes('QA CA - E2E')) {
+        return { environment: 'qa-ca', groups: '@e2e' }
+      }
       if (workflowName.includes('Regression')) {
         return { environment: 'qa', groups: 'regression' }
       }
@@ -394,6 +397,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       color: 'asparagus',
       workflows: [
         'QA US - E2E',
+        'QA CA - E2E',
         'QA E2E Web Regression',
         'QA Android Regression',
         'QA iOS Regression',

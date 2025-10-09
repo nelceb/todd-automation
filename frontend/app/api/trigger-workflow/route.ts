@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       'Run Maestro Test on BrowserStack': { id: '167743620', name: 'Run Maestro Test on BrowserStack' },
       'Maestro iOS Tests': { id: '170712159', name: 'Maestro iOS Tests' },
       'QA US - E2E': { id: 'qa-e2e-web.yml', name: 'QA US - E2E' },
+      'QA CA - E2E': { id: 'qa-ca-e2e-web.yml', name: 'QA CA - E2E' },
       'QA E2E Web Regression': { id: 'qa_e2e_web_regression.yml', name: 'QA E2E Web Regression' },
       'QA Android Regression': { id: 'qa_android_regression.yml', name: 'QA Android Regression' },
       'QA iOS Regression': { id: 'qa_ios_regression.yml', name: 'QA iOS Regression' },
