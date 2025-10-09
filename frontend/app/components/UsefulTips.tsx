@@ -24,7 +24,7 @@ export default function UsefulTips({ isVisible }: UsefulTipsProps) {
 
     const interval = setInterval(() => {
       setCurrentTipIndex((prev) => (prev + 1) % usefulTips.length)
-    }, 5000) // Change tip every 5 seconds
+    }, 10000) // Change tip every 10 seconds
 
     return () => clearInterval(interval)
   }, [isVisible])

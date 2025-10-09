@@ -57,7 +57,15 @@ export default function LinearBlob() {
     <div className="w-full h-80 relative overflow-hidden flex items-center justify-center">
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
-        style={{ background: 'transparent', width: '100%', height: '100%', minWidth: '400px' }}
+        style={{ 
+          background: 'transparent', 
+          width: '100%', 
+          height: '100%', 
+          minWidth: '400px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[3, 3, 3]} intensity={1} />

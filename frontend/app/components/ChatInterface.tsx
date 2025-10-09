@@ -319,7 +319,7 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col">
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
@@ -329,7 +329,7 @@ export default function ChatInterface({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-                className="min-h-screen flex flex-col items-center justify-center"
+                className="flex-1 flex flex-col items-center justify-center"
               >
                 {/* 3D Blob Animation */}
                 <motion.div
@@ -343,17 +343,17 @@ export default function ChatInterface({
                 
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
                   className="text-center mb-12"
-                >
+          >
                   <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
                     Multi-Repository Test Automation AI
-                  </h1>
+            </h1>
                   <p className="text-gray-400 text-lg font-mono">
                     Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
-                  </p>
-                </motion.div>
+            </p>
+          </motion.div>
             
             {/* Centered input field */}
             <motion.div
@@ -401,15 +401,17 @@ export default function ChatInterface({
                 <UsefulTips isVisible={showTips} />
               </motion.div>
             ) : (
-          /* Layout with messages - input field at bottom */
+          /* Layout with messages - scrollable logs with fixed input */
           <motion.div
             key="messages-layout"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="pb-40"
+            className="flex-1 flex flex-col"
           >
+            {/* Scrollable logs area */}
+            <div className="flex-1 overflow-y-auto">
             {/* Botón para limpiar historial */}
             <div className="flex justify-end mb-4">
               <button
@@ -639,9 +641,16 @@ export default function ChatInterface({
                         {logs.logs.length > 0 && (() => {
                           const allLogs = logs.logs.map(log => log.logs).join('\n')
                           const summary = extractTestSummary(allLogs)
+                          
+                          // Solo mostrar resultados si hay tests reales o si es un job de tests
+                          const hasRealTests = summary.total > 0 || allLogs.toLowerCase().includes('test') || 
+                                             logs.logs.some(log => log.jobName.toLowerCase().includes('test'))
+                          
+                          if (!hasRealTests) return null
+                          
                           return (
                             <div className="flex items-start space-x-4 py-2">
-                              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 min-w-[100px]">
+                              <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                                 now
                               </div>
                               <div className="flex-1 min-w-0">
@@ -750,16 +759,11 @@ export default function ChatInterface({
         </motion.div>
                 </div>
               </div>
-      )}
-
-            {/* Input field at bottom when there are messages */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="mt-8 flex justify-center"
-        >
-              <form onSubmit={handleSubmit} className="relative w-full max-w-4xl">
+            </div>
+            
+            {/* Fixed input field at bottom */}
+            <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
+              <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
             <div className="relative">
               <input
                     ref={inputRef}
@@ -794,10 +798,10 @@ export default function ChatInterface({
               </div>
             </div>
           </form>
-        </motion.div>
-
-            {/* Useful Tips */}
-            <UsefulTips isVisible={showTips} />
+              
+              {/* Useful Tips */}
+              <UsefulTips isVisible={showTips} />
+            </div>
         </motion.div>
         )}
       </AnimatePresence>
