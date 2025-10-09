@@ -9,9 +9,9 @@ function WireframeCube() {
   const meshRef = useRef()
   const materialRef = useRef()
 
-  // Create wireframe cube geometry - optimized for wider space
+  // Create wireframe cube geometry - optimized for taller space
   const geometry = useMemo(() => {
-    const cube = new THREE.BoxGeometry(2.2, 2.2, 2.2, 8, 8, 8)
+    const cube = new THREE.BoxGeometry(2.0, 2.0, 2.0, 8, 8, 8)
     return cube
   }, [])
 
@@ -54,7 +54,7 @@ function WireframeCube() {
 
 export default function LinearBlob() {
   return (
-    <div className="w-full h-64 relative overflow-hidden">
+    <div className="w-full h-80 relative overflow-hidden flex items-center justify-center">
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
         style={{ background: 'transparent', width: '100%', height: '100%', minWidth: '400px' }}
