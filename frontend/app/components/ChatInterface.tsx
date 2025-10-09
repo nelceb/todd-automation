@@ -395,7 +395,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 min-h-screen flex flex-col">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col overflow-hidden">
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
@@ -405,7 +405,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-120px)]"
+            className="flex-1 flex flex-col items-center justify-center"
           >
             {/* 3D Blob Animation */}
             <motion.div
@@ -486,8 +486,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="flex-1 flex flex-col min-h-0"
           >
-            {/* Fixed height scrollable logs area - responsive for small screens */}
-            <div className="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-200px)]">
+            {/* Scrollable logs area - takes available space */}
+            <div className="flex-1 overflow-y-auto min-h-0">
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
