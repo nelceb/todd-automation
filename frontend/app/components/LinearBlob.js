@@ -37,7 +37,6 @@ function Blob() {
     <mesh ref={meshRef} geometry={geometry}>
       <MeshDistortMaterial
         ref={materialRef}
-        attach="material"
         color="#8B5CF6"
         metalness={0.8}
         roughness={0.2}
