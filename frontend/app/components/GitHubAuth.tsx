@@ -40,8 +40,13 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
       // Verificar si hay un token guardado
       const savedToken = localStorage.getItem('github_token')
       if (savedToken) {
+        console.log('Found saved token, setting authenticated to true')
         setIsAuthenticated(true)
         onAuthSuccess(savedToken)
+      } else {
+        console.log('No saved token found, setting authenticated to false')
+        setIsAuthenticated(false)
+        onAuthSuccess('')
       }
     }
   }, [onAuthSuccess])
@@ -60,20 +65,22 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
     onAuthSuccess('')
   }
 
-    if (isAuthenticated) {
-      return (
-        <div className="flex items-center space-x-2">
-          <CheckCircleIcon className="w-4 h-4 text-green-400" />
-          <span className="text-green-300 text-sm font-medium">Connected to GitHub</span>
-          <button
-            onClick={handleLogout}
-            className="text-green-400 hover:text-green-300 text-xs underline"
-          >
-            Disconnect
-          </button>
-        </div>
-      )
-    }
+  console.log('GitHubAuth render - isAuthenticated:', isAuthenticated)
+  
+  if (isAuthenticated) {
+    return (
+      <div className="flex items-center space-x-2">
+        <CheckCircleIcon className="w-4 h-4 text-green-400" />
+        <span className="text-green-300 text-sm font-medium">Connected to GitHub</span>
+        <button
+          onClick={handleLogout}
+          className="text-green-400 hover:text-green-300 text-xs underline"
+        >
+          Disconnect
+        </button>
+      </div>
+    )
+  }
 
   // Mostrar botón cuando no está conectado
   return (
