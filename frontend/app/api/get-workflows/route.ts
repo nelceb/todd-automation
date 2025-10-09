@@ -68,10 +68,13 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching workflows:', error)
+    const { searchParams } = new URL(request.url)
+    const repository = searchParams.get('repository') || 'maestro-test'
+    
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Error desconocido',
-        repository: `${process.env.GITHUB_OWNER || 'cook-unity'}/${searchParams.get('repository') || 'maestro-test'}`,
+        repository: `${process.env.GITHUB_OWNER || 'cook-unity'}/${repository}`,
         workflows: [],
         total: 0
       },
