@@ -421,7 +421,7 @@ export default function ChatInterface({
                 <TrashIcon className="w-4 h-4" />
                 <span>Clear History</span>
               </button>
-                </div>
+            </div>
 
             {/* Log informativo - Estilo sutil */}
             <div className="flex justify-center">
@@ -756,7 +756,7 @@ export default function ChatInterface({
                         )}
                       </div>
                     ))}
-        </motion.div>
+                  </motion.div>
                 </div>
               </div>
             </div>
@@ -764,7 +764,7 @@ export default function ChatInterface({
             {/* Fixed input field at bottom */}
             <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
               <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
-            <div className="relative">
+                <div className="relative">
               <input
                     ref={inputRef}
                 type="text"
@@ -802,7 +802,7 @@ export default function ChatInterface({
               {/* Useful Tips */}
               <UsefulTips isVisible={showTips} />
             </div>
-        </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
