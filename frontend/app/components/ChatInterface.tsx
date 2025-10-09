@@ -32,15 +32,30 @@ interface ChatInterfaceProps {
   onWorkflowExecuted: () => void
 }
 
-// Helper function to extract test summary from logs
+// Helper function to extract test summary from logs - Universal extraction for all workflow types
 const extractTestSummary = (logs: string) => {
   let passed = 0
   let failed = 0
   let skipped = 0
+  let errors = 0
   const failedTests: string[] = []
   const passedTests: string[] = []
 
-  // Maestro Cloud specific patterns
+  // 1. Maven/TestNG patterns (Selenium/Playwright frameworks)
+  const mavenTestsRunPattern = /Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)/g
+  const mavenTestPassedPattern = /(\d+) passed/g
+  const mavenTestFailedPattern = /(\d+) failed/g
+  const mavenTestSkippedPattern = /(\d+) skipped/g
+  const testExitCodePattern = /Test exit code: (\d+)/g
+  const testsPassedPattern = /Tests passed/g
+  const testsFailedPattern = /Tests failed/g
+
+  // 2. Playwright specific patterns
+  const playwrightPassedPattern = /(\d+) passed/g
+  const playwrightFailedPattern = /(\d+) failed/g
+  const playwrightSkippedPattern = /(\d+) skipped/g
+
+  // 3. Maestro Cloud specific patterns
   const flowPassedPattern = /(\d+)\/(\d+) Flow Passed/g
   const flowFailedPattern = /(\d+)\/(\d+) Flow Failed/g
   const testSuitePassedPattern = /\[Passed\] (.+) Test Suite/g
@@ -48,9 +63,73 @@ const extractTestSummary = (logs: string) => {
   const flowCompletedPattern = /\[\d{2}:\d{2}:\d{2}\] Flow "([^"]+)" completed/g
   const flowRunningPattern = /\[\d{2}:\d{2}:\d{2}\] Running flow: "([^"]+)"/g
 
+  // 4. Summary.json patterns (from generated files)
+  const summaryJsonPattern = /"total":\s*(\d+).*"passed":\s*(\d+).*"failed":\s*(\d+).*"skipped":\s*(\d+)/g
+
   let match
 
-  // Extract passed/failed counts
+  // Try Maven/TestNG format first (most common)
+  while ((match = mavenTestsRunPattern.exec(logs)) !== null) {
+    const total = parseInt(match[1])
+    const failures = parseInt(match[2])
+    const errorsCount = parseInt(match[3])
+    const skippedCount = parseInt(match[4])
+    const passedCount = total - failures - errorsCount - skippedCount
+    
+    passed += Math.max(0, passedCount)
+    failed += failures
+    errors += errorsCount
+    skipped += skippedCount
+  }
+
+  // Try summary.json format
+  while ((match = summaryJsonPattern.exec(logs)) !== null) {
+    const total = parseInt(match[1])
+    const passedCount = parseInt(match[2])
+    const failedCount = parseInt(match[3])
+    const skippedCount = parseInt(match[4])
+    
+    passed += passedCount
+    failed += failedCount
+    skipped += skippedCount
+  }
+
+  // Try Playwright patterns
+  while ((match = playwrightPassedPattern.exec(logs)) !== null) {
+    passed += parseInt(match[1])
+  }
+  while ((match = playwrightFailedPattern.exec(logs)) !== null) {
+    failed += parseInt(match[1])
+  }
+  while ((match = playwrightSkippedPattern.exec(logs)) !== null) {
+    skipped += parseInt(match[1])
+  }
+
+  // Try Maven individual patterns
+  while ((match = mavenTestPassedPattern.exec(logs)) !== null) {
+    passed += parseInt(match[1])
+  }
+  while ((match = mavenTestFailedPattern.exec(logs)) !== null) {
+    failed += parseInt(match[1])
+  }
+  while ((match = mavenTestSkippedPattern.exec(logs)) !== null) {
+    skipped += parseInt(match[1])
+  }
+
+  // If we found any results from above patterns, use those
+  if (passed > 0 || failed > 0 || skipped > 0 || errors > 0) {
+    const total = passed + failed + skipped + errors
+    return {
+      passed,
+      failed,
+      skipped,
+      total,
+      failedTests: [],
+      passedTests: []
+    }
+  }
+
+  // Fallback to Maestro patterns
   while ((match = flowPassedPattern.exec(logs)) !== null) {
     passed += parseInt(match[1])
   }
@@ -58,7 +137,7 @@ const extractTestSummary = (logs: string) => {
     failed += parseInt(match[1])
   }
 
-  // Extract failed test names
+  // Extract failed test names from Maestro
   while ((match = testSuiteFailedPattern.exec(logs)) !== null) {
     failedTests.push(match[1].trim())
   }
@@ -80,7 +159,7 @@ const extractTestSummary = (logs: string) => {
     }
   })
 
-  // Calculate total and skipped
+  // Calculate total and skipped for Maestro
   const total = allFlows.length > 0 ? allFlows.length : (passed + failed)
   skipped = total - passed - failed
 
@@ -398,7 +477,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             <UsefulTips isVisible={showTips} />
           </motion.div>
         ) : (
-          /* Layout with messages - scrollable logs with fixed input */
+          /* Layout with messages - fixed height logs with always visible search */
           <motion.div
             key="messages-layout"
             initial={{ opacity: 0, y: 20 }}
@@ -407,8 +486,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="flex-1 flex flex-col"
           >
-            {/* Scrollable logs area */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Fixed height scrollable logs area */}
+            <div className="h-[calc(100vh-200px)] overflow-y-auto">
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
@@ -636,16 +715,33 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
 
                           {/* Test Results Summary - Estilo log */}
                           {logs.logs.length > 0 && (() => {
-                            const allLogs = logs.logs.map(log => log.logs).join('\n')
+                            // Solo buscar en logs de tests relevantes
+                            const testLogs = logs.logs.filter(log => {
+                              const jobName = log.jobName.toLowerCase()
+                              return (
+                                jobName.includes('test') && 
+                                !jobName.includes('upload-report') &&
+                                !jobName.includes('notify') &&
+                                !jobName.includes('errors-summary') &&
+                                !jobName.includes('slack') &&
+                                !jobName.includes('prepare-context') &&
+                                !jobName.includes('register-dispatch')
+                              )
+                            })
+                            
+                            if (testLogs.length === 0) return null
+                            
+                            const allLogs = testLogs.map(log => log.logs).join('\n')
                             const summary = extractTestSummary(allLogs)
                             
-                            // Solo mostrar resultados si hay tests reales ejecutados (no solo jobs de setup)
+                            // Solo mostrar resultados si hay tests reales ejecutados
                             const hasRealTests = summary.total > 0 && (
                               allLogs.toLowerCase().includes('passed') || 
                               allLogs.toLowerCase().includes('failed') ||
                               allLogs.toLowerCase().includes('test suite') ||
                               allLogs.toLowerCase().includes('flow passed') ||
-                              allLogs.toLowerCase().includes('flow failed')
+                              allLogs.toLowerCase().includes('flow failed') ||
+                              allLogs.toLowerCase().includes('test exit code')
                             )
                             
                             if (!hasRealTests) return null
@@ -681,8 +777,22 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                             )
                           })()}
 
-                          {/* Jobs - Estilo log */}
-                          {logs.logs.map((log, jobIndex) => (
+                          {/* Jobs - Estilo log - Solo jobs de tests relevantes */}
+                          {logs.logs
+                            .filter(log => {
+                              // Filtrar solo jobs de tests relevantes
+                              const jobName = log.jobName.toLowerCase()
+                              return (
+                                jobName.includes('test') && 
+                                !jobName.includes('upload-report') &&
+                                !jobName.includes('notify') &&
+                                !jobName.includes('errors-summary') &&
+                                !jobName.includes('slack') &&
+                                !jobName.includes('prepare-context') &&
+                                !jobName.includes('register-dispatch')
+                              )
+                            })
+                            .map((log, jobIndex) => (
                             <div key={jobIndex} className="flex items-start space-x-4 py-2">
                               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                                 {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
