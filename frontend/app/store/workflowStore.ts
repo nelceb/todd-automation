@@ -347,5 +347,18 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   clearMultipleLogs: () => {
     set({ multipleLogs: [] })
+  },
+
+  clearAllLogs: () => {
+    set({ 
+      currentLogs: null, 
+      multipleLogs: [], 
+      isPollingLogs: false 
+    })
+    // Stop any existing polling
+    const { pollInterval } = get() as any
+    if (pollInterval) {
+      clearInterval(pollInterval)
+    }
   }
 }))

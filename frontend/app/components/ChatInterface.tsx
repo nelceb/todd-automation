@@ -10,8 +10,7 @@ import {
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
 import UsefulTips from './UsefulTips'
-import AnimatedAI from './AnimatedAI'
-import LinearBlob from './LinearBlob'
+import SmallCube from './SmallCube'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -183,19 +182,20 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   
-  const { 
-    triggerWorkflow, 
-    startPollingLogs, 
-    startPollingMultipleLogs,
-    currentLogs, 
-    multipleLogs,
-    isPollingLogs,
-    previewWorkflows,
-    workflowPreview,
-    triggerMultipleWorkflows,
-    clearPreview,
-    clearMultipleLogs
-  } = useWorkflowStore()
+      const { 
+        triggerWorkflow, 
+        startPollingLogs, 
+        startPollingMultipleLogs,
+        currentLogs, 
+        multipleLogs,
+        isPollingLogs,
+        previewWorkflows,
+        workflowPreview,
+        triggerMultipleWorkflows,
+        clearPreview,
+        clearMultipleLogs,
+        clearAllLogs
+      } = useWorkflowStore()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -258,7 +258,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     setInput('')
     setIsLoading(true)
 
-    // Clear previous messages and add new user message
+    // Clear all previous logs and messages
+    clearAllLogs()
     setMessages([{
       id: Date.now().toString(),
       type: 'user',
@@ -395,6 +396,11 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
     }
   }
 
+  const handleClearAll = () => {
+    clearMessages()
+    clearAllLogs()
+  }
+
   return (
     <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col overflow-hidden">
       <AnimatePresence mode="wait">
@@ -408,15 +414,6 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="flex-1 flex flex-col items-center justify-center"
           >
-            {/* 3D Blob Animation - 50% larger */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-              className="mb-6 w-full max-w-4xl flex justify-center"
-            >
-              <LinearBlob />
-            </motion.div>
             
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -424,8 +421,11 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
               className="text-center mb-8"
             >
-              <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
-                Multi-Repository Test Automation <AnimatedAI className="font-bold text-5xl" />
+              <h1 className="text-4xl font-mono text-white mb-4 tracking-wide flex items-center justify-center gap-4">
+                Multi-Repository Test Automation AI
+                <div className="w-8 h-8">
+                  <SmallCube />
+                </div>
               </h1>
               <p className="text-gray-400 text-lg font-mono">
                 Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
@@ -450,7 +450,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
-                  onClick={clearMessages}
+                  onClick={handleClearAll}
                   className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-400 hover:text-white transition-colors"
                 >
                   <TrashIcon className="w-4 h-4" />
