@@ -54,10 +54,10 @@ function WireframeCube() {
 
 export default function LinearBlob() {
   return (
-    <div className="w-full max-w-6xl mx-auto h-64 relative overflow-hidden">
+    <div className="w-full h-64 relative overflow-hidden">
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
-        style={{ background: 'transparent', width: '100%', height: '100%' }}
+        style={{ background: 'transparent', width: '100%', height: '100%', minWidth: '400px' }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[3, 3, 3]} intensity={1} />
