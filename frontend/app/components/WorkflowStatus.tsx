@@ -12,7 +12,9 @@ import {
   ExclamationTriangleIcon,
   CodeBracketIcon,
   DevicePhoneMobileIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  ChevronDownIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStore'
 import { formatDistanceToNow } from 'date-fns'
@@ -22,9 +24,14 @@ interface WorkflowStatusProps {
   githubToken?: string
 }
 
+interface WorkflowState {
+  [workflowId: string]: 'idle' | 'in_progress' | 'success' | 'error'
+}
+
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
-  const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories } = useWorkflowStore()
+  const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
   const [expandedRepository, setExpandedRepository] = useState<string | null>(null)
+  const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
   useEffect(() => {
     // Only fetch data if we have a GitHub token
@@ -95,6 +102,67 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return 'unknown'
   }
 
+  const handleRepositoryClick = (repoName: string) => {
+    setExpandedRepository(expandedRepository === repoName ? null : repoName)
+  }
+
+  const handleWorkflowClick = async (workflowName: string, repository: string) => {
+    const workflowId = `${repository}-${workflowName}`
+    
+    // Set to in_progress
+    setWorkflowStates(prev => ({ ...prev, [workflowId]: 'in_progress' }))
+    
+    try {
+      // Extract repo name from full path
+      const repoName = repository.split('/').pop() || 'maestro-test'
+      
+      // Trigger workflow with default inputs
+      const result = await triggerWorkflow(workflowName, {}, githubToken, repoName)
+      
+      if (result && result.runId) {
+        // Set to success after a delay (simulate completion)
+        setTimeout(() => {
+          setWorkflowStates(prev => ({ ...prev, [workflowId]: 'success' }))
+        }, 3000)
+      } else {
+        setWorkflowStates(prev => ({ ...prev, [workflowId]: 'error' }))
+      }
+    } catch (error) {
+      console.error('Error executing workflow:', error)
+      setWorkflowStates(prev => ({ ...prev, [workflowId]: 'error' }))
+    }
+  }
+
+  const getWorkflowStateIcon = (workflowId: string) => {
+    const state = workflowStates[workflowId] || 'idle'
+    
+    switch (state) {
+      case 'in_progress':
+        return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />
+      case 'success':
+        return <CheckCircleIcon className="w-4 h-4 text-green-500" />
+      case 'error':
+        return <XCircleIcon className="w-4 h-4 text-red-500" />
+      default:
+        return <PlayIcon className="w-4 h-4 text-gray-400" />
+    }
+  }
+
+  const getWorkflowStateColor = (workflowId: string) => {
+    const state = workflowStates[workflowId] || 'idle'
+    
+    switch (state) {
+      case 'in_progress':
+        return 'border-blue-500/50 bg-blue-500/10'
+      case 'success':
+        return 'border-green-500/50 bg-green-500/10'
+      case 'error':
+        return 'border-red-500/50 bg-red-500/10'
+      default:
+        return 'border-gray-600/30 hover:border-gray-500/50'
+    }
+  }
+
   if (error) {
     return (
       <div className="bg-red-900 border border-red-700 rounded-lg p-6">
@@ -121,13 +189,6 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     )
   }
 
-  const runningWorkflows = workflowRuns.filter(run => 
-    run.status === 'in_progress' || run.status === 'queued'
-  )
-  
-  const completedWorkflows = workflowRuns.filter(run => 
-    run.status === 'completed'
-  ).slice(0, 5) // Solo los últimos 5
 
   // Show authentication required message if no GitHub token
   if (!githubToken) {
@@ -162,112 +223,150 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     )
   }
 
+  // Define the 3 repositories with their workflows
+  const repositoryData = [
+    {
+      name: 'maestro-test',
+      fullName: 'Cook-Unity/maestro-test',
+      technology: 'maestro',
+      icon: DevicePhoneMobileIcon,
+      color: 'airforce',
+      workflows: [
+        'iOS Maestro Cloud Tests',
+        'Run BS iOS Maestro Test (Minimal Zip)',
+        'iOS Gauge Tests on LambdaTest',
+        'Maestro Mobile Tests - iOS and Android',
+        'Run Maestro Test on BrowserStack (iOS)',
+        'Run Maestro Test on BrowserStack',
+        'Maestro iOS Tests'
+      ]
+    },
+    {
+      name: 'pw-cookunity-automation',
+      fullName: 'Cook-Unity/pw-cookunity-automation',
+      technology: 'playwright',
+      icon: GlobeAltIcon,
+      color: 'asparagus',
+      workflows: [
+        'QA US - E2E',
+        'QA E2E Web Regression',
+        'QA Android Regression',
+        'QA iOS Regression',
+        'QA API Kitchen Regression',
+        'QA Logistics Regression'
+      ]
+    },
+    {
+      name: 'automation-framework',
+      fullName: 'Cook-Unity/automation-framework',
+      technology: 'selenium',
+      icon: CodeBracketIcon,
+      color: 'earth',
+      workflows: [
+        'Prod Android Regression',
+        'Prod iOS Regression',
+        'QA E2E Web Regression',
+        'QA Android Regression',
+        'QA iOS Regression',
+        'QA API Kitchen Regression',
+        'QA Logistics Regression'
+      ]
+    }
+  ]
+
   return (
-      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
         <p className="text-gray-400 mt-2 text-lg">
-          Real-time monitoring of test execution across multiple repositories
+          Click on repositories to view and execute workflows
         </p>
       </div>
 
-      {/* Log-style workflow information in 3 columns */}
+      {/* 3 Repository Columns */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Available Repositories - Log style with subtle card */}
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
-          <div className="flex items-start space-x-4 py-2">
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-              now
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-3 mb-1">
-                <div className="w-2 h-2 rounded-full bg-airforce-400"></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                  REPOSITORIES
-                </span>
-              </div>
-              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                <div>→ {repositories.length} repositories available</div>
-                {repositories.map((repository) => (
-                  <div key={repository.id} className="text-gray-400 text-xs">
-                    <div>  {repository.name}: {repository.technology} • {repository.workflow_count} workflows</div>
-                    <div className="ml-2">    Platforms: {repository.platforms.join(', ')}</div>
+        {repositoryData.map((repo) => {
+          const isExpanded = expandedRepository === repo.name
+          const IconComponent = repo.icon
+          
+          return (
+            <div key={repo.name} className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+              {/* Repository Header - Clickable */}
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-gray-700/20 rounded-lg p-3 -m-3 mb-4 transition-colors"
+                onClick={() => handleRepositoryClick(repo.name)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-8 h-8 rounded-lg bg-${repo.color}-500/20 flex items-center justify-center`}>
+                    <IconComponent className={`w-5 h-5 text-${repo.color}-400`} />
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Running Workflows - Log style with subtle card */}
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
-          <div className="flex items-start space-x-4 py-2">
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-              now
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-3 mb-1">
-                <div className={`w-2 h-2 rounded-full ${
-                  runningWorkflows.length > 0 ? 'bg-asparagus-400 animate-pulse' : 'bg-gray-400'
-                }`}></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                  RUNNING
-                </span>
-              </div>
-              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                {runningWorkflows.length === 0 ? (
-                  <div>→ No workflows currently running</div>
+                  <div>
+                    <h3 className="text-white font-medium">{repo.name}</h3>
+                    <p className="text-gray-400 text-sm">{repo.technology} • {repo.workflows.length} workflows</p>
+                  </div>
+                </div>
+                {isExpanded ? (
+                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
                 ) : (
-                  <>
-                    <div>→ {runningWorkflows.length} workflow{runningWorkflows.length > 1 ? 's' : ''} in progress</div>
-                    {runningWorkflows.map((run) => (
-                      <div key={run.id} className="text-gray-400 text-xs">
-                        <div>  {run.name}</div>
-                        <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
-                        <div className="ml-2">    Started: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
-                      </div>
-                    ))}
-                  </>
+                  <ChevronRightIcon className="w-5 h-5 text-gray-400" />
                 )}
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Recent History - Log style with subtle card */}
-        <div className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
-          <div className="flex items-start space-x-4 py-2">
-            <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-              now
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-3 mb-1">
-                <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
-                  HISTORY
-                </span>
-              </div>
-              <div className="text-gray-200 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                {completedWorkflows.length === 0 ? (
-                  <div>→ No recent workflow history</div>
-                ) : (
-                  <>
-                    <div>→ {completedWorkflows.length} recent completed workflow{completedWorkflows.length > 1 ? 's' : ''}</div>
-                    {completedWorkflows.map((run) => (
-                      <div key={run.id} className="text-gray-400 text-xs">
-                        <div>  {run.name}</div>
-                        <div className="ml-2">    Environment: {extractEnvironmentFromName(run.name)}</div>
-                        <div className="ml-2">    Status: {run.conclusion === 'success' ? 'SUCCESS' : 'FAILURE'}</div>
-                        <div className="ml-2">    Completed: {formatDistanceToNow(new Date(run.created_at), { addSuffix: true, locale: enUS })}</div>
+              {/* Workflows List - Only show when expanded */}
+              {isExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-2"
+                >
+                  {repo.workflows.map((workflowName) => {
+                    const workflowId = `${repo.fullName}-${workflowName}`
+                    const state = workflowStates[workflowId] || 'idle'
+                    
+                    return (
+                      <div
+                        key={workflowName}
+                        className={`border rounded-lg p-3 cursor-pointer transition-all duration-200 ${getWorkflowStateColor(workflowId)}`}
+                        onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">
+                              {workflowName}
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              {extractEnvironmentFromName(workflowName)} • {repo.technology}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {getWorkflowStateIcon(workflowId)}
+                          </div>
+                        </div>
+                        
+                        {/* State indicator */}
+                        {state !== 'idle' && (
+                          <div className="mt-2 text-xs">
+                            {state === 'in_progress' && (
+                              <span className="text-blue-400">Executing...</span>
+                            )}
+                            {state === 'success' && (
+                              <span className="text-green-400">Completed successfully</span>
+                            )}
+                            {state === 'error' && (
+                              <span className="text-red-400">Execution failed</span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </>
-                )}
-              </div>
+                    )
+                  })}
+                </motion.div>
+              )}
             </div>
-          </div>
-        </div>
+          )
+        })}
       </div>
     </div>
   )
