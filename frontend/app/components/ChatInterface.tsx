@@ -395,7 +395,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 min-h-screen flex flex-col">
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
@@ -405,7 +405,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex-1 flex flex-col items-center justify-center"
+            className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-120px)]"
           >
             {/* 3D Blob Animation */}
             <motion.div
@@ -484,10 +484,10 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col min-h-0"
           >
-            {/* Fixed height scrollable logs area */}
-            <div className="h-[calc(100vh-200px)] overflow-y-auto">
+            {/* Fixed height scrollable logs area - responsive for small screens */}
+            <div className="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-200px)]">
               {/* Botón para limpiar historial */}
               <div className="flex justify-end mb-4">
                 <button
@@ -874,8 +874,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               )}
             </div>
             
-            {/* Fixed input field at bottom */}
-            <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
+            {/* Fixed input field at bottom - always visible */}
+            <div className="flex-shrink-0 p-4 border-t border-gray-700/30 bg-gray-900/50 backdrop-blur-sm">
               <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
             <div className="relative">
               <input
