@@ -422,7 +422,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               className="text-center mb-8"
             >
               <h1 className="text-4xl font-mono text-white mb-4 tracking-wide flex items-center justify-center gap-4">
-                Multi-Repository Test Automation AI
+                🚀 CLEAN TITLE - Multi-Repository Test Automation AI 🚀
                 <div className="w-8 h-8">
                   <SmallCube />
                 </div>
