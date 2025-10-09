@@ -18,30 +18,66 @@ export async function POST(request: NextRequest) {
       throw new Error('Workflow ID es requerido')
     }
 
-    // Mapeo directo de workflow names a IDs conocidos
-    const workflowMapping: Record<string, { id: string, name: string }> = {
-      'iOS Maestro Cloud Tests': { id: '170992579', name: 'iOS Maestro Cloud Tests' },
-      'Run BS iOS Maestro Test (Minimal Zip)': { id: '178419154', name: 'Run BS iOS Maestro Test (Minimal Zip)' },
-      'iOS Gauge Tests on LambdaTest': { id: '170481042', name: 'iOS Gauge Tests on LambdaTest' },
-      'Maestro Mobile Tests - iOS and Android': { id: '170481043', name: 'Maestro Mobile Tests - iOS and Android' },
-      'Run Maestro Test on BrowserStack (iOS)': { id: '179332733', name: 'Run Maestro Test on BrowserStack (iOS)' },
-      'Run Maestro Test on BrowserStack': { id: '167743620', name: 'Run Maestro Test on BrowserStack' },
-      'Maestro iOS Tests': { id: '170712159', name: 'Maestro iOS Tests' },
-      'QA US - E2E': { id: 'qa-e2e-web.yml', name: 'QA US - E2E' },
-      'QA CA - E2E': { id: 'qa-ca-e2e-web.yml', name: 'QA CA - E2E' },
-      'QA E2E Web Regression': { id: 'qa_e2e_web_regression.yml', name: 'QA E2E Web Regression' },
-      'QA Android Regression': { id: 'qa_android_regression.yml', name: 'QA Android Regression' },
-      'QA iOS Regression': { id: 'qa_ios_regression.yml', name: 'QA iOS Regression' },
-      'QA API Kitchen Regression': { id: 'qa_api_kitchen_regression.yml', name: 'QA API Kitchen Regression' },
-      'QA Logistics Regression': { id: 'qa_logistics_regression.yml', name: 'QA Logistics Regression' },
-      'Prod Android Regression': { id: 'prod_android_regression.yml', name: 'Prod Android Regression' },
-      'Prod iOS Regression': { id: 'prod_ios_regression.yml', name: 'Prod iOS Regression' }
+    // Obtener workflows dinámicamente desde GitHub
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/actions/workflows`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
+
+    if (!workflowsResponse.ok) {
+      throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
     }
 
-    const workflow = workflowMapping[workflowId]
+    const workflowsData = await workflowsResponse.json()
+    const workflows = workflowsData.workflows || []
+
+    // Buscar el workflow por nombre o ID
+    let workflow = workflows.find((w: any) => 
+      w.name === workflowId || 
+      w.id.toString() === workflowId ||
+      w.path === workflowId ||
+      w.path.includes(workflowId)
+    )
+
+    // Si no se encuentra, intentar con mapeo de fallback
+    if (!workflow) {
+      const fallbackMapping: Record<string, string> = {
+        'iOS Maestro Cloud Tests': 'iOS Maestro Cloud Tests',
+        'Run BS iOS Maestro Test (Minimal Zip)': 'Run BS iOS Maestro Test (Minimal Zip)',
+        'iOS Gauge Tests on LambdaTest': 'iOS Gauge Tests on LambdaTest',
+        'Maestro Mobile Tests - iOS and Android': 'Maestro Mobile Tests - iOS and Android',
+        'Run Maestro Test on BrowserStack (iOS)': 'Run Maestro Test on BrowserStack (iOS)',
+        'Run Maestro Test on BrowserStack': 'Run Maestro Test on BrowserStack',
+        'Maestro iOS Tests': 'Maestro iOS Tests',
+        'QA US - E2E': 'qa-e2e-web.yml',
+        'QA CA - E2E': 'qa-ca-e2e-web.yml',
+        'QA E2E Web Regression': 'qa_e2e_web_regression.yml',
+        'QA Android Regression': 'qa_android_regression.yml',
+        'QA iOS Regression': 'qa_ios_regression.yml',
+        'QA API Kitchen Regression': 'qa_api_kitchen_regression.yml',
+        'QA Logistics Regression': 'qa_logistics_regression.yml',
+        'Prod Android Regression': 'prod_android_regression.yml',
+        'Prod iOS Regression': 'prod_ios_regression.yml'
+      }
+
+      const fallbackName = fallbackMapping[workflowId]
+      if (fallbackName) {
+        workflow = workflows.find((w: any) => 
+          w.name === fallbackName || 
+          w.path === fallbackName ||
+          w.path.includes(fallbackName)
+        )
+      }
+    }
     
     if (!workflow) {
-      throw new Error(`Workflow ${workflowId} no encontrado en el mapeo`)
+      console.log('Available workflows:', workflows.map((w: any) => ({ name: w.name, path: w.path, id: w.id })))
+      throw new Error(`Workflow ${workflowId} no encontrado. Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
     }
 
     // Disparar el workflow directamente
