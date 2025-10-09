@@ -54,24 +54,21 @@ function WireframeCube() {
 
 export default function LinearBlob() {
   return (
-    <div className="w-full h-40 relative overflow-hidden flex items-center justify-center">
+    <div className="w-full h-32 relative overflow-hidden flex items-center justify-center">
       <Canvas
         camera={{ position: [0, 0, 4], fov: 50 }}
         style={{ 
           background: 'transparent', 
           width: '100%', 
           height: '100%', 
-          minWidth: '400px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+          minWidth: '400px'
         }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[3, 3, 3]} intensity={1} />
         <pointLight position={[-3, -3, -3]} intensity={0.3} />
         
-        {/* Single large wireframe cube */}
+        {/* Single large wireframe cube - perfectly centered */}
         <WireframeCube />
       </Canvas>
     </div>

@@ -333,7 +333,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1.2, delay: 0.1, ease: "easeOut" }}
-              className="mb-8 w-full max-w-4xl"
+              className="mb-6 w-full max-w-4xl"
             >
               <LinearBlob />
             </motion.div>
@@ -342,15 +342,15 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-              className="text-center mb-12"
+              className="text-center mb-8"
             >
               <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
                 Multi-Repository Test Automation AI
-              </h1>
+            </h1>
               <p className="text-gray-400 text-lg font-mono">
                 Execute tests across Maestro, Playwright, and Selenium frameworks with natural language
-              </p>
-            </motion.div>
+            </p>
+          </motion.div>
             
             {/* Centered input field */}
             <motion.div
@@ -438,8 +438,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                       {/* Timestamp */}
                       <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
                         {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
-                      </div>
-                      
+                </div>
+
                       {/* Log entry */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-1">
@@ -450,8 +450,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                           }`}></div>
                           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                             {message.type === 'user' ? 'COMMAND' : 'EXECUTION'}
-                          </span>
-                        </div>
+                      </span>
+                    </div>
                         <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono ml-5">
                           <TypingText 
                             text={message.content} 
@@ -459,8 +459,8 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                             delay={index * 200}
                             showCursor={false}
                           />
-                        </p>
-                      </div>
+                    </p>
+                  </div>
                     </motion.div>
                   ))}
 
@@ -472,7 +472,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                       className="flex items-start space-x-4 py-2"
                     >
                       <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                        now
+                        {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-1">
@@ -480,13 +480,13 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                           <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                             PROCESSING
                           </span>
-                        </div>
+                    </div>
                         <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
                           Processing your request...
-                        </p>
-                      </div>
+                    </p>
+                  </div>
                     </motion.div>
-                  )}
+                )}
                 </div>
               </div>
 
@@ -501,10 +501,10 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                     >
                       {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
                         <div key={index} className="flex items-start space-x-4 py-2">
-                          {/* Timestamp */}
-                          <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                            now
-                          </div>
+                      {/* Timestamp */}
+                      <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
+                        {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
+                      </div>
                           
                           {/* Log entry */}
                           <div className="flex-1 min-w-0">
@@ -565,17 +565,17 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </motion.div>
+          ))}
+        </motion.div>
                   </div>
                 </div>
-              )}
+      )}
 
               {/* Workflow Execution Logs - Estilo log */}
               {(currentLogs || multipleLogs.length > 0) && (
                 <div className="flex justify-center">
                   <div className="max-w-4xl w-full">
-                    <motion.div
+        <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       className="mt-6 space-y-3"
@@ -584,7 +584,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                       {multipleLogs.length > 0 && (
                         <div className="flex items-start space-x-4 py-2">
                           <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                            now
+                            {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-3 mb-1">
@@ -610,7 +610,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                           {/* Status log entry */}
                           <div className="flex items-start space-x-4 py-2">
                             <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                              now
+                              {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-3 mb-1">
@@ -639,16 +639,21 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                             const allLogs = logs.logs.map(log => log.logs).join('\n')
                             const summary = extractTestSummary(allLogs)
                             
-                            // Solo mostrar resultados si hay tests reales o si es un job de tests
-                            const hasRealTests = summary.total > 0 || allLogs.toLowerCase().includes('test') || 
-                                               logs.logs.some(log => log.jobName.toLowerCase().includes('test'))
+                            // Solo mostrar resultados si hay tests reales ejecutados (no solo jobs de setup)
+                            const hasRealTests = summary.total > 0 && (
+                              allLogs.toLowerCase().includes('passed') || 
+                              allLogs.toLowerCase().includes('failed') ||
+                              allLogs.toLowerCase().includes('test suite') ||
+                              allLogs.toLowerCase().includes('flow passed') ||
+                              allLogs.toLowerCase().includes('flow failed')
+                            )
                             
                             if (!hasRealTests) return null
                             
                             return (
                               <div className="flex items-start space-x-4 py-2">
                                 <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                                  now
+                                  {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-3 mb-1">
@@ -680,7 +685,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                           {logs.logs.map((log, jobIndex) => (
                             <div key={jobIndex} className="flex items-start space-x-4 py-2">
                               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                                now
+                                {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3 mb-1">
@@ -719,7 +724,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                           {logs.logs.length === 0 && (
                             <div className="flex items-start space-x-4 py-2">
                               <div className="flex-shrink-0 text-xs text-gray-500 font-mono mt-1 w-[120px] text-right">
-                                now
+                                {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-3 mb-1">
@@ -727,12 +732,12 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-[80px]">
                                     WAITING
                                   </span>
-                                </div>
+              </div>
                                 <p className="text-gray-200 text-sm leading-relaxed font-mono ml-5">
                                   Waiting for job execution to begin...
-                                </p>
-                              </div>
-                            </div>
+              </p>
+            </div>
+          </div>
                           )}
 
                           {/* Link to GitHub */}
@@ -762,21 +767,21 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             {/* Fixed input field at bottom */}
             <div className="flex-shrink-0 p-4 border-t border-gray-700/30">
               <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
-                <div className="relative">
-                  <input
+            <div className="relative">
+              <input
                     ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter your test command..."
                     className="w-full pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
-                    disabled={isLoading}
-                  />
+                disabled={isLoading}
+              />
 
-                  {/* Botones de la derecha */}
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                    <button
-                      type="button"
+              {/* Botones de la derecha */}
+              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                <button
+                  type="button"
                       onClick={handleMicrophoneClick}
                       className={`transition-colors ${
                         isListening 
@@ -785,22 +790,22 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
                       }`}
                     >
                       <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!input.trim() || isLoading}
+                </button>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
                       className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
-                    >
-                      <PaperAirplaneIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </form>
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </form>
               
               {/* Useful Tips */}
               <UsefulTips isVisible={showTips} />
             </div>
-          </motion.div>
+        </motion.div>
         )}
       </AnimatePresence>
     </div>
