@@ -446,7 +446,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             >
               <div className="relative flex items-center justify-center mb-4">
                 {/* Cubo de fondo más grande */}
-                <div className="absolute w-48 h-48 opacity-40">
+                <div className="absolute w-56 h-56 opacity-40">
                   <SmallCube />
                 </div>
                 {/* Texto TODD más grande */}
@@ -455,7 +455,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                 </h1>
               </div>
               <p className="text-lg font-mono mb-6" style={{ color: '#344055' }}>
-                Test On Demand Dude
+                Test on demand, dude.
               </p>
             </motion.div>
             
