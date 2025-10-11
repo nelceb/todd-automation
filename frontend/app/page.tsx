@@ -30,12 +30,6 @@ export default function Home() {
       {/* Header con botones centrados - Sticky */}
       <header className="sticky top-0 z-50 py-4 border-b-2 border-gray-600 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
         <div className="flex justify-center items-center space-x-8">
-          <button className="flex items-center space-x-2 px-4 py-2 border-2 border-green-500 rounded-lg hover:bg-green-500/10 transition-colors" style={{ color: '#344055', backgroundColor: 'transparent' }}>
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span>Connected to GitHub</span>
-          </button>
           <button 
             onClick={() => setActiveTab('chat')}
             className={`px-4 py-2 border-2 rounded-lg transition-colors ${
@@ -71,33 +65,36 @@ export default function Home() {
       </header>
 
       {/* Main Content - Centrado verticalmente al viewport completo */}
-      <main className="flex-1 flex items-center justify-center">
-        {/* GitHub Authentication */}
-        <GitHubAuth onAuthSuccess={handleAuthSuccess} />
-        
-        <AnimatePresence mode="wait">
-          {activeTab === 'chat' ? (
-            <motion.div
-              key="chat"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ChatInterface githubToken={githubToken} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="workflows"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <WorkflowStatus githubToken={githubToken} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <main className="flex-1 flex items-center justify-center relative">
+        {/* Contenedor que se centra en todo el viewport */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {/* GitHub Authentication */}
+          <GitHubAuth onAuthSuccess={handleAuthSuccess} />
+          
+          <AnimatePresence mode="wait">
+            {activeTab === 'chat' ? (
+              <motion.div
+                key="chat"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChatInterface githubToken={githubToken} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="workflows"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <WorkflowStatus githubToken={githubToken} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   )
