@@ -436,19 +436,67 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-              className="text-center mb-8"
+              className="text-center mb-4"
             >
-              <h1 className="text-4xl font-mono text-white mb-4 tracking-wide flex items-center justify-center gap-4">
-                TODD
-                <div className="w-11 h-11">
+              <div className="relative flex items-center justify-center mb-4">
+                {/* Cubo de fondo más grande */}
+                <div className="absolute w-32 h-32 opacity-20">
                   <SmallCube />
                 </div>
-              </h1>
-              <p className="text-gray-400 text-lg font-mono">
+                {/* Texto TODD más grande */}
+                <h1 className="text-8xl font-mono text-white tracking-wide relative z-10">
+                  TODD
+                </h1>
+              </div>
+              <p className="text-gray-400 text-lg font-mono mb-6">
                 Test On Demand Dude
               </p>
             </motion.div>
             
+            {/* Input cuando no hay mensajes - más cerca del subtítulo */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+              className="w-full max-w-2xl"
+            >
+              <form onSubmit={handleSubmit} className="relative">
+                <div className="relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Enter your test command..."
+                    className="w-full pr-24 pl-6 py-4 text-lg bg-gray-800/80 border border-gray-600/60 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-airforce-500/80 focus:shadow-xl focus:bg-gray-800 transition-all duration-300 font-mono"
+                    disabled={isLoading}
+                  />
+
+                  {/* Botones de la derecha */}
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleMicrophoneClick}
+                      className={`transition-colors ${
+                        isListening 
+                          ? 'text-red-400 hover:text-red-300' 
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || isLoading}
+                      className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
+                    >
+                      <PaperAirplaneIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+
             {/* Useful Tips */}
             <UsefulTips isVisible={showTips} />
           </motion.div>
@@ -853,8 +901,9 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
       )}
       </AnimatePresence>
       
-      {/* Fixed search bar - always visible */}
-      <div className="flex-shrink-0 p-4 border-t border-gray-700/30 bg-gray-900/50 backdrop-blur-sm">
+      {/* Fixed search bar - only visible when there are messages */}
+      {messages.length > 0 && (
+        <div className="flex-shrink-0 p-4 border-t border-gray-700/30 bg-gray-900/50 backdrop-blur-sm">
         <form onSubmit={handleSubmit} className="relative w-full max-w-4xl mx-auto">
             <div className="relative">
               <input
@@ -894,6 +943,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
         {/* Useful Tips */}
         <UsefulTips isVisible={showTips} />
       </div>
+      )}
     </div>
   )
 }
