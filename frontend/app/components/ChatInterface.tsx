@@ -419,7 +419,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col overflow-hidden">
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#AED4E6' }}>
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
@@ -440,15 +440,15 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             >
               <div className="relative flex items-center justify-center mb-4">
                 {/* Cubo de fondo más grande */}
-                <div className="absolute w-48 h-48 opacity-20">
+                <div className="absolute w-48 h-48 opacity-40">
                   <SmallCube />
                 </div>
                 {/* Texto TODD más grande */}
-                <h1 className="text-8xl font-mono text-white tracking-wide relative z-10">
+                <h1 className="text-8xl font-mono tracking-wide relative z-10" style={{ color: '#344055' }}>
                   TODD
                 </h1>
               </div>
-              <p className="text-gray-400 text-lg font-mono mb-6">
+              <p className="text-lg font-mono mb-6" style={{ color: '#344055' }}>
                 Test On Demand Dude
               </p>
             </motion.div>
