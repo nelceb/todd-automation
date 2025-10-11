@@ -26,9 +26,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#AED4E6' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
       {/* Header con botones centrados - Sticky */}
-      <header className="sticky top-0 z-50 py-4 border-b border-gray-300/50 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
+      <header className="sticky top-0 z-50 py-4 border-b-2 border-gray-600 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
         <div className="flex justify-center items-center space-x-8">
           <button className="flex items-center space-x-2 px-4 py-2 border-2 border-green-500 rounded-lg hover:bg-green-500/10 transition-colors" style={{ color: '#344055', backgroundColor: 'transparent' }}>
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -70,8 +70,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content - Estilo Google AI */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Content - Centrado verticalmente al viewport completo */}
+      <main className="flex-1 flex items-center justify-center">
         {/* GitHub Authentication */}
         <GitHubAuth onAuthSuccess={handleAuthSuccess} />
         

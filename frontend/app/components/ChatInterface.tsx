@@ -425,7 +425,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#AED4E6' }}>
+    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
@@ -435,7 +435,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex-1 flex flex-col items-center justify-center min-h-screen"
+            className="flex flex-col items-center justify-center"
           >
             
             <motion.div
@@ -515,7 +515,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="flex-1 flex flex-col min-h-0"
+            className="flex flex-col min-h-0"
           >
             {/* Scrollable logs area - fixed height to prevent search bar movement */}
             <div ref={logsContainerRef} className="h-[calc(100vh-200px)] overflow-y-auto">
