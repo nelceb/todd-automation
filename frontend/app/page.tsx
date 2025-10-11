@@ -27,10 +27,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#AED4E6' }}>
-      {/* Header con botones centrados */}
-      <header className="py-4 border-b border-gray-300/30" style={{ backgroundColor: '#AED4E6' }}>
+      {/* Header con botones centrados - Sticky */}
+      <header className="sticky top-0 z-50 py-4 border-b border-gray-300/50 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
         <div className="flex justify-center items-center space-x-8">
-          <button className="flex items-center space-x-2 px-4 py-2 border-2 border-green-500 rounded-lg hover:bg-green-500/10 transition-colors" style={{ color: '#344055' }}>
+          <button className="flex items-center space-x-2 px-4 py-2 border-2 border-green-500 rounded-lg hover:bg-green-500/10 transition-colors" style={{ color: '#344055', backgroundColor: 'transparent' }}>
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
@@ -38,17 +38,14 @@ export default function Home() {
           </button>
           <button 
             onClick={() => setActiveTab('chat')}
-            className={`flex items-center space-x-2 px-4 py-2 border-2 rounded-lg transition-colors ${
+            className={`px-4 py-2 border-2 rounded-lg transition-colors ${
               activeTab === 'chat'
                 ? 'border-gray-600 bg-gray-600/10'
                 : 'border-gray-400 hover:border-gray-600 hover:bg-gray-600/10'
             }`}
-            style={{ color: '#344055' }}
+            style={{ color: '#344055', backgroundColor: 'transparent' }}
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
-            </svg>
-            <span>AI Mode</span>
+            <span>TODD</span>
           </button>
           <button 
             onClick={() => setActiveTab('workflows')}
@@ -57,7 +54,7 @@ export default function Home() {
                 ? 'border-gray-600 bg-gray-600/10'
                 : 'border-gray-400 hover:border-gray-600 hover:bg-gray-600/10'
             }`}
-            style={{ color: '#344055' }}
+            style={{ color: '#344055', backgroundColor: 'transparent' }}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />

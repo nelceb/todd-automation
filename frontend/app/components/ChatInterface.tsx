@@ -435,7 +435,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex-1 flex flex-col items-center justify-center"
+            className="flex-1 flex flex-col items-center justify-center min-h-screen"
           >
             
             <motion.div
