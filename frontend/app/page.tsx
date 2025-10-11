@@ -13,17 +13,12 @@ import {
 } from '@heroicons/react/24/outline'
 import ChatInterface from './components/ChatInterface'
 import WorkflowStatus from './components/WorkflowStatus'
-import GitHubAuth from './components/GitHubAuth'
 import { useWorkflowStore } from './store/workflowStore'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
   const { workflows, isLoading } = useWorkflowStore()
-
-  const handleAuthSuccess = (token: string) => {
-    setGithubToken(token)
-  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
@@ -68,9 +63,6 @@ export default function Home() {
       <main className="flex-1 flex items-center justify-center relative">
         {/* Contenedor que se centra en todo el viewport */}
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* GitHub Authentication */}
-          <GitHubAuth onAuthSuccess={handleAuthSuccess} />
-          
           <AnimatePresence mode="wait">
             {activeTab === 'chat' ? (
               <motion.div
