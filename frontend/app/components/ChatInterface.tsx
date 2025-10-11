@@ -26,10 +26,10 @@ interface Message {
 
 interface ChatInterfaceProps {
   githubToken?: string
-  messages: Message[]
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
-  clearMessages: () => void
-  onWorkflowExecuted: () => void
+  messages?: Message[]
+  setMessages?: React.Dispatch<React.SetStateAction<Message[]>>
+  clearMessages?: () => void
+  onWorkflowExecuted?: () => void
 }
 
 // Helper function to extract test summary from logs - Universal extraction for all workflow types
@@ -173,12 +173,18 @@ const extractTestSummary = (logs: string) => {
   }
 }
 
-export default function ChatInterface({ githubToken, messages, setMessages, clearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
+export default function ChatInterface({ githubToken, messages: externalMessages, setMessages: externalSetMessages, clearMessages: externalClearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
+  const [internalMessages, setInternalMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
   const [showTips, setShowTips] = useState(false)
+  
+  // Use external props if provided, otherwise use internal state
+  const messages = externalMessages || internalMessages
+  const setMessages = externalSetMessages || setInternalMessages
+  const clearMessages = externalClearMessages || (() => setInternalMessages([]))
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const logsContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
