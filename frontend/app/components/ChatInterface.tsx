@@ -440,7 +440,7 @@ export default function ChatInterface({ githubToken, messages, setMessages, clea
             >
               <div className="relative flex items-center justify-center mb-4">
                 {/* Cubo de fondo más grande */}
-                <div className="absolute w-32 h-32 opacity-20">
+                <div className="absolute w-48 h-48 opacity-20">
                   <SmallCube />
                 </div>
                 {/* Texto TODD más grande */}
