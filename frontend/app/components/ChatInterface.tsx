@@ -338,7 +338,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         }])
 
         // Trigger workflow executed callback
-        onWorkflowExecuted()
+        onWorkflowExecuted?.()
         setIsLoading(false)
         return
       }
@@ -380,7 +380,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         }])
 
         // Trigger workflow executed callback
-        onWorkflowExecuted()
+        onWorkflowExecuted?.()
       } else {
         // Add assistant response without workflow
         setMessages(prev => [...prev, {
