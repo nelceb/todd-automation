@@ -151,12 +151,15 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     if (repoName === 'automation-framework') {
       // Selenium workflows
       if (workflowName.includes('QA')) {
-        return { environment: 'qa', groups: 'e2e' }
+        return { test_suite: 'e2e' }
       }
       if (workflowName.includes('Prod')) {
-        return { environment: 'prod', groups: 'regression' }
+        return { test_suite: 'regression' }
       }
-      return { environment: 'qa' }
+      if (workflowName.includes('Mobile')) {
+        return { test_suite: 'mobile' }
+      }
+      return { test_suite: 'e2e' }
     }
     
     return {}
