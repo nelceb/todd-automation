@@ -69,16 +69,25 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
   
   if (isAuthenticated) {
     return (
-      <div className="flex items-center space-x-2">
-        <CheckCircleIcon className="w-4 h-4 text-green-400" />
-        <span className="text-green-300 text-sm font-medium">Connected to GitHub</span>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="flex items-center space-x-2 px-4 py-2 border border-green-600 rounded-lg transition-colors font-mono"
+        style={{ 
+          color: '#10B981', 
+          backgroundColor: 'transparent' 
+        }}
+      >
+        <GithubIcon className="w-4 h-4" />
+        <span>Connected</span>
         <button
           onClick={handleLogout}
-          className="text-green-400 hover:text-green-300 text-xs underline"
+          className="text-green-600 hover:text-green-700 text-xs underline ml-2"
         >
           Disconnect
         </button>
-      </div>
+      </motion.div>
     )
   }
 
@@ -87,7 +96,11 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
     <button
       onClick={handleGitHubLogin}
       disabled={isLoading}
-      className="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm disabled:opacity-50"
+      className="flex items-center space-x-2 px-4 py-2 border border-gray-600 rounded-lg transition-colors font-mono hover:border-gray-700 disabled:opacity-50"
+      style={{ 
+        color: '#344055', 
+        backgroundColor: 'transparent' 
+      }}
     >
       <GithubIcon className="w-4 h-4" />
       <span>{isLoading ? 'Connecting...' : 'Connect to GitHub'}</span>

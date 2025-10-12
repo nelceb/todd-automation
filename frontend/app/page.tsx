@@ -13,12 +13,17 @@ import {
 } from '@heroicons/react/24/outline'
 import ChatInterface from './components/ChatInterface'
 import WorkflowStatus from './components/WorkflowStatus'
+import GitHubAuth from './components/GitHubAuth'
 import { useWorkflowStore } from './store/workflowStore'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
   const { workflows, isLoading } = useWorkflowStore()
+
+  const handleAuthSuccess = (token: string) => {
+    setGithubToken(token)
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
@@ -56,15 +61,7 @@ export default function Home() {
             </svg>
             <span>Workflows</span>
           </button>
-          <button 
-            className="px-4 py-2 border border-gray-600 rounded-lg transition-colors hover:border-gray-700 font-mono"
-            style={{ 
-              color: '#344055', 
-              backgroundColor: 'transparent' 
-            }}
-          >
-            <span>Connect to GitHub</span>
-          </button>
+          <GitHubAuth onAuthSuccess={handleAuthSuccess} />
         </div>
       </header>
 
