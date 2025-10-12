@@ -13,7 +13,12 @@ const usefulTips = [
   "Use 'run e2e web tests in qa' for comprehensive web testing",
   "Execute 'run mobile regression tests' for iOS and Android coverage",
   "Run 'run smoke tests' for quick validation of critical features",
-  "Use 'run api tests in staging' to validate backend endpoints"
+  "Use 'run api tests in staging' to validate backend endpoints",
+  "Run 'run android tests on feature-branch branch' to test specific branches",
+  "Use 'run e2e tests branch develop' to test development branch",
+  "Execute 'run mobile tests on staging branch' for staging environment",
+  "Try 'run regression tests from main' to test main branch",
+  "Use 'run smoke tests branch hotfix-123' for specific hotfix testing"
 ]
 
 export default function UsefulTips({ isVisible }: UsefulTipsProps) {
