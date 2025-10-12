@@ -534,7 +534,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                               )}
                               {isWorkflowRunningFromTodd(workflowName, repo.name) && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
-                                  FROM TODD
+                                  MANUALLY TRIGGERED
                                 </span>
                               )}
                             </div>
