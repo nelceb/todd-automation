@@ -77,34 +77,33 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content - Centrado verticalmente al viewport completo */}
-      <main className="flex-1 flex items-center justify-center relative">
-        {/* Contenedor que se centra en todo el viewport */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            {activeTab === 'chat' ? (
-              <motion.div
-                key="chat"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChatInterface githubToken={githubToken} />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="workflows"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <WorkflowStatus githubToken={githubToken} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* Main Content */}
+      <main className="flex-1 relative">
+        <AnimatePresence mode="wait">
+          {activeTab === 'chat' ? (
+            <motion.div
+              key="chat"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <ChatInterface githubToken={githubToken} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="workflows"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="w-full"
+            >
+              <WorkflowStatus githubToken={githubToken} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   )
