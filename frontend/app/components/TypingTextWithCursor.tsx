@@ -53,10 +53,10 @@ export default function TypingTextWithCursor({
               setIsTyping(false)
               setIsFinished(true)
             }
-          }, 100) // 100ms per character
+          }, 50) // 50ms per character
         }, delay)
       }
-    }, 100) // 100ms per character
+    }, 50) // 50ms per character
 
     return () => clearInterval(typingInterval)
   }, [initialText, finalText, delay])
