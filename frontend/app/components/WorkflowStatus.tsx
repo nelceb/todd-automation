@@ -463,10 +463,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ]
 
   return (
-    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-20">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
       {/* Header - Centered and more prominent */}
-      <div className="text-center mb-16">
-        <h1 className="text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
+      <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
           Testing Workflows
         </h1>
         <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
