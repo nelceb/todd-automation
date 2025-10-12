@@ -80,7 +80,7 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
         }}
       >
         <GithubIcon className="w-4 h-4" />
-        <span className="hidden sm:inline">Connected</span>
+        <span>Connected</span>
         <button
           onClick={handleLogout}
           className="text-green-600 hover:text-green-700 text-xs underline ml-2 hidden sm:inline"
