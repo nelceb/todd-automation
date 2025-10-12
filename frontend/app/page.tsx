@@ -27,7 +27,7 @@ export default function Home() {
         <div className="flex justify-center items-center space-x-8">
           <button 
             onClick={() => setActiveTab('chat')}
-            className={`px-4 py-2 border rounded-lg transition-colors ${
+            className={`px-4 py-2 border rounded-lg transition-colors font-mono ${
               activeTab === 'chat'
                 ? 'border-gray-600 bg-gray-600 text-white'
                 : 'border-gray-600 hover:border-gray-700'
@@ -41,7 +41,7 @@ export default function Home() {
           </button>
           <button 
             onClick={() => setActiveTab('workflows')}
-            className={`flex items-center space-x-2 px-4 py-2 border-2 rounded-lg transition-colors ${
+            className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono ${
               activeTab === 'workflows'
                 ? 'border-gray-600 bg-gray-600 text-white'
                 : 'border-gray-600 hover:border-gray-700'
@@ -57,7 +57,7 @@ export default function Home() {
             <span>Workflows</span>
           </button>
           <button 
-            className="px-4 py-2 border border-gray-600 rounded-lg transition-colors hover:border-gray-700"
+            className="px-4 py-2 border border-gray-600 rounded-lg transition-colors hover:border-gray-700 font-mono"
             style={{ 
               color: '#344055', 
               backgroundColor: 'transparent' 
