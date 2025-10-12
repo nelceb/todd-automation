@@ -36,36 +36,30 @@ export default function TypingTextWithCursor({
         clearInterval(typingInterval)
         setIsTyping(false)
         setIsFinished(true)
+        
+        // After finishing the first text, wait for delay then start second text
+        setTimeout(() => {
+          setIsFinished(false)
+          setIsTyping(true)
+          setCurrentText('')
+          
+          let secondIndex = 0
+          const secondTypingInterval = setInterval(() => {
+            if (secondIndex < finalText.length) {
+              setCurrentText(finalText.slice(0, secondIndex + 1))
+              secondIndex++
+            } else {
+              clearInterval(secondTypingInterval)
+              setIsTyping(false)
+              setIsFinished(true)
+            }
+          }, 100) // 100ms per character
+        }, delay)
       }
     }, 100) // 100ms per character
 
     return () => clearInterval(typingInterval)
-  }, [initialText])
-
-  useEffect(() => {
-    // After delay, start typing the final text
-    const timer = setTimeout(() => {
-      setIsFinished(false)
-      setIsTyping(true)
-      setCurrentText('')
-      
-      let index = 0
-      const typingInterval = setInterval(() => {
-        if (index < finalText.length) {
-          setCurrentText(finalText.slice(0, index + 1))
-          index++
-        } else {
-          clearInterval(typingInterval)
-          setIsTyping(false)
-          setIsFinished(true)
-        }
-      }, 100) // 100ms per character
-      
-      return () => clearInterval(typingInterval)
-    }, delay)
-
-    return () => clearTimeout(timer)
-  }, [delay, finalText])
+  }, [initialText, finalText, delay])
 
   // Cursor blinking effect - slow when finished typing, fast when typing
   useEffect(() => {
