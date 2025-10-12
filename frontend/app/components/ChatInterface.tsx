@@ -425,7 +425,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   }
 
   return (
-    <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20 flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
+    <div className="w-full px-2 sm:px-4 lg:px-6 xl:px-8 flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
       <AnimatePresence mode="wait">
         {/* Initial centered layout when no messages */}
         {messages.length === 0 ? (
