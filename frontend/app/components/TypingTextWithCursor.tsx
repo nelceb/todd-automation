@@ -17,27 +17,65 @@ export default function TypingTextWithCursor({
   className = "",
   style = {}
 }: TypingTextWithCursorProps) {
-  const [currentText, setCurrentText] = useState(initialText)
+  const [currentText, setCurrentText] = useState('')
   const [showCursor, setShowCursor] = useState(true)
+  const [isTyping, setIsTyping] = useState(false)
+  const [isFinished, setIsFinished] = useState(false)
 
   useEffect(() => {
-    // Start the transition after delay
+    // Start typing the initial text immediately
+    setIsTyping(true)
+    setCurrentText('')
+    
+    let index = 0
+    const typingInterval = setInterval(() => {
+      if (index < initialText.length) {
+        setCurrentText(initialText.slice(0, index + 1))
+        index++
+      } else {
+        clearInterval(typingInterval)
+        setIsTyping(false)
+        setIsFinished(true)
+      }
+    }, 100) // 100ms per character
+
+    return () => clearInterval(typingInterval)
+  }, [initialText])
+
+  useEffect(() => {
+    // After delay, start typing the final text
     const timer = setTimeout(() => {
-      // Simply change to final text without typing effect
-      setCurrentText(finalText)
+      setIsFinished(false)
+      setIsTyping(true)
+      setCurrentText('')
+      
+      let index = 0
+      const typingInterval = setInterval(() => {
+        if (index < finalText.length) {
+          setCurrentText(finalText.slice(0, index + 1))
+          index++
+        } else {
+          clearInterval(typingInterval)
+          setIsTyping(false)
+          setIsFinished(true)
+        }
+      }, 100) // 100ms per character
+      
+      return () => clearInterval(typingInterval)
     }, delay)
 
     return () => clearTimeout(timer)
   }, [delay, finalText])
 
-  // Cursor blinking effect
+  // Cursor blinking effect - slow when finished typing, fast when typing
   useEffect(() => {
+    const blinkSpeed = isFinished ? 1000 : 200 // Slow blink when finished, fast when typing
     const cursorInterval = setInterval(() => {
       setShowCursor(prev => !prev)
-    }, 530) // Blink every 530ms
+    }, blinkSpeed)
 
     return () => clearInterval(cursorInterval)
-  }, [])
+  }, [isFinished])
 
   return (
     <span className={className} style={style}>
