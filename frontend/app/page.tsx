@@ -23,11 +23,11 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
       {/* Header con botones centrados - Sticky */}
-      <header className="sticky top-0 z-50 py-4 border-b-2 border-gray-600 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
+      <header className="sticky top-0 z-50 py-4 border-b border-gray-600 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
         <div className="flex justify-center items-center space-x-8">
           <button 
             onClick={() => setActiveTab('chat')}
-            className={`px-4 py-2 border-2 rounded-lg transition-colors ${
+            className={`px-4 py-2 border rounded-lg transition-colors ${
               activeTab === 'chat'
                 ? 'border-gray-600 bg-gray-600 text-white'
                 : 'border-gray-600 hover:border-gray-700'
@@ -57,7 +57,7 @@ export default function Home() {
             <span>Workflows</span>
           </button>
           <button 
-            className="px-4 py-2 border-2 border-gray-600 rounded-lg transition-colors hover:border-gray-700"
+            className="px-4 py-2 border border-gray-600 rounded-lg transition-colors hover:border-gray-700"
             style={{ 
               color: '#344055', 
               backgroundColor: 'transparent' 
