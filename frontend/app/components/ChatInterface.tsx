@@ -464,7 +464,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-              className="w-full max-w-2xl"
+              className="w-full max-w-4xl"
             >
               <form onSubmit={handleSubmit} className="relative">
                 <div className="relative">
@@ -474,7 +474,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter your test command..."
-                    className="w-full pr-24 pl-6 py-3 text-base border-2 border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
+                    className="w-full pr-24 pl-6 py-3 text-base border-2 border-gray-600/60 rounded-lg focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
               style={{ color: '#344055', backgroundColor: 'transparent' }}
                     disabled={isLoading}
                   />
@@ -919,7 +919,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               placeholder="Enter your test command..."
-              className="w-full pr-24 pl-6 py-3 text-base border-2 border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
+              className="w-full pr-24 pl-6 py-3 text-base border-2 border-gray-600/60 rounded-lg focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
               style={{ color: '#344055', backgroundColor: 'transparent' }}
                 disabled={isLoading}
               />
