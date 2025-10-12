@@ -112,6 +112,17 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return 'default'
   }
 
+  const isScheduledWorkflow = (workflowName: string): boolean => {
+    const name = workflowName.toLowerCase()
+    // Detect common scheduled workflow patterns
+    return name.includes('regression') || 
+           name.includes('nightly') || 
+           name.includes('daily') || 
+           name.includes('weekly') ||
+           name.includes('smoke') ||
+           name.includes('scheduled')
+  }
+
   const handleRepositoryClick = (repoName: string) => {
     setExpandedRepositories(prev => {
       const newSet = new Set(prev)
@@ -457,24 +468,22 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                             <div className="flex items-center space-x-2">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 extractEnvironmentFromName(workflowName) === 'prod' 
-                                  ? 'bg-red-600 text-white' 
+                                  ? 'bg-red-200 text-red-800' 
                                   : extractEnvironmentFromName(workflowName) === 'qa'
-                                  ? 'bg-blue-600 text-white'
+                                  ? 'bg-blue-200 text-blue-800'
                                   : extractEnvironmentFromName(workflowName) === 'mobile'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-gray-600 text-white'
+                                  ? 'bg-purple-200 text-purple-800'
+                                  : extractEnvironmentFromName(workflowName) === 'test'
+                                  ? 'bg-green-200 text-green-800'
+                                  : 'bg-gray-200 text-gray-800'
                               }`}>
                                 {extractEnvironmentFromName(workflowName).toUpperCase()}
                               </span>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                repo.technology === 'maestro' 
-                                  ? 'bg-indigo-600 text-white' 
-                                  : repo.technology === 'playwright'
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-orange-600 text-white'
-                              }`}>
-                                {repo.technology.toUpperCase()}
-                              </span>
+                              {isScheduledWorkflow(workflowName) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                  SCHEDULED
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex-shrink-0 ml-2 mt-1">
