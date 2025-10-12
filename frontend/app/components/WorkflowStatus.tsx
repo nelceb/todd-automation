@@ -27,7 +27,7 @@ interface WorkflowStatusProps {
 
 interface WorkflowState {
   [workflowId: string]: {
-    status: 'idle' | 'in_progress' | 'success' | 'error'
+    status: 'idle' | 'in_progress' | 'success' | 'error' | 'cancelled'
     runId?: string
     htmlUrl?: string
     startTime?: Date
