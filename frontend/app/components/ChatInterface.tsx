@@ -475,7 +475,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter your test command..."
-                    className="w-full pr-20 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
+                    className="w-full pr-24 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
               style={{ color: '#344055', backgroundColor: 'transparent' }}
                     disabled={isLoading}
                   />
@@ -920,7 +920,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               placeholder="Enter your test command..."
-              className="w-full pr-20 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
+              className="w-full pr-24 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
               style={{ color: '#344055', backgroundColor: 'transparent' }}
                 disabled={isLoading}
               />
