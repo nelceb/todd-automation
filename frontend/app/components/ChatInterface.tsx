@@ -558,7 +558,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                   initialText="A test on demand dude for the daily needs"
                   finalText="Test on demand, dude"
                   delay={3000}
-                  typingSpeed={100}
                 />
               </p>
             </motion.div>
