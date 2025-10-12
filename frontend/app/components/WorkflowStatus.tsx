@@ -68,29 +68,41 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
-  // Smart expansion logic when workflows are running from TODD
+  // Smart expansion logic when workflows are running from TODD or scheduled workflows are running
   useEffect(() => {
-    if (runningWorkflowsFromTodd.length > 0 && repositories.length > 0) {
+    if (repositories.length > 0) {
       const repositoriesWithRunningWorkflows = new Set(
         runningWorkflowsFromTodd.map(w => w.repository)
       )
       
+      // Also check for scheduled workflows that are currently running
+      repositories.forEach(repo => {
+        const hasRunningScheduledWorkflow = repo.workflows.some(workflow => 
+          isScheduledWorkflowRunning(workflow.name, repo.name)
+        )
+        if (hasRunningScheduledWorkflow) {
+          repositoriesWithRunningWorkflows.add(repo.name)
+        }
+      })
+      
       // Check if we're on mobile (screen width < 1024px)
       const isMobile = window.innerWidth < 1024
       
-      if (isMobile) {
-        // Mobile: Only expand repositories with running workflows
-        setExpandedRepositories(repositoriesWithRunningWorkflows)
+      if (repositoriesWithRunningWorkflows.size > 0) {
+        if (isMobile) {
+          // Mobile: Only expand repositories with running workflows
+          setExpandedRepositories(repositoriesWithRunningWorkflows)
+        } else {
+          // Desktop: Expand all repositories
+          const allRepositories = new Set(repositories.map(r => r.name))
+          setExpandedRepositories(allRepositories)
+        }
       } else {
-        // Desktop: Expand all repositories
-        const allRepositories = new Set(repositories.map(r => r.name))
-        setExpandedRepositories(allRepositories)
+        // If no workflows are running, collapse all repositories
+        setExpandedRepositories(new Set())
       }
-    } else if (runningWorkflowsFromTodd.length === 0) {
-      // If no workflows are running from TODD, collapse all repositories
-      setExpandedRepositories(new Set())
     }
-  }, [runningWorkflowsFromTodd, repositories, setExpandedRepositories])
+  }, [runningWorkflowsFromTodd, repositories, setExpandedRepositories, workflowStates])
 
   const getStatusIcon = (status: string, conclusion?: string) => {
     if (status === 'completed') {
@@ -164,6 +176,15 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return runningWorkflowsFromTodd.some(w => 
       w.workflowName === workflowName && w.repository === repository
     )
+  }
+
+  const isScheduledWorkflowRunning = (workflowName: string, repository: string): boolean => {
+    if (!isScheduledWorkflow(workflowName)) return false
+    
+    // Check if this scheduled workflow is currently running
+    const workflowId = `${repository}-${workflowName}`
+    const workflowState = workflowStates[workflowId]
+    return workflowState?.status === 'in_progress'
   }
 
   const handleRepositoryClick = (repoName: string) => {
@@ -471,11 +492,19 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   <div>
                     <div className="flex items-center space-x-2">
                       <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
-                      {getRunningWorkflowsForRepository(repo.name).length > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
-                          {getRunningWorkflowsForRepository(repo.name).length} running
-                        </span>
-                      )}
+                      {(() => {
+                        const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
+                        const scheduledRunningCount = repo.workflows.filter(workflow => 
+                          isScheduledWorkflowRunning(workflow.name, repo.name)
+                        ).length
+                        const totalRunning = toddRunningCount + scheduledRunningCount
+                        
+                        return totalRunning > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                            {totalRunning} running
+                          </span>
+                        )
+                      })()}
                     </div>
                     <p className="text-sm font-mono" style={{ color: '#6B7280' }}>{repo.technology} • {repo.workflows.length} workflows</p>
                   </div>
