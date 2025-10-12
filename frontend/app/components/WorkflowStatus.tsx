@@ -424,13 +424,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ]
 
   return (
-    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
-      {/* Header - AI Mode Style */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-12">
+      {/* Header - Centered and more prominent */}
+      <div className="text-center mb-12">
+        <h1 className="text-5xl font-mono mb-6 tracking-wide" style={{ color: '#344055' }}>
           Testing Workflows
         </h1>
-        <p className="text-gray-400 text-lg font-mono">
+        <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
           Click on repositories to view and execute workflows
         </p>
       </div>
@@ -442,10 +442,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           const IconComponent = repo.icon
           
           return (
-            <div key={repo.name} className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+            <div key={repo.name} className="bg-white/10 border border-gray-300/30 rounded-xl p-6 backdrop-blur-sm shadow-lg">
               {/* Repository Header - Clickable */}
               <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-gray-700/20 rounded-lg p-3 -m-3 mb-4 transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-3 -m-3 mb-4 transition-colors"
                 onClick={() => handleRepositoryClick(repo.name)}
               >
                 <div className="flex items-center space-x-3">
@@ -453,14 +453,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     <IconComponent className={`w-5 h-5 text-${repo.color}-400`} />
                   </div>
                   <div>
-                    <h3 className="text-white font-medium">{repo.name}</h3>
-                    <p className="text-gray-400 text-sm">{repo.technology} • {repo.workflows.length} workflows</p>
+                    <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
+                    <p className="text-sm font-mono" style={{ color: '#6B7280' }}>{repo.technology} • {repo.workflows.length} workflows</p>
                   </div>
                 </div>
                 {isExpanded ? (
-                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                  <ChevronDownIcon className="w-5 h-5" style={{ color: '#6B7280' }} />
                 ) : (
-                  <ChevronRightIcon className="w-5 h-5 text-gray-400" />
+                  <ChevronRightIcon className="w-5 h-5" style={{ color: '#6B7280' }} />
                 )}
         </div>
 
@@ -480,13 +480,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     return (
                       <div
                         key={workflowName}
-                        className={`border rounded-lg p-3 cursor-pointer transition-all duration-200 ${getWorkflowStateColor(workflowId)}`}
+                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/5 backdrop-blur-sm ${getWorkflowStateColor(workflowId)}`}
                         onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
-                              <p className="text-white text-sm font-medium truncate">
+                              <p className="text-sm font-medium font-mono truncate" style={{ color: '#344055' }}>
                                 {workflowName}
                               </p>
                             </div>
