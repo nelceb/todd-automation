@@ -9,11 +9,16 @@ interface UsefulTipsProps {
 }
 
 const usefulTips = [
-  "💡 Try 'run login tests in prod' to test specific user flows",
-  "🔧 Use 'run e2e web tests in qa' for comprehensive web testing",
-  "📱 Execute 'run mobile regression tests' for iOS and Android coverage",
-  "⚡ Run 'run smoke tests' for quick validation of critical features",
-  "🎯 Use 'run api tests in staging' to validate backend endpoints"
+  "Try 'run login tests in prod' to test specific user flows",
+  "Use 'run e2e web tests in qa' for comprehensive web testing",
+  "Execute 'run mobile regression tests' for iOS and Android coverage",
+  "Run 'run smoke tests' for quick validation of critical features",
+  "Use 'run api tests in staging' to validate backend endpoints",
+  "Run 'run android tests on feature-branch branch' to test specific branches",
+  "Use 'run e2e tests branch develop' to test development branch",
+  "Execute 'run mobile tests on staging branch' for staging environment",
+  "Try 'run regression tests from main' to test main branch",
+  "Use 'run smoke tests branch hotfix-123' for specific hotfix testing"
 ]
 
 export default function UsefulTips({ isVisible }: UsefulTipsProps) {
@@ -39,7 +44,7 @@ export default function UsefulTips({ isVisible }: UsefulTipsProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex items-center space-x-3 px-4 py-3 bg-gray-800/30 border border-gray-600/30 rounded-lg backdrop-blur-sm"
+        className="flex items-center space-x-3 px-4 py-3 bg-gray-800/30 border border-gray-600/30 rounded-lg backdrop-blur-sm max-w-2xl"
       >
         <LightBulbIcon className="w-5 h-5 text-yellow-400 flex-shrink-0" />
         <p className="text-gray-300 text-sm font-mono">

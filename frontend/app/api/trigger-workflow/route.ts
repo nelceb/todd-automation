@@ -5,22 +5,50 @@ export const dynamic = 'force-dynamic'
 function extractInputsFromYaml(yamlContent: string): Record<string, any> {
   const inputs: Record<string, any> = {}
   
-  // Buscar la sección inputs en el YAML
-  const inputsMatch = yamlContent.match(/inputs:\s*\n((?:\s+.*\n)*)/)
-  if (inputsMatch) {
-    const inputsSection = inputsMatch[1]
-    const inputLines = inputsSection.split('\n')
+  try {
+    console.log('Parsing YAML content for inputs...')
     
-    for (const line of inputLines) {
-      const trimmedLine = line.trim()
-      if (trimmedLine && !trimmedLine.startsWith('#')) {
-        const inputMatch = trimmedLine.match(/^(\w+):\s*(.*)$/)
-        if (inputMatch) {
-          const [, inputName, inputValue] = inputMatch
-          inputs[inputName] = inputValue || ''
+    // Buscar la sección workflow_dispatch con inputs
+    const workflowDispatchMatch = yamlContent.match(/workflow_dispatch:\s*\n((?:\s+.*\n)*)/)
+    if (workflowDispatchMatch) {
+      const dispatchSection = workflowDispatchMatch[1]
+      console.log('Found workflow_dispatch section')
+      
+      // Buscar la sección inputs dentro de workflow_dispatch
+      const inputsMatch = dispatchSection.match(/inputs:\s*\n((?:\s+.*\n)*)/)
+      if (inputsMatch) {
+        const inputsSection = inputsMatch[1]
+        console.log('Found inputs section')
+        
+        const inputLines = inputsSection.split('\n')
+        let currentInput = ''
+        
+        for (const line of inputLines) {
+          const trimmedLine = line.trim()
+          
+          if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
+            // Si la línea no tiene indentación, es un nuevo input
+            if (!line.startsWith('  ') && !line.startsWith('\t')) {
+              // Es un nuevo input
+              const inputName = trimmedLine.replace(':', '')
+              if (inputName && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(inputName)) {
+                inputs[inputName] = ''
+                currentInput = inputName
+                console.log(`Found input: ${inputName}`)
+              }
+            }
+          }
         }
+      } else {
+        console.log('No inputs section found in workflow_dispatch')
       }
+    } else {
+      console.log('No workflow_dispatch section found')
     }
+    
+    console.log('Extracted inputs from YAML:', inputs)
+  } catch (error) {
+    console.error('Error extracting inputs from YAML:', error)
   }
   
   return inputs
@@ -28,7 +56,10 @@ function extractInputsFromYaml(yamlContent: string): Record<string, any> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workflowId, inputs, repository } = await request.json()
+    const { workflowId, inputs, repository, branch } = await request.json()
+    
+    console.log('API received branch:', branch)
+    console.log('API received inputs:', inputs)
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
@@ -126,26 +157,44 @@ export async function POST(request: NextRequest) {
           
           // Solo incluir inputs que el workflow acepta
           if (inputs && Object.keys(availableInputs).length > 0) {
+            console.log('Available inputs from YAML:', availableInputs)
+            console.log('Provided inputs:', inputs)
+            
             validInputs = Object.keys(inputs).reduce((acc, key) => {
               if (availableInputs.hasOwnProperty(key)) {
                 acc[key] = inputs[key]
+                console.log(`✅ Input '${key}' is valid`)
+              } else {
+                console.log(`❌ Input '${key}' is not accepted by this workflow`)
               }
               return acc
             }, {} as Record<string, any>)
+            
+            console.log('Final valid inputs:', validInputs)
+          } else if (inputs && Object.keys(inputs).length > 0) {
+            console.log('⚠️ No inputs found in YAML, but inputs provided. NOT using provided inputs to avoid 422 error.')
+            validInputs = {} // Don't send any inputs if we can't validate them
           }
         }
       }
     } catch (error) {
-      console.log('No se pudo obtener información del workflow, usando inputs sin validar')
-      validInputs = inputs || {}
+      console.log('No se pudo obtener información del workflow, NO usando inputs para evitar error 422')
+      validInputs = {} // Don't send inputs if we can't validate them
     }
 
     // Disparar el workflow directamente
+    // Validate branch - don't use environment names as branches
+    const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
+    console.log('Original branch received:', branch)
+    console.log('Is branch an environment name?', branch ? environmentNames.includes(branch.toLowerCase()) : false)
+    const targetBranch = (branch && !environmentNames.includes(branch.toLowerCase())) ? branch : 'main'
+    console.log('Final target branch:', targetBranch)
     const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)
     console.log('Owner:', owner)
     console.log('Repo:', repo)
+    console.log('Branch:', targetBranch)
     console.log('Valid Inputs:', validInputs)
     
     const triggerResponse = await fetch(triggerUrl, {
@@ -156,7 +205,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ref: 'main',
+        ref: targetBranch,
         inputs: validInputs
       }),
     })

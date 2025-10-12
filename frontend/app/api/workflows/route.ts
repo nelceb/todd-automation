@@ -1,24 +1,102 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
-import { getGitHubToken, isDemoMode } from '../utils/github'
+
+interface WorkflowInput {
+  name: string
+  description?: string
+  required?: boolean
+  default?: string
+  type?: string
+}
+
+interface WorkflowInfo {
+  id: number
+  name: string
+  path: string
+  state: string
+  inputs: WorkflowInput[]
+  html_url: string
+}
+
+function parseWorkflowInputs(yamlContent: string): WorkflowInput[] {
+  const inputs: WorkflowInput[] = []
+  
+  try {
+    // Buscar la sección workflow_dispatch con inputs
+    const workflowDispatchMatch = yamlContent.match(/workflow_dispatch:\s*\n((?:\s+.*\n)*)/)
+    if (workflowDispatchMatch) {
+      const dispatchSection = workflowDispatchMatch[1]
+      
+      // Buscar la sección inputs dentro de workflow_dispatch
+      const inputsMatch = dispatchSection.match(/inputs:\s*\n((?:\s+.*\n)*)/)
+      if (inputsMatch) {
+        const inputsSection = inputsMatch[1]
+        const inputLines = inputsSection.split('\n')
+        
+        let currentInput: Partial<WorkflowInput> = {}
+        let inInputBlock = false
+        
+        for (const line of inputLines) {
+          const trimmedLine = line.trim()
+          
+          if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
+            // Si la línea no tiene indentación, es un nuevo input
+            if (!line.startsWith('  ') && !line.startsWith('\t')) {
+              // Guardar el input anterior si existe
+              if (currentInput.name) {
+                inputs.push(currentInput as WorkflowInput)
+              }
+              
+              // Iniciar nuevo input
+              const inputName = trimmedLine.replace(':', '')
+              currentInput = { name: inputName }
+              inInputBlock = true
+            } else if (inInputBlock) {
+              // Procesar propiedades del input
+              if (trimmedLine.startsWith('description:')) {
+                currentInput.description = trimmedLine.replace('description:', '').trim().replace(/['"]/g, '')
+              } else if (trimmedLine.startsWith('required:')) {
+                currentInput.required = trimmedLine.includes('true')
+              } else if (trimmedLine.startsWith('default:')) {
+                currentInput.default = trimmedLine.replace('default:', '').trim().replace(/['"]/g, '')
+              } else if (trimmedLine.startsWith('type:')) {
+                currentInput.type = trimmedLine.replace('type:', '').trim().replace(/['"]/g, '')
+              }
+            }
+          }
+        }
+        
+        // Agregar el último input
+        if (currentInput.name) {
+          inputs.push(currentInput as WorkflowInput)
+        }
+      }
+    }
+    
+    console.log('Parsed workflow inputs:', inputs)
+  } catch (error) {
+    console.error('Error parsing workflow inputs:', error)
+  }
+  
+  return inputs
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'nelceb'
-    const repo = process.env.GITHUB_REPO || 'test-runner-ai'
+    const { searchParams } = new URL(request.url)
+    const repository = searchParams.get('repository') || 'maestro-test'
+    
+    const token = process.env.GITHUB_TOKEN
+    const owner = process.env.GITHUB_OWNER || 'cook-unity'
 
-    // Verificar que tenemos un token válido
-    if (!token || isDemoMode(token)) {
-      return NextResponse.json(
-        { error: 'GitHub token requerido. Por favor, conéctate con GitHub.' },
-        { status: 401 }
-      )
+    if (!token) {
+      throw new Error('GitHub token no configurado')
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/workflows`,
+    // Obtener workflows del repositorio
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repository}/actions/workflows`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -27,58 +105,73 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`)
+    if (!workflowsResponse.ok) {
+      throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
     }
 
-    const data = await response.json()
+    const workflowsData = await workflowsResponse.json()
+    const workflows = workflowsData.workflows || []
+
+    // Obtener información detallada de cada workflow
+    const workflowsWithInputs: WorkflowInfo[] = []
     
-    // Filtrar workflows que no son templates o que no se ejecutan
-    const activeWorkflows = data.workflows.filter((workflow: any) => {
-      // Excluir workflows que contengan "template" en el nombre o path
-      if (workflow.name.toLowerCase().includes('template') || 
-          workflow.path.toLowerCase().includes('template')) {
-        return false
+    for (const workflow of workflows) {
+      try {
+        // Obtener el archivo YAML del workflow
+        const yamlResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repository}/contents/${workflow.path}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        )
+        
+        let inputs: WorkflowInput[] = []
+        if (yamlResponse.ok) {
+          const yamlData = await yamlResponse.json()
+          if (yamlData.content) {
+            const yamlContent = Buffer.from(yamlData.content, 'base64').toString('utf-8')
+            inputs = parseWorkflowInputs(yamlContent)
+          }
+        }
+        
+        workflowsWithInputs.push({
+          id: workflow.id,
+          name: workflow.name,
+          path: workflow.path,
+          state: workflow.state,
+          inputs: inputs,
+          html_url: workflow.html_url
+        })
+      } catch (error) {
+        console.error(`Error getting workflow ${workflow.name}:`, error)
+        // Agregar workflow sin inputs si hay error
+        workflowsWithInputs.push({
+          id: workflow.id,
+          name: workflow.name,
+          path: workflow.path,
+          state: workflow.state,
+          inputs: [],
+          html_url: workflow.html_url
+        })
       }
-      
-      // Excluir workflows que no estén activos
-      if (workflow.state !== 'active') {
-        return false
-      }
-      
-      // Incluir solo workflows que sabemos que se ejecutan
-      const executableWorkflows = [
-        'mobile-tests',
-        'web-tests', 
-        'api-tests',
-        'android_regression',
-        'ios_regression',
-        'e2e_web_regression',
-        'logistics',
-        'kitchen',
-        'menu',
-        'cancel',
-        'dyn_env',
-        'maestro',
-        'ios',
-        'android',
-        'browserstack',
-        'lambdatest',
-        'gauge'
-      ]
-      
-      return executableWorkflows.some(executable => 
-        workflow.path.toLowerCase().includes(executable) ||
-        workflow.name.toLowerCase().includes(executable)
-      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      repository: `${owner}/${repository}`,
+      workflows: workflowsWithInputs
     })
-    
-    return NextResponse.json(activeWorkflows)
 
   } catch (error) {
-    console.error('Error fetching workflows:', error)
+    console.error('Error getting workflows:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error desconocido' },
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido' 
+      },
       { status: 500 }
     )
   }

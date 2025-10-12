@@ -90,23 +90,39 @@ interface WorkflowStore {
   currentLogs: WorkflowLogs | null
   multipleLogs: WorkflowLogs[]
   isPollingLogs: boolean
+  expandedRepositories: Set<string>
+  activeRepository: string | null
+  runningWorkflowsFromTodd: Array<{
+    repository: string
+    workflowName: string
+    runId: string
+    startTime: Date
+  }>
   
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
   fetchWorkflowRuns: (token?: string) => Promise<void>
   fetchRepositories: (token?: string) => Promise<void>
   previewWorkflows: (command: string) => Promise<MultiWorkflowExecution | null>
-  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => Promise<any>
-  triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string) => Promise<any[]>
+  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string, branch?: string) => Promise<any>
+  triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string, branch?: string) => Promise<any[]>
+  cancelWorkflow: (runId: string, repository?: string) => Promise<any>
   fetchWorkflowLogs: (runId: string, token?: string, repository?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string, repository?: string) => void
   startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => void
   stopPollingLogs: () => void
   clearMultipleLogs: () => void
   clearAllLogs: () => void
+  addMultipleLogs: (newLogs: WorkflowLogs[]) => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
   clearPreview: () => void
+  setExpandedRepositories: (repositories: Set<string>) => void
+  setActiveRepository: (repository: string | null) => void
+  expandRepositoryForWorkflow: (repository: string) => void
+  addRunningWorkflowFromTodd: (repository: string, workflowName: string, runId: string) => void
+  removeRunningWorkflowFromTodd: (runId: string) => void
+  getRunningWorkflowsForRepository: (repository: string) => Array<{workflowName: string, runId: string, startTime: Date}>
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -120,6 +136,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   currentLogs: null,
   multipleLogs: [],
   isPollingLogs: false,
+  expandedRepositories: new Set(),
+  activeRepository: null,
+  runningWorkflowsFromTodd: [],
 
   fetchWorkflows: async (token?: string) => {
     set({ isLoading: true, error: null })
@@ -178,7 +197,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => {
+  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string, branch?: string) => {
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -188,7 +207,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ workflowId, inputs, repository })
+        body: JSON.stringify({ workflowId, inputs, repository, branch })
       })
       if (!response.ok) throw new Error('Error al ejecutar workflow')
       const result = await response.json()
@@ -228,13 +247,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  triggerMultipleWorkflows: async (workflows: WorkflowPreview[], token?: string) => {
+  triggerMultipleWorkflows: async (workflows: WorkflowPreview[], token?: string, branch?: string) => {
     const results = []
     for (const workflow of workflows) {
       try {
         // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
         const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
-        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName)
+        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName, branch)
         results.push({ ...result, workflow })
       } catch (error) {
         results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })
@@ -245,6 +264,26 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   clearPreview: () => {
     set({ workflowPreview: null })
+  },
+
+  cancelWorkflow: async (runId: string, repository?: string) => {
+    try {
+      const response = await fetch('/api/cancel-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, repository })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al cancelar workflow')
+      }
+      
+      const result = await response.json()
+      return result
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Error al cancelar workflow' })
+      throw error
+    }
   },
 
   fetchWorkflowLogs: async (runId: string, token?: string, repository?: string) => {
@@ -296,7 +335,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const { isPollingLogs } = get()
     if (isPollingLogs) return
 
-    set({ isPollingLogs: true, multipleLogs: [] })
+    set({ isPollingLogs: true })
     
     const pollInterval = setInterval(async () => {
       const { isPollingLogs: stillPolling } = get()
@@ -325,11 +364,39 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const logs = await Promise.all(logsPromises)
       const validLogs = logs.filter(log => log !== null)
       
-      set({ multipleLogs: validLogs })
+      // Update existing logs or add new ones
+      set(state => {
+        const existingLogs = state.multipleLogs
+        const updatedLogs = [...existingLogs]
+        
+        validLogs.forEach(newLog => {
+          const existingIndex = updatedLogs.findIndex(log => log.run.id === newLog.run.id)
+          if (existingIndex >= 0) {
+            // Update existing log
+            updatedLogs[existingIndex] = newLog
+          } else {
+            // Add new log
+            updatedLogs.push(newLog)
+          }
+        })
+        
+        return { multipleLogs: updatedLogs }
+      })
       
-      // Stop polling if all workflows are completed
-      const allCompleted = validLogs.every(log => log.run.status === 'completed')
-      if (allCompleted) {
+      // Remove completed workflows from TODD tracking
+      validLogs.forEach(log => {
+        if (log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled') {
+          get().removeRunningWorkflowFromTodd(log.run.id.toString())
+        }
+      })
+      
+      // Stop polling if all workflows are completed or cancelled
+      const allFinished = validLogs.every(log => 
+        log.run.status === 'completed' || 
+        log.run.status === 'failed' || 
+        log.run.status === 'cancelled'
+      )
+      if (allFinished) {
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds
@@ -361,5 +428,57 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (pollInterval) {
       clearInterval(pollInterval)
     }
+  },
+
+  addMultipleLogs: (newLogs: WorkflowLogs[]) => {
+    set(state => ({
+      multipleLogs: [...state.multipleLogs, ...newLogs]
+    }))
+  },
+
+  setExpandedRepositories: (repositories: Set<string>) => {
+    set({ expandedRepositories: repositories })
+  },
+
+  setActiveRepository: (repository: string | null) => {
+    set({ activeRepository: repository })
+  },
+
+  expandRepositoryForWorkflow: (repository: string) => {
+    set(state => ({
+      expandedRepositories: new Set([repository]),
+      activeRepository: repository
+    }))
+  },
+
+  addRunningWorkflowFromTodd: (repository: string, workflowName: string, runId: string) => {
+    set(state => ({
+      runningWorkflowsFromTodd: [
+        ...state.runningWorkflowsFromTodd,
+        {
+          repository,
+          workflowName,
+          runId,
+          startTime: new Date()
+        }
+      ]
+    }))
+  },
+
+  removeRunningWorkflowFromTodd: (runId: string) => {
+    set(state => ({
+      runningWorkflowsFromTodd: state.runningWorkflowsFromTodd.filter(w => w.runId !== runId)
+    }))
+  },
+
+  getRunningWorkflowsForRepository: (repository: string) => {
+    const state = get()
+    return state.runningWorkflowsFromTodd
+      .filter(w => w.repository === repository)
+      .map(w => ({
+        workflowName: w.workflowName,
+        runId: w.runId,
+        startTime: w.startTime
+      }))
   }
 }))

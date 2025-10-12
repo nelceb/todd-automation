@@ -11,34 +11,38 @@ export async function POST(request: NextRequest) {
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
-      return NextResponse.json({ error: 'GitHub token required' }, { status: 401 })
+      throw new Error('GitHub token no configurado')
     }
 
     if (!runId) {
-      return NextResponse.json({ error: 'Run ID is required' }, { status: 400 })
+      throw new Error('Run ID es requerido')
     }
 
     // Cancel the workflow run
-    const cancelResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }
-    )
+    const cancelUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/cancel`
+    console.log('Cancel URL:', cancelUrl)
+    console.log('Run ID:', runId)
+    console.log('Repository:', `${owner}/${repo}`)
+    
+    const cancelResponse = await fetch(cancelUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+    })
 
     if (!cancelResponse.ok) {
       const errorText = await cancelResponse.text()
-      throw new Error(`Error canceling workflow: ${cancelResponse.status} - ${errorText}`)
+      throw new Error(`Error al cancelar workflow: ${cancelResponse.status} - ${errorText}`)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Workflow cancelled successfully',
-      runId: runId
+      message: `Workflow run ${runId} cancelado exitosamente`,
+      runId: runId,
+      repository: `${owner}/${repo}`
     })
 
   } catch (error) {
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Error desconocido' 
       },
       { status: 500 }
     )

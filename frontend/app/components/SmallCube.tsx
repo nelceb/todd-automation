@@ -5,24 +5,46 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { MeshDistortMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 
-function SmallWireframeCube() {
+function MorphingShape() {
   const meshRef = useRef<THREE.Mesh>(null)
   const materialRef = useRef<any>(null)
 
-  // Create small wireframe cube geometry
-  const geometry = useMemo(() => {
-    const cube = new THREE.BoxGeometry(0.8, 0.8, 0.8, 6, 6, 6)
-    return cube
+  // Create geometries for different shapes
+  const geometries = useMemo(() => {
+    return {
+      cube: new THREE.BoxGeometry(0.8, 0.8, 0.8, 6, 6, 6),
+      triangle: new THREE.ConeGeometry(0.6, 1.2, 3),
+      circle: new THREE.SphereGeometry(0.6, 16, 16)
+    }
   }, [])
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
     
-    // Animate the cube rotation - smooth and elegant
+    // Morph between shapes every 3 seconds
+    const morphTime = (time % 9) / 9 // 0 to 1 over 9 seconds (3 seconds per shape)
+    let currentGeometry
+    
+    if (morphTime < 0.33) {
+      // First 3 seconds: Cube
+      currentGeometry = geometries.cube
+    } else if (morphTime < 0.66) {
+      // Next 3 seconds: Triangle
+      currentGeometry = geometries.triangle
+    } else {
+      // Last 3 seconds: Circle
+      currentGeometry = geometries.circle
+    }
+    
+    // Update geometry
     if (meshRef.current) {
-      meshRef.current.rotation.x = time * 0.3
-      meshRef.current.rotation.y = time * 0.4
-      meshRef.current.rotation.z = time * 0.2
+      meshRef.current.geometry = currentGeometry
+      
+      // Animate rotation - different speeds for different shapes
+      const rotationSpeed = morphTime < 0.33 ? 0.3 : morphTime < 0.66 ? 0.5 : 0.4
+      meshRef.current.rotation.x = time * rotationSpeed
+      meshRef.current.rotation.y = time * (rotationSpeed + 0.1)
+      meshRef.current.rotation.z = time * (rotationSpeed - 0.1)
     }
 
     // Animate the material colors - subtle transitions
@@ -34,7 +56,7 @@ function SmallWireframeCube() {
   })
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh ref={meshRef} geometry={geometries.cube}>
       <MeshDistortMaterial
         ref={materialRef}
         color="#8B5CF6"
@@ -64,8 +86,8 @@ export default function SmallCube() {
         <ambientLight intensity={0.6} />
         <directionalLight position={[2, 2, 2]} intensity={0.8} />
         
-        {/* Small wireframe cube */}
-        <SmallWireframeCube />
+        {/* Morphing shape: cube → triangle → circle */}
+        <MorphingShape />
       </Canvas>
     </div>
   )

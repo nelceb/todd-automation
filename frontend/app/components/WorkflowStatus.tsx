@@ -17,6 +17,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStore'
+import { useWorkflowInputs } from '../hooks/useWorkflowInputs'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
 
@@ -35,8 +36,22 @@ interface WorkflowState {
 }
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
-  const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
-  const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set(['maestro-test', 'pw-cookunity-automation', 'automation-framework']))
+  const { 
+    workflows, 
+    workflowRuns, 
+    repositories, 
+    isLoading, 
+    error, 
+    fetchWorkflows, 
+    fetchWorkflowRuns, 
+    fetchRepositories, 
+    triggerWorkflow,
+    expandedRepositories,
+    setExpandedRepositories,
+    runningWorkflowsFromTodd,
+    getRunningWorkflowsForRepository
+  } = useWorkflowStore()
+  const { getWorkflowInputs, isLoading: isLoadingInputs } = useWorkflowInputs()
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
   useEffect(() => {
@@ -52,6 +67,42 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return () => clearInterval(interval)
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
+
+  // Smart expansion logic when workflows are running from TODD or scheduled workflows are running
+  useEffect(() => {
+    if (repositories.length > 0) {
+      const repositoriesWithRunningWorkflows = new Set(
+        runningWorkflowsFromTodd.map(w => w.repository)
+      )
+      
+      // Also check for scheduled workflows that are currently running
+      repositories.forEach(repo => {
+        const hasRunningScheduledWorkflow = repo.workflows.some(workflow => 
+          isScheduledWorkflowRunning(workflow.name, repo.name)
+        )
+        if (hasRunningScheduledWorkflow) {
+          repositoriesWithRunningWorkflows.add(repo.name)
+        }
+      })
+      
+      // Check if we're on mobile (screen width < 1024px)
+      const isMobile = window.innerWidth < 1024
+      
+      if (repositoriesWithRunningWorkflows.size > 0) {
+        if (isMobile) {
+          // Mobile: Only expand repositories with running workflows
+          setExpandedRepositories(repositoriesWithRunningWorkflows)
+        } else {
+          // Desktop: Expand all repositories
+          const allRepositories = new Set(repositories.map(r => r.name))
+          setExpandedRepositories(allRepositories)
+        }
+      } else {
+        // If no workflows are running, collapse all repositories
+        setExpandedRepositories(new Set())
+      }
+    }
+  }, [runningWorkflowsFromTodd, repositories, setExpandedRepositories, workflowStates])
 
   const getStatusIcon = (status: string, conclusion?: string) => {
     if (status === 'completed') {
@@ -110,57 +161,43 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return 'default'
   }
 
-  const handleRepositoryClick = (repoName: string) => {
-    setExpandedRepositories(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(repoName)) {
-        newSet.delete(repoName)
-      } else {
-        newSet.add(repoName)
-      }
-      return newSet
-    })
+  const isScheduledWorkflow = (workflowName: string): boolean => {
+    const name = workflowName.toLowerCase()
+    // Detect common scheduled workflow patterns
+    return name.includes('regression') || 
+           name.includes('nightly') || 
+           name.includes('daily') || 
+           name.includes('weekly') ||
+           name.includes('smoke') ||
+           name.includes('scheduled')
   }
 
-  const getWorkflowInputs = (workflowName: string, repository: string) => {
-    // Default inputs for different workflow types
-    const repoName = repository.split('/').pop() || 'maestro-test'
-    
-    if (repoName === 'maestro-test') {
-      // Maestro workflows - use specific test suite
-      if (workflowName.includes('iOS Maestro Cloud Tests')) {
-        return { test_suite: 'login' } // Default to login tests
-      }
-      return { test_suite: 'all' }
-    }
-    
-    if (repoName === 'pw-cookunity-automation') {
-      // Playwright workflows
-      if (workflowName.includes('QA US - E2E')) {
-        return { environment: 'qa', groups: '@e2e' }
-      }
-      if (workflowName.includes('QA CA - E2E')) {
-        return { environment: 'qa-ca', groups: '@e2e' }
-      }
-      if (workflowName.includes('Regression')) {
-        return { environment: 'qa', groups: 'regression' }
-      }
-      return { environment: 'qa' }
-    }
-    
-    if (repoName === 'automation-framework') {
-      // Selenium workflows
-      if (workflowName.includes('QA')) {
-        return { environment: 'qa', groups: 'e2e' }
-      }
-      if (workflowName.includes('Prod')) {
-        return { environment: 'prod', groups: 'regression' }
-      }
-      return { environment: 'qa' }
-    }
-    
-    return {}
+  const isWorkflowRunningFromTodd = (workflowName: string, repository: string): boolean => {
+    return runningWorkflowsFromTodd.some(w => 
+      w.workflowName === workflowName && w.repository === repository
+    )
   }
+
+  const isScheduledWorkflowRunning = (workflowName: string, repository: string): boolean => {
+    if (!isScheduledWorkflow(workflowName)) return false
+    
+    // Check if this scheduled workflow is currently running
+    const workflowId = `${repository}-${workflowName}`
+    const workflowState = workflowStates[workflowId]
+    return workflowState?.status === 'in_progress'
+  }
+
+  const handleRepositoryClick = (repoName: string) => {
+    const newSet = new Set(expandedRepositories)
+    if (newSet.has(repoName)) {
+      newSet.delete(repoName)
+    } else {
+      newSet.add(repoName)
+    }
+    setExpandedRepositories(newSet)
+  }
+
+  // Use the hook's getWorkflowInputs function which gets real inputs from YAML
 
   const handleWorkflowClick = async (workflowName: string, repository: string) => {
     const workflowId = `${repository}-${workflowName}`
@@ -182,7 +219,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       const inputs = getWorkflowInputs(workflowName, repository)
       
       // Trigger workflow with specific inputs
-      const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName)
+        const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
       
       if (result && result.runId) {
         // Update with real run information
@@ -424,28 +461,28 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ]
 
   return (
-    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
-      {/* Header - AI Mode Style */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-mono text-white mb-4 tracking-wide">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
+      {/* Header - Centered and more prominent */}
+      <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
           Testing Workflows
         </h1>
-        <p className="text-gray-400 text-lg font-mono">
+        <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
           Click on repositories to view and execute workflows
         </p>
       </div>
 
       {/* 3 Repository Columns */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
         {repositoryData.map((repo) => {
           const isExpanded = expandedRepositories.has(repo.name)
           const IconComponent = repo.icon
           
           return (
-            <div key={repo.name} className="bg-gray-800/20 border border-gray-700/30 rounded-lg p-4">
+            <div key={repo.name} className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg">
               {/* Repository Header - Clickable */}
               <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-gray-700/20 rounded-lg p-3 -m-3 mb-4 transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-6 transition-colors min-h-[80px]"
                 onClick={() => handleRepositoryClick(repo.name)}
               >
                 <div className="flex items-center space-x-3">
@@ -453,14 +490,29 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     <IconComponent className={`w-5 h-5 text-${repo.color}-400`} />
                   </div>
                   <div>
-                    <h3 className="text-white font-medium">{repo.name}</h3>
-                    <p className="text-gray-400 text-sm">{repo.technology} • {repo.workflows.length} workflows</p>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
+                      {(() => {
+                        const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
+                        const scheduledRunningCount = repo.workflows.filter(workflow => 
+                          isScheduledWorkflowRunning(workflow.name, repo.name)
+                        ).length
+                        const totalRunning = toddRunningCount + scheduledRunningCount
+                        
+                        return totalRunning > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                            {totalRunning} running
+                          </span>
+                        )
+                      })()}
+                    </div>
+                    <p className="text-sm font-mono" style={{ color: '#6B7280' }}>{repo.technology} • {repo.workflows.length} workflows</p>
                   </div>
                 </div>
                 {isExpanded ? (
-                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                  <ChevronDownIcon className="w-5 h-5" style={{ color: '#6B7280' }} />
                 ) : (
-                  <ChevronRightIcon className="w-5 h-5 text-gray-400" />
+                  <ChevronRightIcon className="w-5 h-5" style={{ color: '#6B7280' }} />
                 )}
         </div>
 
@@ -470,7 +522,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-2"
+                  className="space-y-2 px-6 pb-6"
                 >
                   {repo.workflows.map((workflowName) => {
                     const workflowId = `${repo.fullName}-${workflowName}`
@@ -480,37 +532,40 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     return (
                       <div
                         key={workflowName}
-                        className={`border rounded-lg p-3 cursor-pointer transition-all duration-200 ${getWorkflowStateColor(workflowId)}`}
+                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/15 ${getWorkflowStateColor(workflowId)}`}
                         onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
-                              <p className="text-white text-sm font-medium truncate">
+                              <p className="text-sm font-medium font-mono truncate" style={{ color: '#344055' }}>
                                 {workflowName}
                               </p>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 extractEnvironmentFromName(workflowName) === 'prod' 
-                                  ? 'bg-red-500/20 text-red-300' 
+                                  ? 'bg-red-200 text-red-800' 
                                   : extractEnvironmentFromName(workflowName) === 'qa'
-                                  ? 'bg-blue-500/20 text-blue-300'
+                                  ? 'bg-blue-200 text-blue-800'
                                   : extractEnvironmentFromName(workflowName) === 'mobile'
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : 'bg-gray-500/20 text-gray-300'
+                                  ? 'bg-purple-200 text-purple-800'
+                                  : extractEnvironmentFromName(workflowName) === 'test'
+                                  ? 'bg-green-200 text-green-800'
+                                  : 'bg-gray-200 text-gray-800'
                               }`}>
                                 {extractEnvironmentFromName(workflowName).toUpperCase()}
                               </span>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                repo.technology === 'maestro' 
-                                  ? 'bg-airforce-500/20 text-airforce-300' 
-                                  : repo.technology === 'playwright'
-                                  ? 'bg-asparagus-500/20 text-asparagus-300'
-                                  : 'bg-earth-500/20 text-earth-300'
-                              }`}>
-                                {repo.technology.toUpperCase()}
-                              </span>
+                              {isScheduledWorkflow(workflowName) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                  SCHEDULED
+                                </span>
+                              )}
+                              {isWorkflowRunningFromTodd(workflowName, repo.name) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                                  MANUALLY TRIGGERED
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex-shrink-0 ml-2 mt-1">
@@ -538,6 +593,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 <span className="text-red-400 flex items-center">
                                   <XCircleIcon className="w-3 h-3 mr-1" />
                                   Execution failed
+                                </span>
+                              )}
+                              {state === 'cancelled' && (
+                                <span className="text-orange-400 flex items-center">
+                                  <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
+                                  Execution cancelled
                                 </span>
                               )}
                             </div>
