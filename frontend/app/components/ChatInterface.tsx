@@ -465,8 +465,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
               className="w-full px-4"
+              style={{ maxWidth: 'none' }}
             >
-              <form onSubmit={handleSubmit} className="relative">
+              <form onSubmit={handleSubmit} className="relative" style={{ maxWidth: 'none' }}>
                 <div className="relative">
                   <input
                     ref={inputRef}
