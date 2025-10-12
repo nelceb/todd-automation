@@ -78,7 +78,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       // Also check for scheduled workflows that are currently running
       repositories.forEach(repo => {
         const hasRunningScheduledWorkflow = repo.workflows.some(workflow => 
-          isScheduledWorkflowRunning(workflow, repo.name)
+          isScheduledWorkflowRunning(workflow.name, repo.name)
         )
         if (hasRunningScheduledWorkflow) {
           repositoriesWithRunningWorkflows.add(repo.name)
@@ -495,7 +495,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       {(() => {
                         const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
                         const scheduledRunningCount = repo.workflows.filter(workflow => 
-                          isScheduledWorkflowRunning(workflow, repo.name)
+                          isScheduledWorkflowRunning(workflow.name, repo.name)
                         ).length
                         const totalRunning = toddRunningCount + scheduledRunningCount
                         
