@@ -92,6 +92,12 @@ interface WorkflowStore {
   isPollingLogs: boolean
   expandedRepositories: Set<string>
   activeRepository: string | null
+  runningWorkflowsFromTodd: Array<{
+    repository: string
+    workflowName: string
+    runId: string
+    startTime: Date
+  }>
   
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
@@ -114,6 +120,9 @@ interface WorkflowStore {
   setExpandedRepositories: (repositories: Set<string>) => void
   setActiveRepository: (repository: string | null) => void
   expandRepositoryForWorkflow: (repository: string) => void
+  addRunningWorkflowFromTodd: (repository: string, workflowName: string, runId: string) => void
+  removeRunningWorkflowFromTodd: (runId: string) => void
+  getRunningWorkflowsForRepository: (repository: string) => Array<{workflowName: string, runId: string, startTime: Date}>
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -129,6 +138,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   isPollingLogs: false,
   expandedRepositories: new Set(),
   activeRepository: null,
+  runningWorkflowsFromTodd: [],
 
   fetchWorkflows: async (token?: string) => {
     set({ isLoading: true, error: null })
@@ -373,6 +383,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         return { multipleLogs: updatedLogs }
       })
       
+      // Remove completed workflows from TODD tracking
+      validLogs.forEach(log => {
+        if (log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled') {
+          get().removeRunningWorkflowFromTodd(log.run.id.toString())
+        }
+      })
+      
       // Stop polling if all workflows are completed or cancelled
       const allFinished = validLogs.every(log => 
         log.run.status === 'completed' || 
@@ -432,5 +449,36 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       expandedRepositories: new Set([repository]),
       activeRepository: repository
     }))
+  },
+
+  addRunningWorkflowFromTodd: (repository: string, workflowName: string, runId: string) => {
+    set(state => ({
+      runningWorkflowsFromTodd: [
+        ...state.runningWorkflowsFromTodd,
+        {
+          repository,
+          workflowName,
+          runId,
+          startTime: new Date()
+        }
+      ]
+    }))
+  },
+
+  removeRunningWorkflowFromTodd: (runId: string) => {
+    set(state => ({
+      runningWorkflowsFromTodd: state.runningWorkflowsFromTodd.filter(w => w.runId !== runId)
+    }))
+  },
+
+  getRunningWorkflowsForRepository: (repository: string) => {
+    const state = get()
+    return state.runningWorkflowsFromTodd
+      .filter(w => w.repository === repository)
+      .map(w => ({
+        workflowName: w.workflowName,
+        runId: w.runId,
+        startTime: w.startTime
+      }))
   }
 }))

@@ -47,7 +47,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     fetchRepositories, 
     triggerWorkflow,
     expandedRepositories,
-    setExpandedRepositories
+    setExpandedRepositories,
+    runningWorkflowsFromTodd,
+    getRunningWorkflowsForRepository
   } = useWorkflowStore()
   const { getWorkflowInputs, isLoading: isLoadingInputs } = useWorkflowInputs()
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
@@ -65,6 +67,30 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return () => clearInterval(interval)
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
+
+  // Smart expansion logic when workflows are running from TODD
+  useEffect(() => {
+    if (runningWorkflowsFromTodd.length > 0 && repositories.length > 0) {
+      const repositoriesWithRunningWorkflows = new Set(
+        runningWorkflowsFromTodd.map(w => w.repository)
+      )
+      
+      // Check if we're on mobile (screen width < 1024px)
+      const isMobile = window.innerWidth < 1024
+      
+      if (isMobile) {
+        // Mobile: Only expand repositories with running workflows
+        setExpandedRepositories(repositoriesWithRunningWorkflows)
+      } else {
+        // Desktop: Expand all repositories
+        const allRepositories = new Set(repositories.map(r => r.name))
+        setExpandedRepositories(allRepositories)
+      }
+    } else if (runningWorkflowsFromTodd.length === 0) {
+      // If no workflows are running from TODD, collapse all repositories
+      setExpandedRepositories(new Set())
+    }
+  }, [runningWorkflowsFromTodd, repositories, setExpandedRepositories])
 
   const getStatusIcon = (status: string, conclusion?: string) => {
     if (status === 'completed') {
@@ -132,6 +158,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
            name.includes('weekly') ||
            name.includes('smoke') ||
            name.includes('scheduled')
+  }
+
+  const isWorkflowRunningFromTodd = (workflowName: string, repository: string): boolean => {
+    return runningWorkflowsFromTodd.some(w => 
+      w.workflowName === workflowName && w.repository === repository
+    )
   }
 
   const handleRepositoryClick = (repoName: string) => {
@@ -437,7 +469,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     <IconComponent className={`w-5 h-5 text-${repo.color}-400`} />
                   </div>
                   <div>
-                    <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
+                      {getRunningWorkflowsForRepository(repo.name).length > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                          {getRunningWorkflowsForRepository(repo.name).length} running
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm font-mono" style={{ color: '#6B7280' }}>{repo.technology} • {repo.workflows.length} workflows</p>
                   </div>
                 </div>
@@ -491,6 +530,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                               {isScheduledWorkflow(workflowName) && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
                                   SCHEDULED
+                                </span>
+                              )}
+                              {isWorkflowRunningFromTodd(workflowName, repo.name) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                                  FROM TODD
                                 </span>
                               )}
                             </div>

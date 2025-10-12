@@ -202,7 +202,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         clearMultipleLogs,
         clearAllLogs,
         addMultipleLogs,
-        cancelWorkflow
+        cancelWorkflow,
+        addRunningWorkflowFromTodd,
+        removeRunningWorkflowFromTodd
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
@@ -368,6 +370,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             
             if (result && result.runId) {
               runIds.push(result.runId)
+              // Track this workflow as running from TODD
+              // @ts-ignore - Temporary fix for TypeScript error
+              addRunningWorkflowFromTodd(repoName, workflow.workflowName, result.runId)
             }
           } catch (error) {
             console.error('Error executing workflow:', error)
