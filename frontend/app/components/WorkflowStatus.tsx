@@ -36,7 +36,7 @@ interface WorkflowState {
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
-  const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set(['maestro-test', 'pw-cookunity-automation', 'automation-framework']))
+  const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set())
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
   useEffect(() => {
