@@ -564,8 +564,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             </motion.div>
             
 
-            {/* Useful Tips */}
-            <UsefulTips isVisible={showTips} />
           </motion.div>
         ) : (
           /* Layout with messages - fixed height logs with always visible search */
@@ -1024,7 +1022,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       
       {/* Search bar fijo para estado inicial */}
       {messages.length === 0 && (
-        <div className="absolute bottom-32 left-0 right-0 px-8">
+        <div className="absolute bottom-40 left-0 right-0 px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1068,6 +1066,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               </div>
             </form>
           </motion.div>
+          
+          {/* Useful Tips - Always below search bar */}
+          <UsefulTips isVisible={showTips} />
         </div>
       )}
     </div>
