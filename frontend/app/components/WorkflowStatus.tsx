@@ -463,7 +463,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ]
 
   return (
-    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-8">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-20">
       {/* Header - Centered and more prominent */}
       <div className="text-center mb-16">
         <h1 className="text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
@@ -475,7 +475,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       </div>
 
       {/* 3 Repository Columns */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-16">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
         {repositoryData.map((repo) => {
           const isExpanded = expandedRepositories.has(repo.name)
           const IconComponent = repo.icon
