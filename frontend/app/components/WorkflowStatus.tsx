@@ -495,7 +495,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       {(() => {
                         const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
                         const scheduledRunningCount = repo.workflows.filter(workflow => 
-                          isScheduledWorkflowRunning(workflow.name, repo.name)
+                          isScheduledWorkflowRunning(workflow, repo.name)
                         ).length
                         const totalRunning = toddRunningCount + scheduledRunningCount
                         
