@@ -911,12 +911,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       
       {/* Search bar fijo para estado inicial */}
       {messages.length === 0 && (
-        <div className="fixed bottom-8 left-0 right-0 px-8">
+        <div className="fixed bottom-1/2 left-0 right-0 px-8 transform translate-y-1/2">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-            className="w-full max-w-6xl mx-auto"
+            className="w-full max-w-4xl mx-auto"
           >
             <form onSubmit={handleSubmit} className="relative">
               <div className="relative">
