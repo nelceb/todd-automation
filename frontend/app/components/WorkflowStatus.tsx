@@ -481,10 +481,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           const IconComponent = repo.icon
           
           return (
-            <div key={repo.name} className="bg-white/20 border border-gray-300/50 rounded-xl p-6 shadow-lg">
+            <div key={repo.name} className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg">
               {/* Repository Header - Clickable */}
               <div 
-                className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-3 -m-3 mb-4 transition-colors"
+                className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-6 transition-colors min-h-[80px]"
                 onClick={() => handleRepositoryClick(repo.name)}
               >
                 <div className="flex items-center space-x-3">
@@ -509,7 +509,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-2"
+                  className="space-y-2 px-6 pb-6"
                 >
                   {repo.workflows.map((workflowName) => {
                     const workflowId = `${repo.fullName}-${workflowName}`
