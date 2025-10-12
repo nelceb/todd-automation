@@ -39,7 +39,7 @@ export default function UsefulTips({ isVisible }: UsefulTipsProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex items-center space-x-3 px-4 py-3 bg-gray-800/30 border border-gray-600/30 rounded-lg backdrop-blur-sm"
+        className="flex items-center space-x-3 px-4 py-3 bg-gray-800/30 border border-gray-600/30 rounded-lg backdrop-blur-sm max-w-2xl"
       >
         <LightBulbIcon className="w-5 h-5 text-yellow-400 flex-shrink-0" />
         <p className="text-gray-300 text-sm font-mono">
