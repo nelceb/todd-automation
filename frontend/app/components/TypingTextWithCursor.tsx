@@ -78,7 +78,7 @@ export default function TypingTextWithCursor({
   }, [isFinished])
 
   return (
-    <span className={className} style={{ ...style, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+    <span className={className} style={style}>
       {currentText}
       <span className={`inline-block ml-1 ${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity duration-75`} style={{ color: style.color || '#344055' }}>
         _
