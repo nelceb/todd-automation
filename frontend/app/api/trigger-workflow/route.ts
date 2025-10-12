@@ -180,7 +180,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Disparar el workflow directamente
-    const targetBranch = branch || 'main'
+    // Validate branch - don't use environment names as branches
+    const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
+    const targetBranch = (branch && !environmentNames.includes(branch.toLowerCase())) ? branch : 'main'
     const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)
