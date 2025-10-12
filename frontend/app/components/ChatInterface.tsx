@@ -464,7 +464,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-              className="w-full px-4"
+              className="w-full max-w-5xl mx-auto px-2"
               style={{ maxWidth: 'none', width: '100%' }}
             >
               <form onSubmit={handleSubmit} className="relative" style={{ maxWidth: 'none', width: '100%' }}>
@@ -912,7 +912,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       {/* Fixed search bar - only visible when there are messages */}
       {messages.length > 0 && (
         <div className="flex-shrink-0 p-4 border-t border-gray-300/30" style={{ backgroundColor: '#AED4E6' }}>
-            <form onSubmit={handleSubmit} className="relative w-full px-4">
+            <form onSubmit={handleSubmit} className="relative w-full max-w-5xl mx-auto px-2">
             <div className="relative">
               <input
               ref={inputRef}
