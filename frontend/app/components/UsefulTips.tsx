@@ -9,11 +9,11 @@ interface UsefulTipsProps {
 }
 
 const usefulTips = [
-  "💡 Try 'run login tests in prod' to test specific user flows",
-  "🔧 Use 'run e2e web tests in qa' for comprehensive web testing",
-  "📱 Execute 'run mobile regression tests' for iOS and Android coverage",
-  "⚡ Run 'run smoke tests' for quick validation of critical features",
-  "🎯 Use 'run api tests in staging' to validate backend endpoints"
+  "Try 'run login tests in prod' to test specific user flows",
+  "Use 'run e2e web tests in qa' for comprehensive web testing",
+  "Execute 'run mobile regression tests' for iOS and Android coverage",
+  "Run 'run smoke tests' for quick validation of critical features",
+  "Use 'run api tests in staging' to validate backend endpoints"
 ]
 
 export default function UsefulTips({ isVisible }: UsefulTipsProps) {

@@ -230,13 +230,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }, [currentLogs?.logs, multipleLogs])
 
-  // Show tips when workflows are running
+  // Show tips only when there are no messages (initial state)
   useEffect(() => {
-    const hasRunningWorkflows = isPollingLogs || multipleLogs.some(log => 
-      log.run.status === 'in_progress' || log.run.status === 'queued'
-    )
-    setShowTips(hasRunningWorkflows)
-  }, [isPollingLogs, multipleLogs])
+    setShowTips(messages.length === 0)
+  }, [messages.length])
 
   // Auto-focus input when component mounts
   useEffect(() => {
