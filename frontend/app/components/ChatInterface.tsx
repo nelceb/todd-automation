@@ -911,7 +911,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       
       {/* Search bar fijo para estado inicial */}
       {messages.length === 0 && (
-        <div className="fixed bottom-1/2 left-0 right-0 px-8 transform translate-y-1/2">
+        <div className="absolute bottom-32 left-0 right-0 px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
