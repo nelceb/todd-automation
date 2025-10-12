@@ -65,7 +65,7 @@ export default function Home() {
             <GitHubAuth onAuthSuccess={handleAuthSuccess} />
           </div>
           {/* Línea divisoria fina */}
-          <div className="w-full max-w-xs border-t border-gray-600 mt-4"></div>
+          <div className="w-full max-w-md border-t border-gray-600 mt-4"></div>
         </div>
       </header>
 
