@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
 AVAILABLE REPOSITORIES AND WORKFLOWS:
 
 1. MAESTRO TESTS (Cook-Unity/maestro-test)
-   - Technology: iOS Maestro Cloud Tests
-   - Workflow: iOS Maestro Cloud Tests (ios-maestro-tests.yml)
+   - Technology: iOS Maestro Tests
+   - Workflow: iOS Maestro Tests (ios-maestro-tests.yml)
    - Inputs: test_suite, user_email, user_password
    - Test suites: all, login, signup, smoke, regression, cart, completeOrder, menu, search, home
 
@@ -124,9 +124,9 @@ USER CREDENTIALS DETECTION (Maestro only):
 EXAMPLES:
 
 MAESTRO:
-- "Run iOS login tests in prod" → maestro-test, iOS Maestro Cloud Tests, test_suite: "login"
-- "Execute mobile smoke tests" → maestro-test, iOS Maestro Cloud Tests, test_suite: "smoke"
-- "Run cart tests with user@example.com" → maestro-test, iOS Maestro Cloud Tests, test_suite: "cart", user_email: "user@example.com"
+- "Run iOS login tests in prod" → maestro-test, iOS Maestro Tests, test_suite: "login"
+- "Execute mobile smoke tests" → maestro-test, iOS Maestro Tests, test_suite: "smoke"
+- "Run cart tests with user@example.com" → maestro-test, iOS Maestro Tests, test_suite: "cart", user_email: "user@example.com"
 
 PLAYWRIGHT:
 - "Run e2e web tests in QA" → pw-cookunity-automation, QA US - E2E, environment: "qa", groups: "@e2e"
@@ -156,7 +156,7 @@ If preview=true, return:
   "workflows": [
     {
       "repository": "Cook-Unity/maestro-test",
-      "workflowName": "iOS Maestro Cloud Tests",
+      "workflowName": "iOS Maestro Tests",
       "technology": "maestro",
       "inputs": {"test_suite": "login"},
       "description": "Execute iOS Maestro login tests"
@@ -169,14 +169,14 @@ If preview=true, return:
 If preview=false, return:
 {
   "workflowId": "ios-maestro-tests.yml",
-  "name": "iOS Maestro Cloud Tests",
+  "name": "iOS Maestro Tests",
   "inputs": {"test_suite": "login"}
 }
 - "Run Maestro BrowserStack iOS" → for Maestro tests on iOS with BrowserStack
 - "Run Maestro BrowserStack" → for generic Maestro tests with BrowserStack
 - "Run Maestro LambdaTest Simple" → for simple Maestro tests with LambdaTest
 
-NOTE: These are specific Maestro workflows for mobile testing. The main workflow is "iOS Maestro Cloud Tests" which runs full regression including search tests.
+NOTE: These are specific Maestro workflows for mobile testing. The main workflow is "iOS Maestro Tests" which runs full regression including search tests.
 
 Keywords to detect:
 - iOS specific: "ios", "iOS", "iphone", "apple"
@@ -199,7 +199,7 @@ PRIORITY: If specific platform (iOS/Android) and environment (prod/qa) are menti
       "response": "I will execute [type] tests in [environment]",
   "workflowTriggered": {
         "workflowId": "ios-maestro-tests.yml",
-        "name": "iOS Maestro Cloud Tests",
+        "name": "iOS Maestro Tests",
     "inputs": {
           "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
           "bitrise_build_number": "",
@@ -221,12 +221,12 @@ test_suite mapping:
 - "regression" → for full regression
 
     Detection examples:
-    - "run search tests in prod" → iOS Maestro Cloud Tests with test_suite: "search"
-    - "run login tests in qa" → iOS Maestro Cloud Tests with test_suite: "login"
-    - "run signup tests in staging" → iOS Maestro Cloud Tests with test_suite: "signup"
-    - "run complete order tests in prod" → iOS Maestro Cloud Tests with test_suite: "completeOrder"
-    - "run menu tests in qa" → iOS Maestro Cloud Tests with test_suite: "menu"
-    - "run cart tests in prod" → iOS Maestro Cloud Tests with test_suite: "cart"
+    - "run search tests in prod" → iOS Maestro Tests with test_suite: "search"
+    - "run login tests in qa" → iOS Maestro Tests with test_suite: "login"
+    - "run signup tests in staging" → iOS Maestro Tests with test_suite: "signup"
+    - "run complete order tests in prod" → iOS Maestro Tests with test_suite: "completeOrder"
+    - "run menu tests in qa" → iOS Maestro Tests with test_suite: "menu"
+    - "run cart tests in prod" → iOS Maestro Tests with test_suite: "cart"
     
     USER CREDENTIALS DETECTION:
     - If user mentions an email address, include it in user_email input
@@ -237,7 +237,7 @@ test_suite mapping:
     - If no email is mentioned, omit the user_email field entirely
     - If no password is mentioned, omit the user_password field entirely (workflow will use default password)
 
-IMPORTANT: The iOS Maestro Cloud Tests workflow accepts these test_suite values:
+IMPORTANT: The iOS Maestro Tests workflow accepts these test_suite values:
 - "all" → runs all tests (includes search, menu, cart, completeOrder, etc.)
 - "login" → only login tests
 - "signup" → only signup tests
