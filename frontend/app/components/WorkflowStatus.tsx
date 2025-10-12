@@ -442,7 +442,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           const IconComponent = repo.icon
           
           return (
-            <div key={repo.name} className="bg-white/10 border border-gray-300/30 rounded-xl p-6 backdrop-blur-sm shadow-lg">
+            <div key={repo.name} className="bg-white/20 border border-gray-300/50 rounded-xl p-6 shadow-lg">
               {/* Repository Header - Clickable */}
               <div 
                 className="flex items-center justify-between cursor-pointer hover:bg-white/5 rounded-lg p-3 -m-3 mb-4 transition-colors"
@@ -480,7 +480,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     return (
                       <div
                         key={workflowName}
-                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/5 backdrop-blur-sm ${getWorkflowStateColor(workflowId)}`}
+                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/15 ${getWorkflowStateColor(workflowId)}`}
                         onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
                       >
                         <div className="flex items-start justify-between">
