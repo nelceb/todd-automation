@@ -29,7 +29,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#AED4E6' }}>
       {/* Header con botones centrados - Sticky */}
       <header className="sticky top-0 z-50 py-4 border-b border-gray-600 backdrop-blur-sm" style={{ backgroundColor: '#AED4E6' }}>
-        <div className="flex justify-center items-center space-x-8">
+        <div className="flex justify-center items-center space-x-8 px-6 py-3 bg-white/10 rounded-2xl border border-gray-300/30 backdrop-blur-sm mx-4">
           <button 
             onClick={() => setActiveTab('chat')}
             className={`px-4 py-2 border rounded-lg transition-colors font-mono ${
