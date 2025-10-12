@@ -129,7 +129,19 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     if (repoName === 'maestro-test') {
       // Maestro workflows - use specific test suite
       if (workflowName.includes('iOS Maestro Cloud Tests')) {
-        return { test_suite: 'login' } // Default to login tests
+        return { test_suite: 'login' }
+      }
+      if (workflowName.includes('iOS Gauge Tests')) {
+        return { test_suite: 'gauge' }
+      }
+      if (workflowName.includes('Maestro Mobile Tests')) {
+        return { test_suite: 'mobile' }
+      }
+      if (workflowName.includes('BrowserStack')) {
+        return { test_suite: 'browserstack' }
+      }
+      if (workflowName.includes('Maestro iOS Tests')) {
+        return { test_suite: 'ios' }
       }
       return { test_suite: 'all' }
     }
@@ -142,22 +154,46 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       if (workflowName.includes('QA CA - E2E')) {
         return { environment: 'qa-ca', groups: '@e2e' }
       }
-      if (workflowName.includes('Regression')) {
-        return { environment: 'qa', groups: 'regression' }
+      if (workflowName.includes('QA E2E Web Regression')) {
+        return { environment: 'qa', groups: 'web-regression' }
       }
-      return { environment: 'qa' }
+      if (workflowName.includes('QA Android Regression')) {
+        return { environment: 'qa', groups: 'android-regression' }
+      }
+      if (workflowName.includes('QA iOS Regression')) {
+        return { environment: 'qa', groups: 'ios-regression' }
+      }
+      if (workflowName.includes('QA API Kitchen Regression')) {
+        return { environment: 'qa', groups: 'kitchen-api' }
+      }
+      if (workflowName.includes('QA Logistics Regression')) {
+        return { environment: 'qa', groups: 'logistics-api' }
+      }
+      return { environment: 'qa', groups: '@e2e' }
     }
     
     if (repoName === 'automation-framework') {
       // Selenium workflows
-      if (workflowName.includes('QA')) {
-        return { test_suite: 'e2e' }
+      if (workflowName.includes('Prod Android Regression')) {
+        return { test_suite: 'android-regression' }
       }
-      if (workflowName.includes('Prod')) {
-        return { test_suite: 'regression' }
+      if (workflowName.includes('Prod iOS Regression')) {
+        return { test_suite: 'ios-regression' }
       }
-      if (workflowName.includes('Mobile')) {
-        return { test_suite: 'mobile' }
+      if (workflowName.includes('QA E2E Web Regression')) {
+        return { test_suite: 'web-regression' }
+      }
+      if (workflowName.includes('QA Android Regression')) {
+        return { test_suite: 'android-regression' }
+      }
+      if (workflowName.includes('QA iOS Regression')) {
+        return { test_suite: 'ios-regression' }
+      }
+      if (workflowName.includes('QA API Kitchen Regression')) {
+        return { test_suite: 'kitchen-api' }
+      }
+      if (workflowName.includes('QA Logistics Regression')) {
+        return { test_suite: 'logistics-api' }
       }
       return { test_suite: 'e2e' }
     }
