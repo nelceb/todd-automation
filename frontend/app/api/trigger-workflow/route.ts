@@ -6,39 +6,44 @@ function extractInputsFromYaml(yamlContent: string): Record<string, any> {
   const inputs: Record<string, any> = {}
   
   try {
-    // Buscar la sección inputs en el YAML con diferentes patrones
-    const patterns = [
-      /inputs:\s*\n((?:\s+.*\n)*)/,
-      /workflow_dispatch:\s*\n((?:\s+.*\n)*)/,
-      /on:\s*\n\s*workflow_dispatch:\s*\n((?:\s+.*\n)*)/
-    ]
+    console.log('Parsing YAML content for inputs...')
     
-    let inputsSection = ''
-    for (const pattern of patterns) {
-      const match = yamlContent.match(pattern)
-      if (match) {
-        inputsSection = match[1]
-        break
-      }
-    }
-    
-    if (inputsSection) {
-      const inputLines = inputsSection.split('\n')
+    // Buscar la sección workflow_dispatch con inputs
+    const workflowDispatchMatch = yamlContent.match(/workflow_dispatch:\s*\n((?:\s+.*\n)*)/)
+    if (workflowDispatchMatch) {
+      const dispatchSection = workflowDispatchMatch[1]
+      console.log('Found workflow_dispatch section')
       
-      for (const line of inputLines) {
-        const trimmedLine = line.trim()
-        if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
-          // Buscar patrones como: input_name: o input_name: description
-          const inputMatch = trimmedLine.match(/^(\w+):\s*(.*)$/)
-          if (inputMatch) {
-            const [, inputName, inputValue] = inputMatch
-            // Solo agregar si no es una descripción larga (más de 50 caracteres)
-            if (!inputValue || inputValue.length < 50) {
-              inputs[inputName] = inputValue || ''
+      // Buscar la sección inputs dentro de workflow_dispatch
+      const inputsMatch = dispatchSection.match(/inputs:\s*\n((?:\s+.*\n)*)/)
+      if (inputsMatch) {
+        const inputsSection = inputsMatch[1]
+        console.log('Found inputs section')
+        
+        const inputLines = inputsSection.split('\n')
+        let currentInput = ''
+        
+        for (const line of inputLines) {
+          const trimmedLine = line.trim()
+          
+          if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
+            // Si la línea no tiene indentación, es un nuevo input
+            if (!line.startsWith('  ') && !line.startsWith('\t')) {
+              // Es un nuevo input
+              const inputName = trimmedLine.replace(':', '')
+              if (inputName && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(inputName)) {
+                inputs[inputName] = ''
+                currentInput = inputName
+                console.log(`Found input: ${inputName}`)
+              }
             }
           }
         }
+      } else {
+        console.log('No inputs section found in workflow_dispatch')
       }
+    } else {
+      console.log('No workflow_dispatch section found')
     }
     
     console.log('Extracted inputs from YAML:', inputs)
@@ -164,14 +169,14 @@ export async function POST(request: NextRequest) {
             
             console.log('Final valid inputs:', validInputs)
           } else if (inputs && Object.keys(inputs).length > 0) {
-            console.log('⚠️ No inputs found in YAML, but inputs provided. Using provided inputs.')
-            validInputs = inputs
+            console.log('⚠️ No inputs found in YAML, but inputs provided. NOT using provided inputs to avoid 422 error.')
+            validInputs = {} // Don't send any inputs if we can't validate them
           }
         }
       }
     } catch (error) {
-      console.log('No se pudo obtener información del workflow, usando inputs sin validar')
-      validInputs = inputs || {}
+      console.log('No se pudo obtener información del workflow, NO usando inputs para evitar error 422')
+      validInputs = {} // Don't send inputs if we can't validate them
     }
 
     // Disparar el workflow directamente
