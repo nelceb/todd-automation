@@ -10,6 +10,7 @@ import {
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
 import SmallCube from './SmallCube'
+import TypingTextWithCursor from './TypingTextWithCursor'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
@@ -553,7 +554,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                 </h1>
               </div>
               <p className="text-lg font-mono mb-6" style={{ color: '#344055' }}>
-                A test on demand dude for the daily needs
+                <TypingTextWithCursor 
+                  initialText="A test on demand dude for the daily needs"
+                  finalText="Test on demand, dude"
+                  delay={3000}
+                  typingSpeed={100}
+                />
               </p>
             </motion.div>
             
