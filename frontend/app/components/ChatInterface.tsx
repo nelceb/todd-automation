@@ -553,13 +553,14 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                   TODD
                 </h1>
               </div>
-              <p className="text-base font-mono mb-6 max-w-4xl mx-auto px-4" style={{ color: '#344055' }}>
+              <div className="mb-6 w-full max-w-6xl mx-auto px-4" style={{ color: '#344055' }}>
                 <TypingTextWithCursor 
                   initialText="A test on demand dude for the daily needs"
                   finalText="Test on demand, dude"
                   delay={3000}
+                  className="text-base font-mono block"
                 />
-              </p>
+              </div>
             </motion.div>
             
 
