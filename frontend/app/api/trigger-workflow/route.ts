@@ -5,22 +5,45 @@ export const dynamic = 'force-dynamic'
 function extractInputsFromYaml(yamlContent: string): Record<string, any> {
   const inputs: Record<string, any> = {}
   
-  // Buscar la sección inputs en el YAML
-  const inputsMatch = yamlContent.match(/inputs:\s*\n((?:\s+.*\n)*)/)
-  if (inputsMatch) {
-    const inputsSection = inputsMatch[1]
-    const inputLines = inputsSection.split('\n')
+  try {
+    // Buscar la sección inputs en el YAML con diferentes patrones
+    const patterns = [
+      /inputs:\s*\n((?:\s+.*\n)*)/,
+      /workflow_dispatch:\s*\n((?:\s+.*\n)*)/,
+      /on:\s*\n\s*workflow_dispatch:\s*\n((?:\s+.*\n)*)/
+    ]
     
-    for (const line of inputLines) {
-      const trimmedLine = line.trim()
-      if (trimmedLine && !trimmedLine.startsWith('#')) {
-        const inputMatch = trimmedLine.match(/^(\w+):\s*(.*)$/)
-        if (inputMatch) {
-          const [, inputName, inputValue] = inputMatch
-          inputs[inputName] = inputValue || ''
+    let inputsSection = ''
+    for (const pattern of patterns) {
+      const match = yamlContent.match(pattern)
+      if (match) {
+        inputsSection = match[1]
+        break
+      }
+    }
+    
+    if (inputsSection) {
+      const inputLines = inputsSection.split('\n')
+      
+      for (const line of inputLines) {
+        const trimmedLine = line.trim()
+        if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
+          // Buscar patrones como: input_name: o input_name: description
+          const inputMatch = trimmedLine.match(/^(\w+):\s*(.*)$/)
+          if (inputMatch) {
+            const [, inputName, inputValue] = inputMatch
+            // Solo agregar si no es una descripción larga (más de 50 caracteres)
+            if (!inputValue || inputValue.length < 50) {
+              inputs[inputName] = inputValue || ''
+            }
+          }
         }
       }
     }
+    
+    console.log('Extracted inputs from YAML:', inputs)
+  } catch (error) {
+    console.error('Error extracting inputs from YAML:', error)
   }
   
   return inputs
@@ -126,12 +149,23 @@ export async function POST(request: NextRequest) {
           
           // Solo incluir inputs que el workflow acepta
           if (inputs && Object.keys(availableInputs).length > 0) {
+            console.log('Available inputs from YAML:', availableInputs)
+            console.log('Provided inputs:', inputs)
+            
             validInputs = Object.keys(inputs).reduce((acc, key) => {
               if (availableInputs.hasOwnProperty(key)) {
                 acc[key] = inputs[key]
+                console.log(`✅ Input '${key}' is valid`)
+              } else {
+                console.log(`❌ Input '${key}' is not accepted by this workflow`)
               }
               return acc
             }, {} as Record<string, any>)
+            
+            console.log('Final valid inputs:', validInputs)
+          } else if (inputs && Object.keys(inputs).length > 0) {
+            console.log('⚠️ No inputs found in YAML, but inputs provided. Using provided inputs.')
+            validInputs = inputs
           }
         }
       }
