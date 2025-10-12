@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
   try {
     const { workflowId, inputs, repository, branch } = await request.json()
     
+    console.log('API received branch:', branch)
+    console.log('API received inputs:', inputs)
+    
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
@@ -182,7 +185,10 @@ export async function POST(request: NextRequest) {
     // Disparar el workflow directamente
     // Validate branch - don't use environment names as branches
     const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
+    console.log('Original branch received:', branch)
+    console.log('Is branch an environment name?', branch ? environmentNames.includes(branch.toLowerCase()) : false)
     const targetBranch = (branch && !environmentNames.includes(branch.toLowerCase())) ? branch : 'main'
+    console.log('Final target branch:', targetBranch)
     const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)

@@ -398,9 +398,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         // Trigger workflow executed callback
         onWorkflowExecuted?.()
         
-        // Switch to workflows tab and expand the first repository
-        if (onSwitchToWorkflows && results.length > 0) {
-          const firstRepo = results[0].workflow?.repository ? results[0].workflow.repository.split('/').pop() : 'maestro-test'
+        // Only switch to workflows tab if at least one workflow executed successfully
+        const successfulResults = results.filter(result => result.success !== false && result.runId)
+        if (onSwitchToWorkflows && successfulResults.length > 0) {
+          const firstRepo = successfulResults[0].workflow?.repository ? successfulResults[0].workflow.repository.split('/').pop() : 'maestro-test'
           onSwitchToWorkflows(firstRepo)
         }
         
