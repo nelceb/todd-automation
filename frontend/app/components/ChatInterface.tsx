@@ -553,7 +553,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                 </h1>
               </div>
               <p className="text-lg font-mono mb-6" style={{ color: '#344055' }}>
-                Test on demand, dude.
+                A test on demand dude for the daily needs
               </p>
             </motion.div>
             
