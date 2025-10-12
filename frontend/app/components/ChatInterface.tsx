@@ -459,50 +459,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               </p>
             </motion.div>
             
-            {/* Input cuando no hay mensajes - más cerca del subtítulo */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-              className="w-full max-w-6xl mx-auto px-8"
-            >
-              <form onSubmit={handleSubmit} className="relative" style={{ maxWidth: 'none', width: '100%' }}>
-                <div className="relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Enter your test command..."
-                    className="w-full pr-24 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
-              style={{ color: '#344055', backgroundColor: 'transparent' }}
-                    disabled={isLoading}
-                  />
-
-                  {/* Botones de la derecha */}
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={handleMicrophoneClick}
-                      className={`transition-colors ${
-                        isListening 
-                          ? 'text-red-500 hover:text-red-400' 
-                          : 'text-gray-700 hover:text-gray-900'
-                      }`}
-                    >
-                      <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!input.trim() || isLoading}
-                      className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
-                    >
-                      <PaperAirplaneIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </motion.div>
 
             {/* Useful Tips */}
             <UsefulTips isVisible={showTips} />
@@ -951,6 +907,55 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         {/* Useful Tips */}
         <UsefulTips isVisible={showTips} />
       </div>
+      )}
+      
+      {/* Search bar fijo para estado inicial */}
+      {messages.length === 0 && (
+        <div className="fixed bottom-8 left-0 right-0 px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+            className="w-full max-w-6xl mx-auto"
+          >
+            <form onSubmit={handleSubmit} className="relative">
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Enter your test command..."
+                  className="w-full pr-24 pl-6 py-3 text-base border border-gray-600/60 rounded-full focus:outline-none focus:border-gray-800 transition-all duration-300 font-mono"
+                  style={{ color: '#344055', backgroundColor: 'transparent' }}
+                  disabled={isLoading}
+                />
+
+                {/* Botones de la derecha */}
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleMicrophoneClick}
+                    className={`transition-colors ${
+                      isListening 
+                        ? 'text-red-500 hover:text-red-400' 
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || isLoading}
+                    className="px-4 py-2 bg-airforce-600 text-white rounded-full hover:bg-airforce-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shadow-lg font-mono text-sm"
+                  >
+                    <PaperAirplaneIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </div>
       )}
     </div>
   )
