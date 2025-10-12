@@ -96,8 +96,8 @@ interface WorkflowStore {
   fetchWorkflowRuns: (token?: string) => Promise<void>
   fetchRepositories: (token?: string) => Promise<void>
   previewWorkflows: (command: string) => Promise<MultiWorkflowExecution | null>
-  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => Promise<any>
-  triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string) => Promise<any[]>
+  triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string, branch?: string) => Promise<any>
+  triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string, branch?: string) => Promise<any[]>
   fetchWorkflowLogs: (runId: string, token?: string, repository?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string, repository?: string) => void
   startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => void
@@ -179,7 +179,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string) => {
+  triggerWorkflow: async (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string, branch?: string) => {
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -189,7 +189,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ workflowId, inputs, repository })
+        body: JSON.stringify({ workflowId, inputs, repository, branch })
       })
       if (!response.ok) throw new Error('Error al ejecutar workflow')
       const result = await response.json()
@@ -229,13 +229,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
 
-  triggerMultipleWorkflows: async (workflows: WorkflowPreview[], token?: string) => {
+  triggerMultipleWorkflows: async (workflows: WorkflowPreview[], token?: string, branch?: string) => {
     const results = []
     for (const workflow of workflows) {
       try {
         // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
         const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
-        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName)
+        const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName, branch)
         results.push({ ...result, workflow })
       } catch (error) {
         results.push({ error: error instanceof Error ? error.message : 'Unknown error', workflow })

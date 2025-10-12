@@ -56,7 +56,7 @@ function extractInputsFromYaml(yamlContent: string): Record<string, any> {
 
 export async function POST(request: NextRequest) {
   try {
-    const { workflowId, inputs, repository } = await request.json()
+    const { workflowId, inputs, repository, branch } = await request.json()
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
@@ -180,11 +180,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Disparar el workflow directamente
+    const targetBranch = branch || 'main'
     const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)
     console.log('Owner:', owner)
     console.log('Repo:', repo)
+    console.log('Branch:', targetBranch)
     console.log('Valid Inputs:', validInputs)
     
     const triggerResponse = await fetch(triggerUrl, {
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        ref: 'main',
+        ref: targetBranch,
         inputs: validInputs
       }),
     })

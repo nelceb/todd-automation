@@ -146,7 +146,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       const inputs = getWorkflowInputs(workflowName, repository)
       
       // Trigger workflow with specific inputs
-      const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName)
+        const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
       
       if (result && result.runId) {
         // Update with real run information

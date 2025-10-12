@@ -332,6 +332,26 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       if (preview && preview.workflows.length > 0) {
         // Keep previous logs and add new ones
         
+        // Extract branch from user message if specified
+        const branchPatterns = [
+          /(?:on|in|from)\s+([a-zA-Z0-9\-_\/]+)\s+branch/i,
+          /branch\s+([a-zA-Z0-9\-_\/]+)/i,
+          /(?:on|in|from)\s+([a-zA-Z0-9\-_\/]+)/i
+        ]
+        
+        let targetBranch: string | undefined
+        for (const pattern of branchPatterns) {
+          const match = userMessage.match(pattern)
+          if (match) {
+            targetBranch = match[1]
+            break
+          }
+        }
+        
+        if (targetBranch) {
+          console.log(`Detected branch: ${targetBranch}`)
+        }
+
         // Execute all workflows directly and show info in logs
         const results: any[] = []
         const runIds: string[] = []
@@ -340,7 +360,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           try {
             // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
             const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
-            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, repoName)
+            const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, repoName, targetBranch)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
@@ -456,6 +476,42 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   const handleClearAll = () => {
     clearMessages()
     clearAllLogs()
+  }
+
+  const getStatusTag = (status: string) => {
+    const statusMap: { [key: string]: { text: string; className: string } } = {
+      'in_progress': { 
+        text: 'IN PROGRESS', 
+        className: 'bg-blue-100 text-blue-800 border border-blue-200' 
+      },
+      'completed': { 
+        text: 'COMPLETED', 
+        className: 'bg-green-100 text-green-800 border border-green-200' 
+      },
+      'queued': { 
+        text: 'QUEUED', 
+        className: 'bg-yellow-100 text-yellow-800 border border-yellow-200' 
+      },
+      'failed': { 
+        text: 'FAILED', 
+        className: 'bg-red-100 text-red-800 border border-red-200' 
+      },
+      'cancelled': { 
+        text: 'CANCELLED', 
+        className: 'bg-gray-100 text-gray-800 border border-gray-200' 
+      }
+    }
+    
+    const statusInfo = statusMap[status] || { 
+      text: status.toUpperCase(), 
+      className: 'bg-gray-100 text-gray-800 border border-gray-200' 
+    }
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.className}`}>
+        {statusInfo.text}
+      </span>
+    )
   }
 
   return (
@@ -724,12 +780,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
                                   STATUS
                                 </span>
-                                <span className="text-xs text-gray-700 capitalize">
-                                  {logs.run.status}
-                                </span>
+                                {getStatusTag(logs.run.status)}
                               </div>
                               <p className="text-gray-900 text-sm leading-relaxed font-mono ml-5">
-                                Workflow execution {logs.run.status}
+                                Workflow execution {getStatusTag(logs.run.status)}
                               </p>
                             </div>
                           </div>
@@ -830,9 +884,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
                                     JOB
                                   </span>
-                                  <span className="text-xs text-gray-700 capitalize">
-                                    {log.status}
-                                  </span>
+                                  {getStatusTag(log.status)}
                                 </div>
                                 <div className="text-gray-800 text-sm leading-relaxed font-mono space-y-1 ml-5">
                                   <div>→ {log.jobName}</div>
