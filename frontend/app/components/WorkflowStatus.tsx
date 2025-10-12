@@ -17,6 +17,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStore'
+import { useWorkflowInputs } from '../hooks/useWorkflowInputs'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
 
@@ -36,6 +37,7 @@ interface WorkflowState {
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
+  const { getWorkflowInputs, isLoading: isLoadingInputs } = useWorkflowInputs()
   const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set())
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
@@ -122,89 +124,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     })
   }
 
-  const getWorkflowInputs = (workflowName: string, repository: string) => {
-    // Default inputs for different workflow types
-    const repoName = repository.split('/').pop() || 'maestro-test'
-    
-    console.log(`Getting inputs for workflow: ${workflowName} in repo: ${repoName}`)
-    
-    if (repoName === 'maestro-test') {
-      // Maestro workflows - use specific test suite
-      if (workflowName.includes('iOS Maestro Cloud Tests')) {
-        return { test_suite: 'login' }
-      }
-      if (workflowName.includes('iOS Gauge Tests')) {
-        return { test_suite: 'gauge' }
-      }
-      if (workflowName.includes('Maestro Mobile Tests')) {
-        return { test_suite: 'mobile' }
-      }
-      if (workflowName.includes('BrowserStack')) {
-        return { test_suite: 'browserstack' }
-      }
-      if (workflowName.includes('Maestro iOS Tests')) {
-        return { test_suite: 'ios' }
-      }
-      return { test_suite: 'all' }
-    }
-    
-    if (repoName === 'pw-cookunity-automation') {
-      // Playwright workflows - be more specific about which ones accept environment/groups
-      if (workflowName.includes('QA US - E2E')) {
-        return { environment: 'qa', groups: '@e2e' }
-      }
-      if (workflowName.includes('QA CA - E2E')) {
-        return { environment: 'qa-ca', groups: '@e2e' }
-      }
-      if (workflowName.includes('QA E2E Web Regression')) {
-        return { environment: 'qa', groups: 'web-regression' }
-      }
-      if (workflowName.includes('QA Android Regression')) {
-        return { environment: 'qa', groups: 'android-regression' }
-      }
-      if (workflowName.includes('QA iOS Regression')) {
-        return { environment: 'qa', groups: 'ios-regression' }
-      }
-      if (workflowName.includes('QA API Kitchen Regression')) {
-        return { environment: 'qa', groups: 'kitchen-api' }
-      }
-      if (workflowName.includes('QA Logistics Regression')) {
-        return { environment: 'qa', groups: 'logistics-api' }
-      }
-      // For other playwright workflows, try with minimal inputs
-      return { environment: 'qa' }
-    }
-    
-    if (repoName === 'automation-framework') {
-      // Selenium workflows - use test_suite instead of environment/groups
-      if (workflowName.includes('Prod Android Regression')) {
-        return { test_suite: 'android-regression' }
-      }
-      if (workflowName.includes('Prod iOS Regression')) {
-        return { test_suite: 'ios-regression' }
-      }
-      if (workflowName.includes('QA E2E Web Regression')) {
-        return { test_suite: 'web-regression' }
-      }
-      if (workflowName.includes('QA Android Regression')) {
-        return { test_suite: 'android-regression' }
-      }
-      if (workflowName.includes('QA iOS Regression')) {
-        return { test_suite: 'ios-regression' }
-      }
-      if (workflowName.includes('QA API Kitchen Regression')) {
-        return { test_suite: 'kitchen-api' }
-      }
-      if (workflowName.includes('QA Logistics Regression')) {
-        return { test_suite: 'logistics-api' }
-      }
-      return { test_suite: 'e2e' }
-    }
-    
-    // Default fallback - return empty object to let the API handle validation
-    console.log(`No specific inputs found for ${workflowName}, returning empty object`)
-    return {}
-  }
+  // Use the hook's getWorkflowInputs function which gets real inputs from YAML
 
   const handleWorkflowClick = async (workflowName: string, repository: string) => {
     const workflowId = `${repository}-${workflowName}`
