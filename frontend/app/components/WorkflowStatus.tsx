@@ -424,7 +424,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   ]
 
   return (
-    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-12">
+    <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-20">
       {/* Header - Centered and more prominent */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-mono mb-6 tracking-wide" style={{ color: '#344055' }}>
@@ -493,21 +493,21 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                             <div className="flex items-center space-x-2">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 extractEnvironmentFromName(workflowName) === 'prod' 
-                                  ? 'bg-red-500/20 text-red-300' 
+                                  ? 'bg-red-600 text-white' 
                                   : extractEnvironmentFromName(workflowName) === 'qa'
-                                  ? 'bg-blue-500/20 text-blue-300'
+                                  ? 'bg-blue-600 text-white'
                                   : extractEnvironmentFromName(workflowName) === 'mobile'
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : 'bg-gray-500/20 text-gray-300'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-gray-600 text-white'
                               }`}>
                                 {extractEnvironmentFromName(workflowName).toUpperCase()}
                               </span>
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 repo.technology === 'maestro' 
-                                  ? 'bg-airforce-500/20 text-airforce-300' 
+                                  ? 'bg-indigo-600 text-white' 
                                   : repo.technology === 'playwright'
-                                  ? 'bg-asparagus-500/20 text-asparagus-300'
-                                  : 'bg-earth-500/20 text-earth-300'
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-orange-600 text-white'
                               }`}>
                                 {repo.technology.toUpperCase()}
                               </span>
