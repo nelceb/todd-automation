@@ -942,12 +942,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
                           {/* Actions */}
                           {logs.run.htmlUrl && (
-                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between">
+                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4">
                               <a
                                 href={logs.run.htmlUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                                className="inline-flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 border border-blue-400/30 rounded-md hover:border-blue-400/50"
                               >
                                 <span>View on GitHub</span>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -959,7 +959,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               {logs.run.status === 'in_progress' && logs.run.id && (
                                 <button
                                   onClick={() => handleCancelWorkflow(logs.run.id.toString(), 'maestro-test')}
-                                  className="inline-flex items-center space-x-2 text-sm text-red-400 hover:text-red-300 transition-colors px-3 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
+                                  className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
