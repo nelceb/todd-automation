@@ -327,23 +327,33 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         // Keep previous logs and add new ones
         
         // Extract branch from user message if specified
+        // Only look for explicit branch mentions, not environment names
         const branchPatterns = [
           /(?:on|in|from)\s+([a-zA-Z0-9\-_\/]+)\s+branch/i,
           /branch\s+([a-zA-Z0-9\-_\/]+)/i,
-          /(?:on|in|from)\s+([a-zA-Z0-9\-_\/]+)/i
+          /(?:on|in|from)\s+(main|master|develop|dev|staging|feature-[a-zA-Z0-9\-_]+|hotfix-[a-zA-Z0-9\-_]+|release-[a-zA-Z0-9\-_]+)/i
         ]
+        
+        // Common environment names that should NOT be treated as branches
+        const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
         
         let targetBranch: string | undefined
         for (const pattern of branchPatterns) {
           const match = userMessage.match(pattern)
           if (match) {
-            targetBranch = match[1]
-            break
+            const potentialBranch = match[1]
+            // Only use as branch if it's not a common environment name
+            if (!environmentNames.includes(potentialBranch.toLowerCase())) {
+              targetBranch = potentialBranch
+              break
+            }
           }
         }
         
         if (targetBranch) {
           console.log(`Detected branch: ${targetBranch}`)
+        } else {
+          console.log('No specific branch detected, using default (main)')
         }
 
         // Execute all workflows directly and show info in logs
