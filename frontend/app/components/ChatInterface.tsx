@@ -251,17 +251,47 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       if (SpeechRecognition) {
         const recognitionInstance = new SpeechRecognition()
         recognitionInstance.continuous = false
-        recognitionInstance.interimResults = false
-        recognitionInstance.lang = 'en-US' // Set language to English
+        recognitionInstance.interimResults = true // Enable interim results for better accuracy
+        recognitionInstance.lang = 'en-US'
         
         recognitionInstance.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript
-          setInput(transcript)
-          setIsListening(false)
-          // Auto-send after voice recognition
-          setTimeout(() => {
-            handleSubmit(new Event('submit') as any)
-          }, 100)
+          const result = event.results[event.results.length - 1] // Get final result
+          if (result.isFinal) {
+            let transcript = result[0].transcript
+            
+            // Context-aware corrections for testing commands
+            const corrections: { [key: string]: string } = {
+              'round': 'run',
+              'ran': 'run',
+              'running': 'run',
+              'tested': 'test',
+              'testing': 'test',
+              'android': 'android',
+              'ios': 'ios',
+              'playwright': 'playwright',
+              'selenium': 'selenium',
+              'maestro': 'maestro',
+              'production': 'prod',
+              'qa': 'qa',
+              'staging': 'staging',
+              'regression': 'regression',
+              'smoke': 'smoke',
+              'e2e': 'e2e'
+            }
+            
+            // Apply corrections
+            Object.entries(corrections).forEach(([wrong, correct]) => {
+              const regex = new RegExp(`\\b${wrong}\\b`, 'gi')
+              transcript = transcript.replace(regex, correct)
+            })
+            
+            setInput(transcript)
+            setIsListening(false)
+            // Auto-send after voice recognition
+            setTimeout(() => {
+              handleSubmit(new Event('submit') as any)
+            }, 100)
+          }
         }
         
         recognitionInstance.onerror = () => {
@@ -506,7 +536,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       className="flex items-start space-x-4 py-2"
                     >
                       {/* Timestamp */}
-                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[80px] sm:w-[120px] text-right">
+                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                         {typeof window !== 'undefined' ? formatDistanceToNow(message.timestamp, { addSuffix: true, locale: enUS }) : 'just now'}
                 </div>
 
@@ -541,7 +571,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-start space-x-4 py-2"
                     >
-                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                         {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -572,7 +602,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       {messages[messages.length - 1].workflowPreview.workflows.map((workflow: any, index: number) => (
                         <div key={index} className="flex items-start space-x-4 py-2">
                       {/* Timestamp */}
-                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                      <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                         {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                       </div>
                           
@@ -653,7 +683,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       {/* Show consolidated summary for multiple workflows */}
                       {multipleLogs.length > 0 && (
                         <div className="flex items-start space-x-4 py-2">
-                          <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                          <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                             {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -679,7 +709,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                         <div key={index} className="space-y-3">
                           {/* Status log entry */}
                           <div className="flex items-start space-x-4 py-2">
-                            <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                            <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                               {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -739,7 +769,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             
                             return (
                               <div className="flex items-start space-x-4 py-2">
-                                <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                                <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                                   {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -785,7 +815,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             })
                             .map((log, jobIndex) => (
                             <div key={jobIndex} className="flex items-start space-x-4 py-2">
-                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                                 {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -824,7 +854,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           {/* Message when no logs yet - Estilo log */}
                           {logs.logs.length === 0 && (
                             <div className="flex items-start space-x-4 py-2">
-                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[80px] sm:w-[120px] text-right">
+                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                                 {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                               </div>
                               <div className="flex-1 min-w-0">
