@@ -73,17 +73,17 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="flex items-center space-x-2 px-4 py-2 border border-green-600 rounded-lg transition-colors font-mono"
+        className="flex items-center space-x-2 px-2 sm:px-4 py-2 border border-green-600 rounded-lg transition-colors font-mono min-h-[44px]"
         style={{ 
           color: '#10B981', 
           backgroundColor: 'transparent' 
         }}
       >
         <GithubIcon className="w-4 h-4" />
-        <span>Connected</span>
+        <span className="hidden sm:inline">Connected</span>
         <button
           onClick={handleLogout}
-          className="text-green-600 hover:text-green-700 text-xs underline ml-2"
+          className="text-green-600 hover:text-green-700 text-xs underline ml-2 hidden sm:inline"
         >
           Disconnect
         </button>
