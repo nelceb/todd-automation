@@ -435,7 +435,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: -50 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="flex flex-col items-center justify-center"
+            className="flex flex-col items-center justify-center w-full"
           >
             
             <motion.div
@@ -465,9 +465,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
               className="w-full px-4"
-              style={{ maxWidth: 'none' }}
+              style={{ maxWidth: 'none', width: '100%' }}
             >
-              <form onSubmit={handleSubmit} className="relative" style={{ maxWidth: 'none' }}>
+              <form onSubmit={handleSubmit} className="relative" style={{ maxWidth: 'none', width: '100%' }}>
                 <div className="relative">
                   <input
                     ref={inputRef}
