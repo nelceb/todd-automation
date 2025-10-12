@@ -566,6 +566,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   Execution failed
                                 </span>
                               )}
+                              {state === 'cancelled' && (
+                                <span className="text-orange-400 flex items-center">
+                                  <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
+                                  Execution cancelled
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center space-x-2">
                               {workflowState?.canCancel && workflowState?.runId && (
