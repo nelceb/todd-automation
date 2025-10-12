@@ -9,7 +9,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { useWorkflowStore } from '../store/workflowStore'
 import TypingText from './TypingText'
-import UsefulTips from './UsefulTips'
 import SmallCube from './SmallCube'
 import toast from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
@@ -179,7 +178,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
-  const [showTips, setShowTips] = useState(false)
   
   // Use external props if provided, otherwise use internal state
   const messages = externalMessages || internalMessages
@@ -230,10 +228,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }, [currentLogs?.logs, multipleLogs])
 
-  // Show tips only when there are no messages (initial state)
-  useEffect(() => {
-    setShowTips(messages.length === 0)
-  }, [messages.length])
 
   // Auto-focus input when component mounts
   useEffect(() => {
@@ -1015,14 +1009,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             </div>
           </form>
         
-        {/* Useful Tips */}
-        <UsefulTips isVisible={showTips} />
       </div>
       )}
       
       {/* Search bar fijo para estado inicial */}
       {messages.length === 0 && (
-        <div className="absolute bottom-40 left-0 right-0 px-8">
+        <div className="absolute bottom-32 left-0 right-0 px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1067,8 +1059,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             </form>
           </motion.div>
           
-          {/* Useful Tips - Always below search bar */}
-          <UsefulTips isVisible={showTips} />
         </div>
       )}
     </div>
