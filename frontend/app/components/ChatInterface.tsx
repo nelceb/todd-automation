@@ -553,7 +553,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                   TODD
                 </h1>
               </div>
-              <p className="text-lg font-mono mb-6" style={{ color: '#344055' }}>
+              <p className="text-base font-mono mb-6 max-w-4xl mx-auto px-4" style={{ color: '#344055' }}>
                 <TypingTextWithCursor 
                   initialText="A test on demand dude for the daily needs"
                   finalText="Test on demand, dude"
