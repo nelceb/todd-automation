@@ -56,6 +56,15 @@ export default function Home() {
             </svg>
             <span>Workflows</span>
           </button>
+          <button 
+            className="px-4 py-2 border-2 border-gray-600 rounded-lg transition-colors hover:border-gray-700"
+            style={{ 
+              color: '#344055', 
+              backgroundColor: 'transparent' 
+            }}
+          >
+            <span>Connect to GitHub</span>
+          </button>
         </div>
       </header>
 
