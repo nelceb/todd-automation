@@ -30,6 +30,7 @@ interface ChatInterfaceProps {
   setMessages?: React.Dispatch<React.SetStateAction<Message[]>>
   clearMessages?: () => void
   onWorkflowExecuted?: () => void
+  onSwitchToWorkflows?: (repository?: string) => void
 }
 
 // Helper function to extract test summary from logs - Universal extraction for all workflow types
@@ -173,7 +174,7 @@ const extractTestSummary = (logs: string) => {
   }
 }
 
-export default function ChatInterface({ githubToken, messages: externalMessages, setMessages: externalSetMessages, clearMessages: externalClearMessages, onWorkflowExecuted }: ChatInterfaceProps) {
+export default function ChatInterface({ githubToken, messages: externalMessages, setMessages: externalSetMessages, clearMessages: externalClearMessages, onWorkflowExecuted, onSwitchToWorkflows }: ChatInterfaceProps) {
   const [internalMessages, setInternalMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -386,6 +387,13 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
         // Trigger workflow executed callback
         onWorkflowExecuted?.()
+        
+        // Switch to workflows tab and expand the first repository
+        if (onSwitchToWorkflows && results.length > 0) {
+          const firstRepo = results[0].workflow?.repository ? results[0].workflow.repository.split('/').pop() : 'maestro-test'
+          onSwitchToWorkflows(firstRepo)
+        }
+        
         setIsLoading(false)
         return
       }

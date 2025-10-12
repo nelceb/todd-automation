@@ -19,7 +19,7 @@ import { useWorkflowStore } from './store/workflowStore'
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
-  const { workflows, isLoading } = useWorkflowStore()
+  const { workflows, isLoading, expandRepositoryForWorkflow } = useWorkflowStore()
 
   const handleAuthSuccess = (token: string) => {
     setGithubToken(token)
@@ -31,6 +31,15 @@ export default function Home() {
       // Scroll to top when switching to workflows
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  const handleSwitchToWorkflows = (repository?: string) => {
+    setActiveTab('workflows')
+    if (repository) {
+      expandRepositoryForWorkflow(repository)
+    }
+    // Scroll to top when switching to workflows
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -89,7 +98,10 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="absolute inset-0 flex items-center justify-center"
             >
-              <ChatInterface githubToken={githubToken} />
+                      <ChatInterface 
+                        githubToken={githubToken} 
+                        onSwitchToWorkflows={handleSwitchToWorkflows}
+                      />
             </motion.div>
           ) : (
             <motion.div

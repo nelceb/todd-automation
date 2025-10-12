@@ -90,6 +90,8 @@ interface WorkflowStore {
   currentLogs: WorkflowLogs | null
   multipleLogs: WorkflowLogs[]
   isPollingLogs: boolean
+  expandedRepositories: Set<string>
+  activeRepository: string | null
   
   // Actions
   fetchWorkflows: (token?: string) => Promise<void>
@@ -109,6 +111,9 @@ interface WorkflowStore {
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
   clearPreview: () => void
+  setExpandedRepositories: (repositories: Set<string>) => void
+  setActiveRepository: (repository: string | null) => void
+  expandRepositoryForWorkflow: (repository: string) => void
 }
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
@@ -122,6 +127,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   currentLogs: null,
   multipleLogs: [],
   isPollingLogs: false,
+  expandedRepositories: new Set(),
+  activeRepository: null,
 
   fetchWorkflows: async (token?: string) => {
     set({ isLoading: true, error: null })
@@ -409,6 +416,21 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   addMultipleLogs: (newLogs: WorkflowLogs[]) => {
     set(state => ({
       multipleLogs: [...state.multipleLogs, ...newLogs]
+    }))
+  },
+
+  setExpandedRepositories: (repositories: Set<string>) => {
+    set({ expandedRepositories: repositories })
+  },
+
+  setActiveRepository: (repository: string | null) => {
+    set({ activeRepository: repository })
+  },
+
+  expandRepositoryForWorkflow: (repository: string) => {
+    set(state => ({
+      expandedRepositories: new Set([repository]),
+      activeRepository: repository
     }))
   }
 }))

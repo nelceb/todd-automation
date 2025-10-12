@@ -36,9 +36,20 @@ interface WorkflowState {
 }
 
 export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
-  const { workflows, workflowRuns, repositories, isLoading, error, fetchWorkflows, fetchWorkflowRuns, fetchRepositories, triggerWorkflow } = useWorkflowStore()
+  const { 
+    workflows, 
+    workflowRuns, 
+    repositories, 
+    isLoading, 
+    error, 
+    fetchWorkflows, 
+    fetchWorkflowRuns, 
+    fetchRepositories, 
+    triggerWorkflow,
+    expandedRepositories,
+    setExpandedRepositories
+  } = useWorkflowStore()
   const { getWorkflowInputs, isLoading: isLoadingInputs } = useWorkflowInputs()
-  const [expandedRepositories, setExpandedRepositories] = useState<Set<string>>(new Set())
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
 
   useEffect(() => {
@@ -124,15 +135,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   const handleRepositoryClick = (repoName: string) => {
-    setExpandedRepositories(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(repoName)) {
-        newSet.delete(repoName)
-      } else {
-        newSet.add(repoName)
-      }
-      return newSet
-    })
+    const newSet = new Set(expandedRepositories)
+    if (newSet.has(repoName)) {
+      newSet.delete(repoName)
+    } else {
+      newSet.add(repoName)
+    }
+    setExpandedRepositories(newSet)
   }
 
   // Use the hook's getWorkflowInputs function which gets real inputs from YAML
