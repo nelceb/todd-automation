@@ -202,7 +202,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         clearPreview,
         clearMultipleLogs,
         clearAllLogs,
-        addMultipleLogs
+        addMultipleLogs,
+        cancelWorkflow
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
@@ -478,6 +479,22 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     clearAllLogs()
   }
 
+  const handleCancelWorkflow = async (runId: string, repository: string) => {
+    try {
+      const result = await cancelWorkflow(runId, repository)
+      if (result.success) {
+        toast.success('Workflow cancelado exitosamente')
+        // Refresh logs to show updated status
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      }
+    } catch (error) {
+      toast.error('Error al cancelar workflow')
+      console.error('Error canceling workflow:', error)
+    }
+  }
+
   const getStatusTag = (status: string) => {
     const statusMap: { [key: string]: { text: string; className: string } } = {
       'in_progress': { 
@@ -498,7 +515,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       },
       'cancelled': { 
         text: 'CANCELLED', 
-        className: 'bg-gray-100 text-gray-800 border border-gray-200' 
+        className: 'bg-orange-100 text-orange-800 border border-orange-200' 
       }
     }
     
@@ -923,9 +940,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           </div>
                           )}
 
-                          {/* Link to GitHub */}
+                          {/* Actions */}
                           {logs.run.htmlUrl && (
-                            <div className="mt-4 pt-4 border-t border-gray-700/50">
+                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between">
                               <a
                                 href={logs.run.htmlUrl}
                                 target="_blank"
@@ -937,6 +954,19 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                               </a>
+                              
+                              {/* Cancel button - only show for in_progress workflows */}
+                              {logs.run.status === 'in_progress' && logs.run.id && (
+                                <button
+                                  onClick={() => handleCancelWorkflow(logs.run.id.toString(), 'maestro-test')}
+                                  className="inline-flex items-center space-x-2 text-sm text-red-400 hover:text-red-300 transition-colors px-3 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  <span>Cancel Run</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>

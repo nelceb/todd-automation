@@ -98,6 +98,7 @@ interface WorkflowStore {
   previewWorkflows: (command: string) => Promise<MultiWorkflowExecution | null>
   triggerWorkflow: (workflowId: string, inputs: Record<string, any>, token?: string, repository?: string, branch?: string) => Promise<any>
   triggerMultipleWorkflows: (workflows: WorkflowPreview[], token?: string, branch?: string) => Promise<any[]>
+  cancelWorkflow: (runId: string, repository?: string) => Promise<any>
   fetchWorkflowLogs: (runId: string, token?: string, repository?: string) => Promise<void>
   startPollingLogs: (runId: string, token?: string, repository?: string) => void
   startPollingMultipleLogs: (runIds: string[], token?: string, repositories?: string[]) => void
@@ -248,6 +249,26 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ workflowPreview: null })
   },
 
+  cancelWorkflow: async (runId: string, repository?: string) => {
+    try {
+      const response = await fetch('/api/cancel-workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, repository })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Error al cancelar workflow')
+      }
+      
+      const result = await response.json()
+      return result
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Error al cancelar workflow' })
+      throw error
+    }
+  },
+
   fetchWorkflowLogs: async (runId: string, token?: string, repository?: string) => {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -345,9 +366,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         return { multipleLogs: updatedLogs }
       })
       
-      // Stop polling if all workflows are completed
-      const allCompleted = validLogs.every(log => log.run.status === 'completed')
-      if (allCompleted) {
+      // Stop polling if all workflows are completed or cancelled
+      const allFinished = validLogs.every(log => 
+        log.run.status === 'completed' || 
+        log.run.status === 'failed' || 
+        log.run.status === 'cancelled'
+      )
+      if (allFinished) {
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds
