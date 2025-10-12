@@ -104,6 +104,7 @@ interface WorkflowStore {
   stopPollingLogs: () => void
   clearMultipleLogs: () => void
   clearAllLogs: () => void
+  addMultipleLogs: (newLogs: WorkflowLogs[]) => void
   setError: (error: string | null) => void
   setGithubToken: (token: string) => void
   clearPreview: () => void
@@ -296,7 +297,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const { isPollingLogs } = get()
     if (isPollingLogs) return
 
-    set({ isPollingLogs: true, multipleLogs: [] })
+    set({ isPollingLogs: true })
     
     const pollInterval = setInterval(async () => {
       const { isPollingLogs: stillPolling } = get()
@@ -325,7 +326,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const logs = await Promise.all(logsPromises)
       const validLogs = logs.filter(log => log !== null)
       
-      set({ multipleLogs: validLogs })
+      // Update existing logs or add new ones
+      set(state => {
+        const existingLogs = state.multipleLogs
+        const updatedLogs = [...existingLogs]
+        
+        validLogs.forEach(newLog => {
+          const existingIndex = updatedLogs.findIndex(log => log.run.id === newLog.run.id)
+          if (existingIndex >= 0) {
+            // Update existing log
+            updatedLogs[existingIndex] = newLog
+          } else {
+            // Add new log
+            updatedLogs.push(newLog)
+          }
+        })
+        
+        return { multipleLogs: updatedLogs }
+      })
       
       // Stop polling if all workflows are completed
       const allCompleted = validLogs.every(log => log.run.status === 'completed')
@@ -361,5 +379,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (pollInterval) {
       clearInterval(pollInterval)
     }
+  },
+
+  addMultipleLogs: (newLogs: WorkflowLogs[]) => {
+    set(state => ({
+      multipleLogs: [...state.multipleLogs, ...newLogs]
+    }))
   }
 }))

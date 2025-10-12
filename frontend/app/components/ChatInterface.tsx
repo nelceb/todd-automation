@@ -201,7 +201,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         triggerMultipleWorkflows,
         clearPreview,
         clearMultipleLogs,
-        clearAllLogs
+        clearAllLogs,
+        addMultipleLogs
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
@@ -285,22 +286,21 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     setInput('')
     setIsLoading(true)
 
-    // Clear all previous logs and messages
-    clearAllLogs()
-    setMessages([{
+    // Add new user message to existing messages
+    const newMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: 'user' as const,
       content: userMessage,
       timestamp: new Date()
-    }])
+    }
+    setMessages(prev => [...prev, newMessage])
 
     try {
       // First, get preview of workflows
       const preview = await previewWorkflows(userMessage)
       
       if (preview && preview.workflows.length > 0) {
-        // Clear previous multiple logs
-        clearMultipleLogs()
+        // Keep previous logs and add new ones
         
         // Execute all workflows directly and show info in logs
         const results: any[] = []
