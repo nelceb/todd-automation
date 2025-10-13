@@ -8,7 +8,7 @@ import * as THREE from 'three'
 function MorphingShape() {
   const meshRef = useRef<THREE.Mesh>(null)
   const materialRef = useRef<any>(null)
-  const morphGeometryRef = useRef<THREE.BufferGeometry>(null)
+  const morphGeometryRef = useRef<THREE.BufferGeometry | null>(null)
 
   // Create base geometries for morphing
   const baseGeometries = useMemo(() => {
