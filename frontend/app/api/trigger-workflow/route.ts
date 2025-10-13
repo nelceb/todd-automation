@@ -27,9 +27,9 @@ function extractInputsFromYaml(yamlContent: string): Record<string, any> {
           const trimmedLine = line.trim()
           
           if (trimmedLine && !trimmedLine.startsWith('#') && !trimmedLine.startsWith('inputs:')) {
-            // Si la línea no tiene indentación, es un nuevo input
-            if (!line.startsWith('  ') && !line.startsWith('\t')) {
-              // Es un nuevo input
+            // Si la línea tiene indentación de 2 espacios, es un nuevo input
+            if (line.startsWith('  ') && !line.startsWith('    ')) {
+              // Es un nuevo input (indentado con 2 espacios)
               const inputName = trimmedLine.replace(':', '')
               if (inputName && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(inputName)) {
                 inputs[inputName] = ''

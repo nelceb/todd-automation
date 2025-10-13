@@ -45,7 +45,38 @@ export default function Home() {
 
   const clearMessages = () => {
     setMessages([])
+    // Also clear from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('todd-messages')
+    }
   }
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && messages.length > 0) {
+      localStorage.setItem('todd-messages', JSON.stringify(messages))
+    }
+  }, [messages])
+
+  // Restore messages from localStorage on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedMessages = localStorage.getItem('todd-messages')
+        if (savedMessages) {
+          const parsedMessages = JSON.parse(savedMessages)
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+          setMessages(messagesWithDates)
+        }
+      } catch (error) {
+        console.error('Error restoring messages from localStorage:', error)
+      }
+    }
+  }, [])
 
 
   return (
@@ -104,7 +135,12 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="absolute inset-0 flex items-center justify-center"
             >
-                      <ChatInterface githubToken={githubToken} />
+                      <ChatInterface 
+                        githubToken={githubToken} 
+                        messages={messages}
+                        setMessages={setMessages}
+                        clearMessages={clearMessages}
+                      />
             </motion.div>
           ) : (
             <motion.div

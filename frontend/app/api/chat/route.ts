@@ -86,12 +86,15 @@ KEYWORDS FOR DETECTION:
 
 MAESTRO (iOS Mobile):
 - iOS, mobile, maestro, app → Maestro tests
-- Login, signup, authentication → Maestro login/signup
-- Smoke, regression, testing → Maestro smoke/regression
-- Cart, shopping, checkout → Maestro cart tests
-- Menu, navigation, browsing → Maestro menu tests
-- Search, finding, discovery → Maestro search tests
-- Home, dashboard, main → Maestro home tests
+- Login, signup, authentication → Maestro login/signup tests (test_suite: "login" or "signup")
+- Cart, shopping, checkout → Maestro cart tests (test_suite: "cart")
+- Menu, navigation, browsing → Maestro menu tests (test_suite: "menu")
+- Search, finding, discovery → Maestro search tests (test_suite: "search")
+- Home, dashboard, main → Maestro home tests (test_suite: "home")
+- Complete order, checkout, finalizar pedido → Maestro complete order tests (test_suite: "completeOrder")
+- Smoke, basic tests → Maestro smoke tests (test_suite: "smoke")
+- Regression, full tests, all tests → Maestro regression tests (test_suite: "regression")
+- All, everything → Maestro all tests (test_suite: "all")
 
 PLAYWRIGHT (Web E2E):
 - web, e2e, playwright, browser → Playwright tests
@@ -149,6 +152,19 @@ IMPORTANT:
 - If environment not specified, default to "prod"
 - For Playwright: use appropriate groups (@e2e, @landings, @signup, @growth, @visual, @lighthouse)
 - For Selenium: use appropriate groups (e2e, api, mobile, regression, logistics, menu, kitchen)
+
+PRIORITY RULES FOR MAESTRO TEST SUITE SELECTION:
+- If user mentions "login" specifically → use test_suite: "login" (NOT regression)
+- If user mentions "signup" specifically → use test_suite: "signup" (NOT regression)
+- If user mentions "cart" specifically → use test_suite: "cart" (NOT regression)
+- If user mentions "menu" specifically → use test_suite: "menu" (NOT regression)
+- If user mentions "search" specifically → use test_suite: "search" (NOT regression)
+- If user mentions "home" specifically → use test_suite: "home" (NOT regression)
+- If user mentions "complete order" or "checkout" → use test_suite: "completeOrder" (NOT regression)
+- If user mentions "smoke" specifically → use test_suite: "smoke" (NOT regression)
+- If user mentions "regression" or "full tests" or "all tests" → use test_suite: "regression"
+- If user mentions "all" or "everything" → use test_suite: "all"
+- DEFAULT: If no specific test type mentioned, use test_suite: "regression"
 
 RESPONSE FORMAT:
 If preview=true, return:

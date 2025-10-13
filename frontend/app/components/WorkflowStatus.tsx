@@ -68,9 +68,27 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
-  // Smart expansion logic when workflows are running from TODD or scheduled workflows are running
+  // Smart expansion logic based on device type and running workflows
   useEffect(() => {
     if (repositories.length > 0) {
+      // Check if we're on mobile (screen width < 1024px)
+      const isMobile = window.innerWidth < 1024
+      
+      if (isMobile) {
+        // Mobile: Always keep repositories collapsed by default
+        // Only expand if user manually clicks
+        setExpandedRepositories(new Set())
+      } else {
+        // Web: Always keep all repositories expanded
+        const allRepositories = new Set(repositories.map(r => r.name))
+        setExpandedRepositories(allRepositories)
+      }
+    }
+  }, [repositories, setExpandedRepositories])
+
+  // Additional effect to handle running workflows from TODD
+  useEffect(() => {
+    if (repositories.length > 0 && runningWorkflowsFromTodd.length > 0) {
       const repositoriesWithRunningWorkflows = new Set(
         runningWorkflowsFromTodd.map(w => w.repository)
       )
@@ -85,21 +103,16 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         }
       })
       
-      // Check if we're on mobile (screen width < 1024px)
+      // Check if we're on mobile
       const isMobile = window.innerWidth < 1024
       
-      if (repositoriesWithRunningWorkflows.size > 0) {
-        if (isMobile) {
-          // Mobile: Only expand repositories with running workflows
-          setExpandedRepositories(repositoriesWithRunningWorkflows)
-        } else {
-          // Desktop: Expand all repositories
-          const allRepositories = new Set(repositories.map(r => r.name))
-          setExpandedRepositories(allRepositories)
-        }
+      if (isMobile) {
+        // Mobile: Only expand repositories with running workflows
+        setExpandedRepositories(repositoriesWithRunningWorkflows)
       } else {
-        // If no workflows are running, collapse all repositories
-        setExpandedRepositories(new Set())
+        // Web: Ensure all repositories are expanded (they should already be)
+        const allRepositories = new Set(repositories.map(r => r.name))
+        setExpandedRepositories(allRepositories)
       }
     }
   }, [runningWorkflowsFromTodd, repositories, setExpandedRepositories, workflowStates])
