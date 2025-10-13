@@ -438,7 +438,6 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       icon: GlobeAltIcon,
       color: 'asparagus',
       workflows: [
-        'QA US - CoreUx E2E',
         'QA US - CORE UX REGRESSION',
         'QA CA - SIGNUP',
         'QA US - SIGNUP',
@@ -465,7 +464,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         'PROD US - E2E Tests Chrome Specific',
         'PROD CA - SANITY',
         'PROD CA - LANDINGS',
-        'PROD CA - E2E'
+        'PROD CA - E2E',
+        'Automated E2E'
       ]
     },
     {
