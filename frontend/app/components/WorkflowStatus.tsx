@@ -562,7 +562,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   : extractEnvironmentFromName(workflowName) === 'qa'
                                   ? 'bg-blue-200 text-blue-800'
                                   : extractEnvironmentFromName(workflowName) === 'mobile'
-                                  ? 'bg-purple-200 text-purple-800'
+                                  ? 'bg-purple-300 text-purple-900'
                                   : extractEnvironmentFromName(workflowName) === 'test'
                                   ? 'bg-green-200 text-green-800'
                                   : 'bg-gray-200 text-gray-800'

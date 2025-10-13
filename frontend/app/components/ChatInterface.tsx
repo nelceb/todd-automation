@@ -529,14 +529,23 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     try {
       const result = await cancelWorkflow(runId, repository)
       if (result.success) {
-        toast.success('Workflow cancelado exitosamente')
+        toast.success('Workflow cancelled successfully')
         // Refresh logs to show updated status
         setTimeout(() => {
-          window.location.reload()
+          // Refresh the current logs to show updated status
+          if (currentLogs) {
+            fetchWorkflowLogs(currentLogs.run.id.toString(), githubToken)
+          }
+          if (multipleLogs.length > 0) {
+            // Refresh all multiple logs
+            multipleLogs.forEach(log => {
+              fetchWorkflowLogs(log.run.id.toString(), githubToken)
+            })
+          }
         }, 1000)
       }
     } catch (error) {
-      toast.error('Error al cancelar workflow')
+      toast.error('Error cancelling workflow')
       console.error('Error canceling workflow:', error)
     }
   }
