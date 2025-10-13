@@ -591,18 +591,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                           return (
                             <div
                               key={workflowName}
-                              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/15 ${getWorkflowStateColor(workflowId)}`}
+                              className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 bg-white/20 hover:bg-white/30 hover:shadow-lg ${getWorkflowStateColor(workflowId)}`}
                               onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
                             >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <p className="text-sm font-medium font-mono truncate" style={{ color: '#344055' }}>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <p className="text-sm font-semibold font-mono truncate" style={{ color: '#1F2937' }}>
                                 {workflowName}
                               </p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            <div className="flex items-center flex-wrap gap-1.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                                 extractEnvironmentFromName(workflowName) === 'prod' 
                                   ? 'bg-red-200 text-red-800' 
                                   : extractEnvironmentFromName(workflowName) === 'qa'
@@ -616,12 +616,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 {extractEnvironmentFromName(workflowName).toUpperCase()}
                               </span>
                               {isScheduledWorkflow(workflowName) && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 whitespace-nowrap">
                                   SCHEDULED
                                 </span>
                               )}
                               {isWorkflowRunningFromTodd(workflowName, repo.name) && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800 whitespace-nowrap">
                                   MANUALLY TRIGGERED
                                 </span>
                               )}
