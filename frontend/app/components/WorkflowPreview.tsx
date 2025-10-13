@@ -29,7 +29,7 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
       case 'maestro':
         return <DevicePhoneMobileIcon className="w-5 h-5 text-airforce-400" />
       case 'playwright':
-        return <GlobeAltIcon className="w-5 h-5 text-asparagus-400" />
+        return <GlobeAltIcon className="w-5 h-5 text-green-600" />
       case 'selenium':
         return <CodeBracketIcon className="w-5 h-5 text-earth-400" />
       default:
@@ -42,7 +42,7 @@ export default function WorkflowPreviewComponent({ onExecute, onCancel }: Workfl
       case 'maestro':
         return 'bg-airforce-500/20 text-airforce-300 border border-airforce-500/30'
       case 'playwright':
-        return 'bg-asparagus-500/20 text-asparagus-300 border border-asparagus-500/30'
+        return 'bg-green-500/20 text-green-800 border border-green-500/30'
       case 'selenium':
         return 'bg-earth-500/20 text-earth-300 border border-earth-500/30'
       default:

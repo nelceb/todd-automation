@@ -751,7 +751,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 workflow.technology === 'maestro' 
                                   ? 'bg-airforce-500/20 text-airforce-300' 
                                   : workflow.technology === 'playwright'
-                                  ? 'bg-asparagus-500/20 text-asparagus-300'
+                                  ? 'bg-green-500/20 text-green-800'
                                   : 'bg-earth-500/20 text-earth-300'
                               }`}>
                                 {workflow.technology.toUpperCase()}
@@ -841,30 +841,28 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       {/* Individual workflow logs */}
                       {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
                         <div key={index} className="space-y-3">
-                          {/* Status log entry */}
-                          <div className="flex items-start space-x-4 py-2">
-                            <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
-                              {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-1">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  logs.run.status === 'completed' 
-                                    ? 'bg-green-400' 
-                                    : logs.run.status === 'in_progress'
-                                    ? 'bg-blue-400 animate-pulse'
-                                    : 'bg-red-400'
-                                }`}></div>
-                                <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
-                                  STATUS
-                                </span>
-                                {getStatusTag(logs.run.status)}
+                          {/* Simplified status log entry - only show job status */}
+                          {logs.run.status === 'in_progress' && (
+                            <div className="flex items-start space-x-4 py-2">
+                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
+                                {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
                               </div>
-                              <p className="text-gray-900 text-sm leading-relaxed font-mono ml-5">
-                                Workflow execution {getStatusTag(logs.run.status)}
-                              </p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-3 mb-1">
+                                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                                  <span className="text-xs font-medium text-gray-800 uppercase tracking-wide">
+                                    JOB
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    IN PROGRESS
+                                  </span>
+                                </div>
+                                <p className="text-gray-900 text-sm leading-relaxed font-mono ml-5">
+                                  Job is in progress. Waiting for execution to begin...
+                                </p>
+                              </div>
                             </div>
-                          </div>
+                          )}
 
                           {/* Test Results Summary - Estilo log */}
                           {logs.logs.length > 0 && (() => {
