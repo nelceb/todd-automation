@@ -149,7 +149,7 @@ USER CREDENTIALS DETECTION (Maestro only):
 EXAMPLES:
 
 MAESTRO:
-- "Run iOS login tests in prod" → maestro-test, iOS Maestro Tests, test_suite: "login"
+- "Run iOS login tests in QA" → maestro-test, iOS Maestro Tests, test_suite: "login"
 - "Execute mobile smoke tests" → maestro-test, iOS Maestro Tests, test_suite: "smoke"
 - "Run cart tests with user@example.com" → maestro-test, iOS Maestro Tests, test_suite: "cart", user_email: "user@example.com"
 
@@ -166,7 +166,9 @@ PLAYWRIGHT:
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
 - "Run ios e2e tests in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
+- "Run ios tests in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
 - "Execute android e2e tests in QA" → automation-framework, QA Android Regression, environment: "qa", groups: "mobile"
+- "Run android tests in prod" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile"
 - "Run API tests in QA" → automation-framework, QA API Kitchen Regression, environment: "qa", groups: "api"
 - "Execute logistics tests" → automation-framework, QA Logistics Regression, environment: "qa", groups: "logistics"
 
@@ -186,8 +188,12 @@ FRAMEWORK DETECTION PRIORITY RULES:
 - If user mentions "maestro" specifically → use Maestro (maestro-test)
 - If user mentions "ios" + "e2e" → use Selenium Prod iOS Regression (automation-framework)
 - If user mentions "android" + "e2e" → use Selenium Prod Android Regression (automation-framework)
-- If user mentions "ios" without "e2e" → use Maestro (maestro-test)
-- If user mentions "android" without "e2e" → use Maestro (maestro-test)
+- If user mentions "ios" + "prod" → use Selenium Prod iOS Regression (automation-framework) - PRODUCTION TESTS
+- If user mentions "android" + "prod" → use Selenium Prod Android Regression (automation-framework) - PRODUCTION TESTS
+- If user mentions "ios" + "qa" → use Maestro (maestro-test) - QA TESTS
+- If user mentions "android" + "qa" → use Maestro (maestro-test) - QA TESTS
+- If user mentions "ios" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
+- If user mentions "android" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
 - If user mentions "web" + "e2e" → use Selenium QA E2E Web Regression (automation-framework)
 - If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
 - If user mentions "api" + "kitchen" → use Selenium QA API Kitchen Regression (automation-framework)
