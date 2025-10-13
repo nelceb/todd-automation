@@ -167,10 +167,21 @@ SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
 - "Run ios e2e tests in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
 - "Run ios tests in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
+- "Run ios regression in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
+- "Execute ios tests in production" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
 - "Execute android e2e tests in QA" → automation-framework, QA Android Regression, environment: "qa", groups: "mobile"
 - "Run android tests in prod" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile"
+- "Run android regression in prod" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile"
 - "Run API tests in QA" → automation-framework, QA API Kitchen Regression, environment: "qa", groups: "api"
 - "Execute logistics tests" → automation-framework, QA Logistics Regression, environment: "qa", groups: "logistics"
+
+CRITICAL PRODUCTION RULES:
+- "ios" + "prod" = Selenium Prod iOS Regression (automation-framework) - NEVER Maestro
+- "android" + "prod" = Selenium Prod Android Regression (automation-framework) - NEVER Maestro
+- "ios" + "production" = Selenium Prod iOS Regression (automation-framework) - NEVER Maestro
+- "android" + "production" = Selenium Prod Android Regression (automation-framework) - NEVER Maestro
+- "ios regression" + "prod" = Selenium Prod iOS Regression (automation-framework) - NEVER Maestro
+- "android regression" + "prod" = Selenium Prod Android Regression (automation-framework) - NEVER Maestro
 
 IMPORTANT:
 - Always respond with valid JSON
@@ -181,19 +192,19 @@ IMPORTANT:
 - For Playwright: use appropriate groups (@e2e, @landings, @signup, @growth, @visual, @lighthouse)
 - For Selenium: use appropriate groups (e2e, api, mobile, regression, logistics, menu, kitchen)
 
-FRAMEWORK DETECTION PRIORITY RULES:
-- If user mentions "e2e" or "end-to-end" → ALWAYS use Selenium (automation-framework), NOT Maestro
-- If user mentions "selenium" or "java" or "testng" → use Selenium (automation-framework)
-- If user mentions "playwright" specifically → use Playwright (pw-cookunity-automation)
-- If user mentions "maestro" specifically → use Maestro (maestro-test)
-- If user mentions "ios" + "e2e" → use Selenium Prod iOS Regression (automation-framework)
-- If user mentions "android" + "e2e" → use Selenium Prod Android Regression (automation-framework)
-- If user mentions "ios" + "prod" → use Selenium Prod iOS Regression (automation-framework) - PRODUCTION TESTS
-- If user mentions "android" + "prod" → use Selenium Prod Android Regression (automation-framework) - PRODUCTION TESTS
-- If user mentions "ios" + "qa" → use Maestro (maestro-test) - QA TESTS
-- If user mentions "android" + "qa" → use Maestro (maestro-test) - QA TESTS
-- If user mentions "ios" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
-- If user mentions "android" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
+FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
+1. If user mentions "e2e" or "end-to-end" → ALWAYS use Selenium (automation-framework), NOT Maestro
+2. If user mentions "selenium" or "java" or "testng" → use Selenium (automation-framework)
+3. If user mentions "playwright" specifically → use Playwright (pw-cookunity-automation)
+4. If user mentions "maestro" specifically → use Maestro (maestro-test)
+5. If user mentions "ios" + "prod" OR "ios" + "production" → use Selenium Prod iOS Regression (automation-framework) - PRODUCTION TESTS
+6. If user mentions "android" + "prod" OR "android" + "production" → use Selenium Prod Android Regression (automation-framework) - PRODUCTION TESTS
+7. If user mentions "ios" + "e2e" → use Selenium Prod iOS Regression (automation-framework)
+8. If user mentions "android" + "e2e" → use Selenium Prod Android Regression (automation-framework)
+9. If user mentions "ios" + "qa" → use Maestro (maestro-test) - QA TESTS
+10. If user mentions "android" + "qa" → use Maestro (maestro-test) - QA TESTS
+11. If user mentions "ios" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
+12. If user mentions "android" without environment → use Maestro (maestro-test) - DEFAULT TO MAESTRO
 - If user mentions "web" + "e2e" → use Selenium QA E2E Web Regression (automation-framework)
 - If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
 - If user mentions "api" + "kitchen" → use Selenium QA API Kitchen Regression (automation-framework)
