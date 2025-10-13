@@ -77,7 +77,12 @@ const extractTestSummary = (logs: string) => {
     
     // For multi-worker setups, look for the most recent/final summary
     // rather than summing all individual worker results
-    const mavenMatches = [...logs.matchAll(mavenTestsRunPattern)]
+    const mavenMatches: RegExpExecArray[] = []
+    let match
+    while ((match = mavenTestsRunPattern.exec(logs)) !== null) {
+      mavenMatches.push(match)
+    }
+    
     if (mavenMatches.length > 0) {
       // Take the last match as it's likely the final summary
       const lastMatch = mavenMatches[mavenMatches.length - 1]
