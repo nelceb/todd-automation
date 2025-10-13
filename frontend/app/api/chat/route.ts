@@ -107,8 +107,10 @@ PLAYWRIGHT (Web E2E):
 
 SELENIUM (Web + Mobile + API):
 - selenium, java, testng → Selenium tests
+- e2e, end-to-end, end to end → Selenium tests (PRIORITY over Maestro)
 - desktop, web application → Selenium web tests
 - android, mobile app → Selenium mobile tests
+- ios, mobile app → Selenium mobile tests (when combined with e2e)
 - api, rest, endpoints → Selenium API tests
 - logistics, shipping, delivery → Selenium logistics
 - menu, kitchen, food → Selenium menu/kitchen
@@ -140,7 +142,8 @@ PLAYWRIGHT:
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
-- "Execute mobile tests in prod" → automation-framework, PROD Android Mobile Regression, environment: "prod", groups: "mobile"
+- "Run ios e2e tests in prod" → automation-framework, PROD IOS Mobile Regression, environment: "prod", groups: "mobile"
+- "Execute android e2e tests in QA" → automation-framework, QA ANDROID Mobile Regression, environment: "qa", groups: "mobile"
 - "Run API tests in QA" → automation-framework, QA KITCHEN API Regression, environment: "qa", groups: "api"
 - "Execute logistics tests" → automation-framework, QA LOGISTICS Regression, environment: "qa", groups: "logistics"
 
@@ -152,6 +155,16 @@ IMPORTANT:
 - If environment not specified, default to "prod"
 - For Playwright: use appropriate groups (@e2e, @landings, @signup, @growth, @visual, @lighthouse)
 - For Selenium: use appropriate groups (e2e, api, mobile, regression, logistics, menu, kitchen)
+
+FRAMEWORK DETECTION PRIORITY RULES:
+- If user mentions "e2e" or "end-to-end" → ALWAYS use Selenium (automation-framework), NOT Maestro
+- If user mentions "selenium" or "java" or "testng" → use Selenium (automation-framework)
+- If user mentions "playwright" or "web" → use Playwright (pw-cookunity-automation)
+- If user mentions "maestro" specifically → use Maestro (maestro-test)
+- If user mentions "ios" + "e2e" → use Selenium iOS Mobile Regression (automation-framework)
+- If user mentions "android" + "e2e" → use Selenium Android Mobile Regression (automation-framework)
+- If user mentions "ios" without "e2e" → use Maestro (maestro-test)
+- If user mentions "android" without "e2e" → use Maestro (maestro-test)
 
 PRIORITY RULES FOR MAESTRO TEST SUITE SELECTION:
 - If user mentions "login" specifically → use test_suite: "login" (NOT regression)
