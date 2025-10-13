@@ -327,9 +327,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
       const { currentLogs: updatedLogs } = get()
       console.log('🔍 Polling logs - Current status:', updatedLogs?.run.status, 'Conclusion:', updatedLogs?.run.conclusion)
       
+      // Check if workflow is finished
       if (updatedLogs?.run.status === 'completed' || updatedLogs?.run.status === 'failed' || updatedLogs?.run.status === 'cancelled') {
         console.log('🛑 Stopping polling - workflow finished with status:', updatedLogs?.run.status)
         get().stopPollingLogs()
+        return
+      }
+      
+      // Check if any job has failed (even if workflow is still in_progress)
+      if (updatedLogs?.logs) {
+        const failedJobs = updatedLogs.logs.filter((log: any) => 
+          log.conclusion === 'failure' || log.conclusion === 'cancelled'
+        )
+        if (failedJobs.length > 0) {
+          console.log('🛑 Stopping polling - failed jobs detected:', failedJobs.map((job: any) => job.jobName))
+          get().stopPollingLogs()
+          return
+        }
       }
     }, 5000) // Poll every 5 seconds
 
@@ -394,15 +408,33 @@ export const useWorkflowStore = create<WorkflowStore>()(
         if (log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled') {
           get().removeRunningWorkflowFromTodd(log.run.id.toString())
         }
+        
+        // Also check for failed jobs within workflows
+        if (log.logs) {
+          const failedJobs = log.logs.filter((jobLog: any) => 
+            jobLog.conclusion === 'failure' || jobLog.conclusion === 'cancelled'
+          )
+          if (failedJobs.length > 0) {
+            console.log('🛑 Multiple logs - failed jobs detected in workflow:', log.run.id, failedJobs.map((job: any) => job.jobName))
+            get().removeRunningWorkflowFromTodd(log.run.id.toString())
+          }
+        }
       })
       
-      // Stop polling if all workflows are completed or cancelled
-      const allFinished = validLogs.every(log => 
-        log.run.status === 'completed' || 
-        log.run.status === 'failed' || 
-        log.run.status === 'cancelled'
-      )
+      // Stop polling if all workflows are completed, cancelled, or have failed jobs
+      const allFinished = validLogs.every(log => {
+        const workflowFinished = log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled'
+        
+        // Also check if any job in the workflow has failed
+        const hasFailedJobs = log.logs ? log.logs.some((jobLog: any) => 
+          jobLog.conclusion === 'failure' || jobLog.conclusion === 'cancelled'
+        ) : false
+        
+        return workflowFinished || hasFailedJobs
+      })
+      
       if (allFinished) {
+        console.log('🛑 Stopping multiple logs polling - all workflows finished or have failed jobs')
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds

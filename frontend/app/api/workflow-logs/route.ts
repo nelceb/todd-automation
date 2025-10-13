@@ -128,6 +128,12 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Workflow logs API - Run status:', runData.status, 'Conclusion:', runData.conclusion)
     console.log('🔍 Jobs statuses:', jobsData.jobs.map((job: any) => ({ name: job.name, status: job.status, conclusion: job.conclusion })))
+    
+    // Check if any job has failed
+    const failedJobs = jobsData.jobs.filter((job: any) => job.conclusion === 'failure' || job.conclusion === 'cancelled')
+    if (failedJobs.length > 0) {
+      console.log('🚨 FAILED JOBS DETECTED:', failedJobs.map((job: any) => ({ name: job.name, status: job.status, conclusion: job.conclusion })))
+    }
 
     return NextResponse.json({
       run: {
