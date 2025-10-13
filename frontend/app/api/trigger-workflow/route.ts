@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
         'Run Maestro Test on BrowserStack (iOS)': 'Run Maestro Test on BrowserStack (iOS)',
         'Run Maestro Test on BrowserStack': 'Run Maestro Test on BrowserStack',
         'Maestro iOS Tests': 'Maestro iOS Tests',
+        'QA US - CORE UX REGRESSION': 'qa_us_coreux_regression.yml',
         'QA US - E2E': 'qa-e2e-web.yml',
         'QA CA - E2E': 'qa-ca-e2e-web.yml',
         'QA E2E Web Regression': 'qa_e2e_web_regression.yml',
