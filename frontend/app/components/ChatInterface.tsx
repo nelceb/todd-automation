@@ -381,6 +381,18 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     setMessages(prev => [...prev, newMessage])
 
     try {
+      // Check if GitHub token is available before attempting to execute workflows
+      if (!githubToken) {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: 'GitHub authentication is required to execute workflows. Please connect to GitHub first using the "Connect to GitHub" button in the header.',
+          timestamp: new Date()
+        }])
+        setIsLoading(false)
+        return
+      }
+
       // First, get preview of workflows
       const preview = await previewWorkflows(userMessage)
       
