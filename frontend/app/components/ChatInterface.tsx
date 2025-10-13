@@ -239,6 +239,32 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }, [])
 
+  // Restore logs from localStorage when component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedLogs = localStorage.getItem('workflow-store')
+        if (savedLogs) {
+          const parsed = JSON.parse(savedLogs)
+          if (parsed.state) {
+            const { currentLogs, multipleLogs, runningWorkflowsFromTodd } = parsed.state
+            if (currentLogs || multipleLogs?.length > 0) {
+              // Restore logs if they exist
+              if (currentLogs) {
+                // currentLogs will be restored by the store automatically
+              }
+              if (multipleLogs?.length > 0) {
+                // multipleLogs will be restored by the store automatically
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error restoring logs from localStorage:', error)
+      }
+    }
+  }, [])
+
   // Configure voice recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {

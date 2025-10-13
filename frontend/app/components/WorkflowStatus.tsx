@@ -113,7 +113,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       )
     }
     if (status === 'in_progress') {
-      return <ArrowPathIcon className="w-5 h-5 text-blue-500 animate-spin" />
+      return <div className="w-5 h-5 bg-blue-500 rounded-full animate-pulse"></div>
     }
     if (status === 'queued') {
       return <ClockIcon className="w-5 h-5 text-yellow-500" />
@@ -323,7 +323,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     
     switch (state) {
       case 'in_progress':
-        return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />
+        return <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse"></div>
       case 'success':
         return <CheckCircleIcon className="w-4 h-4 text-green-500" />
       case 'error':
@@ -579,7 +579,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                             <div className="text-xs">
                               {state === 'in_progress' && (
                                 <span className="text-blue-400 flex items-center">
-                                  <ArrowPathIcon className="w-3 h-3 mr-1 animate-spin" />
+                                  <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse mr-1"></div>
                                   Executing...
                                 </span>
                               )}
