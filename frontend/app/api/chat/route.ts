@@ -49,35 +49,27 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
 2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
    - Workflows: 
-     * QA US - E2E (qa_e2e_regression.yml)
-     * PROD US - E2E (prod_e2e_regression.yml)
-     * QA CA - E2E (qa_ca_e2e_regression.yml)
-     * PROD CA - E2E (prod_ca_e2e_regression.yml)
-     * QA US - LANDINGS (qa_landings_regression.yml)
-     * PROD US - LANDINGS (prod_landings_regression.yml)
-     * QA US - SIGNUP (qa_signup_regression.yml)
-     * PROD US - SIGNUP (prod_signup_regression.yml)
-     * QA US - GROWTH (qa_growth_regression.yml)
-     * PROD US - GROWTH (prod_growth_regression.yml)
-     * PROD VISUAL REGRESSION (prod_landings_visual_regression.yml)
-     * PROD US - LCP Lighthouse (prod_scripting_lcp_chrome.yml)
+     * QA US - E2E
+     * QA CA - E2E
+     * QA E2E Web Regression
+     * QA Android Regression
+     * QA iOS Regression
+     * QA API Kitchen Regression
+     * QA Logistics Regression
    - Inputs: environment, groups
-   - Environments: qa, prod, qa-ca, prod-ca
+   - Environments: qa, qa-ca
    - Groups: @e2e, @landings, @signup, @growth, @visual, @lighthouse
 
 3. SELENIUM TESTS (Cook-Unity/automation-framework)
    - Technology: Java + TestNG + Selenium
    - Workflows:
-     * QA E2E Web Regression (qa_e2e_web_regression.yml)
-     * PROD E2E Web Regression (prod_e2e_web_regression.yml)
-     * QA ANDROID Mobile Regression (qa_android_regression.yml)
-     * PROD Android Mobile Regression (prod_android_regression.yml)
-     * QA IOS Mobile Regression (qa_ios_regression.yml)
-     * PROD IOS Mobile Regression (prod_ios_regression.yml)
-     * QA KITCHEN API Regression (qa_api_kitchen_regression.yml)
-     * QA LOGISTICS Regression (qa_logistics_regression.yml)
-     * QA MENU Web Regression (qa_menu_web_regression.yml)
-     * PROD LOGISTICS Public Endpoints Regression (prod_publicEndpoints_regression.yml)
+     * Prod Android Regression
+     * Prod iOS Regression
+     * QA E2E Web Regression
+     * QA Android Regression
+     * QA iOS Regression
+     * QA API Kitchen Regression
+     * QA Logistics Regression
    - Inputs: environment, groups, excludedGroups
    - Environments: qa, prod
    - Groups: e2e, api, mobile, regression, logistics, menu, kitchen
@@ -135,17 +127,16 @@ MAESTRO:
 
 PLAYWRIGHT:
 - "Run e2e web tests in QA" → pw-cookunity-automation, QA US - E2E, environment: "qa", groups: "@e2e"
-- "Execute landing page tests in prod" → pw-cookunity-automation, PROD US - LANDINGS, environment: "prod", groups: "@landings"
-- "Run signup tests in Canada QA" → pw-cookunity-automation, QA CA - SIGNUP, environment: "qa-ca", groups: "@signup"
-- "Execute visual regression tests" → pw-cookunity-automation, PROD VISUAL REGRESSION, environment: "prod", groups: "@visual"
-- "Run lighthouse performance tests" → pw-cookunity-automation, PROD US - LCP Lighthouse, environment: "prod", groups: "@lighthouse"
+- "Execute web tests in Canada QA" → pw-cookunity-automation, QA CA - E2E, environment: "qa-ca", groups: "@e2e"
+- "Run playwright regression tests" → pw-cookunity-automation, QA E2E Web Regression, environment: "qa", groups: "@e2e"
+- "Execute playwright mobile tests" → pw-cookunity-automation, QA Android Regression, environment: "qa", groups: "@e2e"
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
-- "Run ios e2e tests in prod" → automation-framework, PROD IOS Mobile Regression, environment: "prod", groups: "mobile"
-- "Execute android e2e tests in QA" → automation-framework, QA ANDROID Mobile Regression, environment: "qa", groups: "mobile"
-- "Run API tests in QA" → automation-framework, QA KITCHEN API Regression, environment: "qa", groups: "api"
-- "Execute logistics tests" → automation-framework, QA LOGISTICS Regression, environment: "qa", groups: "logistics"
+- "Run ios e2e tests in prod" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile"
+- "Execute android e2e tests in QA" → automation-framework, QA Android Regression, environment: "qa", groups: "mobile"
+- "Run API tests in QA" → automation-framework, QA API Kitchen Regression, environment: "qa", groups: "api"
+- "Execute logistics tests" → automation-framework, QA Logistics Regression, environment: "qa", groups: "logistics"
 
 IMPORTANT:
 - Always respond with valid JSON
@@ -159,12 +150,16 @@ IMPORTANT:
 FRAMEWORK DETECTION PRIORITY RULES:
 - If user mentions "e2e" or "end-to-end" → ALWAYS use Selenium (automation-framework), NOT Maestro
 - If user mentions "selenium" or "java" or "testng" → use Selenium (automation-framework)
-- If user mentions "playwright" or "web" → use Playwright (pw-cookunity-automation)
+- If user mentions "playwright" specifically → use Playwright (pw-cookunity-automation)
 - If user mentions "maestro" specifically → use Maestro (maestro-test)
-- If user mentions "ios" + "e2e" → use Selenium iOS Mobile Regression (automation-framework)
-- If user mentions "android" + "e2e" → use Selenium Android Mobile Regression (automation-framework)
+- If user mentions "ios" + "e2e" → use Selenium Prod iOS Regression (automation-framework)
+- If user mentions "android" + "e2e" → use Selenium Prod Android Regression (automation-framework)
 - If user mentions "ios" without "e2e" → use Maestro (maestro-test)
 - If user mentions "android" without "e2e" → use Maestro (maestro-test)
+- If user mentions "web" + "e2e" → use Selenium QA E2E Web Regression (automation-framework)
+- If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
+- If user mentions "api" + "kitchen" → use Selenium QA API Kitchen Regression (automation-framework)
+- If user mentions "logistics" → use Selenium QA Logistics Regression (automation-framework)
 
 PRIORITY RULES FOR MAESTRO TEST SUITE SELECTION:
 - If user mentions "login" specifically → use test_suite: "login" (NOT regression)
