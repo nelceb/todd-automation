@@ -49,7 +49,7 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
 2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
    - Workflows: 
-     * QA US - CoreUx E2E (qa_us_coreux_regression.yml)
+     * QA US - CORE UX REGRESSION (qa_us_coreux_regression.yml)
      * QA US - CORE UX REGRESSION (qa_us_e2e_coreux_regression.yml)
      * QA CA - SIGNUP (qa_signup_regression_ca.yml)
      * QA US - SIGNUP (qa_signup_regression.yml)
@@ -161,7 +161,7 @@ PLAYWRIGHT:
 - "Run visual regression tests" → pw-cookunity-automation, PROD VISUAL REGRESSION, environment: "prod", groups: "@visual"
 - "Execute lighthouse performance tests" → pw-cookunity-automation, PROD US - LCP Lighthouse, environment: "prod", groups: "@lcpLighthouse"
 - "Run growth tests in QA" → pw-cookunity-automation, QA US - GROWTH, environment: "qa", groups: "@growth"
-- "Execute core ux tests" → pw-cookunity-automation, QA US - CoreUx E2E, environment: "qa", groups: "@coreUx"
+- "Execute core ux tests" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@coreUx"
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
@@ -197,7 +197,7 @@ FRAMEWORK DETECTION PRIORITY RULES:
 - If user mentions "growth" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
 - If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
-- If user mentions "coreux" or "core ux" → use Playwright QA US - CoreUx E2E (pw-cookunity-automation)
+- If user mentions "coreux" or "core ux" → use Playwright QA US - CORE UX REGRESSION (pw-cookunity-automation)
 - If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)
 - If user mentions "segment" → use Playwright (pw-cookunity-automation)
 - If user mentions "sanity" → use Playwright (pw-cookunity-automation)
