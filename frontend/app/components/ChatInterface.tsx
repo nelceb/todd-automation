@@ -551,7 +551,31 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }
 
-  const getStatusTag = (status: string) => {
+  const getStatusTag = (status: string, logs?: string) => {
+    // If we have logs, analyze test results to determine smart status
+    if (logs && status === 'completed') {
+      const testSummary = extractTestSummary(logs)
+      
+      // If there are failed tests, show "COMPLETED WITH ERRORS"
+      if (testSummary.failed > 0) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+            COMPLETED WITH ERRORS
+          </span>
+        )
+      }
+      
+      // If all tests passed, show "COMPLETED" in green
+      if (testSummary.passed > 0 && testSummary.failed === 0) {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+            COMPLETED
+          </span>
+        )
+      }
+    }
+
+    // Default status mapping
     const statusMap: { [key: string]: { text: string; className: string } } = {
       'in_progress': { 
         text: 'IN PROGRESS', 
@@ -904,12 +928,35 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center space-x-3 mb-1">
-                                    <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                                    <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      summary.failed === 0 && summary.passed > 0 
+                                        ? 'bg-green-400' 
+                                        : summary.failed > 0 
+                                        ? 'bg-red-400' 
+                                        : 'bg-blue-400'
+                                    }`}></div>
+                                    <span className={`text-xs font-medium uppercase tracking-wide w-[80px] ${
+                                      summary.failed === 0 && summary.passed > 0 
+                                        ? 'text-green-800 font-bold' 
+                                        : summary.failed > 0 
+                                        ? 'text-red-800 font-bold' 
+                                        : 'text-gray-800'
+                                    }`}>
                                       RESULTS
                                     </span>
+                                    {summary.failed === 0 && summary.passed > 0 && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                        ALL TESTS PASSED
+                                      </span>
+                                    )}
                                   </div>
-                                  <div className="text-gray-800 text-sm leading-relaxed font-mono space-y-1 ml-5">
+                                  <div className={`text-sm leading-relaxed font-mono space-y-1 ml-5 ${
+                                    summary.failed === 0 && summary.passed > 0 
+                                      ? 'text-green-800 font-semibold' 
+                                      : summary.failed > 0 
+                                      ? 'text-red-800' 
+                                      : 'text-gray-800'
+                                  }`}>
                                     <div>→ Tests: {summary.passed} passed, {summary.failed} failed, {summary.skipped} skipped</div>
                                     {summary.failedTests.length > 0 && (
                                       <div className="text-red-400 text-xs">
@@ -960,20 +1007,30 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
                                     JOB
                                   </span>
-                                  {getStatusTag(log.status)}
+                                  {getStatusTag(log.status, log.logs)}
                                 </div>
                                 <div className="text-gray-800 text-sm leading-relaxed font-mono space-y-1 ml-5">
                                   <div>→ {log.jobName}</div>
-                                  {log.logs && (
-                                    <div className="text-gray-700 text-xs">
-                                      <div>  Output:</div>
-                                      <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
-                                        <pre className="whitespace-pre-wrap leading-relaxed">
-                                          {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
-                                        </pre>
-                                      </div>
-                                    </div>
-                                  )}
+                                  {log.logs && (() => {
+                                    const testSummary = extractTestSummary(log.logs)
+                                    const hasTestResults = testSummary.passed > 0 || testSummary.failed > 0 || testSummary.skipped > 0
+                                    
+                                    // Only show output if there are no test results (to avoid showing irrelevant system logs)
+                                    if (!hasTestResults) {
+                                      return (
+                                        <div className="text-gray-700 text-xs">
+                                          <div>  Output:</div>
+                                          <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
+                                            <pre className="whitespace-pre-wrap leading-relaxed">
+                                              {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
+                                            </pre>
+                                          </div>
+                                        </div>
+                                      )
+                                    }
+                                    
+                                    return null
+                                  })()}
                                 </div>
                               </div>
                             </div>
