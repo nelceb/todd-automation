@@ -1166,7 +1166,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       
       {/* Fixed search bar - only visible when there are messages */}
       {messages.length > 0 && (
-        <div className="flex-shrink-0 p-4 border-t border-gray-300/30" style={{ backgroundColor: '#AED4E6' }}>
+        <div className="flex-shrink-0 p-4 pb-8 border-t border-gray-300/30" style={{ backgroundColor: '#AED4E6' }}>
             <form onSubmit={handleSubmit} className="relative w-full max-w-6xl mx-auto px-8">
             <div className="relative">
               <input
@@ -1209,7 +1209,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       
       {/* Search bar fijo para estado inicial */}
       {messages.length === 0 && (
-        <div className="absolute bottom-32 left-0 right-0 px-8">
+        <div className="absolute bottom-32 left-0 right-0 px-8 pb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1258,7 +1258,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       )}
       
       {/* Commit hash at the bottom */}
-      <div className="absolute bottom-2 left-0 right-0 text-center z-10 pt-8">
+      <div className="absolute bottom-2 left-0 right-0 text-center z-10">
         <p className="text-xs font-mono text-gray-500">
           Commit: 773f615
         </p>
