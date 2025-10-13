@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface WorkflowRun {
   id: string
@@ -125,20 +126,22 @@ interface WorkflowStore {
   getRunningWorkflowsForRepository: (repository: string) => Array<{workflowName: string, runId: string, startTime: Date}>
 }
 
-export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
-  workflows: [],
-  workflowRuns: [],
-  repositories: [],
-  workflowPreview: null,
-  isLoading: false,
-  error: null,
-  githubToken: '',
-  currentLogs: null,
-  multipleLogs: [],
-  isPollingLogs: false,
-  expandedRepositories: new Set(),
-  activeRepository: null,
-  runningWorkflowsFromTodd: [],
+export const useWorkflowStore = create<WorkflowStore>()(
+  persist(
+    (set, get) => ({
+      workflows: [],
+      workflowRuns: [],
+      repositories: [],
+      workflowPreview: null,
+      isLoading: false,
+      error: null,
+      githubToken: '',
+      currentLogs: null,
+      multipleLogs: [],
+      isPollingLogs: false,
+      expandedRepositories: new Set(),
+      activeRepository: null,
+      runningWorkflowsFromTodd: [],
 
   fetchWorkflows: async (token?: string) => {
     set({ isLoading: true, error: null })
@@ -481,4 +484,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         startTime: w.startTime
       }))
   }
-}))
+    }),
+    {
+      name: 'workflow-store',
+      // Solo persistir los logs, no el resto del estado
+      partialize: (state) => ({
+        currentLogs: state.currentLogs,
+        multipleLogs: state.multipleLogs,
+        runningWorkflowsFromTodd: state.runningWorkflowsFromTodd
+      }),
+    }
+  )
+)
