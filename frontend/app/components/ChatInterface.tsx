@@ -204,7 +204,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         addMultipleLogs,
         cancelWorkflow,
         addRunningWorkflowFromTodd,
-        removeRunningWorkflowFromTodd
+        removeRunningWorkflowFromTodd,
+        fetchWorkflowLogs
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
