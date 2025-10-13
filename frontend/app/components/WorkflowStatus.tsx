@@ -439,7 +439,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Commit hash at the bottom */}
         <div className="text-center mt-16 pb-8">
           <p className="text-xs font-mono text-gray-500">
-            Commit: 4e39cbf
+            Commit: 773f615
           </p>
         </div>
       </div>
@@ -492,7 +492,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Commit hash at the bottom */}
         <div className="text-center mt-16 pb-8">
           <p className="text-xs font-mono text-gray-500">
-            Commit: 4e39cbf
+            Commit: 773f615
           </p>
         </div>
       </div>

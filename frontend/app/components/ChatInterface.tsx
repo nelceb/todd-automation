@@ -1256,6 +1256,13 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           
         </div>
       )}
+      
+      {/* Commit hash at the bottom */}
+      <div className="absolute bottom-4 left-0 right-0 text-center">
+        <p className="text-xs font-mono text-gray-500">
+          Commit: 773f615
+        </p>
+      </div>
     </div>
   )
 }
