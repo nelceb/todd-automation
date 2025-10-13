@@ -53,10 +53,11 @@ function MorphingShape() {
 
   // Initialize morphing geometry
   useEffect(() => {
-    if (meshRef.current) {
-      morphGeometryRef.current = new THREE.BufferGeometry()
-      morphGeometryRef.current.copy(baseGeometries.cube)
-      meshRef.current.geometry = morphGeometryRef.current
+    if (meshRef.current && !morphGeometryRef.current) {
+      const morphGeometry = new THREE.BufferGeometry()
+      morphGeometry.copy(baseGeometries.cube)
+      morphGeometryRef.current = morphGeometry
+      meshRef.current.geometry = morphGeometry
     }
   }, [baseGeometries])
 
