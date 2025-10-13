@@ -589,10 +589,17 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
             })
           }
         }, 1000)
+      } else {
+        // Handle specific error cases
+        if (result.error && result.error.includes('not found or already completed')) {
+          toast.info('Workflow already completed or not found')
+        } else {
+          toast.error(result.error || 'Error cancelling workflow')
+        }
       }
     } catch (error) {
-      toast.error('Error cancelling workflow')
       console.error('Error canceling workflow:', error)
+      toast.error('Error cancelling workflow')
     }
   }
 

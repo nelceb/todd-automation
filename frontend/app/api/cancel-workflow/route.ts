@@ -7,8 +7,7 @@ export async function POST(request: NextRequest) {
     const { runId, repository } = await request.json()
     
     const token = process.env.GITHUB_TOKEN
-    const owner = process.env.GITHUB_OWNER || 'cook-unity'
-    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
+    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
 
     if (!token) {
       throw new Error('GitHub token no configurado')
@@ -16,6 +15,16 @@ export async function POST(request: NextRequest) {
 
     if (!runId) {
       throw new Error('Run ID es requerido')
+    }
+
+    if (!repository) {
+      throw new Error('Repository es requerido')
+    }
+
+    // Parse repository - handle both full names (Cook-Unity/maestro-test) and short names (maestro-test)
+    let repo = repository
+    if (repository.includes('/')) {
+      repo = repository.split('/').pop() || repository
     }
 
     // Cancel the workflow run
@@ -35,6 +44,18 @@ export async function POST(request: NextRequest) {
 
     if (!cancelResponse.ok) {
       const errorText = await cancelResponse.text()
+      console.error('Cancel workflow error:', errorText)
+      
+      // Handle specific error cases
+      if (cancelResponse.status === 404) {
+        return NextResponse.json({
+          success: false,
+          error: 'Workflow run not found or already completed. It may have finished before cancellation.',
+          runId: runId,
+          repository: `${owner}/${repo}`
+        })
+      }
+      
       throw new Error(`Error al cancelar workflow: ${cancelResponse.status} - ${errorText}`)
     }
 
