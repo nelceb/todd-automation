@@ -504,12 +504,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
   return (
     <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
-      {/* Header - Modern and aligned */}
-      <div className="mb-8 sm:mb-12 lg:mb-16">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 tracking-tight" style={{ color: '#1F2937' }}>
+      {/* Header - Centered and consistent typography */}
+      <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
           Testing Workflows
         </h1>
-        <p className="text-xl font-medium" style={{ color: '#6B7280' }}>
+        <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
           Real-time monitoring of test execution across multiple repositories
         </p>
       </div>
