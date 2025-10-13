@@ -327,9 +327,15 @@ export const useWorkflowStore = create<WorkflowStore>()(
       const { currentLogs: updatedLogs } = get()
       console.log('🔍 Polling logs - Current status:', updatedLogs?.run.status, 'Conclusion:', updatedLogs?.run.conclusion)
       
-      // Check if workflow is finished
+      // Check if workflow is finished (including external cancellations)
       if (updatedLogs?.run.status === 'completed' || updatedLogs?.run.status === 'failed' || updatedLogs?.run.status === 'cancelled') {
-        console.log('🛑 Stopping polling - workflow finished with status:', updatedLogs?.run.status)
+        console.log('🛑 Stopping polling - workflow finished with status:', updatedLogs?.run.status, 'conclusion:', updatedLogs?.run.conclusion)
+        
+        // If workflow was cancelled externally, show a message
+        if (updatedLogs?.run.status === 'cancelled') {
+          console.log('🔄 Workflow was cancelled externally from GitHub')
+        }
+        
         get().stopPollingLogs()
         return
       }
@@ -410,6 +416,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       // Remove completed workflows from TODD tracking
       validLogs.forEach(log => {
         if (log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled') {
+          // Log external cancellations
+          if (log.run.status === 'cancelled') {
+            console.log('🔄 Multiple logs - workflow was cancelled externally:', log.run.id)
+          }
           get().removeRunningWorkflowFromTodd(log.run.id.toString())
         }
       })

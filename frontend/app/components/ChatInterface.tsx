@@ -273,7 +273,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }, [])
 
-  // Restore logs from localStorage when component mounts
+  // Restore logs from localStorage when component mounts and refresh if needed
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -290,6 +290,22 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               if (multipleLogs?.length > 0) {
                 // multipleLogs will be restored by the store automatically
               }
+              
+              // Refresh logs to get latest status (in case of external changes like GitHub cancellations)
+              setTimeout(() => {
+                if (currentLogs && currentLogs.run && currentLogs.run.id) {
+                  console.log('🔄 Refreshing current logs to check for external changes')
+                  fetchWorkflowLogs(currentLogs.run.id.toString(), githubToken)
+                }
+                if (multipleLogs?.length > 0) {
+                  console.log('🔄 Refreshing multiple logs to check for external changes')
+                  multipleLogs.forEach((log: any) => {
+                    if (log.run && log.run.id) {
+                      fetchWorkflowLogs(log.run.id.toString(), githubToken)
+                    }
+                  })
+                }
+              }, 1000) // Small delay to ensure component is mounted
             }
           }
         }
@@ -297,7 +313,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         console.error('Error restoring logs from localStorage:', error)
       }
     }
-  }, [])
+  }, [githubToken])
 
   // Configure voice recognition
   useEffect(() => {
@@ -592,7 +608,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       } else {
         // Handle specific error cases
         if (result.error && result.error.includes('not found or already completed')) {
-          toast.info('Workflow already completed or not found')
+          toast.success('Workflow already completed or not found')
         } else {
           toast.error(result.error || 'Error cancelling workflow')
         }
