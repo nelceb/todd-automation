@@ -55,17 +55,43 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
   const [expandedWorkflows, setExpandedWorkflows] = useState<Record<string, boolean>>({})
 
+  // Function to validate GitHub token
+  const validateGitHubToken = async (token: string): Promise<boolean> => {
+    try {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      })
+      return response.ok
+    } catch (error) {
+      console.error('Error validating GitHub token:', error)
+      return false
+    }
+  }
+
   useEffect(() => {
-    // Only fetch data if we have a GitHub token
+    // Only fetch data if we have a valid GitHub token
     if (githubToken) {
-      fetchRepositories(githubToken)
-    fetchWorkflowRuns(githubToken)
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-        fetchRepositories(githubToken)
-      fetchWorkflowRuns(githubToken)
-    }, 30000)
-    return () => clearInterval(interval)
+      // Validate token first
+      validateGitHubToken(githubToken).then(isValid => {
+        if (isValid) {
+          fetchRepositories(githubToken)
+          fetchWorkflowRuns(githubToken)
+          // Refresh every 30 seconds
+          const interval = setInterval(() => {
+            fetchRepositories(githubToken)
+            fetchWorkflowRuns(githubToken)
+          }, 30000)
+          return () => clearInterval(interval)
+        } else {
+          // Token is invalid, clear it from localStorage
+          localStorage.removeItem('github_token')
+          // This will trigger a re-render and show the auth screen
+          window.location.reload()
+        }
+      })
     }
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
@@ -370,17 +396,51 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   if (error) {
+    // Check if it's an authentication error (401 or 404)
+    const isAuthError = error.includes('401') || error.includes('404') || error.includes('Authentication Error')
+    
     return (
-      <div className="bg-red-900 border border-red-700 rounded-lg p-6">
-        <div className="flex items-center space-x-3">
-          <ExclamationTriangleIcon className="w-6 h-6 text-red-400" />
-          <div>
-            <h3 className="text-red-300 font-medium">Authentication Error</h3>
-            <p className="text-red-400 text-sm mt-1">{error}</p>
-            <p className="text-red-500 text-xs mt-2">
-              Make sure you have a valid GitHub token with repo and workflow permissions.
+      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
+        {/* Header - Centered and consistent typography */}
+        <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
+            Testing Workflows
+          </h1>
+          <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
+            Real-time monitoring of test execution across multiple repositories
+          </p>
+        </div>
+        
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-red-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ExclamationTriangleIcon className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-3">
+              {isAuthError ? 'GitHub Authentication Required' : 'Error Loading Workflows'}
+            </h3>
+            <p className="text-gray-400 mb-6">
+              {isAuthError 
+                ? 'Your GitHub token has expired or is invalid. Please reconnect to GitHub.'
+                : 'There was an error loading the workflows. Please try again.'
+              }
             </p>
+            <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-6">
+              <p className="text-gray-300 text-sm">
+                {isAuthError 
+                  ? 'Click the "Connect to GitHub" button in the header to authenticate.'
+                  : `Error details: ${error}`
+                }
+              </p>
+            </div>
           </div>
+        </div>
+        
+        {/* Commit hash at the bottom */}
+        <div className="text-center mt-16 pb-8">
+          <p className="text-xs font-mono text-gray-500">
+            Commit: 4e39cbf
+          </p>
         </div>
       </div>
     )

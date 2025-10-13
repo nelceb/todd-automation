@@ -58,10 +58,11 @@ export default function Home() {
     }
   }, [messages])
 
-  // Restore messages from localStorage on component mount
+  // Restore messages and GitHub token from localStorage on component mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
+        // Restore messages
         const savedMessages = localStorage.getItem('todd-messages')
         if (savedMessages) {
           const parsedMessages = JSON.parse(savedMessages)
@@ -72,8 +73,14 @@ export default function Home() {
           }))
           setMessages(messagesWithDates)
         }
+
+        // Restore GitHub token
+        const savedToken = localStorage.getItem('github_token')
+        if (savedToken) {
+          setGithubToken(savedToken)
+        }
       } catch (error) {
-        console.error('Error restoring messages from localStorage:', error)
+        console.error('Error restoring data from localStorage:', error)
       }
     }
   }, [])
