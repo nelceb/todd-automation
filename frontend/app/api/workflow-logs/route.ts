@@ -115,6 +115,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log('🔍 Workflow logs API - Run status:', runData.status, 'Conclusion:', runData.conclusion)
+    console.log('🔍 Jobs statuses:', jobsData.jobs.map(job => ({ name: job.name, status: job.status, conclusion: job.conclusion })))
+
     return NextResponse.json({
       run: {
         id: runData.id,

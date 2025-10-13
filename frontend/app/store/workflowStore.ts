@@ -325,7 +325,10 @@ export const useWorkflowStore = create<WorkflowStore>()(
       
       // Check the updated logs after fetching
       const { currentLogs: updatedLogs } = get()
-      if (updatedLogs?.run.status === 'completed') {
+      console.log('🔍 Polling logs - Current status:', updatedLogs?.run.status, 'Conclusion:', updatedLogs?.run.conclusion)
+      
+      if (updatedLogs?.run.status === 'completed' || updatedLogs?.run.status === 'failed' || updatedLogs?.run.status === 'cancelled') {
+        console.log('🛑 Stopping polling - workflow finished with status:', updatedLogs?.run.status)
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds
