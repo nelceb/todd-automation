@@ -41,11 +41,8 @@ const extractTestSummary = (logs: string) => {
   const failedTests: string[] = []
   const passedTests: string[] = []
 
-  // 1. Maven/TestNG patterns (Selenium/Playwright frameworks)
+  // 1. Maven/TestNG patterns (Selenium/Playwright frameworks) - PRIORITY
   const mavenTestsRunPattern = /Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)/g
-  const mavenTestPassedPattern = /(\d+) passed/g
-  const mavenTestFailedPattern = /(\d+) failed/g
-  const mavenTestSkippedPattern = /(\d+) skipped/g
   const testExitCodePattern = /Test exit code: (\d+)/g
   const testsPassedPattern = /Tests passed/g
   const testsFailedPattern = /Tests failed/g
@@ -67,6 +64,7 @@ const extractTestSummary = (logs: string) => {
   const summaryJsonPattern = /"total":\s*(\d+).*"passed":\s*(\d+).*"failed":\s*(\d+).*"skipped":\s*(\d+)/g
 
   let match
+  let foundResults = false
 
   // Check if this looks like a multi-worker setup
   const workerPattern = /worker\d+|Run Tests on worker\d+/g
@@ -96,6 +94,7 @@ const extractTestSummary = (logs: string) => {
       failed = failures
       errors = errorsCount
       skipped = skippedCount
+      foundResults = true
       
       console.log('🔍 Using final Maven summary for multi-worker:', { passed, failed, skipped, errors })
     }
@@ -112,45 +111,44 @@ const extractTestSummary = (logs: string) => {
       failed += failures
       errors += errorsCount
       skipped += skippedCount
+      foundResults = true
     }
   }
 
-  // Try summary.json format
-  while ((match = summaryJsonPattern.exec(logs)) !== null) {
-    const total = parseInt(match[1])
-    const passedCount = parseInt(match[2])
-    const failedCount = parseInt(match[3])
-    const skippedCount = parseInt(match[4])
-    
-    passed += passedCount
-    failed += failedCount
-    skipped += skippedCount
-  }
+  // Only try other patterns if we haven't found Maven results
+  if (!foundResults) {
+    // Try summary.json format
+    while ((match = summaryJsonPattern.exec(logs)) !== null) {
+      const total = parseInt(match[1])
+      const passedCount = parseInt(match[2])
+      const failedCount = parseInt(match[3])
+      const skippedCount = parseInt(match[4])
+      
+      passed += passedCount
+      failed += failedCount
+      skipped += skippedCount
+      foundResults = true
+    }
 
-  // Try Playwright patterns
-  while ((match = playwrightPassedPattern.exec(logs)) !== null) {
-    passed += parseInt(match[1])
-  }
-  while ((match = playwrightFailedPattern.exec(logs)) !== null) {
-    failed += parseInt(match[1])
-  }
-  while ((match = playwrightSkippedPattern.exec(logs)) !== null) {
-    skipped += parseInt(match[1])
-  }
-
-  // Try Maven individual patterns
-  while ((match = mavenTestPassedPattern.exec(logs)) !== null) {
-    passed += parseInt(match[1])
-  }
-  while ((match = mavenTestFailedPattern.exec(logs)) !== null) {
-    failed += parseInt(match[1])
-  }
-  while ((match = mavenTestSkippedPattern.exec(logs)) !== null) {
-    skipped += parseInt(match[1])
+    // Try Playwright patterns only if no other results found
+    if (!foundResults) {
+      while ((match = playwrightPassedPattern.exec(logs)) !== null) {
+        passed += parseInt(match[1])
+        foundResults = true
+      }
+      while ((match = playwrightFailedPattern.exec(logs)) !== null) {
+        failed += parseInt(match[1])
+        foundResults = true
+      }
+      while ((match = playwrightSkippedPattern.exec(logs)) !== null) {
+        skipped += parseInt(match[1])
+        foundResults = true
+      }
+    }
   }
 
   // If we found any results from above patterns, use those
-  if (passed > 0 || failed > 0 || skipped > 0 || errors > 0) {
+  if (foundResults && (passed > 0 || failed > 0 || skipped > 0 || errors > 0)) {
     const total = passed + failed + skipped + errors
     return {
       passed,
