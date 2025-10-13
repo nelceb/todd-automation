@@ -53,6 +53,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   } = useWorkflowStore()
   const { getWorkflowInputs, isLoading: isLoadingInputs } = useWorkflowInputs()
   const [workflowStates, setWorkflowStates] = useState<WorkflowState>({})
+  const [expandedWorkflows, setExpandedWorkflows] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     // Only fetch data if we have a GitHub token
@@ -208,6 +209,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       newSet.add(repoName)
     }
     setExpandedRepositories(newSet)
+  }
+
+  const handleShowMoreWorkflows = (repoName: string) => {
+    setExpandedWorkflows(prev => ({
+      ...prev,
+      [repoName]: !prev[repoName]
+    }))
   }
 
   // Use the hook's getWorkflowInputs function which gets real inputs from YAML
@@ -424,6 +432,43 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   // Define the 3 repositories with their workflows
   const repositoryData = [
     {
+      name: 'pw-cookunity-automation',
+      fullName: 'Cook-Unity/pw-cookunity-automation',
+      technology: 'playwright',
+      icon: GlobeAltIcon,
+      color: 'asparagus',
+      workflows: [
+        'QA US - CoreUx E2E',
+        'QA US - CORE UX REGRESSION',
+        'QA CA - SIGNUP',
+        'QA US - SIGNUP',
+        'QA US - SEGMENT - SIGN UP',
+        'QA US - LANDINGS',
+        'QA US - GROWTH',
+        'QA US - E2E',
+        'QA E2E - DYN ENV',
+        'QA CA - LANDINGS',
+        'QA CA - E2E',
+        'QA US - ACTIVATION',
+        'PROD CA - SIGNUP',
+        'PROD US - SIGNUP',
+        'PROD US - LCP Lighthouse',
+        'PROD CHEFS IMAGES',
+        'PROD US - SCRIPT LANDINGS ALL',
+        'PROD SANITY',
+        'PROD US - MOBILE - LANDINGS',
+        'PROD VISUAL REGRESSION',
+        'PROD US - SEGMENT - LANDINGS',
+        'PROD US - LANDINGS',
+        'PROD US - GROWTH',
+        'PROD US - E2E',
+        'PROD US - E2E Tests Chrome Specific',
+        'PROD CA - SANITY',
+        'PROD CA - LANDINGS',
+        'PROD CA - E2E'
+      ]
+    },
+    {
       name: 'maestro-test',
       fullName: 'Cook-Unity/maestro-test',
       technology: 'maestro',
@@ -437,22 +482,6 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         'Run Maestro Test on BrowserStack (iOS)',
         'Run Maestro Test on BrowserStack',
         'Maestro iOS Tests'
-      ]
-    },
-    {
-      name: 'pw-cookunity-automation',
-      fullName: 'Cook-Unity/pw-cookunity-automation',
-      technology: 'playwright',
-      icon: GlobeAltIcon,
-      color: 'asparagus',
-      workflows: [
-        'QA US - E2E',
-        'QA CA - E2E',
-        'QA E2E Web Regression',
-        'QA Android Regression',
-        'QA iOS Regression',
-        'QA API Kitchen Regression',
-        'QA Logistics Regression'
       ]
     },
     {
@@ -537,17 +566,24 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                   exit={{ opacity: 0, height: 0 }}
                   className="space-y-2 px-6 pb-6"
                 >
-                  {repo.workflows.map((workflowName) => {
-                    const workflowId = `${repo.fullName}-${workflowName}`
-                    const workflowState = workflowStates[workflowId]
-                    const state = workflowState?.status || 'idle'
+                  {(() => {
+                    const isExpanded = expandedWorkflows[repo.name] || false
+                    const workflowsToShow = isExpanded ? repo.workflows : repo.workflows.slice(0, 7)
+                    const hasMoreWorkflows = repo.workflows.length > 7
                     
                     return (
-                      <div
-                        key={workflowName}
-                        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/15 ${getWorkflowStateColor(workflowId)}`}
-                        onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
-                      >
+                      <>
+                        {workflowsToShow.map((workflowName) => {
+                          const workflowId = `${repo.fullName}-${workflowName}`
+                          const workflowState = workflowStates[workflowId]
+                          const state = workflowState?.status || 'idle'
+                          
+                          return (
+                            <div
+                              key={workflowName}
+                              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 bg-white/15 ${getWorkflowStateColor(workflowId)}`}
+                              onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
+                            >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2 mb-1">
@@ -646,6 +682,24 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       </div>
                     )
                   })}
+                  
+                  {/* Show More/Less Button */}
+                  {hasMoreWorkflows && (
+                    <div className="pt-2">
+                      <button
+                        onClick={() => handleShowMoreWorkflows(repo.name)}
+                        className="w-full text-center py-2 px-4 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                      >
+                        {isExpanded 
+                          ? `Show Less (${repo.workflows.length - 7} hidden)` 
+                          : `Show More (${repo.workflows.length - 7} more workflows)`
+                        }
+                      </button>
+                    </div>
+                  )}
+                      </>
+                    )
+                  })()}
                 </motion.div>
               )}
             </div>
