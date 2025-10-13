@@ -49,16 +49,37 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
 2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
    - Workflows: 
-     * QA US - E2E
-     * QA CA - E2E
-     * QA E2E Web Regression
-     * QA Android Regression
-     * QA iOS Regression
-     * QA API Kitchen Regression
-     * QA Logistics Regression
-   - Inputs: environment, groups
-   - Environments: qa, qa-ca
-   - Groups: @e2e, @landings, @signup, @growth, @visual, @lighthouse
+     * QA US - CoreUx E2E (qa_us_coreux_regression.yml)
+     * QA US - CORE UX REGRESSION (qa_us_e2e_coreux_regression.yml)
+     * QA CA - SIGNUP (qa_signup_regression_ca.yml)
+     * QA US - SIGNUP (qa_signup_regression.yml)
+     * QA US - SEGMENT - SIGN UP (qa_segment_regression.yml)
+     * QA US - LANDINGS (qa_landings_regression.yml)
+     * QA US - GROWTH (qa_growth_regression.yml)
+     * QA US - E2E (qa_e2e_regression.yml)
+     * QA E2E - DYN ENV (qa_e2e_dyn_env.yml)
+     * QA CA - LANDINGS (qa_ca_landings_regression.yml)
+     * QA CA - E2E (qa_ca_e2e_regression.yml)
+     * QA US - ACTIVATION (qa_activation_regression.yml)
+     * PROD CA - SIGNUP (prod_signup_regression_ca.yml)
+     * PROD US - SIGNUP (prod_signup_regression.yml)
+     * PROD US - LCP Lighthouse (prod_scripting_lcp_chrome.yml)
+     * PROD CHEFS IMAGES (prod_scripting_images_chefs.yml)
+     * PROD US - SCRIPT LANDINGS ALL (prod_script_landing_all_regression.yml)
+     * PROD SANITY (prod_sanity_regression.yml)
+     * PROD US - MOBILE - LANDINGS (prod_mobile_landings_regression.yml)
+     * PROD VISUAL REGRESSION (prod_landings_visual_regression.yml)
+     * PROD US - SEGMENT - LANDINGS (prod_landings_segment_regression.yml)
+     * PROD US - LANDINGS (prod_landings_regression.yml)
+     * PROD US - GROWTH (prod_growth_regression.yml)
+     * PROD US - E2E (prod_e2e_regression.yml)
+     * PROD US - E2E Tests Chrome Specific (prod_e2e_chrome_specific.yml)
+     * PROD CA - SANITY (prod_ca_sanity_regression.yml)
+     * PROD CA - LANDINGS (prod_ca_landings_regression.yml)
+     * PROD CA - E2E (prod_ca_e2e_regression.yml)
+   - Inputs: environment, groups, base-url (for DYN ENV)
+   - Environments: qa, qa-ca, prod, prod-ca
+   - Groups: @e2e, @landings, @signup, @growth, @visual, @lighthouse, @coreUx, @activation, @segment, @sanity, @chefs, @scripting, @landingPage, @mobile, @lcpLighthouse, @cvrChrome
 
 3. SELENIUM TESTS (Cook-Unity/automation-framework)
    - Technology: Java + TestNG + Selenium
@@ -96,6 +117,13 @@ PLAYWRIGHT (Web E2E):
 - visual, screenshot, ui → Playwright visual regression
 - lighthouse, performance, speed → Playwright performance
 - chrome, browser specific → Playwright browser tests
+- coreux, core ux, coreux → Playwright core ux tests
+- activation, activate → Playwright activation tests
+- segment, segmentation → Playwright segment tests
+- sanity, smoke → Playwright sanity tests
+- chefs, chef → Playwright chefs tests
+- scripting, script → Playwright scripting tests
+- mobile, mobile web → Playwright mobile tests
 
 SELENIUM (Web + Mobile + API):
 - selenium, java, testng → Selenium tests
@@ -128,8 +156,12 @@ MAESTRO:
 PLAYWRIGHT:
 - "Run e2e web tests in QA" → pw-cookunity-automation, QA US - E2E, environment: "qa", groups: "@e2e"
 - "Execute web tests in Canada QA" → pw-cookunity-automation, QA CA - E2E, environment: "qa-ca", groups: "@e2e"
-- "Run playwright regression tests" → pw-cookunity-automation, QA E2E Web Regression, environment: "qa", groups: "@e2e"
-- "Execute playwright mobile tests" → pw-cookunity-automation, QA Android Regression, environment: "qa", groups: "@e2e"
+- "Run signup tests in prod" → pw-cookunity-automation, PROD US - SIGNUP, environment: "prod", groups: "@signup"
+- "Execute landing page tests in prod" → pw-cookunity-automation, PROD US - LANDINGS, environment: "prod", groups: "@landings"
+- "Run visual regression tests" → pw-cookunity-automation, PROD VISUAL REGRESSION, environment: "prod", groups: "@visual"
+- "Execute lighthouse performance tests" → pw-cookunity-automation, PROD US - LCP Lighthouse, environment: "prod", groups: "@lcpLighthouse"
+- "Run growth tests in QA" → pw-cookunity-automation, QA US - GROWTH, environment: "qa", groups: "@growth"
+- "Execute core ux tests" → pw-cookunity-automation, QA US - CoreUx E2E, environment: "qa", groups: "@coreUx"
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
@@ -160,6 +192,17 @@ FRAMEWORK DETECTION PRIORITY RULES:
 - If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
 - If user mentions "api" + "kitchen" → use Selenium QA API Kitchen Regression (automation-framework)
 - If user mentions "logistics" → use Selenium QA Logistics Regression (automation-framework)
+- If user mentions "signup" + "web" → use Playwright (pw-cookunity-automation)
+- If user mentions "landings" + "web" → use Playwright (pw-cookunity-automation)
+- If user mentions "growth" + "web" → use Playwright (pw-cookunity-automation)
+- If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
+- If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
+- If user mentions "coreux" or "core ux" → use Playwright QA US - CoreUx E2E (pw-cookunity-automation)
+- If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)
+- If user mentions "segment" → use Playwright (pw-cookunity-automation)
+- If user mentions "sanity" → use Playwright (pw-cookunity-automation)
+- If user mentions "chefs" → use Playwright PROD CHEFS IMAGES (pw-cookunity-automation)
+- If user mentions "scripting" → use Playwright (pw-cookunity-automation)
 
 PRIORITY RULES FOR MAESTRO TEST SUITE SELECTION:
 - If user mentions "login" specifically → use test_suite: "login" (NOT regression)
