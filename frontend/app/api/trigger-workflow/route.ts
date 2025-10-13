@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
             }, {} as Record<string, any>)
             
             console.log('Final valid inputs:', validInputs)
-            console.log('🔍 DEBUG: test_suite value being sent:', validInputs.test_suite || 'undefined')
+            console.log('🔍 DEBUG: test_suite value being sent:', (validInputs as any).test_suite || 'undefined')
           } else if (inputs && Object.keys(inputs).length > 0) {
             console.log('⚠️ No inputs found in YAML, but inputs provided. NOT using provided inputs to avoid 422 error.')
             validInputs = {} // Don't send any inputs if we can't validate them
