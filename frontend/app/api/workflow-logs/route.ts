@@ -80,12 +80,23 @@ export async function GET(request: NextRequest) {
               completedAt: job.completed_at
             })
           } else {
-            // If logs are not available yet, show job status
+            // If logs are not available yet, show job status with more accurate message
+            let statusMessage = ''
+            if (job.status === 'in_progress') {
+              statusMessage = `Job ${job.name} is currently running...`
+            } else if (job.status === 'queued') {
+              statusMessage = `Job ${job.name} is queued and waiting to start...`
+            } else if (job.status === 'completed') {
+              statusMessage = `Job ${job.name} has completed.`
+            } else {
+              statusMessage = `Job ${job.name} is ${job.status}.`
+            }
+            
             logs.push({
               jobName: job.name,
               status: job.status,
               conclusion: job.conclusion,
-              logs: `Job ${job.name} is ${job.status}. Waiting for execution to begin...`,
+              logs: statusMessage,
               startedAt: job.started_at,
               completedAt: job.completed_at
             })

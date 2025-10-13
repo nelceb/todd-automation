@@ -865,8 +865,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       {/* Individual workflow logs */}
                       {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
                         <div key={index} className="space-y-3">
-                          {/* Simplified status log entry - only show job status */}
-                          {logs.run.status === 'in_progress' && (
+                          {/* Only show general status if no specific job logs are available */}
+                          {logs.run.status === 'in_progress' && logs.logs.length === 0 && (
                             <div className="flex items-start space-x-4 py-2">
                               <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
                                 {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
@@ -882,7 +882,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   </span>
                                 </div>
                                 <p className="text-gray-900 text-sm leading-relaxed font-mono ml-5">
-                                  Job is in progress. Waiting for execution to begin...
+                                  Workflow is starting up...
                                 </p>
                               </div>
                             </div>
