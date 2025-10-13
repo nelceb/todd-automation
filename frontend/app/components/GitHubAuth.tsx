@@ -79,7 +79,7 @@ export default function GitHubAuth({ onAuthSuccess }: GitHubAuthProps) {
           backgroundColor: 'transparent' 
         }}
       >
-        <GithubIcon className="w-4 h-4" />
+        <CheckCircleIcon className="w-4 h-4" />
         <span>Connected</span>
         <button
           onClick={handleLogout}

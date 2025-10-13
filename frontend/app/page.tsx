@@ -16,9 +16,19 @@ import WorkflowStatus from './components/WorkflowStatus'
 import GitHubAuth from './components/GitHubAuth'
 import { useWorkflowStore } from './store/workflowStore'
 
+interface Message {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  workflowResult?: any
+  workflowPreview?: any
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
+  const [messages, setMessages] = useState<Message[]>([])
   const { workflows, isLoading } = useWorkflowStore()
 
   const handleAuthSuccess = (token: string) => {
@@ -31,6 +41,10 @@ export default function Home() {
       // Scroll to top when switching to workflows
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  const clearMessages = () => {
+    setMessages([])
   }
 
 

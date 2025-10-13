@@ -455,12 +455,24 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       }
     } catch (error) {
       console.error('Error:', error)
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: 'Sorry, I encountered an error processing your request.',
-        timestamp: new Date()
-      }])
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      // Check if it's an authentication error
+      if (errorMessage.includes('Authentication Error') || errorMessage.includes('GitHub token')) {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `🔐 Authentication Error\n\nError al ejecutar workflow\n\nMake sure you have a valid GitHub token with repo and workflow permissions.\n\nPlease check your GitHub connection in the top navigation bar.`,
+          timestamp: new Date()
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `❌ Error: ${errorMessage}`,
+          timestamp: new Date()
+        }])
+      }
     } finally {
       setIsLoading(false)
     }

@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
-      throw new Error('GitHub token no configurado')
+      console.error('GitHub token no configurado en variables de entorno')
+      throw new Error('Authentication Error: GitHub token no configurado. Make sure you have a valid GitHub token with repo and workflow permissions.')
     }
 
     if (!workflowId) {

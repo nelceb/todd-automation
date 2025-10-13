@@ -228,3 +228,4 @@ export default function ChatInterface({ githubToken }: ChatInterfaceProps) {
     </div>
   )
 }
+

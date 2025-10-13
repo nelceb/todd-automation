@@ -19,3 +19,4 @@ export function getGitHubToken(request: NextRequest): string | null {
 export function isDemoMode(token: string | null): boolean {
   return !token || token === 'test_token' || token === 'your_github_personal_access_token_here'
 }
+
