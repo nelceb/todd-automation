@@ -399,10 +399,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   // Show authentication required message if no GitHub token
   if (!githubToken) {
     return (
-      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-white">Testing Workflows</h2>
-          <p className="text-gray-400 mt-2 text-lg">
+      <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
+        {/* Header - Centered and consistent typography */}
+        <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
+            Testing Workflows
+          </h1>
+          <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
             Real-time monitoring of test execution across multiple repositories
           </p>
         </div>
@@ -424,6 +427,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
               </p>
             </div>
           </div>
+        </div>
+        
+        {/* Commit hash at the bottom */}
+        <div className="text-center mt-16 pb-8">
+          <p className="text-xs font-mono text-gray-500">
+            Commit: 4e39cbf
+          </p>
         </div>
       </div>
     )
@@ -705,6 +715,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             </div>
           )
         })}
+      </div>
+      
+      {/* Commit hash at the bottom */}
+      <div className="text-center mt-16 pb-8">
+        <p className="text-xs font-mono text-gray-500">
+          Commit: 4e39cbf
+        </p>
       </div>
     </div>
   )
