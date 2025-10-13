@@ -493,29 +493,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     <div className="flex items-center space-x-2">
                       <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
                       {(() => {
-                        const toddRunningWorkflows = getRunningWorkflowsForRepository(repo.name)
-                        const scheduledRunningWorkflows = repo.workflows.filter(workflow => 
+                        const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
+                        const scheduledRunningCount = repo.workflows.filter(workflow => 
                           isScheduledWorkflowRunning(workflow, repo.name)
-                        )
-                        const totalRunning = toddRunningWorkflows.length + scheduledRunningWorkflows.length
+                        ).length
+                        const totalRunning = toddRunningCount + scheduledRunningCount
                         
-                        if (totalRunning === 0) return null
-                        
-                        // Si hay solo un workflow corriendo, mostrar su nombre
-                        if (totalRunning === 1) {
-                          const runningWorkflowName = toddRunningWorkflows.length > 0 
-                            ? toddRunningWorkflows[0].workflowName 
-                            : scheduledRunningWorkflows[0]
-                          
-                          return (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
-                              {runningWorkflowName} running
-                            </span>
-                          )
-                        }
-                        
-                        // Si hay múltiples workflows corriendo, mostrar el conteo
-                        return (
+                        return totalRunning > 0 && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800">
                             {totalRunning} running
                           </span>

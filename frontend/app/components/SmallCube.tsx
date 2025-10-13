@@ -13,11 +13,11 @@ function AnimatedCube() {
     const time = state.clock.getElapsedTime()
     
     if (meshRef.current) {
-      // Animate rotation with varying speeds
-      const rotationSpeed = 0.3 + Math.sin(time * 0.5) * 0.1
+      // Animate rotation with slow, lunar-like movement
+      const rotationSpeed = 0.05 + Math.sin(time * 0.2) * 0.02 // Much slower, more subtle variation
       meshRef.current.rotation.x = time * rotationSpeed
-      meshRef.current.rotation.y = time * (rotationSpeed + 0.1)
-      meshRef.current.rotation.z = time * (rotationSpeed - 0.1)
+      meshRef.current.rotation.y = time * (rotationSpeed + 0.01) // Minimal difference between axes
+      meshRef.current.rotation.z = time * (rotationSpeed - 0.01)
     }
 
     // Animate the material colors with smooth transitions

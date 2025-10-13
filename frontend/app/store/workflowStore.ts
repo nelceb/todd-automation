@@ -493,6 +493,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
         multipleLogs: state.multipleLogs,
         runningWorkflowsFromTodd: state.runningWorkflowsFromTodd
       }),
+      // Manejar la serialización de objetos Date
+      serialize: (state) => {
+        return JSON.stringify(state, (key, value) => {
+          if (value instanceof Date) {
+            return value.toISOString()
+          }
+          return value
+        })
+      },
+      deserialize: (str) => {
+        return JSON.parse(str, (key, value) => {
+          if (key === 'startTime' && typeof value === 'string') {
+            return new Date(value)
+          }
+          return value
+        })
+      }
     }
   )
 )
