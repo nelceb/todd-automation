@@ -68,18 +68,46 @@ const extractTestSummary = (logs: string) => {
 
   let match
 
-  // Try Maven/TestNG format first (most common)
-  while ((match = mavenTestsRunPattern.exec(logs)) !== null) {
-    const total = parseInt(match[1])
-    const failures = parseInt(match[2])
-    const errorsCount = parseInt(match[3])
-    const skippedCount = parseInt(match[4])
-    const passedCount = total - failures - errorsCount - skippedCount
+  // Check if this looks like a multi-worker setup
+  const workerPattern = /worker\d+|Run Tests on worker\d+/g
+  const hasWorkers = workerPattern.test(logs)
+  
+  if (hasWorkers) {
+    console.log('🔍 Multi-worker setup detected, using smart aggregation')
     
-    passed += Math.max(0, passedCount)
-    failed += failures
-    errors += errorsCount
-    skipped += skippedCount
+    // For multi-worker setups, look for the most recent/final summary
+    // rather than summing all individual worker results
+    const mavenMatches = [...logs.matchAll(mavenTestsRunPattern)]
+    if (mavenMatches.length > 0) {
+      // Take the last match as it's likely the final summary
+      const lastMatch = mavenMatches[mavenMatches.length - 1]
+      const total = parseInt(lastMatch[1])
+      const failures = parseInt(lastMatch[2])
+      const errorsCount = parseInt(lastMatch[3])
+      const skippedCount = parseInt(lastMatch[4])
+      const passedCount = total - failures - errorsCount - skippedCount
+      
+      passed = Math.max(0, passedCount)
+      failed = failures
+      errors = errorsCount
+      skipped = skippedCount
+      
+      console.log('🔍 Using final Maven summary for multi-worker:', { passed, failed, skipped, errors })
+    }
+  } else {
+    // Single worker setup - use original logic
+    while ((match = mavenTestsRunPattern.exec(logs)) !== null) {
+      const total = parseInt(match[1])
+      const failures = parseInt(match[2])
+      const errorsCount = parseInt(match[3])
+      const skippedCount = parseInt(match[4])
+      const passedCount = total - failures - errorsCount - skippedCount
+      
+      passed += Math.max(0, passedCount)
+      failed += failures
+      errors += errorsCount
+      skipped += skippedCount
+    }
   }
 
   // Try summary.json format
