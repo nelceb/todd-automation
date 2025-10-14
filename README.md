@@ -149,3 +149,4 @@ Este proyecto está bajo la Licencia MIT.
 *Última actualización: $(date)*
 # Force redeploy - Tue Oct 14 11:32:59 -03 2025
 # Force new deployment - Tue Oct 14 11:36:43 -03 2025
+# Force deploy after root directory config - Tue Oct 14 11:53:41 -03 2025
