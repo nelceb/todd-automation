@@ -9,8 +9,16 @@ export async function GET(request: NextRequest) {
     const runId = searchParams.get('runId')
     const repository = searchParams.get('repository')
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'cook-unity'
-    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
+    
+    // Usar el mismo mapeo que funciona en /api/repositories
+    const repoMapping: Record<string, string> = {
+      'maestro-test': 'Cook-Unity/maestro-test',
+      'pw-cookunity-automation': 'Cook-Unity/pw-cookunity-automation',
+      'automation-framework': 'Cook-Unity/automation-framework'
+    }
+    
+    const defaultRepo = repository || 'maestro-test'
+    const fullRepoName = repoMapping[defaultRepo] || `Cook-Unity/${defaultRepo}`
 
     if (!runId) {
       return NextResponse.json({ error: 'Run ID is required' }, { status: 400 })
@@ -20,9 +28,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'GitHub token required' }, { status: 401 })
     }
 
+    console.log('🔍 Fetching workflow logs for:', fullRepoName, 'Run ID:', runId)
+
     // Get workflow run details
     const runResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`,
+      `https://api.github.com/repos/${fullRepoName}/actions/runs/${runId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -39,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Get jobs for this run
     const jobsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs`,
+      `https://api.github.com/repos/${fullRepoName}/actions/runs/${runId}/jobs`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -60,7 +70,7 @@ export async function GET(request: NextRequest) {
       if (job.status === 'completed' || job.status === 'in_progress') {
         try {
           const logsResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/actions/jobs/${job.id}/logs`,
+            `https://api.github.com/repos/${fullRepoName}/actions/jobs/${job.id}/logs`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
