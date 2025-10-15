@@ -113,7 +113,13 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
     }
   }
 
-  const totalTestFiles = testFiles.filter(f => f.type === 'file' && isTestFile(f.name, repo.framework)).length
+  // Contar archivos de test reales (necesitamos hacer esto de forma asíncrona)
+  let totalTestFiles = 0
+  for (const file of testFiles) {
+    if (file.type === 'file' && await isTestFile(file.name, repo.framework, token, repo.name, file.path)) {
+      totalTestFiles++
+    }
+  }
   const estimatedTests = Object.values(breakdown).reduce((sum, count) => sum + count, 0) // Suma real de tests
 
   return {
