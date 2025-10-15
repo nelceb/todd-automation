@@ -240,6 +240,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const handleWorkflowClick = async (workflowName: string, repository: string) => {
     const workflowId = `${repository}-${workflowName}`
     
+    // Check if workflow is already running from TODD
+    if (isWorkflowRunningFromTodd(workflowName, repository)) {
+      console.log('Workflow is already running from TODD, not executing again')
+      return
+    }
+    
     // Set to in_progress immediately
     setWorkflowStates(prev => ({ 
       ...prev, 
@@ -642,8 +648,16 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                           return (
                             <div
                               key={workflowName}
-                              className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 bg-white/20 hover:bg-white/30 hover:shadow-lg ${getWorkflowStateColor(workflowId)}`}
-                              onClick={() => handleWorkflowClick(workflowName, repo.fullName)}
+                              className={`border rounded-xl p-4 transition-all duration-200 bg-white/20 hover:bg-white/30 hover:shadow-lg ${getWorkflowStateColor(workflowId)} ${
+                                isWorkflowRunningFromTodd(workflowName, repo.fullName) 
+                                  ? 'cursor-default opacity-75' 
+                                  : 'cursor-pointer'
+                              }`}
+                              onClick={() => {
+                                if (!isWorkflowRunningFromTodd(workflowName, repo.fullName)) {
+                                  handleWorkflowClick(workflowName, repo.fullName)
+                                }
+                              }}
                             >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -737,6 +751,28 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   View on GitHub
                                 </a>
                               )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show View on GitHub button for MANUALLY TRIGGERED workflows without active state */}
+                        {isWorkflowRunningFromTodd(workflowName, repo.name) && state === 'idle' && (
+                          <div className="mt-2 flex items-center justify-between">
+                            <div className="text-xs text-blue-400 flex items-center">
+                              <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse mr-1"></div>
+                              Running from TODD
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <a
+                                href={`https://github.com/${repo.fullName}/actions`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center px-2 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                View on GitHub
+                              </a>
                             </div>
                           </div>
                         )}
