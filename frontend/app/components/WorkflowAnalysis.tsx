@@ -120,6 +120,24 @@ export default function WorkflowAnalysis() {
   const [loadingMessage, setLoadingMessage] = useState('Initializing analysis...')
 
   useEffect(() => {
+    // Check if we have cached data first
+    const cachedData = localStorage.getItem('workflow-analysis-cache')
+    const cacheTimestamp = localStorage.getItem('workflow-analysis-timestamp')
+    const now = Date.now()
+    const cacheAge = cacheTimestamp ? now - parseInt(cacheTimestamp) : Infinity
+    
+    // Use cache if it's less than 5 minutes old
+    if (cachedData && cacheAge < 5 * 60 * 1000) {
+      try {
+        const parsedData = JSON.parse(cachedData)
+        setData(parsedData)
+        setIsLoading(false)
+        return
+      } catch (e) {
+        console.error('Error parsing cached data:', e)
+      }
+    }
+    
     fetchAnalysis()
   }, [])
 
@@ -153,7 +171,14 @@ export default function WorkflowAnalysis() {
       }
       
       setLoadingMessage('Finalizing analysis...')
-      const response = await fetch('/api/count-tests', { headers })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      
+      const response = await fetch('/api/count-tests', { 
+        headers,
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
       const result = await response.json()
       
       if (result.success) {
@@ -201,11 +226,17 @@ export default function WorkflowAnalysis() {
           byPlatform: result.summary.byFramework
         }
         
-        setData({
+        const finalData = {
           success: true,
           analysis: transformedAnalysis,
           summary: transformedSummary
-        })
+        }
+        
+        setData(finalData)
+        
+        // Cache the data
+        localStorage.setItem('workflow-analysis-cache', JSON.stringify(finalData))
+        localStorage.setItem('workflow-analysis-timestamp', Date.now().toString())
       } else {
         setError(result.error || 'Error analyzing tests')
       }
@@ -383,7 +414,7 @@ export default function WorkflowAnalysis() {
                       {env.toUpperCase()}
                     </span>
                     <span className="text-sm text-gray-600">
-                      {env === 'qa' ? 'Quality Assurance' : 'Production'}
+                      {env === 'qa' ? 'QA Environment' : 'Production Environment'}
                     </span>
                   </div>
                   <span className="text-lg font-bold text-gray-900">{count} tests</span>
