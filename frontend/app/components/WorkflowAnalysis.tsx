@@ -52,16 +52,49 @@ export default function WorkflowAnalysis() {
       setIsLoading(true)
       setError(null)
       
-      const response = await fetch('/api/analyze-workflows')
+      // Try to get GitHub token from localStorage or use GitHub App token
+      const githubToken = localStorage.getItem('github-token')
+      const headers: Record<string, string> = {}
+      
+      if (githubToken) {
+        headers['Authorization'] = `Bearer ${githubToken}`
+      }
+      
+      const response = await fetch('/api/count-tests', { headers })
       const result = await response.json()
       
       if (result.success) {
-        setData(result)
+        // Transform the data to match the expected format
+        const transformedAnalysis = result.testCounts.map((count: any) => ({
+          workflowName: `${count.framework} tests`,
+          repository: count.repository,
+          testGroups: Object.entries(count.breakdown).map(([name, count]) => ({
+            name,
+            count: count as number,
+            description: `${name} tests`
+          })),
+          totalTests: count.estimatedTests,
+          environment: 'all',
+          platform: count.framework
+        }))
+        
+        const transformedSummary = {
+          totalWorkflows: result.summary.totalRepositories,
+          totalTests: result.summary.totalEstimatedTests,
+          byEnvironment: { all: result.summary.totalEstimatedTests },
+          byPlatform: result.summary.byFramework
+        }
+        
+        setData({
+          success: true,
+          analysis: transformedAnalysis,
+          summary: transformedSummary
+        })
       } else {
-        setError(result.error || 'Error analyzing workflows')
+        setError(result.error || 'Error analyzing tests')
       }
     } catch (err) {
-      setError('Failed to fetch workflow analysis')
+      setError('Failed to fetch test analysis')
       console.error('Error fetching analysis:', err)
     } finally {
       setIsLoading(false)
