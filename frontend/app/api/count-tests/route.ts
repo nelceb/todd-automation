@@ -99,11 +99,11 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
         testDirectories.push(testPath)
         testFiles.push(...files)
         
-        // Categorize files
+        // Categorize files and count real tests
         for (const file of files) {
           if (file.type === 'file') {
-            const category = categorizeTestFile(file.name, repo.framework)
-            breakdown[category] = (breakdown[category] || 0) + 1
+            const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
+            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + analysis.testCount
           }
         }
       }
@@ -113,7 +113,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
   }
 
   const totalTestFiles = testFiles.filter(f => f.type === 'file').length
-  const estimatedTests = estimateTestCount(testFiles, repo.framework)
+  const estimatedTests = Object.values(breakdown).reduce((sum, count) => sum + count, 0)
 
   return {
     repository: repo.name,
@@ -156,53 +156,168 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
   }
 }
 
-function categorizeTestFile(fileName: string, framework: string): string {
-  const name = fileName.toLowerCase()
-  
+async function categorizeTestFile(token: string, repoName: string, file: TestFile, framework: string): Promise<{ category: string, tags: string[], testCount: number }> {
+  const name = file.name.toLowerCase()
+  let category = 'other'
+  let tags: string[] = []
+  let testCount = 1
+
+  try {
+    // Leer el contenido del archivo para extraer tags y contar tests reales
+    const content = await getFileContent(token, repoName, file.path)
+    if (content) {
+      tags = extractTagsFromContent(content, framework)
+      testCount = countTestsInContent(content, framework)
+    }
+  } catch (error) {
+    console.error(`Error reading file ${file.path}:`, error)
+  }
+
+  // Categorización basada en nombre del archivo y contenido
   if (framework === 'maestro') {
-    if (name.includes('login')) return 'login'
-    if (name.includes('signup')) return 'signup'
-    if (name.includes('cart')) return 'cart'
-    if (name.includes('menu')) return 'menu'
-    if (name.includes('search')) return 'search'
-    if (name.includes('checkout') || name.includes('order')) return 'checkout'
-    if (name.includes('smoke')) return 'smoke'
-    if (name.includes('regression')) return 'regression'
-    return 'other'
+    if (name.includes('login') || tags.includes('login')) category = 'login'
+    else if (name.includes('signup') || tags.includes('signup')) category = 'signup'
+    else if (name.includes('cart') || tags.includes('cart')) category = 'cart'
+    else if (name.includes('menu') || tags.includes('menu')) category = 'menu'
+    else if (name.includes('checkout') || name.includes('order') || tags.includes('checkout')) category = 'checkout'
+    else if (name.includes('smoke') || tags.includes('smoke')) category = 'smoke'
+    else if (name.includes('regression') || tags.includes('regression')) category = 'regression'
+    else if (tags.includes('critical')) category = 'critical'
   }
   
   if (framework === 'playwright') {
-    if (name.includes('e2e')) return 'e2e'
-    if (name.includes('landing')) return 'landings'
-    if (name.includes('signup')) return 'signup'
-    if (name.includes('growth')) return 'growth'
-    if (name.includes('visual')) return 'visual'
-    if (name.includes('lighthouse')) return 'lighthouse'
-    if (name.includes('coreux') || name.includes('core-ux')) return 'coreux'
-    if (name.includes('activation')) return 'activation'
-    if (name.includes('segment')) return 'segment'
-    if (name.includes('sanity')) return 'sanity'
-    if (name.includes('chef')) return 'chefs'
-    if (name.includes('scripting')) return 'scripting'
-    if (name.includes('mobile')) return 'mobile'
-    return 'other'
+    if (tags.includes('@growth')) category = 'growth'
+    else if (tags.includes('@landings')) category = 'landings'
+    else if (tags.includes('@signup')) category = 'signup'
+    else if (tags.includes('@e2e')) category = 'e2e'
+    else if (tags.includes('@visual')) category = 'visual'
+    else if (tags.includes('@lighthouse')) category = 'lighthouse'
+    else if (tags.includes('@coreux') || tags.includes('@core-ux')) category = 'coreux'
+    else if (tags.includes('@activation')) category = 'activation'
+    else if (tags.includes('@segment')) category = 'segment'
+    else if (tags.includes('@sanity')) category = 'sanity'
+    else if (tags.includes('@chef')) category = 'chefs'
+    else if (tags.includes('@mobile')) category = 'mobile'
+    else if (tags.includes('@prod')) category = 'prod'
+    else if (tags.includes('@qa')) category = 'qa'
   }
   
   if (framework === 'selenium') {
-    if (name.includes('e2e')) return 'e2e'
-    if (name.includes('api')) return 'api'
-    if (name.includes('mobile')) return 'mobile'
-    if (name.includes('regression')) return 'regression'
-    if (name.includes('logistics')) return 'logistics'
-    if (name.includes('menu')) return 'menu'
-    if (name.includes('kitchen')) return 'kitchen'
-    if (name.includes('ios')) return 'ios'
-    if (name.includes('android')) return 'android'
-    if (name.includes('web')) return 'web'
-    return 'other'
+    if (tags.includes('e2e')) category = 'e2e'
+    else if (tags.includes('api')) category = 'api'
+    else if (tags.includes('mobile')) category = 'mobile'
+    else if (tags.includes('regression')) category = 'regression'
+    else if (tags.includes('logistics')) category = 'logistics'
+    else if (tags.includes('menu')) category = 'menu'
+    else if (tags.includes('kitchen')) category = 'kitchen'
+    else if (tags.includes('ios')) category = 'ios'
+    else if (tags.includes('android')) category = 'android'
+    else if (tags.includes('web')) category = 'web'
+    else if (tags.includes('subscription')) category = 'subscription'
+    else if (tags.includes('orders')) category = 'orders'
+    else if (tags.includes('smoke')) category = 'smoke'
+    else if (tags.includes('p1')) category = 'p1'
+  }
+
+  return { category, tags, testCount }
+}
+
+async function getFileContent(token: string, repoName: string, filePath: string): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${repoName}/contents/${filePath}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+    if (data.content) {
+      return Buffer.from(data.content, 'base64').toString('utf-8')
+    }
+    return null
+  } catch (error) {
+    console.error(`Error fetching file content for ${filePath}:`, error)
+    return null
+  }
+}
+
+function extractTagsFromContent(content: string, framework: string): string[] {
+  const tags: string[] = []
+  
+  if (framework === 'maestro') {
+    // Buscar tags en formato YAML: tags: ['login', 'critical']
+    const yamlTagsMatch = content.match(/tags:\s*\n\s*-\s*(.+)/g)
+    if (yamlTagsMatch) {
+      yamlTagsMatch.forEach(match => {
+        const tagMatch = match.match(/-\s*(.+)/)
+        if (tagMatch) {
+          tags.push(tagMatch[1].trim().replace(/['"]/g, ''))
+        }
+      })
+    }
   }
   
-  return 'other'
+  if (framework === 'playwright') {
+    // Buscar tags en formato: { tag: ['@growth', '@landings', '@prod', '@mobile'] }
+    const tagMatches = content.match(/\{ tag:\s*\[([^\]]+)\]/g)
+    if (tagMatches) {
+      tagMatches.forEach(match => {
+        const tagsInMatch = match.match(/\[([^\]]+)\]/)
+        if (tagsInMatch) {
+          const tagList = tagsInMatch[1].split(',').map(tag => tag.trim().replace(/['"]/g, ''))
+          tags.push(...tagList)
+        }
+      })
+    }
+  }
+  
+  if (framework === 'selenium') {
+    // Buscar groups en formato: groups = ["worker1", "subscription", "smoke", "p1", "login"]
+    const groupsMatches = content.match(/groups\s*=\s*\[([^\]]+)\]/g)
+    if (groupsMatches) {
+      groupsMatches.forEach(match => {
+        const groupsInMatch = match.match(/\[([^\]]+)\]/)
+        if (groupsInMatch) {
+          const groupList = groupsInMatch[1].split(',').map(group => group.trim().replace(/['"]/g, ''))
+          tags.push(...groupList)
+        }
+      })
+    }
+  }
+  
+  return [...new Set(tags)] // Remove duplicates
+}
+
+function countTestsInContent(content: string, framework: string): number {
+  let count = 0
+  
+  if (framework === 'maestro') {
+    // Contar comandos de test en Maestro (cada comando es un test step)
+    const testCommands = content.match(/-\s+(tapOn|inputText|assertVisible|runFlow|repeat):/g)
+    count = testCommands ? testCommands.length : 1
+  }
+  
+  if (framework === 'playwright') {
+    // Contar test() functions
+    const testMatches = content.match(/test\(/g)
+    count = testMatches ? testMatches.length : 1
+  }
+  
+  if (framework === 'selenium') {
+    // Contar @Test annotations
+    const testMatches = content.match(/@Test/g)
+    count = testMatches ? testMatches.length : 1
+  }
+  
+  return Math.max(count, 1) // Mínimo 1 test por archivo
 }
 
 function estimateTestCount(testFiles: TestFile[], framework: string): number {
