@@ -756,26 +756,36 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                         )}
                         
                         {/* Show View on GitHub button for MANUALLY TRIGGERED workflows without active state */}
-                        {isWorkflowRunningFromTodd(workflowName, repo.name) && state === 'idle' && (
-                          <div className="mt-2 flex items-center justify-between">
-                            <div className="text-xs text-blue-400 flex items-center">
-                              <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse mr-1"></div>
-                              Running from TODD
+                        {isWorkflowRunningFromTodd(workflowName, repo.name) && state === 'idle' && (() => {
+                          const runningWorkflow = runningWorkflowsFromTodd.find(w => 
+                            w.workflowName === workflowName && w.repository === repo.name
+                          )
+                          const runId = runningWorkflow?.runId
+                          const githubUrl = runId 
+                            ? `https://github.com/${repo.fullName}/actions/runs/${runId}`
+                            : `https://github.com/${repo.fullName}/actions`
+                          
+                          return (
+                            <div className="mt-2 flex items-center justify-between">
+                              <div className="text-xs text-blue-400 flex items-center">
+                                <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse mr-1"></div>
+                                Running from TODD
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <a
+                                  href={githubUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center px-2 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                  View on GitHub
+                                </a>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <a
-                                href={`https://github.com/${repo.fullName}/actions`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-400 hover:text-blue-300 flex items-center px-2 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
-                                View on GitHub
-                              </a>
-                            </div>
-                          </div>
-                        )}
+                          )
+                        })()}
                       </div>
                     )
                   })}
