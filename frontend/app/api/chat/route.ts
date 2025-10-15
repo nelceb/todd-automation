@@ -155,28 +155,12 @@ LAMBDATEST APP URL DETECTION (Selenium workflows):
   * "run ios tests with ltappid lt://APP10160192331760543835743286" → include app_url: "lt://APP10160192331760543835743286"
   * "run tests with lambdatest app url lt://APP10160192331760543835743286" → include app_url: "lt://APP10160192331760543835743286"
 
-TEMPLATE PARAMETRIZADO - EJEMPLOS DE USO:
+EXAMPLES:
 
-MAESTRO (iOS Mobile Tests):
+MAESTRO:
 - "Run iOS login tests in QA" → maestro-test, iOS Maestro Tests, test_suite: "login"
 - "Execute mobile smoke tests" → maestro-test, iOS Maestro Tests, test_suite: "smoke"
 - "Run cart tests with user@example.com" → maestro-test, iOS Maestro Tests, test_suite: "cart", user_email: "user@example.com"
-- "Run all iOS tests" → maestro-test, iOS Maestro Tests, test_suite: "all"
-- "Run iOS regression tests" → maestro-test, iOS Maestro Tests, test_suite: "regression"
-
-PLAYWRIGHT (Web E2E Tests):
-- "Run e2e tests in QA" → pw-cookunity-automation, QA US - E2E, environment: "qa", groups: "@e2e"
-- "Run signup tests in prod" → pw-cookunity-automation, PROD US - SIGNUP, environment: "prod", groups: "@signup"
-- "Run landings tests in QA Canada" → pw-cookunity-automation, QA CA - LANDINGS, environment: "qa-ca", groups: "@landings"
-- "Run growth tests in prod" → pw-cookunity-automation, PROD US - GROWTH, environment: "prod", groups: "@growth"
-- "Run visual regression tests" → pw-cookunity-automation, PROD VISUAL REGRESSION, environment: "prod", groups: "@visual"
-
-SELENIUM (Web + Mobile + API):
-- "Run android tests in prod with appid lt://APP10160192331760543835743286" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile", app_url: "lt://APP10160192331760543835743286"
-- "Run ios tests with ltappid lt://APP10160192331760543835743286" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile", app_url: "lt://APP10160192331760543835743286"
-- "Run web e2e tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
-- "Run API tests in QA" → automation-framework, QA API Kitchen Regression, environment: "qa", groups: "api"
-- "Run logistics tests" → automation-framework, QA Logistics Regression, environment: "qa", groups: "logistics"
 
 PLAYWRIGHT:
 - "Run e2e tests" → pw-cookunity-automation, QA US - E2E, environment: "qa", groups: "@e2e"
