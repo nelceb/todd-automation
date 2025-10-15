@@ -6,8 +6,16 @@ import { getGitHubToken, isDemoMode } from '../utils/github'
 export async function GET(request: NextRequest) {
   try {
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
-    const repo = process.env.GITHUB_REPO || 'maestro-test'
+    
+    // Usar el mismo mapeo que funciona en /api/repositories
+    const repoMapping: Record<string, string> = {
+      'maestro-test': 'Cook-Unity/maestro-test',
+      'pw-cookunity-automation': 'Cook-Unity/pw-cookunity-automation',
+      'automation-framework': 'Cook-Unity/automation-framework'
+    }
+    
+    const defaultRepo = 'maestro-test'
+    const fullRepoName = repoMapping[defaultRepo] || `Cook-Unity/${defaultRepo}`
 
     // Verificar que tenemos un token válido
     if (!token || isDemoMode(token)) {
@@ -17,8 +25,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log('🔍 Fetching workflow runs for:', fullRepoName)
+    console.log('🔍 Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN')
+
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=20`,
+      `https://api.github.com/repos/${fullRepoName}/actions/runs?per_page=20`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
