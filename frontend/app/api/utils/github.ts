@@ -1,19 +1,78 @@
 import { NextRequest } from 'next/server'
+import jwt from 'jsonwebtoken'
 
-export function getGitHubToken(request: NextRequest): string | null {
-  // Primero intentar obtener el token del header Authorization
+async function generateGitHubAppToken(): Promise<string | null> {
+  try {
+    const appId = process.env.GITHUB_APP_ID
+    const privateKey = process.env.GITHUB_APP_PRIVATE_KEY
+
+    if (!appId || !privateKey) {
+      console.error('GitHub App credentials not configured')
+      return null
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    const payload = {
+      iat: now - 60,
+      exp: now + 600,
+      iss: appId
+    }
+
+    const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' })
+
+    // Primero obtener las instalaciones de la GitHub App
+    const installationsResponse = await fetch('https://api.github.com/app/installations', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'GitHub-App'
+      }
+    })
+
+    if (!installationsResponse.ok) {
+      console.error('Failed to get GitHub App installations:', installationsResponse.statusText)
+      return null
+    }
+
+    const installations = await installationsResponse.json()
+    if (!installations || installations.length === 0) {
+      console.error('No GitHub App installations found')
+      return null
+    }
+
+    // Usar la primera instalación
+    const installationId = installations[0].id
+
+    // Intercambiar JWT por access token
+    const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'GitHub-App'
+      }
+    })
+
+    if (!response.ok) {
+      console.error('Failed to get GitHub App access token:', response.statusText)
+      return null
+    }
+
+    const data = await response.json()
+    return data.token
+  } catch (error) {
+    console.error('Error generating GitHub App token:', error)
+    return null
+  }
+}
+
+export async function getGitHubToken(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get('authorization')
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7)
   }
-
-  // Luego intentar obtenerlo de las variables de entorno
-  const envToken = process.env.GITHUB_TOKEN
-  if (envToken && envToken !== 'test_token' && envToken !== 'your_github_personal_access_token_here') {
-    return envToken
-  }
-
-  return null
+  return await generateGitHubAppToken()
 }
 
 export function isDemoMode(token: string | null): boolean {
