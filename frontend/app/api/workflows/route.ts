@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
     // Obtener workflows del repositorio
     const url = `https://api.github.com/repos/${owner}/${repository}/actions/workflows`
     console.log('🔍 Fetching workflows from:', url)
+    console.log('🔍 Owner:', owner)
+    console.log('🔍 Repository:', repository)
     console.log('🔍 Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN')
     
     const workflowsResponse = await fetch(url, {
