@@ -95,7 +95,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
   for (const testPath of repo.testPaths) {
     try {
       const files = await getDirectoryContents(token, repo.name, testPath)
-      if (files) {
+      if (files && files.length > 0) {
         testDirectories.push(testPath)
         testFiles.push(...files)
         
@@ -126,7 +126,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
   }
 }
 
-async function getDirectoryContents(token: string, repoName: string, path: string): Promise<TestFile[] | null> {
+async function getDirectoryContents(token: string, repoName: string, path: string, recursive: boolean = true): Promise<TestFile[]> {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${repoName}/contents/${path}`,
@@ -139,20 +139,33 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
     )
 
     if (!response.ok) {
-      return null
+      return []
     }
 
     const contents = await response.json()
+    const allFiles: TestFile[] = []
     
-    return contents.map((item: any) => ({
-      name: item.name,
-      path: item.path,
-      type: item.type,
-      size: item.size
-    }))
+    for (const item of contents) {
+      const testFile: TestFile = {
+        name: item.name,
+        path: item.path,
+        type: item.type,
+        size: item.size
+      }
+      
+      allFiles.push(testFile)
+      
+      // Si es un directorio y queremos recursión, explorar subdirectorios
+      if (item.type === 'dir' && recursive) {
+        const subFiles = await getDirectoryContents(token, repoName, item.path, true)
+        allFiles.push(...subFiles)
+      }
+    }
+    
+    return allFiles
   } catch (error) {
     console.error(`Error fetching contents for ${path}:`, error)
-    return null
+    return []
   }
 }
 
