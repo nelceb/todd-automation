@@ -72,27 +72,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   useEffect(() => {
-    // Only fetch data if we have a valid GitHub token
-    if (githubToken) {
-      // Validate token first
-      validateGitHubToken(githubToken).then(isValid => {
-        if (isValid) {
-          fetchRepositories(githubToken)
-          fetchWorkflowRuns(githubToken)
-          // Refresh every 30 seconds
-          const interval = setInterval(() => {
-            fetchRepositories(githubToken)
-            fetchWorkflowRuns(githubToken)
-          }, 30000)
-          return () => clearInterval(interval)
-        } else {
-          // Token is invalid, clear it from localStorage
-          localStorage.removeItem('github_token')
-          // This will trigger a re-render and show the auth screen
-          window.location.reload()
-        }
-      })
-    }
+    // Con GitHub App, el backend maneja la autenticación automáticamente
+    // No necesitamos validar el token del frontend
+    fetchRepositories(githubToken)
+    fetchWorkflowRuns(githubToken)
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchRepositories(githubToken)
+      fetchWorkflowRuns(githubToken)
+    }, 30000)
+    
+    return () => clearInterval(interval)
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
   // Smart expansion logic based on device type and running workflows
