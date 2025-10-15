@@ -206,20 +206,21 @@ async function categorizeTestFile(token: string, repoName: string, file: TestFil
   }
   
   if (framework === 'playwright') {
-    if (tags.includes('@growth')) category = 'growth'
-    else if (tags.includes('@landings')) category = 'landings'
-    else if (tags.includes('@signup')) category = 'signup'
-    else if (tags.includes('@e2e')) category = 'e2e'
-    else if (tags.includes('@visual')) category = 'visual'
-    else if (tags.includes('@lighthouse')) category = 'lighthouse'
-    else if (tags.includes('@coreux') || tags.includes('@core-ux')) category = 'coreux'
-    else if (tags.includes('@activation')) category = 'activation'
-    else if (tags.includes('@segment')) category = 'segment'
-    else if (tags.includes('@sanity')) category = 'sanity'
-    else if (tags.includes('@chef')) category = 'chefs'
-    else if (tags.includes('@mobile')) category = 'mobile'
-    else if (tags.includes('@prod')) category = 'prod'
-    else if (tags.includes('@qa')) category = 'qa'
+    // Categorización basada en la estructura real de workflows
+    if (tags.includes('@e2e')) category = 'E2E Tests'
+    else if (tags.includes('@growth')) category = 'Growth Tests'
+    else if (tags.includes('@landings')) category = 'Landing Pages'
+    else if (tags.includes('@sanity')) category = 'Sanity Tests'
+    else if (tags.includes('@signup')) category = 'Signup Flow'
+    else if (tags.includes('@lighthouse')) category = 'Performance Tests'
+    else if (tags.includes('@visual')) category = 'Regression Tests'
+    else if (tags.includes('@coreux') || tags.includes('@core-ux')) category = 'Regression Tests'
+    else if (tags.includes('@activation')) category = 'General Tests'
+    else if (tags.includes('@segment')) category = 'General Tests'
+    else if (tags.includes('@chef')) category = 'General Tests'
+    else if (tags.includes('@mobile')) category = 'Landing Pages' // Mobile landings
+    else if (tags.includes('@prod')) category = 'Production Tests'
+    else if (tags.includes('@qa')) category = 'QA Tests'
   }
   
   if (framework === 'selenium') {
