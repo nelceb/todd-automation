@@ -103,7 +103,8 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
         for (const file of files) {
           if (file.type === 'file') {
             const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
-            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + analysis.testCount
+            // Cada archivo se cuenta solo una vez, independientemente de cuántos tags tenga
+            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + 1
           }
         }
       }
@@ -113,7 +114,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
   }
 
   const totalTestFiles = testFiles.filter(f => f.type === 'file').length
-  const estimatedTests = Object.values(breakdown).reduce((sum, count) => sum + count, 0)
+  const estimatedTests = totalTestFiles // Cada archivo es 1 test
 
   return {
     repository: repo.name,
