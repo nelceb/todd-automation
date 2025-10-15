@@ -583,6 +583,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   const handleClearAll = () => {
     clearMessages()
     clearAllLogs()
+    clearPreview()
+    // Clear localStorage to remove any persisted state
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('workflow-store')
+      localStorage.removeItem('todd-messages')
+    }
   }
 
   const handleCancelWorkflow = async (runId: string, repository: string) => {
