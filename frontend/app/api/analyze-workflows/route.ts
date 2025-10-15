@@ -88,16 +88,19 @@ export async function GET(request: NextRequest) {
             const testGroups = analyzeWorkflowForTests(parsedYaml, repo.type)
             const totalTests = testGroups.reduce((sum, group) => sum + group.count, 0)
 
-            if (totalTests > 0) {
-              analysis.push({
-                workflowName: workflow.name,
-                repository: repo.name,
-                testGroups,
-                totalTests,
-                environment: extractEnvironment(workflow.name),
-                platform: extractPlatform(workflow.name, repo.type)
-              })
-            }
+            // Always include the workflow, even if no tests found
+            analysis.push({
+              workflowName: workflow.name,
+              repository: repo.name,
+              testGroups: testGroups.length > 0 ? testGroups : [{
+                name: 'default',
+                count: 1,
+                description: 'Default test suite'
+              }],
+              totalTests: totalTests > 0 ? totalTests : 1,
+              environment: extractEnvironment(workflow.name),
+              platform: extractPlatform(workflow.name, repo.type)
+            })
           } catch (error) {
             console.error(`Error analyzing workflow ${workflow.name}:`, error)
           }
