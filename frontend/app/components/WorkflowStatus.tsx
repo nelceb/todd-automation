@@ -20,6 +20,7 @@ import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStor
 import { useWorkflowInputs } from '../hooks/useWorkflowInputs'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
+import WorkflowAnalysis from './WorkflowAnalysis'
 
 interface WorkflowStatusProps {
   githubToken?: string
@@ -579,6 +580,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
           Real-time monitoring of test execution across multiple repositories
         </p>
+      </div>
+
+      {/* Workflow Analysis */}
+      <div className="mb-12">
+        <WorkflowAnalysis />
       </div>
 
       {/* 3 Repository Columns */}
