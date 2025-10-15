@@ -313,9 +313,9 @@ function countTestsInContent(content: string, framework: string): number {
   let count = 0
   
   if (framework === 'maestro') {
-    // Contar comandos de test en Maestro (cada comando es un test step)
-    const testCommands = content.match(/-\s+(tapOn|inputText|assertVisible|runFlow|repeat):/g)
-    count = testCommands ? testCommands.length : 1
+    // En Maestro, cada archivo .yaml es un test completo
+    // No contamos comandos individuales, sino archivos completos
+    count = 1
   }
   
   if (framework === 'playwright') {
