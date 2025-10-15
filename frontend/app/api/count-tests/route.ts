@@ -101,7 +101,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
         
         // Categorize files and count real tests
         for (const file of files) {
-          if (file.type === 'file') {
+          if (file.type === 'file' && isTestFile(file.name, repo.framework)) {
             const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
             // Cada archivo se cuenta solo una vez, independientemente de cuántos tags tenga
             breakdown[analysis.category] = (breakdown[analysis.category] || 0) + 1
@@ -113,7 +113,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
     }
   }
 
-  const totalTestFiles = testFiles.filter(f => f.type === 'file').length
+  const totalTestFiles = testFiles.filter(f => f.type === 'file' && isTestFile(f.name, repo.framework)).length
   const estimatedTests = totalTestFiles // Cada archivo es 1 test
 
   return {
@@ -345,6 +345,27 @@ function estimateTestCount(testFiles: TestFile[], framework: string): number {
   }
   
   return fileCount * (testsPerFile[framework as keyof typeof testsPerFile] || 5)
+}
+
+function isTestFile(fileName: string, framework: string): boolean {
+  const name = fileName.toLowerCase()
+  
+  if (framework === 'maestro') {
+    // Solo archivos .yaml en maestro/tests/ (ya filtrado por path)
+    return name.endsWith('.yaml')
+  }
+  
+  if (framework === 'playwright') {
+    // Solo archivos .spec.ts (tests reales)
+    return name.endsWith('.spec.ts')
+  }
+  
+  if (framework === 'selenium') {
+    // Solo archivos .kt que terminan en Test.kt
+    return name.endsWith('test.kt')
+  }
+  
+  return false
 }
 
 function groupByFramework(testCounts: TestCount[]): { [framework: string]: number } {
