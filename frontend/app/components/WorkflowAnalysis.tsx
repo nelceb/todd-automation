@@ -42,6 +42,7 @@ export default function WorkflowAnalysis() {
   const [data, setData] = useState<WorkflowAnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState('Initializing analysis...')
 
   useEffect(() => {
     fetchAnalysis()
@@ -52,6 +53,22 @@ export default function WorkflowAnalysis() {
       setIsLoading(true)
       setError(null)
       
+      // Progressive loading messages
+      setLoadingMessage('Fetching repository data...')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      setLoadingMessage('Analyzing Maestro test files...')
+      await new Promise(resolve => setTimeout(resolve, 400))
+      
+      setLoadingMessage('Analyzing Playwright test files...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      setLoadingMessage('Analyzing Selenium test files...')
+      await new Promise(resolve => setTimeout(resolve, 400))
+      
+      setLoadingMessage('Compiling test summary...')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
       // Try to get GitHub token from localStorage or use GitHub App token
       const githubToken = localStorage.getItem('github-token')
       const headers: Record<string, string> = {}
@@ -60,6 +77,7 @@ export default function WorkflowAnalysis() {
         headers['Authorization'] = `Bearer ${githubToken}`
       }
       
+      setLoadingMessage('Finalizing analysis...')
       const response = await fetch('/api/count-tests', { headers })
       const result = await response.json()
       
@@ -155,10 +173,48 @@ export default function WorkflowAnalysis() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Analyzing workflows...</p>
+      <div className="space-y-6">
+        {/* Skeleton Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white/20 border border-gray-300/50 rounded-lg p-4 animate-pulse">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-gray-300 rounded mr-3"></div>
+                <div>
+                  <div className="h-4 bg-gray-300 rounded w-24 mb-2"></div>
+                  <div className="h-6 bg-gray-300 rounded w-16"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Skeleton Environment & Platform */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-white/20 border border-gray-300/50 rounded-lg p-6 animate-pulse">
+              <div className="h-6 bg-gray-300 rounded w-32 mb-4"></div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="flex items-center justify-between p-3 bg-white/10 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-16 h-6 bg-gray-300 rounded-full"></div>
+                      <div className="h-4 bg-gray-300 rounded w-20"></div>
+                    </div>
+                    <div className="h-5 bg-gray-300 rounded w-12"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Loading Message */}
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600 animate-pulse">{loadingMessage}</p>
+          </div>
         </div>
       </div>
     )
