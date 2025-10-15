@@ -192,6 +192,28 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return 'default'
   }
 
+  const getWorkflowCountsByEnvironment = (workflows: string[]) => {
+    const counts = { prod: 0, qa: 0, mobile: 0, test: 0, default: 0 }
+    workflows.forEach(workflow => {
+      const env = extractEnvironmentFromName(workflow)
+      counts[env as keyof typeof counts]++
+    })
+    return counts
+  }
+
+  const getWorkflowCountsByPlatform = (workflows: string[]) => {
+    const counts = { ios: 0, android: 0, web: 0, api: 0, other: 0 }
+    workflows.forEach(workflow => {
+      const name = workflow.toLowerCase()
+      if (name.includes('ios')) counts.ios++
+      else if (name.includes('android')) counts.android++
+      else if (name.includes('web') || name.includes('e2e') || name.includes('playwright')) counts.web++
+      else if (name.includes('api')) counts.api++
+      else counts.other++
+    })
+    return counts
+  }
+
   const isScheduledWorkflow = (workflowName: string): boolean => {
     const name = workflowName.toLowerCase()
     // Detect common scheduled workflow patterns
@@ -616,6 +638,107 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       })()}
                     </div>
                     <p className="text-sm font-mono" style={{ color: '#6B7280' }}>{repo.technology} • {repo.workflows.length} workflows</p>
+                    {(() => {
+                      const envCounts = getWorkflowCountsByEnvironment(repo.workflows)
+                      const platformCounts = getWorkflowCountsByPlatform(repo.workflows)
+                      
+                      return (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {envCounts.prod > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                              {envCounts.prod} PROD
+                            </span>
+                          )}
+                          {envCounts.qa > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                              {envCounts.qa} QA
+                            </span>
+                          )}
+                          {envCounts.mobile > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                              {envCounts.mobile} MOBILE
+                            </span>
+                          )}
+                          {platformCounts.ios > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                              {platformCounts.ios} iOS
+                            </span>
+                          )}
+                          {platformCounts.android > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                              {platformCounts.android} Android
+                            </span>
+                          )}
+                          {platformCounts.web > 0 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                              {platformCounts.web} Web
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
+                    
+                    {/* Available Groups Info */}
+                    {(() => {
+                      if (repo.name === 'pw-cookunity-automation') {
+                        return (
+                          <div className="mt-2 text-xs text-gray-600">
+                            <div className="font-medium mb-1">Available Groups:</div>
+                            <div className="flex flex-wrap gap-1">
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@e2e</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@landings</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@signup</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@growth</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@visual</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@lighthouse</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@coreUx</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@activation</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@segment</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@sanity</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@chefs</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@scripting</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@mobile</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@lcpLighthouse</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">@cvrChrome</span>
+                            </div>
+                          </div>
+                        )
+                      } else if (repo.name === 'automation-framework') {
+                        return (
+                          <div className="mt-2 text-xs text-gray-600">
+                            <div className="font-medium mb-1">Available Groups:</div>
+                            <div className="flex flex-wrap gap-1">
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">e2e</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">api</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">mobile</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">regression</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">logistics</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">menu</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">kitchen</span>
+                            </div>
+                          </div>
+                        )
+                      } else if (repo.name === 'maestro-test') {
+                        return (
+                          <div className="mt-2 text-xs text-gray-600">
+                            <div className="font-medium mb-1">Available Test Suites:</div>
+                            <div className="flex flex-wrap gap-1">
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">all</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">login</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">signup</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">smoke</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">regression</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">cart</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">completeOrder</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">menu</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">search</span>
+                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">home</span>
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
                 {isExpanded ? (
