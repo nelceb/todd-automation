@@ -35,7 +35,7 @@ const REPO_CLASSIFICATION = {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getGitHubToken(request)
+    const token = await getGitHubToken(request)
     
     if (!token) {
       return NextResponse.json(

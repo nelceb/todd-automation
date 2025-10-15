@@ -5,7 +5,7 @@ import { getGitHubToken, isDemoMode } from '../utils/github'
 
 export async function GET(request: NextRequest) {
   try {
-    const token = getGitHubToken(request)
+    const token = await getGitHubToken(request)
     const owner = process.env.GITHUB_OWNER || 'nelceb'
     const repo = process.env.GITHUB_REPO || 'test-runner-ai'
 

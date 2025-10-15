@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getGitHubToken } from '../utils/github'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const repository = searchParams.get('repository') || 'maestro-test'
     
-    const token = process.env.GITHUB_TOKEN
+    const token = await getGitHubToken(request)
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
 
     if (!token) {

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const runId = searchParams.get('runId')
     const repository = searchParams.get('repository')
-    const token = getGitHubToken(request)
+    const token = await getGitHubToken(request)
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
