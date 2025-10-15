@@ -101,10 +101,10 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
         
         // Categorize files and count real tests
         for (const file of files) {
-          if (file.type === 'file' && isTestFile(file.name, repo.framework)) {
+          if (file.type === 'file' && await isTestFile(file.name, repo.framework, token, repo.name, file.path)) {
             const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
-            // Cada archivo se cuenta solo una vez, independientemente de cuántos tags tenga
-            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + 1
+            // Usar el conteo real de tests del archivo, no solo 1
+            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + analysis.testCount
           }
         }
       }
@@ -114,7 +114,7 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
   }
 
   const totalTestFiles = testFiles.filter(f => f.type === 'file' && isTestFile(f.name, repo.framework)).length
-  const estimatedTests = totalTestFiles // Cada archivo es 1 test
+  const estimatedTests = Object.values(breakdown).reduce((sum, count) => sum + count, 0) // Suma real de tests
 
   return {
     repository: repo.name,
@@ -320,8 +320,8 @@ function countTestsInContent(content: string, framework: string): number {
   }
   
   if (framework === 'playwright') {
-    // Contar test() functions
-    const testMatches = content.match(/test\(/g)
+    // Contar test() functions (incluyendo test.skip, test.only, etc.)
+    const testMatches = content.match(/test\.?(skip|only|fixme)?\s*\(/g)
     count = testMatches ? testMatches.length : 1
   }
   
@@ -347,7 +347,7 @@ function estimateTestCount(testFiles: TestFile[], framework: string): number {
   return fileCount * (testsPerFile[framework as keyof typeof testsPerFile] || 5)
 }
 
-function isTestFile(fileName: string, framework: string): boolean {
+async function isTestFile(fileName: string, framework: string, token: string, repoName: string, filePath: string): Promise<boolean> {
   const name = fileName.toLowerCase()
   
   if (framework === 'maestro') {
@@ -362,7 +362,33 @@ function isTestFile(fileName: string, framework: string): boolean {
   
   if (framework === 'selenium') {
     // Solo archivos .kt que terminan en Test.kt
-    return name.endsWith('test.kt')
+    if (!name.endsWith('test.kt')) {
+      return false
+    }
+    
+    // Verificar si tiene tests habilitados
+    try {
+      const content = await getFileContent(token, repoName, filePath)
+      if (content) {
+        // Buscar @Test annotations
+        const testAnnotations = content.match(/@Test[^)]*\)/g)
+        if (testAnnotations) {
+          // Verificar si hay al menos un test habilitado
+          for (const annotation of testAnnotations) {
+            // Si no tiene enabled=false, está habilitado
+            if (!annotation.includes('enabled=false') && !annotation.includes('enabled = false')) {
+              return true
+            }
+          }
+        }
+        // Si no tiene @Test annotations, no es un test file
+        return false
+      }
+    } catch (error) {
+      console.error(`Error checking test file ${filePath}:`, error)
+    }
+    
+    return false
   }
   
   return false
