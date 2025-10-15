@@ -147,8 +147,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      // Always use the token from Vercel environment variables
-      // The API will handle token fallback automatically
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
       
       const response = await fetch('/api/workflows', { headers })
       if (!response.ok) {
@@ -166,8 +167,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      // Always use the token from Vercel environment variables
-      // The API will handle token fallback automatically
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
       
       const response = await fetch('/api/repositories', { headers })
       if (!response.ok) {
@@ -185,8 +187,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      // Always use the token from Vercel environment variables
-      // The API will handle token fallback automatically
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
       
       const response = await fetch('/api/workflow-runs', { headers })
       if (!response.ok) {
@@ -204,8 +207,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set({ isLoading: true, error: null })
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      // Always use the token from Vercel environment variables
-      // The API will handle token fallback automatically
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
       
       const response = await fetch('/api/trigger-workflow', {
         method: 'POST',
@@ -292,8 +296,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
   fetchWorkflowLogs: async (runId: string, token?: string, repository?: string) => {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      // Always use the token from Vercel environment variables
-      // The API will handle token fallback automatically
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
 
       const repoParam = repository ? `&repository=${repository}` : ''
       const response = await fetch(`/api/workflow-logs?runId=${runId}${repoParam}`, { headers })
