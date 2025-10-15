@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
 
     // Obtener el run más reciente para este workflow
     const runsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/runs?per_page=1`,
+      `https://api.github.com/repos/${fullRepoName}/actions/workflows/${workflow.id}/runs?per_page=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
