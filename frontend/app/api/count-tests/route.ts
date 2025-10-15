@@ -237,6 +237,11 @@ async function categorizeTestFile(token: string, repoName: string, file: TestFil
     else if (tags.includes('orders')) category = 'orders'
     else if (tags.includes('smoke')) category = 'smoke'
     else if (tags.includes('p1')) category = 'p1'
+    else if (tags.includes('login')) category = 'login'
+    else if (tags.includes('qa')) category = 'qa'
+    else if (tags.includes('prod')) category = 'prod'
+    else if (tags.includes('getUser')) category = 'getUser'
+    else if (tags.includes('worker1') || tags.includes('worker2') || tags.includes('worker3')) category = 'worker'
   }
 
   // Log files categorized as "other" for debugging
