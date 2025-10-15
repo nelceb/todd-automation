@@ -103,8 +103,10 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
         for (const file of files) {
           if (file.type === 'file' && await isTestFile(file.name, repo.framework, token, repo.name, file.path)) {
             const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
-            // Usar el conteo real de tests del archivo, no solo 1
-            breakdown[analysis.category] = (breakdown[analysis.category] || 0) + analysis.testCount
+            // Contar cada tag individualmente (un test puede tener múltiples tags)
+            analysis.tags.forEach(tag => {
+              breakdown[tag] = (breakdown[tag] || 0) + analysis.testCount
+            })
           }
         }
       }
@@ -120,7 +122,14 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
       totalTestFiles++
     }
   }
-  const estimatedTests = Object.values(breakdown).reduce((sum, count) => sum + count, 0) // Suma real de tests
+  // Calcular total real de tests (sin duplicar por tags)
+  let estimatedTests = 0
+  for (const file of testFiles) {
+    if (file.type === 'file' && await isTestFile(file.name, repo.framework, token, repo.name, file.path)) {
+      const analysis = await categorizeTestFile(token, repo.name, file, repo.framework)
+      estimatedTests += analysis.testCount // Sumar cada test solo una vez
+    }
+  }
 
   return {
     repository: repo.name,
