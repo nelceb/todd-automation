@@ -88,29 +88,37 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const repository = searchParams.get('repository') || 'maestro-test'
     
+    // Usar la misma lógica que funciona en /api/repositories
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
-
+    
     if (!token) {
       throw new Error('GitHub token no configurado')
     }
 
-    // Obtener workflows del repositorio
-    const url = `https://api.github.com/repos/${owner}/${repository}/actions/workflows`
-    console.log('🔍 Fetching workflows from:', url)
-    console.log('🔍 Owner:', owner)
-    console.log('🔍 Repository:', repository)
+    // Mapear el nombre del repositorio al nombre completo
+    const repoMapping: Record<string, string> = {
+      'maestro-test': 'Cook-Unity/maestro-test',
+      'pw-cookunity-automation': 'Cook-Unity/pw-cookunity-automation',
+      'automation-framework': 'Cook-Unity/automation-framework'
+    }
+    
+    const fullRepoName = repoMapping[repository] || `Cook-Unity/${repository}`
+    
+    console.log('🔍 Fetching workflows for:', fullRepoName)
     console.log('🔍 Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN')
     
-    const workflowsResponse = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    })
+    // Obtener workflows del repositorio usando el nombre completo
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${fullRepoName}/actions/workflows`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
 
     console.log('🔍 Response status:', workflowsResponse.status)
-    console.log('🔍 Response headers:', Object.fromEntries(workflowsResponse.headers.entries()))
 
     if (!workflowsResponse.ok) {
       const errorText = await workflowsResponse.text()
@@ -128,7 +136,7 @@ export async function GET(request: NextRequest) {
       try {
         // Obtener el archivo YAML del workflow
         const yamlResponse = await fetch(
-          `https://api.github.com/repos/${owner}/${repository}/contents/${workflow.path}`,
+          `https://api.github.com/repos/${fullRepoName}/contents/${workflow.path}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -170,7 +178,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      repository: `${owner}/${repository}`,
+      repository: fullRepoName,
       workflows: workflowsWithInputs
     })
 
