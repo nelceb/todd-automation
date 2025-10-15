@@ -265,6 +265,14 @@ export default function WorkflowAnalysis() {
           ))}
         </div>
 
+        {/* Loading Message Card */}
+        <div className="bg-white/20 border border-gray-300/50 rounded-lg p-6 text-center">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <p className="text-gray-600 font-medium">{loadingMessage}</p>
+          </div>
+        </div>
+
         {/* Skeleton Environment & Platform */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[1, 2].map((i) => (
@@ -285,13 +293,6 @@ export default function WorkflowAnalysis() {
           ))}
         </div>
 
-        {/* Loading Message */}
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600 animate-pulse">{loadingMessage}</p>
-          </div>
-        </div>
       </div>
     )
   }
