@@ -3,11 +3,17 @@ import jwt from 'jsonwebtoken'
 
 async function generateGitHubAppToken(): Promise<string | null> {
   try {
+    console.log('🔧 Starting GitHub App token generation')
     const appId = process.env.GITHUB_APP_ID
     const privateKey = process.env.GITHUB_APP_PRIVATE_KEY
 
+    console.log('🔧 App ID exists:', !!appId)
+    console.log('🔧 Private Key exists:', !!privateKey)
+
     if (!appId || !privateKey) {
-      console.error('GitHub App credentials not configured')
+      console.error('❌ GitHub App credentials not configured')
+      console.error('App ID:', appId ? 'SET' : 'NOT SET')
+      console.error('Private Key:', privateKey ? 'SET' : 'NOT SET')
       return null
     }
 
@@ -68,11 +74,22 @@ async function generateGitHubAppToken(): Promise<string | null> {
 }
 
 export async function getGitHubToken(request: NextRequest): Promise<string | null> {
+  console.log('🔍 getGitHubToken called')
+  
   const authHeader = request.headers.get('authorization')
   if (authHeader && authHeader.startsWith('Bearer ')) {
+    console.log('✅ Found token in Authorization header')
     return authHeader.substring(7)
   }
-  return await generateGitHubAppToken()
+  
+  console.log('⚠️ No token in header, trying GitHub App token generation')
+  const appToken = await generateGitHubAppToken()
+  if (appToken) {
+    console.log('✅ Generated GitHub App token successfully')
+  } else {
+    console.log('❌ Failed to generate GitHub App token')
+  }
+  return appToken
 }
 
 export function isDemoMode(token: string | null): boolean {
