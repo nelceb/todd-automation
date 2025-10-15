@@ -146,6 +146,15 @@ USER CREDENTIALS DETECTION (Maestro only):
 - If user mentions email/password: include user_email and user_password in inputs
 - If no credentials mentioned: omit user_email and user_password (use defaults)
 
+LAMBDATEST APP URL DETECTION (Selenium workflows):
+- Keywords to detect: "appid", "ltappid", "app id", "lambdatest app url", "lt://"
+- Pattern to extract: "lt://APP..." (e.g., "lt://APP10160192331760543835743286")
+- Map to input: "lambdatest_app_url" or "app_url" (check workflow YAML for exact input name)
+- Examples:
+  * "run android tests with appid lt://APP10160192331760543835743286" → include app_url: "lt://APP10160192331760543835743286"
+  * "run ios tests with ltappid lt://APP10160192331760543835743286" → include app_url: "lt://APP10160192331760543835743286"
+  * "run tests with lambdatest app url lt://APP10160192331760543835743286" → include app_url: "lt://APP10160192331760543835743286"
+
 EXAMPLES:
 
 MAESTRO:
@@ -175,6 +184,8 @@ SELENIUM:
 - "Run android regression in prod" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile"
 - "Run API tests in QA" → automation-framework, QA API Kitchen Regression, environment: "qa", groups: "api"
 - "Execute logistics tests" → automation-framework, QA Logistics Regression, environment: "qa", groups: "logistics"
+- "Run android tests in prod with appid lt://APP10160192331760543835743286" → automation-framework, Prod Android Regression, environment: "prod", groups: "mobile", app_url: "lt://APP10160192331760543835743286"
+- "Run ios tests with ltappid lt://APP10160192331760543835743286" → automation-framework, Prod iOS Regression, environment: "prod", groups: "mobile", app_url: "lt://APP10160192331760543835743286"
 
 CRITICAL PRODUCTION RULES:
 - "ios" + "prod" = Selenium Prod iOS Regression (automation-framework) - NEVER Maestro
