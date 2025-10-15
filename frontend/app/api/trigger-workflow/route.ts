@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       workflowId: workflow.id,
       workflowName: workflow.name,
       runId: runId,
-      repository: `${owner}/${repo}`
+      repository: fullRepoName
     })
 
   } catch (error) {
