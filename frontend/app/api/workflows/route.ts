@@ -96,18 +96,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener workflows del repositorio
-    const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repository}/actions/workflows`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }
-    )
+    const url = `https://api.github.com/repos/${owner}/${repository}/actions/workflows`
+    console.log('🔍 Fetching workflows from:', url)
+    console.log('🔍 Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN')
+    
+    const workflowsResponse = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    })
+
+    console.log('🔍 Response status:', workflowsResponse.status)
+    console.log('🔍 Response headers:', Object.fromEntries(workflowsResponse.headers.entries()))
 
     if (!workflowsResponse.ok) {
-      throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
+      const errorText = await workflowsResponse.text()
+      console.log('🔍 Error response body:', errorText)
+      throw new Error(`Error al obtener workflows: ${workflowsResponse.status} - ${errorText}`)
     }
 
     const workflowsData = await workflowsResponse.json()
