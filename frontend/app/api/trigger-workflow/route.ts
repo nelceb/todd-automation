@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getGitHubToken } from '../utils/github'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,8 +62,8 @@ export async function POST(request: NextRequest) {
     console.log('API received branch:', branch)
     console.log('API received inputs:', inputs)
     
-    const token = process.env.GITHUB_TOKEN
-    const owner = process.env.GITHUB_OWNER || 'cook-unity'
+    const token = await getGitHubToken(request)
+    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
     const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
 
     if (!token) {
