@@ -210,6 +210,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [recognition, setRecognition] = useState<any>(null)
+  const [workflowDurations, setWorkflowDurations] = useState<Record<string, any>>({})
   
   // Use external props if provided, otherwise use internal state
   const messages = externalMessages || internalMessages
@@ -236,7 +237,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         cancelWorkflow,
         addRunningWorkflowFromTodd,
         removeRunningWorkflowFromTodd,
-        fetchWorkflowLogs
+        fetchWorkflowLogs,
+        getWorkflowDuration
       } = useWorkflowStore()
 
   const scrollToBottom = () => {
@@ -270,6 +272,32 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       inputRef.current.focus()
     }
   }, [])
+
+  // Fetch workflow durations when workflows start
+  useEffect(() => {
+    const fetchDurations = async () => {
+      if (multipleLogs.length > 0) {
+        const durations: Record<string, any> = {}
+        
+        for (const log of multipleLogs) {
+          const repository = log.run.htmlUrl.split('/').slice(3, 5).join('/')
+          const workflowName = log.run.htmlUrl.split('/')[6]
+          
+          const duration = await getWorkflowDuration(repository, workflowName, githubToken)
+          
+          if (duration) {
+            durations[log.run.id] = duration
+          }
+        }
+        
+        if (Object.keys(durations).length > 0) {
+          setWorkflowDurations(durations)
+        }
+      }
+    }
+    
+    fetchDurations()
+  }, [multipleLogs.length, githubToken])
 
   // Restore logs from localStorage when component mounts and refresh if needed
   useEffect(() => {
@@ -928,6 +956,19 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               <div className="text-gray-700 text-xs">
                                 <div>  Technologies: {Array.from(new Set(multipleLogs.map(log => log.run.htmlUrl.split('/')[4]))).join(', ')}</div>
                                 <div>  Status: {multipleLogs.filter(log => log.run.status === 'completed').length}/{multipleLogs.length} completed</div>
+                                {(() => {
+                                  const inProgress = multipleLogs.filter(log => log.run.status === 'in_progress')
+                                  if (inProgress.length > 0) {
+                                    const totalEstimated = inProgress.reduce((sum, log) => {
+                                      const duration = workflowDurations[log.run.id]
+                                      return sum + (duration?.averageDurationMinutes || 0)
+                                    }, 0)
+                                    if (totalEstimated > 0) {
+                                      return <div>  Estimated time: ~{Math.round(totalEstimated)} min</div>
+                                    }
+                                  }
+                                  return null
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -953,9 +994,20 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     IN PROGRESS
                                   </span>
                                 </div>
-                                <p className="text-gray-900 text-sm leading-relaxed font-mono ml-5">
-                                  Workflow is starting up...
-                                </p>
+                                <div className="text-gray-900 text-sm leading-relaxed font-mono ml-5 space-y-1">
+                                  <p>Workflow is starting up...</p>
+                                  {(() => {
+                                    const duration = workflowDurations[logs.run.id]
+                                    if (duration) {
+                                      return (
+                                        <p className="text-xs text-gray-700">
+                                          ⏱️ Estimated duration: ~{Math.round(duration.minDurationMinutes)}-{Math.round(duration.maxDurationMinutes)} min (avg: {Math.round(duration.averageDurationMinutes)} min)
+                                        </p>
+                                      )
+                                    }
+                                    return null
+                                  })()}
+                                </div>
                               </div>
                             </div>
                           )}

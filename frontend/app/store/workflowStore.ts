@@ -124,6 +124,7 @@ interface WorkflowStore {
   addRunningWorkflowFromTodd: (repository: string, workflowName: string, runId: string) => void
   removeRunningWorkflowFromTodd: (runId: string) => void
   getRunningWorkflowsForRepository: (repository: string) => Array<{workflowName: string, runId: string, startTime: Date}>
+  getWorkflowDuration: (repository: string, workflowName: string, githubToken?: string) => Promise<any>
 }
 
 export const useWorkflowStore = create<WorkflowStore>()(
@@ -526,6 +527,36 @@ export const useWorkflowStore = create<WorkflowStore>()(
         runId: w.runId,
         startTime: w.startTime
       }))
+  },
+
+  getWorkflowDuration: async (repository: string, workflowName: string, githubToken?: string) => {
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (githubToken) {
+        headers['Authorization'] = `Bearer ${githubToken}`
+      }
+
+      const response = await fetch(`/api/workflow-durations?repository=${encodeURIComponent(repository)}`, {
+        headers
+      })
+
+      if (!response.ok) {
+        return null
+      }
+
+      const data = await response.json()
+      
+      // Find the specific workflow
+      const workflowDuration = data.durations?.find((d: any) => d.workflowName === workflowName)
+      
+      return workflowDuration || null
+    } catch (error) {
+      console.error('Error fetching workflow duration:', error)
+      return null
+    }
   }
     }),
     {
