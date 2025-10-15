@@ -33,6 +33,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "eslint": "^8",
     "eslint-config-next": "14.0.4"
   }

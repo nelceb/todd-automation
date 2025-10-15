@@ -139,7 +139,7 @@ function analyzeWorkflowForTests(yamlContent: any, repoType: string): TestGroup[
     
     for (const [jobName, job] of Object.entries(jobs as any)) {
       if (jobName.includes('test') || jobName.includes('e2e')) {
-        const steps = job.steps || []
+        const steps = (job as any).steps || []
         
         for (const step of steps) {
           if (step.uses && step.uses.includes('playwright')) {
@@ -185,7 +185,7 @@ function analyzeWorkflowForTests(yamlContent: any, repoType: string): TestGroup[
     
     for (const [jobName, job] of Object.entries(jobs as any)) {
       if (jobName.includes('test') || jobName.includes('regression')) {
-        const steps = job.steps || []
+        const steps = (job as any).steps || []
         
         for (const step of steps) {
           if (step.run && step.run.includes('mvn test')) {
@@ -223,7 +223,7 @@ function analyzeWorkflowForTests(yamlContent: any, repoType: string): TestGroup[
     
     for (const [jobName, job] of Object.entries(jobs as any)) {
       if (jobName.includes('test') || jobName.includes('maestro')) {
-        const steps = job.steps || []
+        const steps = (job as any).steps || []
         
         for (const step of steps) {
           if (step.run && step.run.includes('maestro')) {

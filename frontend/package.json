@@ -34,10 +34,8 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
     "eslint": "^8",
     "eslint-config-next": "14.0.4"
   }
 }
-
-
