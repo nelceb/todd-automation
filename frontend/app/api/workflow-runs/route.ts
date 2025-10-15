@@ -6,8 +6,8 @@ import { getGitHubToken, isDemoMode } from '../utils/github'
 export async function GET(request: NextRequest) {
   try {
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'nelceb'
-    const repo = process.env.GITHUB_REPO || 'test-runner-ai'
+    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
+    const repo = process.env.GITHUB_REPO || 'maestro-test'
 
     // Verificar que tenemos un token válido
     if (!token || isDemoMode(token)) {
