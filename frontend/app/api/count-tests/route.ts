@@ -239,6 +239,11 @@ async function categorizeTestFile(token: string, repoName: string, file: TestFil
     else if (tags.includes('p1')) category = 'p1'
   }
 
+  // Log files categorized as "other" for debugging
+  if (category === 'other') {
+    console.log(`File categorized as "other": ${file.name} (${framework}) - Tags: [${tags.join(', ')}]`)
+  }
+
   return { category, tags, testCount }
 }
 
@@ -326,9 +331,13 @@ function countTestsInContent(content: string, framework: string): number {
   }
   
   if (framework === 'playwright') {
-    // Contar test() functions (incluyendo test.skip, test.only, etc.)
-    const testMatches = content.match(/test\.?(skip|only|fixme)?\s*\(/g)
-    count = testMatches ? testMatches.length : 1
+    // Contar solo test() functions habilitadas (excluir test.skip, test.only, test.fixme)
+    const allTestMatches = content.match(/test\.?(skip|only|fixme)?\s*\(/g)
+    if (allTestMatches) {
+      count = allTestMatches.filter(match => !match.includes('.skip') && !match.includes('.only') && !match.includes('.fixme')).length
+    } else {
+      count = 0
+    }
   }
   
   if (framework === 'selenium') {
