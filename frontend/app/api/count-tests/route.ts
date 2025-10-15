@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       {
         name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
-        testPaths: ['maestro/tests', 'maestro/flows']
+        testPaths: ['maestro/tests'] // Solo tests reales, no flows
       },
       {
         name: 'Cook-Unity/pw-cookunity-automation', 
