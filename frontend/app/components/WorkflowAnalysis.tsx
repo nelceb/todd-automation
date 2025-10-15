@@ -38,6 +38,81 @@ interface WorkflowAnalysisData {
   summary: AnalysisSummary
 }
 
+// Function to group tags into workflow categories
+function groupTagsIntoWorkflows(breakdown: Record<string, number>, framework: string): TestGroup[] {
+  const workflowGroups: Record<string, number> = {}
+  
+  if (framework === 'playwright') {
+    // Group Playwright tags into workflow categories
+    Object.entries(breakdown).forEach(([tag, count]) => {
+      if (tag.includes('landings')) {
+        workflowGroups['Landings'] = (workflowGroups['Landings'] || 0) + count
+      } else if (tag.includes('growth')) {
+        workflowGroups['Growth'] = (workflowGroups['Growth'] || 0) + count
+      } else if (tag.includes('e2e')) {
+        workflowGroups['E2E'] = (workflowGroups['E2E'] || 0) + count
+      } else if (tag.includes('signup') || tag.includes('signUp')) {
+        workflowGroups['Signup'] = (workflowGroups['Signup'] || 0) + count
+      } else if (tag.includes('visual')) {
+        workflowGroups['Visual'] = (workflowGroups['Visual'] || 0) + count
+      } else if (tag.includes('sanity')) {
+        workflowGroups['Sanity'] = (workflowGroups['Sanity'] || 0) + count
+      } else if (tag.includes('coreux') || tag.includes('coreUx')) {
+        workflowGroups['Core UX'] = (workflowGroups['Core UX'] || 0) + count
+      } else if (tag.includes('lighthouse')) {
+        workflowGroups['Performance'] = (workflowGroups['Performance'] || 0) + count
+      } else if (tag.includes('segment')) {
+        workflowGroups['Segment'] = (workflowGroups['Segment'] || 0) + count
+      } else if (tag.includes('activation')) {
+        workflowGroups['Activation'] = (workflowGroups['Activation'] || 0) + count
+      } else if (tag.includes('chef')) {
+        workflowGroups['Chefs'] = (workflowGroups['Chefs'] || 0) + count
+      }
+    })
+  } else if (framework === 'selenium') {
+    // Group Selenium tags into workflow categories (exclude workers)
+    Object.entries(breakdown).forEach(([tag, count]) => {
+      if (tag.includes('e2e')) {
+        workflowGroups['E2E'] = (workflowGroups['E2E'] || 0) + count
+      } else if (tag.includes('api')) {
+        workflowGroups['API'] = (workflowGroups['API'] || 0) + count
+      } else if (tag.includes('mobile')) {
+        workflowGroups['Mobile'] = (workflowGroups['Mobile'] || 0) + count
+      } else if (tag.includes('menu')) {
+        workflowGroups['Menu'] = (workflowGroups['Menu'] || 0) + count
+      } else if (tag.includes('subscription')) {
+        workflowGroups['Subscription'] = (workflowGroups['Subscription'] || 0) + count
+      } else if (tag.includes('orders')) {
+        workflowGroups['Orders'] = (workflowGroups['Orders'] || 0) + count
+      } else if (tag.includes('logistics')) {
+        workflowGroups['Logistics'] = (workflowGroups['Logistics'] || 0) + count
+      } else if (tag.includes('smoke')) {
+        workflowGroups['Smoke'] = (workflowGroups['Smoke'] || 0) + count
+      } else if (tag.includes('regression')) {
+        workflowGroups['Regression'] = (workflowGroups['Regression'] || 0) + count
+      }
+      // Skip worker1, worker2, worker3 as they're not workflow categories
+    })
+  } else if (framework === 'maestro') {
+    // Keep Maestro categories as they are (already workflow-based)
+    Object.entries(breakdown).forEach(([tag, count]) => {
+      if (tag !== 'other') { // Skip 'other' category
+        workflowGroups[tag.charAt(0).toUpperCase() + tag.slice(1)] = count
+      }
+    })
+  }
+  
+  // Convert to TestGroup array and sort by count
+  return Object.entries(workflowGroups)
+    .map(([name, count]) => ({
+      name,
+      count,
+      description: `${name} tests`
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8) // Show top 8 categories
+}
+
 export default function WorkflowAnalysis() {
   const [data, setData] = useState<WorkflowAnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -82,19 +157,20 @@ export default function WorkflowAnalysis() {
       const result = await response.json()
       
       if (result.success) {
-        // Transform the data to match the expected format
-        const transformedAnalysis = result.testCounts.map((count: any) => ({
-          workflowName: `${count.framework} tests`,
-          repository: count.repository,
-          testGroups: Object.entries(count.breakdown).map(([name, count]) => ({
-            name,
-            count: count as number,
-            description: `${name} tests`
-          })),
-          totalTests: count.estimatedTests,
-          environment: 'all',
-          platform: count.framework
-        }))
+        // Transform the data to match the expected format with workflow-based grouping
+        const transformedAnalysis = result.testCounts.map((count: any) => {
+          // Group tags into workflow categories
+          const workflowGroups = groupTagsIntoWorkflows(count.breakdown, count.framework)
+          
+          return {
+            workflowName: `${count.framework} tests`,
+            repository: count.repository,
+            testGroups: workflowGroups,
+            totalTests: count.estimatedTests,
+            environment: 'all',
+            platform: count.framework
+          }
+        })
         
         // Calculate environment breakdown from tags
         const qaTests = result.testCounts.reduce((sum: number, repo: any) => {
@@ -391,7 +467,7 @@ export default function WorkflowAnalysis() {
                 
                 {workflow.testGroups.length > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-3">Top Test Categories:</p>
+                    <p className="text-sm text-gray-600 mb-3">Workflow Categories:</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                       {workflow.testGroups
                         .sort((a, b) => b.count - a.count) // Sort by count descending
