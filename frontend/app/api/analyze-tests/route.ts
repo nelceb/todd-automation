@@ -158,7 +158,7 @@ function analyzeWorkflowForTests(yamlContent: any, workflowName: string, reposit
           // Look for test patterns
           const testPatterns = runCommand.match(/--grep\s+([^\s]+)/g)
           if (testPatterns) {
-            testPatterns.forEach(pattern => {
+            testPatterns.forEach((pattern: string) => {
               const testPattern = pattern.replace('--grep ', '').trim()
               if (testPattern && !testSuites.includes(testPattern)) {
                 testSuites.push(testPattern)
@@ -177,7 +177,7 @@ function analyzeWorkflowForTests(yamlContent: any, workflowName: string, reposit
           const groupMatch = runCommand.match(/-Dgroups?=([^\s]+)/)
           if (groupMatch) {
             const groups = groupMatch[1].split(',').map((g: string) => g.trim())
-            groups.forEach(group => {
+            groups.forEach((group: string) => {
               if (!testSuites.includes(group)) {
                 testSuites.push(group)
                 testCount += 3 // Estimate 3 tests per group

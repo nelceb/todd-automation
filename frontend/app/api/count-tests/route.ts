@@ -293,7 +293,7 @@ function extractTagsFromContent(content: string, framework: string): string[] {
     }
   }
   
-  return [...new Set(tags)] // Remove duplicates
+  return Array.from(new Set(tags)) // Remove duplicates
 }
 
 function countTestsInContent(content: string, framework: string): number {
