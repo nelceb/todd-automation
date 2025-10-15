@@ -63,8 +63,16 @@ export async function POST(request: NextRequest) {
     console.log('API received inputs:', inputs)
     
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
-    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
+    
+    // Usar el mismo mapeo que funciona en /api/repositories
+    const repoMapping: Record<string, string> = {
+      'maestro-test': 'Cook-Unity/maestro-test',
+      'pw-cookunity-automation': 'Cook-Unity/pw-cookunity-automation',
+      'automation-framework': 'Cook-Unity/automation-framework'
+    }
+    
+    const defaultRepo = repository || 'maestro-test'
+    const fullRepoName = repoMapping[defaultRepo] || `Cook-Unity/${defaultRepo}`
 
     if (!token) {
       console.error('GitHub token no configurado en variables de entorno')
@@ -75,9 +83,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Workflow ID es requerido')
     }
 
+    console.log('🔍 Triggering workflow for:', fullRepoName)
+    console.log('🔍 Workflow ID:', workflowId)
+
     // Obtener workflows dinámicamente desde GitHub
     const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/actions/workflows`,
+      `https://api.github.com/repos/${fullRepoName}/actions/workflows`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
     try {
       // Obtener el archivo YAML del workflow para ver los inputs
       const yamlResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${workflow.path}`,
+        `https://api.github.com/repos/${fullRepoName}/contents/${workflow.path}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -193,11 +204,10 @@ export async function POST(request: NextRequest) {
     console.log('Is branch an environment name?', branch ? environmentNames.includes(branch.toLowerCase()) : false)
     const targetBranch = (branch && !environmentNames.includes(branch.toLowerCase())) ? branch : 'main'
     console.log('Final target branch:', targetBranch)
-    const triggerUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflow.id}/dispatches`
+    const triggerUrl = `https://api.github.com/repos/${fullRepoName}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
     console.log('Workflow ID:', workflow.id)
-    console.log('Owner:', owner)
-    console.log('Repo:', repo)
+    console.log('Full Repo Name:', fullRepoName)
     console.log('Branch:', targetBranch)
     console.log('Valid Inputs:', validInputs)
     
