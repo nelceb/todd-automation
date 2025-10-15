@@ -78,10 +78,32 @@ export default function WorkflowAnalysis() {
           platform: count.framework
         }))
         
+        // Calculate environment breakdown from tags
+        const qaTests = result.testCounts.reduce((sum: number, repo: any) => {
+          return sum + (repo.breakdown['@qa'] || 0) + (repo.breakdown['qa'] || 0)
+        }, 0)
+        
+        const prodTests = result.testCounts.reduce((sum: number, repo: any) => {
+          return sum + (repo.breakdown['@prod'] || 0) + (repo.breakdown['prod'] || 0)
+        }, 0)
+        
+        // Calculate total workflows from repositories data
+        const totalWorkflows = result.testCounts.reduce((sum: number, repo: any) => {
+          // Get workflow count from repository name mapping
+          if (repo.repository.includes('pw-cookunity-automation')) return sum + 28
+          if (repo.repository.includes('maestro-test')) return sum + 7
+          if (repo.repository.includes('automation-framework')) return sum + 7
+          return sum
+        }, 0)
+        
         const transformedSummary = {
-          totalWorkflows: result.summary.totalRepositories,
+          totalWorkflows: totalWorkflows,
           totalTests: result.summary.totalEstimatedTests,
-          byEnvironment: { all: result.summary.totalEstimatedTests },
+          byEnvironment: { 
+            qa: qaTests,
+            prod: prodTests,
+            all: result.summary.totalEstimatedTests 
+          },
           byPlatform: result.summary.byFramework
         }
         
@@ -204,7 +226,7 @@ export default function WorkflowAnalysis() {
             <InformationCircleIcon className="w-8 h-8 text-purple-500 mr-3" />
             <div>
               <p className="text-sm text-gray-600">Repositories</p>
-              <p className="text-2xl font-bold text-gray-900">3</p>
+              <p className="text-2xl font-bold text-gray-900">{data.analysis.length}</p>
             </div>
           </div>
         </motion.div>
@@ -218,15 +240,31 @@ export default function WorkflowAnalysis() {
           className="bg-white/20 border border-gray-300/50 rounded-lg p-6"
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Tests by Environment</h3>
-          <div className="space-y-2">
-            {Object.entries(data.summary.byEnvironment).map(([env, count]) => (
-              <div key={env} className="flex items-center justify-between">
-                <span className={`px-2 py-1 rounded text-sm font-medium ${getEnvironmentColor(env)}`}>
-                  {env.toUpperCase()}
+          <div className="space-y-3">
+            {Object.entries(data.summary.byEnvironment)
+              .filter(([env]) => env !== 'all') // Show QA and PROD separately
+              .map(([env, count]) => (
+                <div key={env} className="flex items-center justify-between p-3 bg-white/10 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getEnvironmentColor(env)}`}>
+                      {env.toUpperCase()}
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      {env === 'qa' ? 'Quality Assurance' : 'Production'}
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">{count} tests</span>
+                </div>
+              ))}
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  ALL
                 </span>
-                <span className="text-sm font-mono text-gray-700">{count} tests</span>
+                <span className="text-sm text-gray-600">Total Tests</span>
               </div>
-            ))}
+              <span className="text-lg font-bold text-blue-900">{data.summary.byEnvironment.all} tests</span>
+            </div>
           </div>
         </motion.div>
 
@@ -236,15 +274,21 @@ export default function WorkflowAnalysis() {
           className="bg-white/20 border border-gray-300/50 rounded-lg p-6"
         >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Tests by Platform</h3>
-          <div className="space-y-2">
-            {Object.entries(data.summary.byPlatform).map(([platform, count]) => (
-              <div key={platform} className="flex items-center justify-between">
-                <span className={`px-2 py-1 rounded text-sm font-medium ${getPlatformColor(platform)}`}>
-                  {platform.toUpperCase()}
-                </span>
-                <span className="text-sm font-mono text-gray-700">{count} tests</span>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {Object.entries(data.summary.byPlatform).map(([platform, count]) => {
+              const IconComponent = getRepositoryIcon(platform)
+              return (
+                <div key={platform} className="flex items-center justify-between p-3 bg-white/10 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <IconComponent className="w-5 h-5 text-gray-600" />
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPlatformColor(platform)}`}>
+                      {platform.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">{count} tests</span>
+                </div>
+              )
+            })}
           </div>
         </motion.div>
       </div>
@@ -256,7 +300,7 @@ export default function WorkflowAnalysis() {
         transition={{ delay: 0.3 }}
         className="bg-white/20 border border-gray-300/50 rounded-lg p-6"
       >
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Workflow Details</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Repository Details</h3>
         <div className="space-y-4">
           {data.analysis.map((workflow, index) => {
             const IconComponent = getRepositoryIcon(workflow.repository)
@@ -291,17 +335,26 @@ export default function WorkflowAnalysis() {
                 
                 {workflow.testGroups.length > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-2">Test Groups:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {workflow.testGroups.map((group, groupIndex) => (
-                        <span
-                          key={groupIndex}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
-                        >
-                          {group.name} ({group.count})
-                        </span>
-                      ))}
+                    <p className="text-sm text-gray-600 mb-3">Top Test Categories:</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {workflow.testGroups
+                        .sort((a, b) => b.count - a.count) // Sort by count descending
+                        .slice(0, 6) // Show top 6 categories
+                        .map((group, groupIndex) => (
+                          <div
+                            key={groupIndex}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs"
+                          >
+                            <span className="text-gray-700 truncate">{group.name}</span>
+                            <span className="text-gray-500 font-mono ml-2">{group.count}</span>
+                          </div>
+                        ))}
                     </div>
+                    {workflow.testGroups.length > 6 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        +{workflow.testGroups.length - 6} more categories
+                      </p>
+                    )}
                   </div>
                 )}
               </motion.div>
