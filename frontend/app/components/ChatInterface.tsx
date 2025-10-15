@@ -972,7 +972,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 !jobName.includes('errors-summary') &&
                                 !jobName.includes('slack') &&
                                 !jobName.includes('prepare-context') &&
-                                !jobName.includes('register-dispatch')
+                                !jobName.includes('register-dispatch') &&
+                                !jobName.includes('get lambdatest share url') &&
+                                !jobName.includes('get failed test names') &&
+                                !jobName.includes('share url') &&
+                                !jobName.includes('failed test names')
                               )
                             })
                             
@@ -1059,7 +1063,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 !jobName.includes('errors-summary') &&
                                 !jobName.includes('slack') &&
                                 !jobName.includes('prepare-context') &&
-                                !jobName.includes('register-dispatch')
+                                !jobName.includes('register-dispatch') &&
+                                !jobName.includes('get lambdatest share url') &&
+                                !jobName.includes('get failed test names') &&
+                                !jobName.includes('share url') &&
+                                !jobName.includes('failed test names')
                               )
                             })
                             .map((log, jobIndex) => (
