@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const repository = searchParams.get('repository') || 'maestro-test'
     
     const token = await getGitHubToken(request)
-    const owner = process.env.GITHUB_OWNER || 'cook-unity'
+    const owner = process.env.GITHUB_OWNER || 'Cook-Unity'
 
     if (!token) {
       throw new Error('GitHub token no configurado')
