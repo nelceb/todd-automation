@@ -1258,7 +1258,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       {/* Commit hash at the bottom */}
       <div className="absolute bottom-2 left-0 right-0 text-center z-10">
         <p className="text-xs font-mono text-gray-500">
-          Commit: 773f615
+          Commit: {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev'}
         </p>
       </div>
     </div>

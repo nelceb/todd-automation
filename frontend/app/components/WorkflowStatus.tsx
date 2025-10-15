@@ -439,7 +439,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Commit hash at the bottom */}
         <div className="text-center mt-16 pb-8">
           <p className="text-xs font-mono text-gray-500">
-            Commit: 773f615
+            Commit: {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev'}
           </p>
         </div>
       </div>
@@ -492,7 +492,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         {/* Commit hash at the bottom */}
         <div className="text-center mt-16 pb-8">
           <p className="text-xs font-mono text-gray-500">
-            Commit: 773f615
+            Commit: {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev'}
           </p>
         </div>
       </div>
@@ -780,7 +780,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       {/* Commit hash at the bottom */}
       <div className="text-center mt-16 pb-8">
         <p className="text-xs font-mono text-gray-500">
-          Commit: 4e39cbf
+          Commit: {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev'}
         </p>
       </div>
     </div>
