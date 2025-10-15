@@ -135,7 +135,7 @@ function analyzeWorkflowForTests(yamlContent: any, workflowName: string, reposit
           // Extract test files from maestro commands
           const testFileMatches = runCommand.match(/maestro\s+test\s+([^\s]+)/g)
           if (testFileMatches) {
-            testFileMatches.forEach(match => {
+            testFileMatches.forEach((match: string) => {
               const testFile = match.replace('maestro test ', '').trim()
               if (testFile && !testFiles.includes(testFile)) {
                 testFiles.push(testFile)
