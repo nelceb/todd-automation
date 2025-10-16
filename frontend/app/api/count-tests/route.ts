@@ -56,8 +56,10 @@ export async function GET(request: NextRequest) {
 
     for (const repo of repositories) {
       try {
+        console.log(`Processing repository: ${repo.name}`)
         const testCount = await analyzeRepositoryTests(token, repo)
         if (testCount) {
+          console.log(`Repository ${repo.name} completed:`, testCount.estimatedTests, 'tests')
           testCounts.push(testCount)
         }
       } catch (error) {
