@@ -231,8 +231,8 @@ function isTestFileByPath(filePath: string, basePath: string): boolean {
   // Log all files to see what we're getting
   console.log(`🔍 Checking file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
   
-  // Maestro: .yaml files in maestro/tests directory
-  if (fileName.endsWith('.yaml') && filePath.startsWith('maestro/tests/')) {
+  // Maestro: _test.yaml files in maestro/tests directory
+  if (fileName.endsWith('_test.yaml') && filePath.startsWith('maestro/tests/')) {
     console.log(`✅ Maestro test file: ${filePath}`)
     return true
   }
