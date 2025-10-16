@@ -44,13 +44,12 @@ export async function GET(request: NextRequest) {
         name: 'Cook-Unity/pw-cookunity-automation', 
         framework: 'playwright',
         testPaths: ['tests'] // Solo directorio de tests
+      },
+      {
+        name: 'Cook-Unity/automation-framework',
+        framework: 'selenium',
+        testPaths: ['src/test/kotlin/com/cookunity/frontend/desktop', 'src/test/kotlin/com/cookunity/frontend/mobile'] // Rutas específicas
       }
-      // Temporalmente deshabilitado Selenium para debuggear
-      // {
-      //   name: 'Cook-Unity/automation-framework',
-      //   framework: 'selenium',
-      //   testPaths: ['src/test'] // Ruta más amplia pero manejable
-      // }
     ]
 
     const testCounts: TestCount[] = []
@@ -198,8 +197,8 @@ function isTestFileByPath(filePath: string, basePath: string): boolean {
     return true
   }
   
-  // Selenium: .kt files in src/test directory (anywhere under src/test/)
-  if (fileName.endsWith('.kt') && filePath.startsWith('src/test/')) {
+  // Selenium: .kt files in desktop or mobile test directories
+  if (fileName.endsWith('.kt') && (filePath.includes('/desktop/') || filePath.includes('/mobile/'))) {
     return true
   }
   
