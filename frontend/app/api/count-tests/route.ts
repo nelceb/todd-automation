@@ -61,10 +61,12 @@ export async function GET(request: NextRequest) {
     for (const repo of repositories) {
       try {
         console.log(`🔍 Analyzing ${repo.name} (${repo.framework})...`)
+        console.log(`📂 Test paths: ${repo.testPaths.join(', ')}`)
         const testCount = await analyzeRepositoryTests(token, repo)
         if (testCount) {
           testCounts.push(testCount)
           console.log(`✅ ${repo.name}: ${testCount.estimatedTests} tests found`)
+          console.log(`📊 Details: ${testCount.totalTestFiles} files, ${testCount.testDirectories.length} directories`)
         } else {
           console.log(`⚠️ ${repo.name}: No tests found`)
         }
@@ -195,10 +197,17 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
 
     console.log(`📁 Tree API response for ${path}:`, {
       totalItems: data.tree?.length || 0,
-      sampleItems: data.tree?.slice(0, 5).map((item: any) => ({
+      sampleItems: data.tree?.slice(0, 10).map((item: any) => ({
         path: item.path,
         type: item.type
       })) || []
+    })
+    
+    // Log all files that match our patterns
+    const allFiles = data.tree?.filter((item: any) => item.type === 'blob') || []
+    console.log(`📋 All files found: ${allFiles.length}`)
+    allFiles.forEach((file: any) => {
+      console.log(`  - ${file.path}`)
     })
 
     // Filter for test files based on framework
