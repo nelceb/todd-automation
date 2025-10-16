@@ -884,12 +884,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
                                 WORKFLOW
                               </span>
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
                                 workflow.technology === 'maestro' 
-                                  ? 'bg-airforce-500/20 text-airforce-300' 
+                                  ? 'bg-blue-100 text-blue-900 border-blue-300' 
                                   : workflow.technology === 'playwright'
-                                  ? 'bg-green-500/20 text-green-800'
-                                  : 'bg-earth-500/20 text-earth-300'
+                                  ? 'bg-green-100 text-green-900 border-green-300'
+                                  : 'bg-orange-100 text-orange-900 border-orange-300'
                               }`}>
                                 {workflow.technology.toUpperCase()}
                               </span>
@@ -912,7 +912,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   // Show TESTS RUNNING by default when workflow is just started (no logs yet)
                                   if (!correspondingLog) {
                                     return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
                                         TESTS RUNNING
                                       </span>
                                     )
@@ -921,7 +921,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   // Only show TESTS RUNNING if workflow is actually in progress
                                   if (correspondingLog.run.status === 'in_progress') {
                                     return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
                                         TESTS RUNNING
                                       </span>
                                     )
