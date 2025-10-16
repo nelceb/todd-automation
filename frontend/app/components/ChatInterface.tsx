@@ -938,42 +938,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                       animate={{ opacity: 1, x: 0 }}
                       className="mt-6 space-y-3"
                     >
-                      {/* Show consolidated summary for multiple workflows */}
-                      {multipleLogs.length > 0 && (
-                        <div className="flex items-start space-x-4 py-2">
-                          <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
-                            {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-3 mb-1">
-                              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-                              <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
-                                SUMMARY
-                              </span>
-                            </div>
-                            <div className="text-gray-800 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                              <div>→ Executing {multipleLogs.length} workflow{multipleLogs.length > 1 ? 's' : ''} across multiple repositories</div>
-                              <div className="text-gray-700 text-xs">
-                                <div>  Technologies: {Array.from(new Set(multipleLogs.map(log => log.run.htmlUrl.split('/')[4]))).join(', ')}</div>
-                                <div>  Status: {multipleLogs.filter(log => log.run.status === 'completed').length}/{multipleLogs.length} completed</div>
-                                {(() => {
-                                  const inProgress = multipleLogs.filter(log => log.run.status === 'in_progress')
-                                  if (inProgress.length > 0) {
-                                    const totalEstimated = inProgress.reduce((sum, log) => {
-                                      const duration = workflowDurations[log.run.id]
-                                      return sum + (duration?.averageDurationMinutes || 0)
-                                    }, 0)
-                                    if (totalEstimated > 0) {
-                                      return <div>  Estimated time: ~{Math.round(totalEstimated)} min</div>
-                                    }
-                                  }
-                                  return null
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Individual workflow logs */}
                       {(multipleLogs.length > 0 ? multipleLogs : currentLogs ? [currentLogs] : []).map((logs, index) => (
@@ -1103,70 +1067,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             )
                           })()}
 
-                          {/* Jobs - Estilo log - Solo jobs de tests relevantes */}
-                          {logs.logs
-                            .filter(log => {
-                              // Filtrar solo jobs de tests relevantes
-                              const jobName = log.jobName.toLowerCase()
-                              return (
-                                jobName.includes('test') && 
-                                !jobName.includes('upload-report') &&
-                                !jobName.includes('notify') &&
-                                !jobName.includes('errors-summary') &&
-                                !jobName.includes('slack') &&
-                                !jobName.includes('prepare-context') &&
-                                !jobName.includes('register-dispatch') &&
-                                !jobName.includes('get lambdatest share url') &&
-                                !jobName.includes('get failed test names') &&
-                                !jobName.includes('share url') &&
-                                !jobName.includes('failed test names')
-                              )
-                            })
-                            .map((log, jobIndex) => (
-                            <div key={jobIndex} className="flex items-start space-x-4 py-2">
-                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
-                                {typeof window !== 'undefined' ? formatDistanceToNow(new Date(), { addSuffix: true, locale: enUS }) : 'now'}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-3 mb-1">
-                                  <div className={`w-2 h-2 rounded-full ${
-                                    log.status === 'completed'
-                                      ? 'bg-green-400'
-                                      : log.status === 'in_progress'
-                                      ? 'bg-blue-400 animate-pulse'
-                                      : 'bg-gray-400'
-                                  }`}></div>
-                                  <span className="text-xs font-medium text-gray-800 uppercase tracking-wide w-[80px]">
-                                    JOB
-                                  </span>
-                                  {getStatusTag(log.status, log.logs)}
-                                </div>
-                                <div className="text-gray-800 text-sm leading-relaxed font-mono space-y-1 ml-5">
-                                  <div>→ {log.jobName}</div>
-                                  {log.logs && (() => {
-                                    const testSummary = extractTestSummary(log.logs)
-                                    const hasTestResults = testSummary.passed > 0 || testSummary.failed > 0 || testSummary.skipped > 0
-                                    
-                                    // Only show output if there are no test results (to avoid showing irrelevant system logs)
-                                    if (!hasTestResults) {
-                                      return (
-                                        <div className="text-gray-700 text-xs">
-                                          <div>  Output:</div>
-                                          <div className="ml-2 mt-1 max-h-32 overflow-y-auto">
-                                            <pre className="whitespace-pre-wrap leading-relaxed">
-                                              {log.logs.length > 500 ? log.logs.substring(0, 500) + '...' : log.logs}
-                                            </pre>
-                                          </div>
-                                        </div>
-                                      )
-                                    }
-                                    
-                                    return null
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
 
                           {/* Message when no logs yet - Estilo log */}
                           {logs.logs.length === 0 && (
