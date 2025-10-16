@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
         name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
         testPaths: ['maestro/tests'] // Solo tests reales, no config
-      },
-      {
-        name: 'Cook-Unity/pw-cookunity-automation', 
-        framework: 'playwright',
-        testPaths: ['tests'] // Solo directorio de tests
       }
-      // Selenium temporalmente deshabilitado por timeouts
+      // Playwright y Selenium temporalmente deshabilitados por timeouts
+      // {
+      //   name: 'Cook-Unity/pw-cookunity-automation', 
+      //   framework: 'playwright',
+      //   testPaths: ['tests'] // Solo directorio de tests
+      // },
       // {
       //   name: 'Cook-Unity/automation-framework',
       //   framework: 'selenium',

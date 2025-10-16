@@ -20,7 +20,7 @@ import { useWorkflowStore, WorkflowRun, Repository } from '../store/workflowStor
 import { useWorkflowInputs } from '../hooks/useWorkflowInputs'
 import { formatDistanceToNow } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import WorkflowAnalysis from './WorkflowAnalysis'
+// import WorkflowAnalysis from './WorkflowAnalysis' // Removido por problemas de API
 
 interface WorkflowStatusProps {
   githubToken?: string
@@ -582,10 +582,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      {/* Workflow Analysis */}
-      <div className="mb-12">
-        <WorkflowAnalysis />
-      </div>
+      {/* Workflow Analysis - Removido por problemas de API */}
 
       {/* 3 Repository Columns */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
