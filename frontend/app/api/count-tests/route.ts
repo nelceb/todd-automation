@@ -192,18 +192,31 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
     const data = await response.json()
     const files: TestFile[] = []
 
+    console.log(`📁 Tree API response for ${path}:`, {
+      totalItems: data.tree?.length || 0,
+      sampleItems: data.tree?.slice(0, 5).map((item: any) => ({
+        path: item.path,
+        type: item.type
+      })) || []
+    })
+
     // Filter for test files based on framework
     for (const item of data.tree || []) {
-      if (item.type === 'blob' && isTestFileByPath(item.path, path)) {
-        files.push({
-          name: item.path.split('/').pop() || '',
-          path: item.path,
-          type: 'file',
-          size: item.size
-        })
+      if (item.type === 'blob') {
+        const isTest = isTestFileByPath(item.path, path)
+        if (isTest) {
+          console.log(`✅ Found test file: ${item.path}`)
+          files.push({
+            name: item.path.split('/').pop() || '',
+            path: item.path,
+            type: 'file',
+            size: item.size
+          })
+        }
       }
     }
 
+    console.log(`📊 Filtered ${files.length} test files from ${data.tree?.length || 0} total items`)
     return files
   } catch (error) {
     console.error(`Error fetching contents for ${path}:`, error)
@@ -213,25 +226,32 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
 
 function isTestFileByPath(filePath: string, basePath: string): boolean {
   // Check if file is in the correct test directory and has correct extension
-  if (!filePath.startsWith(basePath)) return false
+  if (!filePath.startsWith(basePath)) {
+    console.log(`❌ File ${filePath} doesn't start with ${basePath}`)
+    return false
+  }
   
   const fileName = filePath.split('/').pop() || ''
   
   // Maestro: .yaml files in maestro/tests
   if (basePath.includes('maestro/tests') && fileName.endsWith('.yaml')) {
+    console.log(`✅ Maestro test file: ${filePath}`)
     return true
   }
   
   // Playwright: .spec.ts files in tests
   if (basePath.includes('tests') && fileName.endsWith('.spec.ts')) {
+    console.log(`✅ Playwright test file: ${filePath}`)
     return true
   }
   
   // Selenium: .kt files in src/test
   if (basePath.includes('src/test') && fileName.endsWith('.kt')) {
+    console.log(`✅ Selenium test file: ${filePath}`)
     return true
   }
   
+  console.log(`❌ Not a test file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
   return false
 }
 
