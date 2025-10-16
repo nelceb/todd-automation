@@ -24,14 +24,18 @@ interface TestCount {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 Starting count-tests API...')
     const token = await getGitHubToken(request)
     
     if (!token) {
+      console.log('❌ No GitHub token available')
       return NextResponse.json(
         { error: 'GitHub token required' },
         { status: 401 }
       )
     }
+    
+    console.log('✅ GitHub token available, proceeding with analysis...')
 
     const repositories = [
       {
@@ -64,13 +68,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const totalEstimatedTests = testCounts.reduce((sum, count) => sum + count.estimatedTests, 0)
+    
+    console.log('🎯 Final count-tests API Response:', {
+      totalRepositories: testCounts.length,
+      totalEstimatedTests,
+      testCounts: testCounts.map(count => ({
+        repository: count.repository,
+        framework: count.framework,
+        totalTestFiles: count.totalTestFiles,
+        estimatedTests: count.estimatedTests,
+        breakdownKeys: Object.keys(count.breakdown)
+      }))
+    })
+
     return NextResponse.json({
       success: true,
       testCounts,
       summary: {
         totalRepositories: testCounts.length,
         totalTestFiles: testCounts.reduce((sum, count) => sum + count.totalTestFiles, 0),
-        totalEstimatedTests: testCounts.reduce((sum, count) => sum + count.estimatedTests, 0),
+        totalEstimatedTests,
         byFramework: groupByFramework(testCounts)
       }
     })
