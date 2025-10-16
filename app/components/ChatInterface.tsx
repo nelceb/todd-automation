@@ -930,7 +930,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Only show TESTS RUNNING if workflow is actually in progress and no results yet
+                                  // Show TESTS RUNNING if workflow is in progress and no results yet
                                   if (correspondingLog.run.status === 'in_progress') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
@@ -939,7 +939,16 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // If completed, don't show any tag here (it will be shown in RESULTS section)
+                                  // Show TESTS FAILED if workflow failed and no results yet
+                                  if (correspondingLog.run.status === 'failed' && !hasResults) {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 animate-pulse shadow-sm">
+                                        TESTS FAILED
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // If completed successfully, don't show any tag here (it will be shown in RESULTS section)
                                   return null
                                 })()}
                               </div>
