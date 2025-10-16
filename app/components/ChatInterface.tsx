@@ -916,7 +916,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                       return summary.total > 0 && (summary.passed > 0 || summary.failed > 0 || summary.skipped > 0)
                                     })
                                   
-                                  // Don't show TESTS RUNNING if results are already available
+                                  // Don't show any status tag if results are already available
                                   if (hasResults) {
                                     return null
                                   }
@@ -930,7 +930,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS RUNNING if workflow is in progress and no results yet
+                                  // Show TESTS RUNNING if workflow is in progress
                                   if (correspondingLog.run.status === 'in_progress') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
@@ -939,11 +939,20 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS FAILED if workflow failed and no results yet
-                                  if (correspondingLog.run.status === 'failed' && !hasResults) {
+                                  // Show TESTS FAILED if workflow failed
+                                  if (correspondingLog.run.status === 'failed') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 animate-pulse shadow-sm">
                                         TESTS FAILED
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // Show TESTS CANCELLED if workflow was cancelled
+                                  if (correspondingLog.run.status === 'cancelled') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-900 border border-gray-400 animate-pulse shadow-sm">
+                                        TESTS CANCELLED
                                       </span>
                                     )
                                   }
