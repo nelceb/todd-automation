@@ -44,12 +44,13 @@ export async function GET(request: NextRequest) {
         name: 'Cook-Unity/pw-cookunity-automation', 
         framework: 'playwright',
         testPaths: ['tests'] // Solo directorio de tests
-      },
-      {
-        name: 'Cook-Unity/automation-framework',
-        framework: 'selenium',
-        testPaths: ['src/test'] // Ruta más amplia pero manejable
       }
+      // Temporalmente deshabilitado Selenium para debuggear
+      // {
+      //   name: 'Cook-Unity/automation-framework',
+      //   framework: 'selenium',
+      //   testPaths: ['src/test'] // Ruta más amplia pero manejable
+      // }
     ]
 
     const testCounts: TestCount[] = []
