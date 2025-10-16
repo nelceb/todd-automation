@@ -145,8 +145,9 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
 
 async function getDirectoryContents(token: string, repoName: string, path: string, recursive: boolean = true): Promise<TestFile[]> {
   try {
+    // Use GitHub Tree API for much faster directory traversal
     const response = await fetch(
-      `https://api.github.com/repos/${repoName}/contents/${path}`,
+      `https://api.github.com/repos/${repoName}/git/trees/HEAD:${path}?recursive=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -159,24 +160,25 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
       return []
     }
 
-    const contents = await response.json()
-    const allFiles: TestFile[] = []
-    
-    for (const item of contents) {
-      if (item.type === 'file') {
-        allFiles.push({
-          name: item.name,
-          path: item.path,
-          type: 'file',
-          size: item.size
-        })
-      } else if (item.type === 'dir' && recursive) {
-        const subFiles = await getDirectoryContents(token, repoName, item.path, true)
-        allFiles.push(...subFiles)
+    const data = await response.json()
+    const files: TestFile[] = []
+
+    // Filter for test files based on framework
+    for (const item of data.tree || []) {
+      if (item.type === 'blob') {
+        const isTest = isTestFileByPath(item.path, path)
+        if (isTest) {
+          files.push({
+            name: item.path.split('/').pop() || '',
+            path: item.path,
+            type: 'file',
+            size: item.size
+          })
+        }
       }
     }
-    
-    return allFiles
+
+    return files
   } catch (error) {
     return []
   }
