@@ -423,14 +423,17 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       localStorage.removeItem('workflow-store')
     }
 
-    // Add new user message to existing messages
+    // Clear chat messages to start fresh
+    setMessages([])
+
+    // Add new user message
     const newMessage = {
       id: Date.now().toString(),
       type: 'user' as const,
       content: userMessage,
       timestamp: new Date()
     }
-    setMessages(prev => [...prev, newMessage])
+    setMessages([newMessage])
 
     try {
       // Check if GitHub token is available before attempting to execute workflows
@@ -900,6 +903,16 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   showCursor={false}
                                 />
                                 {(() => {
+                                  // Show TESTS RUNNING by default when workflow is just started
+                                  // This will be updated when logs arrive
+                                  if (multipleLogs.length === 0 || !multipleLogs.some(log => log.run.htmlUrl.includes(workflow.workflowName))) {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                        TESTS RUNNING
+                                      </span>
+                                    )
+                                  }
+                                  
                                   // Find corresponding log for this workflow
                                   const correspondingLog = multipleLogs.find(log => 
                                     log.run.htmlUrl.includes(workflow.repository) && 
@@ -937,7 +950,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     }
                                   }
                                   
-                                  return null
+                                  return (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                      TESTS RUNNING
+                                    </span>
+                                  )
                                 })()}
                               </div>
                               <div className="text-gray-700 text-xs">
