@@ -197,13 +197,21 @@ export default function WorkflowAnalysis() {
           }
         })
         
-        // Calculate environment breakdown from tags
+        // Calculate environment breakdown from unique tests (not tags)
         const qaTests = result.analyses.reduce((sum: number, analysis: any) => {
-          return sum + (analysis.categories['@qa'] || 0) + (analysis.categories['qa'] || 0)
+          // Count unique test files that have qa tags
+          const qaTestFiles = analysis.testFiles.filter((file: any) => 
+            file.tags.some((tag: string) => tag.includes('qa'))
+          ).length
+          return sum + qaTestFiles
         }, 0)
         
         const prodTests = result.analyses.reduce((sum: number, analysis: any) => {
-          return sum + (analysis.categories['@prod'] || 0) + (analysis.categories['prod'] || 0)
+          // Count unique test files that have prod tags
+          const prodTestFiles = analysis.testFiles.filter((file: any) => 
+            file.tags.some((tag: string) => tag.includes('prod'))
+          ).length
+          return sum + prodTestFiles
         }, 0)
         
         // Calculate total workflows from repositories data

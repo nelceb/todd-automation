@@ -197,7 +197,7 @@ function analyzeRepositoryStructure(data: GraphQLResponse, framework: string, re
           testCount
         })
 
-        // Update categories
+        // Update categories - count how many tests have each tag
         tags.forEach(tag => {
           categories[tag] = (categories[tag] || 0) + 1
         })
