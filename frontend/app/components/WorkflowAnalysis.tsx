@@ -174,7 +174,7 @@ export default function WorkflowAnalysis() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
       
-      const response = await fetch('/api/analyze-tests-graphql', { 
+      const response = await fetch('/api/count-tests', { 
         headers,
         signal: controller.signal
       })
@@ -183,58 +183,47 @@ export default function WorkflowAnalysis() {
       
       if (result.success) {
         // Transform the data to match the expected format with workflow-based grouping
-        const transformedAnalysis = result.analyses.map((analysis: any) => {
+        const transformedAnalysis = result.testCounts.map((count: any) => {
           // Group tags into workflow categories
-          const workflowGroups = groupTagsIntoWorkflows(analysis.categories, analysis.framework)
+          const workflowGroups = groupTagsIntoWorkflows(count.breakdown, count.framework)
           
           return {
-            workflowName: `${analysis.framework} tests`,
-            repository: analysis.repository,
+            workflowName: `${count.framework} tests`,
+            repository: count.repository,
             testGroups: workflowGroups,
-            totalTests: analysis.totalTests,
+            totalTests: count.estimatedTests,
             environment: 'all',
-            platform: analysis.framework
+            platform: count.framework
           }
         })
         
-        // Calculate environment breakdown from unique tests (not tags)
-        const qaTests = result.analyses.reduce((sum: number, analysis: any) => {
-          // Count unique test files that have qa tags
-          const qaTestFiles = analysis.testFiles.filter((file: any) => 
-            file.tags.some((tag: string) => tag.includes('qa'))
-          ).length
-          return sum + qaTestFiles
+        // Calculate environment breakdown from tags
+        const qaTests = result.testCounts.reduce((sum: number, repo: any) => {
+          return sum + (repo.breakdown['@qa'] || 0) + (repo.breakdown['qa'] || 0)
         }, 0)
         
-        const prodTests = result.analyses.reduce((sum: number, analysis: any) => {
-          // Count unique test files that have prod tags
-          const prodTestFiles = analysis.testFiles.filter((file: any) => 
-            file.tags.some((tag: string) => tag.includes('prod'))
-          ).length
-          return sum + prodTestFiles
+        const prodTests = result.testCounts.reduce((sum: number, repo: any) => {
+          return sum + (repo.breakdown['@prod'] || 0) + (repo.breakdown['prod'] || 0)
         }, 0)
         
         // Calculate total workflows from repositories data
-        const totalWorkflows = result.analyses.reduce((sum: number, analysis: any) => {
+        const totalWorkflows = result.testCounts.reduce((sum: number, repo: any) => {
           // Get workflow count from repository name mapping
-          if (analysis.repository.includes('pw-cookunity-automation')) return sum + 28
-          if (analysis.repository.includes('maestro-test')) return sum + 7
-          if (analysis.repository.includes('automation-framework')) return sum + 7
+          if (repo.repository.includes('pw-cookunity-automation')) return sum + 28
+          if (repo.repository.includes('maestro-test')) return sum + 7
+          if (repo.repository.includes('automation-framework')) return sum + 7
           return sum
         }, 0)
         
         const transformedSummary = {
           totalWorkflows: totalWorkflows,
-          totalTests: result.totalTests,
+          totalTests: result.summary.totalEstimatedTests,
           byEnvironment: { 
             qa: qaTests,
             prod: prodTests,
-            all: result.totalTests 
+            all: result.summary.totalEstimatedTests 
           },
-          byPlatform: result.analyses.reduce((acc: any, analysis: any) => {
-            acc[analysis.framework] = analysis.totalTests
-            return acc
-          }, {})
+          byPlatform: result.summary.byFramework
         }
         
         const finalData = {
