@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       {
         name: 'Cook-Unity/automation-framework',
         framework: 'selenium',
-        testPaths: ['test'] // Buscar en todo el directorio test
+        testPaths: ['src/test/kotlin'] // Ruta correcta de tests de Selenium
       }
     ]
 
@@ -195,8 +195,8 @@ function isTestFileByPath(filePath: string, basePath: string): boolean {
     return true
   }
   
-  // Selenium: .kt files in test directory (anywhere under test/)
-  if (fileName.endsWith('.kt') && filePath.startsWith('test/')) {
+  // Selenium: .kt files in src/test/kotlin directory
+  if (fileName.endsWith('.kt') && filePath.startsWith('src/test/kotlin/')) {
     return true
   }
   
