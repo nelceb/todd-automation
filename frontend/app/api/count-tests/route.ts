@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getGitHubToken } from '../utils/github'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30 // 30 seconds max
 
 interface TestFile {
   name: string
@@ -41,17 +42,17 @@ export async function GET(request: NextRequest) {
       {
         name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
-        testPaths: ['maestro'] // Buscar en todo el directorio maestro
+        testPaths: ['maestro/tests'] // Solo tests reales, no config
       },
       {
         name: 'Cook-Unity/pw-cookunity-automation', 
         framework: 'playwright',
-        testPaths: [''] // Buscar en todo el repo
+        testPaths: ['tests'] // Solo directorio de tests
       },
       {
         name: 'Cook-Unity/automation-framework',
         framework: 'selenium',
-        testPaths: ['src'] // Buscar en todo src
+        testPaths: ['test'] // Solo directorio de tests
       }
     ]
 
@@ -230,20 +231,20 @@ function isTestFileByPath(filePath: string, basePath: string): boolean {
   // Log all files to see what we're getting
   console.log(`🔍 Checking file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
   
-  // Maestro: .yaml files anywhere in the repo
-  if (fileName.endsWith('.yaml') && filePath.includes('maestro')) {
+  // Maestro: .yaml files in maestro/tests directory
+  if (fileName.endsWith('.yaml') && filePath.startsWith('maestro/tests/')) {
     console.log(`✅ Maestro test file: ${filePath}`)
     return true
   }
   
-  // Playwright: .spec.ts files anywhere in the repo
-  if (fileName.endsWith('.spec.ts')) {
+  // Playwright: .spec.ts files in tests directory
+  if (fileName.endsWith('.spec.ts') && filePath.startsWith('tests/')) {
     console.log(`✅ Playwright test file: ${filePath}`)
     return true
   }
   
-  // Selenium: .kt files anywhere in the repo
-  if (fileName.endsWith('.kt')) {
+  // Selenium: .kt files in test directory
+  if (fileName.endsWith('.kt') && filePath.startsWith('test/')) {
     console.log(`✅ Selenium test file: ${filePath}`)
     return true
   }
@@ -432,6 +433,7 @@ function countTestsInContent(content: string, framework: string): number {
     // Contar @Test annotations
     const testMatches = content.match(/@Test/g)
     count = testMatches ? testMatches.length : 1
+    console.log(`🔍 Selenium file analysis: ${testMatches ? testMatches.length : 0} @Test annotations found`)
   }
   
   return Math.max(count, 1) // Mínimo 1 test por archivo
