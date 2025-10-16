@@ -41,17 +41,17 @@ export async function GET(request: NextRequest) {
       {
         name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
-        testPaths: ['maestro/tests'] // Solo tests reales, no flows
+        testPaths: ['maestro'] // Buscar en todo el directorio maestro
       },
       {
         name: 'Cook-Unity/pw-cookunity-automation', 
         framework: 'playwright',
-        testPaths: ['tests']
+        testPaths: [''] // Buscar en todo el repo
       },
       {
         name: 'Cook-Unity/automation-framework',
         framework: 'selenium',
-        testPaths: ['src/test']
+        testPaths: ['src'] // Buscar en todo src
       }
     ]
 
@@ -225,33 +225,30 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
 }
 
 function isTestFileByPath(filePath: string, basePath: string): boolean {
-  // Check if file is in the correct test directory and has correct extension
-  if (!filePath.startsWith(basePath)) {
-    console.log(`❌ File ${filePath} doesn't start with ${basePath}`)
-    return false
-  }
-  
   const fileName = filePath.split('/').pop() || ''
   
-  // Maestro: .yaml files in maestro/tests
-  if (basePath.includes('maestro/tests') && fileName.endsWith('.yaml')) {
+  // Log all files to see what we're getting
+  console.log(`🔍 Checking file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
+  
+  // Maestro: .yaml files anywhere in the repo
+  if (fileName.endsWith('.yaml') && filePath.includes('maestro')) {
     console.log(`✅ Maestro test file: ${filePath}`)
     return true
   }
   
-  // Playwright: .spec.ts files in tests
-  if (basePath.includes('tests') && fileName.endsWith('.spec.ts')) {
+  // Playwright: .spec.ts files anywhere in the repo
+  if (fileName.endsWith('.spec.ts')) {
     console.log(`✅ Playwright test file: ${filePath}`)
     return true
   }
   
-  // Selenium: .kt files in src/test
-  if (basePath.includes('src/test') && fileName.endsWith('.kt')) {
+  // Selenium: .kt files anywhere in the repo
+  if (fileName.endsWith('.kt')) {
     console.log(`✅ Selenium test file: ${filePath}`)
     return true
   }
   
-  console.log(`❌ Not a test file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
+  console.log(`❌ Not a test file: ${filePath}`)
   return false
 }
 
