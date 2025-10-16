@@ -61,9 +61,19 @@ export async function GET(request: NextRequest) {
         if (testCount) {
           console.log(`Repository ${repo.name} completed:`, testCount.estimatedTests, 'tests')
           testCounts.push(testCount)
+        } else {
+          console.log(`Repository ${repo.name} returned null - no tests found`)
         }
       } catch (error) {
         console.error(`Error analyzing ${repo.name}:`, error)
+        // Add empty result for failed repositories
+        testCounts.push({
+          repository: repo.name,
+          framework: repo.framework,
+          totalTestFiles: 0,
+          estimatedTests: 0,
+          breakdown: {}
+        })
       }
     }
 
