@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       {
         name: 'Cook-Unity/automation-framework',
         framework: 'selenium',
-        testPaths: ['src/test/kotlin/com/cookunity'] // Ruta exacta que mencionaste
+        testPaths: ['src/test/kotlin/com/cookunity/frontend'] // Ruta correcta con desktop y mobile
       }
     ]
 
@@ -195,8 +195,8 @@ function isTestFileByPath(filePath: string, basePath: string): boolean {
     return true
   }
   
-  // Selenium: .kt files in src/test/kotlin/com/cookunity directory
-  if (fileName.endsWith('.kt') && filePath.startsWith('src/test/kotlin/com/cookunity/')) {
+  // Selenium: .kt files in src/test/kotlin/com/cookunity/frontend directory
+  if (fileName.endsWith('.kt') && filePath.startsWith('src/test/kotlin/com/cookunity/frontend/')) {
     return true
   }
   
