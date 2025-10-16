@@ -903,8 +903,22 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   showCursor={false}
                                 />
                                 {(() => {
-                                  // Show TESTS RUNNING by default when workflow is just started
-                                  // This will be updated when logs arrive
+                                  // Find corresponding log for this workflow
+                                  const correspondingLog = multipleLogs.find(log => 
+                                    log.run.htmlUrl.includes(workflow.repository) && 
+                                    log.run.htmlUrl.includes(workflow.workflowName)
+                                  )
+                                  
+                                  // Only show TESTS RUNNING if workflow is actually in progress
+                                  if (correspondingLog && correspondingLog.run.status === 'in_progress') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                        TESTS RUNNING
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // Show TESTS RUNNING by default when workflow is just started (no logs yet)
                                   if (multipleLogs.length === 0 || !multipleLogs.some(log => log.run.htmlUrl.includes(workflow.workflowName))) {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
@@ -913,48 +927,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Find corresponding log for this workflow
-                                  const correspondingLog = multipleLogs.find(log => 
-                                    log.run.htmlUrl.includes(workflow.repository) && 
-                                    log.run.htmlUrl.includes(workflow.workflowName)
-                                  )
-                                  
-                                  if (correspondingLog) {
-                                    if (correspondingLog.run.status === 'in_progress') {
-                                      return (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
-                                          TESTS RUNNING
-                                        </span>
-                                      )
-                                    } else if (correspondingLog.run.status === 'completed') {
-                                      // Check if tests passed
-                                      const testLogs = correspondingLog.logs.filter(log => 
-                                        log.jobName.toLowerCase().includes('test')
-                                      )
-                                      const allLogs = testLogs.map(log => log.logs).join('\n')
-                                      const summary = extractTestSummary(allLogs)
-                                      
-                                      if (summary.failed === 0 && summary.passed > 0) {
-                                        return (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 animate-pulse">
-                                            ALL TESTS PASSED
-                                          </span>
-                                        )
-                                      } else if (summary.failed > 0) {
-                                        return (
-                                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200 animate-pulse">
-                                            TESTS FAILED
-                                          </span>
-                                        )
-                                      }
-                                    }
-                                  }
-                                  
-                                  return (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
-                                      TESTS RUNNING
-                                    </span>
-                                  )
+                                  // If completed, don't show any tag here (it will be shown in RESULTS section)
+                                  return null
                                 })()}
                               </div>
                               <div className="text-gray-700 text-xs">
