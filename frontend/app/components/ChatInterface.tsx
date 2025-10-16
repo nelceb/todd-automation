@@ -417,6 +417,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     clearAllLogs()
     clearPreview()
     setWorkflowDurations({})
+    
+    // Also clear localStorage to ensure clean state
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('workflow-store')
+    }
 
     // Add new user message to existing messages
     const newMessage = {

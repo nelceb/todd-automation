@@ -468,7 +468,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
     set({ 
       currentLogs: null, 
       multipleLogs: [], 
-      isPollingLogs: false 
+      isPollingLogs: false,
+      runningWorkflowsFromTodd: []
     })
     // Stop any existing polling
     const { pollInterval } = get() as any
