@@ -413,6 +413,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     setInput('')
     setIsLoading(true)
 
+    // Clear previous logs and workflow data when starting a new query
+    clearAllLogs()
+    clearPreview()
+    setWorkflowDurations({})
+
     // Add new user message to existing messages
     const newMessage = {
       id: Date.now().toString(),
