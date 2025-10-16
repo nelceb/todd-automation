@@ -129,7 +129,15 @@ export async function GET(request: NextRequest) {
 
         const analysis = analyzeRepositoryStructure(data, repo.framework, repo.name)
         if (analysis) {
+          console.log(`📊 Analysis for ${repo.name}:`, {
+            framework: analysis.framework,
+            totalTests: analysis.totalTests,
+            testFilesCount: analysis.testFiles.length,
+            categories: analysis.categories
+          })
           analyses.push(analysis)
+        } else {
+          console.log(`❌ No analysis generated for ${repo.name}`)
         }
 
       } catch (error) {
@@ -138,11 +146,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const totalTests = analyses.reduce((sum, analysis) => sum + analysis.totalTests, 0)
+    
+    console.log(`🎯 Final GraphQL API Response:`, {
+      totalRepositories: analyses.length,
+      totalTests,
+      analyses: analyses.map(a => ({
+        framework: a.framework,
+        repository: a.repository,
+        totalTests: a.totalTests,
+        testFilesCount: a.testFiles.length,
+        categories: a.categories
+      }))
+    })
+
     return NextResponse.json({
       success: true,
       analyses,
       totalRepositories: analyses.length,
-      totalTests: analyses.reduce((sum, analysis) => sum + analysis.totalTests, 0)
+      totalTests
     })
 
   } catch (error) {
