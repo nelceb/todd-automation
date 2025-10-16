@@ -910,8 +910,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   )
                                   
                                   // Check if there are results available (summary with test counts)
-                                  const hasResults = correspondingLog && correspondingLog.summary && 
-                                    (correspondingLog.summary.passed > 0 || correspondingLog.summary.failed > 0 || correspondingLog.summary.skipped > 0)
+                                  const hasResults = correspondingLog && correspondingLog.logs && correspondingLog.logs.length > 0 && 
+                                    correspondingLog.logs.some(log => {
+                                      const summary = extractTestSummary(log.logs)
+                                      return summary.total > 0 && (summary.passed > 0 || summary.failed > 0 || summary.skipped > 0)
+                                    })
                                   
                                   // Don't show TESTS RUNNING if results are already available
                                   if (hasResults) {
