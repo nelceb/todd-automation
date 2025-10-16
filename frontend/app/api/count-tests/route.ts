@@ -71,6 +71,8 @@ export async function GET(request: NextRequest) {
         testCounts.push({
           repository: repo.name,
           framework: repo.framework,
+          testDirectories: [],
+          testFiles: [],
           totalTestFiles: 0,
           estimatedTests: 0,
           breakdown: {}
@@ -82,6 +84,8 @@ export async function GET(request: NextRequest) {
     testCounts.push({
       repository: 'Cook-Unity/automation-framework',
       framework: 'selenium',
+      testDirectories: ['src/test'],
+      testFiles: [],
       totalTestFiles: 42,
       estimatedTests: 42,
       breakdown: {
