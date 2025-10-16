@@ -25,49 +25,47 @@ interface TestCount {
 
 export async function GET(request: NextRequest) {
   try {
-    // Temporalmente usar datos hardcodeados para que funcione
-    const testCounts: TestCount[] = [
+    const token = await getGitHubToken(request)
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'GitHub token required' },
+        { status: 401 }
+      )
+    }
+
+    const repositories = [
       {
-        repository: 'Cook-Unity/maestro-test',
+        name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
-        totalTestFiles: 15,
-        estimatedTests: 15,
-        breakdown: {
-          'login': 3,
-          'checkout': 4,
-          'search': 2,
-          'profile': 3,
-          'other': 3
-        }
+        testPaths: ['maestro/tests'] // Solo tests reales, no config
       },
       {
-        repository: 'Cook-Unity/pw-cookunity-automation',
-        framework: 'playwright', 
-        totalTestFiles: 28,
-        estimatedTests: 156,
-        breakdown: {
-          'e2e': 45,
-          'landings': 38,
-          'growth': 32,
-          'qa': 25,
-          'prod': 16
-        }
+        name: 'Cook-Unity/pw-cookunity-automation', 
+        framework: 'playwright',
+        testPaths: ['tests'] // Solo directorio de tests
       },
       {
-        repository: 'Cook-Unity/automation-framework',
+        name: 'Cook-Unity/automation-framework',
         framework: 'selenium',
-        totalTestFiles: 42,
-        estimatedTests: 42,
-        breakdown: {
-          'login': 8,
-          'checkout': 6,
-          'search': 5,
-          'profile': 4,
-          'qa': 12,
-          'prod': 7
-        }
+        testPaths: ['src/test/kotlin/com/cookunity/frontend/desktop', 'src/test/kotlin/com/cookunity/frontend/mobile'] // Rutas específicas
       }
     ]
+
+    const testCounts: TestCount[] = []
+
+    for (const repo of repositories) {
+      try {
+        console.log(`Processing repository: ${repo.name}`)
+        const testCount = await analyzeRepositoryTests(token, repo)
+        if (testCount) {
+          console.log(`Repository ${repo.name} completed:`, testCount.estimatedTests, 'tests')
+          testCounts.push(testCount)
+        }
+      } catch (error) {
+        console.error(`Error analyzing ${repo.name}:`, error)
+      }
+    }
 
     return NextResponse.json({
       success: true,
