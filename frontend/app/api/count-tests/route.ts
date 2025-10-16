@@ -59,12 +59,17 @@ export async function GET(request: NextRequest) {
 
     for (const repo of repositories) {
       try {
+        console.log(`🔍 Analyzing ${repo.name} (${repo.framework})...`)
         const testCount = await analyzeRepositoryTests(token, repo)
         if (testCount) {
           testCounts.push(testCount)
+          console.log(`✅ ${repo.name}: ${testCount.estimatedTests} tests found`)
+        } else {
+          console.log(`⚠️ ${repo.name}: No tests found`)
         }
       } catch (error) {
-        console.error(`Error analyzing ${repo.name}:`, error)
+        console.error(`❌ Error analyzing ${repo.name}:`, error)
+        // Continue with other repos even if one fails
       }
     }
 
@@ -162,45 +167,72 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
 
 async function getDirectoryContents(token: string, repoName: string, path: string, recursive: boolean = true): Promise<TestFile[]> {
   try {
+    // Use GitHub Tree API for much faster directory traversal
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
     const response = await fetch(
-      `https://api.github.com/repos/${repoName}/contents/${path}`,
+      `https://api.github.com/repos/${repoName}/git/trees/HEAD:${path}?recursive=1`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
+          'Accept': 'application/vnd.github.v3+json`,
         },
+        signal: controller.signal
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
+      console.error(`Error fetching directory ${path}: ${response.status}`)
       return []
     }
 
-    const contents = await response.json()
-    const allFiles: TestFile[] = []
-    
-    for (const item of contents) {
-      const testFile: TestFile = {
-        name: item.name,
-        path: item.path,
-        type: item.type,
-        size: item.size
-      }
-      
-      allFiles.push(testFile)
-      
-      // Si es un directorio y queremos recursión, explorar subdirectorios
-      if (item.type === 'dir' && recursive) {
-        const subFiles = await getDirectoryContents(token, repoName, item.path, true)
-        allFiles.push(...subFiles)
+    const data = await response.json()
+    const files: TestFile[] = []
+
+    // Filter for test files based on framework
+    for (const item of data.tree || []) {
+      if (item.type === 'blob' && isTestFileByPath(item.path, path)) {
+        files.push({
+          name: item.path.split('/').pop() || '',
+          path: item.path,
+          type: 'file',
+          size: item.size
+        })
       }
     }
-    
-    return allFiles
+
+    return files
   } catch (error) {
     console.error(`Error fetching contents for ${path}:`, error)
     return []
   }
+}
+
+function isTestFileByPath(filePath: string, basePath: string): boolean {
+  // Check if file is in the correct test directory and has correct extension
+  if (!filePath.startsWith(basePath)) return false
+  
+  const fileName = filePath.split('/').pop() || ''
+  
+  // Maestro: .yaml files in maestro/tests
+  if (basePath.includes('maestro/tests') && fileName.endsWith('.yaml')) {
+    return true
+  }
+  
+  // Playwright: .spec.ts files in tests
+  if (basePath.includes('tests') && fileName.endsWith('.spec.ts')) {
+    return true
+  }
+  
+  // Selenium: .kt files in src/test
+  if (basePath.includes('src/test') && fileName.endsWith('.kt')) {
+    return true
+  }
+  
+  return false
 }
 
 async function categorizeTestFile(token: string, repoName: string, file: TestFile, framework: string): Promise<{ category: string, tags: string[], testCount: number }> {
@@ -282,6 +314,9 @@ async function categorizeTestFile(token: string, repoName: string, file: TestFil
 
 async function getFileContent(token: string, repoName: string, filePath: string): Promise<string | null> {
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    
     const response = await fetch(
       `https://api.github.com/repos/${repoName}/contents/${filePath}`,
       {
@@ -289,8 +324,11 @@ async function getFileContent(token: string, repoName: string, filePath: string)
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
+        signal: controller.signal
       }
     )
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       return null
