@@ -909,6 +909,15 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     log.run.htmlUrl.includes(workflow.workflowName)
                                   )
                                   
+                                  // Check if there are results available (summary with test counts)
+                                  const hasResults = correspondingLog && correspondingLog.summary && 
+                                    (correspondingLog.summary.passed > 0 || correspondingLog.summary.failed > 0 || correspondingLog.summary.skipped > 0)
+                                  
+                                  // Don't show TESTS RUNNING if results are already available
+                                  if (hasResults) {
+                                    return null
+                                  }
+                                  
                                   // Show TESTS RUNNING by default when workflow is just started (no logs yet)
                                   if (!correspondingLog) {
                                     return (
@@ -918,7 +927,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Only show TESTS RUNNING if workflow is actually in progress
+                                  // Only show TESTS RUNNING if workflow is actually in progress and no results yet
                                   if (correspondingLog.run.status === 'in_progress') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
