@@ -25,18 +25,14 @@ interface TestCount {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Starting count-tests API...')
     const token = await getGitHubToken(request)
     
     if (!token) {
-      console.log('❌ No GitHub token available')
       return NextResponse.json(
         { error: 'GitHub token required' },
         { status: 401 }
       )
     }
-    
-    console.log('✅ GitHub token available, proceeding with analysis...')
 
     const repositories = [
       {
@@ -60,35 +56,14 @@ export async function GET(request: NextRequest) {
 
     for (const repo of repositories) {
       try {
-        console.log(`🔍 Analyzing ${repo.name} (${repo.framework})...`)
-        console.log(`📂 Test paths: ${repo.testPaths.join(', ')}`)
         const testCount = await analyzeRepositoryTests(token, repo)
         if (testCount) {
           testCounts.push(testCount)
-          console.log(`✅ ${repo.name}: ${testCount.estimatedTests} tests found`)
-          console.log(`📊 Details: ${testCount.totalTestFiles} files, ${testCount.testDirectories.length} directories`)
-        } else {
-          console.log(`⚠️ ${repo.name}: No tests found`)
         }
       } catch (error) {
-        console.error(`❌ Error analyzing ${repo.name}:`, error)
-        // Continue with other repos even if one fails
+        console.error(`Error analyzing ${repo.name}:`, error)
       }
     }
-
-    const totalEstimatedTests = testCounts.reduce((sum, count) => sum + count.estimatedTests, 0)
-    
-    console.log('🎯 Final count-tests API Response:', {
-      totalRepositories: testCounts.length,
-      totalEstimatedTests,
-      testCounts: testCounts.map(count => ({
-        repository: count.repository,
-        framework: count.framework,
-        totalTestFiles: count.totalTestFiles,
-        estimatedTests: count.estimatedTests,
-        breakdownKeys: Object.keys(count.breakdown)
-      }))
-    })
 
     return NextResponse.json({
       success: true,
@@ -96,7 +71,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalRepositories: testCounts.length,
         totalTestFiles: testCounts.reduce((sum, count) => sum + count.totalTestFiles, 0),
-        totalEstimatedTests,
+        totalEstimatedTests: testCounts.reduce((sum, count) => sum + count.estimatedTests, 0),
         byFramework: groupByFramework(testCounts)
       }
     })
@@ -170,66 +145,39 @@ async function analyzeRepositoryTests(token: string, repo: { name: string, frame
 
 async function getDirectoryContents(token: string, repoName: string, path: string, recursive: boolean = true): Promise<TestFile[]> {
   try {
-    // Use GitHub Tree API for much faster directory traversal
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-    
     const response = await fetch(
-      `https://api.github.com/repos/${repoName}/git/trees/HEAD:${path}?recursive=1`,
+      `https://api.github.com/repos/${repoName}/contents/${path}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github.v3+json',
         },
-        signal: controller.signal
       }
     )
-    
-    clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.error(`Error fetching directory ${path}: ${response.status}`)
       return []
     }
 
-    const data = await response.json()
-    const files: TestFile[] = []
-
-    console.log(`📁 Tree API response for ${path}:`, {
-      totalItems: data.tree?.length || 0,
-      sampleItems: data.tree?.slice(0, 10).map((item: any) => ({
-        path: item.path,
-        type: item.type
-      })) || []
-    })
+    const contents = await response.json()
+    const allFiles: TestFile[] = []
     
-    // Log all files that match our patterns
-    const allFiles = data.tree?.filter((item: any) => item.type === 'blob') || []
-    console.log(`📋 All files found: ${allFiles.length}`)
-    allFiles.forEach((file: any) => {
-      console.log(`  - ${file.path}`)
-    })
-
-    // Filter for test files based on framework
-    for (const item of data.tree || []) {
-      if (item.type === 'blob') {
-        const isTest = isTestFileByPath(item.path, path)
-        if (isTest) {
-          console.log(`✅ Found test file: ${item.path}`)
-          files.push({
-            name: item.path.split('/').pop() || '',
-            path: item.path,
-            type: 'file',
-            size: item.size
-          })
-        }
+    for (const item of contents) {
+      if (item.type === 'file') {
+        allFiles.push({
+          name: item.name,
+          path: item.path,
+          type: 'file',
+          size: item.size
+        })
+      } else if (item.type === 'dir' && recursive) {
+        const subFiles = await getDirectoryContents(token, repoName, item.path, true)
+        allFiles.push(...subFiles)
       }
     }
-
-    console.log(`📊 Filtered ${files.length} test files from ${data.tree?.length || 0} total items`)
-    return files
+    
+    return allFiles
   } catch (error) {
-    console.error(`Error fetching contents for ${path}:`, error)
     return []
   }
 }
@@ -237,28 +185,21 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
 function isTestFileByPath(filePath: string, basePath: string): boolean {
   const fileName = filePath.split('/').pop() || ''
   
-  // Log all files to see what we're getting
-  console.log(`🔍 Checking file: ${filePath} (basePath: ${basePath}, fileName: ${fileName})`)
-  
   // Maestro: _test.yaml files in maestro/tests directory
   if (fileName.endsWith('_test.yaml') && filePath.startsWith('maestro/tests/')) {
-    console.log(`✅ Maestro test file: ${filePath}`)
     return true
   }
   
   // Playwright: .spec.ts files in tests directory
   if (fileName.endsWith('.spec.ts') && filePath.startsWith('tests/')) {
-    console.log(`✅ Playwright test file: ${filePath}`)
     return true
   }
   
   // Selenium: .kt files in test directory
   if (fileName.endsWith('.kt') && filePath.startsWith('test/')) {
-    console.log(`✅ Selenium test file: ${filePath}`)
     return true
   }
   
-  console.log(`❌ Not a test file: ${filePath}`)
   return false
 }
 
@@ -442,7 +383,6 @@ function countTestsInContent(content: string, framework: string): number {
     // Contar @Test annotations
     const testMatches = content.match(/@Test/g)
     count = testMatches ? testMatches.length : 1
-    console.log(`🔍 Selenium file analysis: ${testMatches ? testMatches.length : 0} @Test annotations found`)
   }
   
   return Math.max(count, 1) // Mínimo 1 test por archivo
