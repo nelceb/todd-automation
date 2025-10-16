@@ -176,7 +176,7 @@ async function getDirectoryContents(token: string, repoName: string, path: strin
       {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json`,
+          'Accept': 'application/vnd.github.v3+json',
         },
         signal: controller.signal
       }
