@@ -39,17 +39,18 @@ export async function GET(request: NextRequest) {
         name: 'Cook-Unity/maestro-test',
         framework: 'maestro',
         testPaths: ['maestro/tests'] // Solo tests reales, no config
-      },
-      {
-        name: 'Cook-Unity/pw-cookunity-automation', 
-        framework: 'playwright',
-        testPaths: ['tests'] // Solo directorio de tests
-      },
-      {
-        name: 'Cook-Unity/automation-framework',
-        framework: 'selenium',
-        testPaths: ['src/test/kotlin/com/cookunity/frontend/desktop', 'src/test/kotlin/com/cookunity/frontend/mobile'] // Rutas específicas
       }
+      // Temporalmente solo Maestro para probar que funciona
+      // {
+      //   name: 'Cook-Unity/pw-cookunity-automation', 
+      //   framework: 'playwright',
+      //   testPaths: ['tests'] // Solo directorio de tests
+      // },
+      // {
+      //   name: 'Cook-Unity/automation-framework',
+      //   framework: 'selenium',
+      //   testPaths: ['src/test/kotlin/com/cookunity/frontend/desktop', 'src/test/kotlin/com/cookunity/frontend/mobile'] // Rutas específicas
+      // }
     ]
 
     const testCounts: TestCount[] = []
