@@ -909,8 +909,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     log.run.htmlUrl.includes(workflow.workflowName)
                                   )
                                   
-                                  // Only show TESTS RUNNING if workflow is actually in progress
-                                  if (correspondingLog && correspondingLog.run.status === 'in_progress') {
+                                  // Show TESTS RUNNING by default when workflow is just started (no logs yet)
+                                  if (!correspondingLog) {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
                                         TESTS RUNNING
@@ -918,8 +918,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS RUNNING by default when workflow is just started (no logs yet)
-                                  if (multipleLogs.length === 0 || !multipleLogs.some(log => log.run.htmlUrl.includes(workflow.workflowName))) {
+                                  // Only show TESTS RUNNING if workflow is actually in progress
+                                  if (correspondingLog.run.status === 'in_progress') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
                                         TESTS RUNNING
