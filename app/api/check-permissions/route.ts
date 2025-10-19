@@ -3,7 +3,7 @@ import { getGitHubToken } from '../utils/github'
 
 export async function GET(request: NextRequest) {
   try {
-    const githubToken = await getGitHubToken()
+    const githubToken = await getGitHubToken(request)
     if (!githubToken) {
       return NextResponse.json({ error: 'GitHub token not available' }, { status: 401 })
     }
