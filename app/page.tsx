@@ -28,11 +28,32 @@ interface Message {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'workflows'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
+  const [permissions, setPermissions] = useState<any>(null)
+  const [checkingPermissions, setCheckingPermissions] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const { workflows, isLoading } = useWorkflowStore()
 
   const handleAuthSuccess = (token: string) => {
     setGithubToken(token)
+  }
+
+  const checkPermissions = async () => {
+    if (!githubToken) return
+    
+    setCheckingPermissions(true)
+    try {
+      const response = await fetch('/api/check-permissions')
+      if (response.ok) {
+        const data = await response.json()
+        setPermissions(data)
+      } else {
+        console.error('Failed to check permissions')
+      }
+    } catch (error) {
+      console.error('Error checking permissions:', error)
+    } finally {
+      setCheckingPermissions(false)
+    }
   }
 
   const handleTabChange = (tab: 'chat' | 'workflows') => {
@@ -124,9 +145,50 @@ export default function Home() {
               <span>Workflows</span>
             </button>
             <GitHubAuth onAuthSuccess={handleAuthSuccess} />
+            {githubToken && (
+              <button 
+                onClick={checkPermissions}
+                disabled={checkingPermissions}
+                className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-600 hover:border-gray-700 rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] disabled:opacity-50"
+                style={{ color: '#344055' }}
+              >
+                <Cog6ToothIcon className="w-4 h-4" />
+                <span>{checkingPermissions ? 'Checking...' : 'Check Permissions'}</span>
+              </button>
+            )}
           </div>
           {/* Línea divisoria fina */}
           <div className="w-full max-w-md border-t border-gray-600 mt-4"></div>
+          
+          {/* Permissions Display */}
+          {permissions && (
+            <div className="mt-6 p-4 bg-white/10 border border-gray-300/50 rounded-lg max-w-2xl">
+              <h3 className="text-lg font-mono mb-3" style={{ color: '#344055' }}>
+                Repository Permissions
+              </h3>
+              <div className="space-y-2">
+                {permissions.permissions.map((perm: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="font-mono text-sm" style={{ color: '#344055' }}>
+                      {perm.repository}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      perm.hasWritePermission 
+                        ? 'bg-green-900 text-green-300' 
+                        : 'bg-red-900 text-red-300'
+                    }`}>
+                      {perm.hasWritePermission ? 'Write Access' : 'Read Only'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-300/30">
+                <p className="text-sm font-mono" style={{ color: '#344055' }}>
+                  Summary: {permissions.summary.withWriteAccess}/{permissions.summary.total} repositories with write access
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
