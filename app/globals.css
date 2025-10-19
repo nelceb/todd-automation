@@ -49,6 +49,10 @@
   .status-badge.pending {
     @apply bg-yellow-900 text-yellow-300;
   }
+  
+  .status-badge.cancelled {
+    @apply bg-gray-900 text-gray-300;
+  }
 
   /* Line clamp utilities */
   .line-clamp-1 {

@@ -167,6 +167,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     if (status === 'queued') {
       return <span className="status-badge pending">Pending</span>
     }
+    if (status === 'cancelled') {
+      return <span className="status-badge cancelled">Cancelled</span>
+    }
     return <span className="status-badge pending">Unknown</span>
   }
 
@@ -305,12 +308,34 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           const data = await response.json()
           
           if (data.status === 'completed') {
-            // Workflow completed
+            // Workflow completed successfully
             setWorkflowStates(prev => ({ 
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
-                status: data.conclusion === 'success' ? 'success' : 'error',
+                status: 'success',
+                canCancel: false
+              } 
+            }))
+            clearInterval(pollInterval)
+          } else if (data.status === 'failed') {
+            // Workflow failed
+            setWorkflowStates(prev => ({ 
+              ...prev, 
+              [workflowId]: { 
+                ...prev[workflowId],
+                status: 'error',
+                canCancel: false
+              } 
+            }))
+            clearInterval(pollInterval)
+          } else if (data.status === 'cancelled') {
+            // Workflow was cancelled
+            setWorkflowStates(prev => ({ 
+              ...prev, 
+              [workflowId]: { 
+                ...prev[workflowId],
+                status: 'cancelled',
                 canCancel: false
               } 
             }))
