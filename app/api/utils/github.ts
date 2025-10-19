@@ -76,14 +76,6 @@ async function generateGitHubAppToken(): Promise<string | null> {
 export async function getGitHubToken(request: NextRequest): Promise<string | null> {
   console.log('🔍 getGitHubToken called')
   
-  // First, try to use nelceb token for write operations
-  const nelcebToken = process.env.GITHUB_TOKEN_NELCEB
-  if (nelcebToken) {
-    console.log('✅ Using nelceb token for write access')
-    return nelcebToken
-  }
-  
-  // Fallback to user token from header
   const authHeader = request.headers.get('authorization')
   if (authHeader && authHeader.startsWith('Bearer ')) {
     console.log('✅ Found token in Authorization header')
