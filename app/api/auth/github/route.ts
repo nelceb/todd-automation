@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import jwt from 'jsonwebtoken'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,8 +9,8 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state')
 
   if (!code) {
-    // Iniciar el flujo OAuth
-    const clientId = process.env.GITHUB_CLIENT_ID
+    // Iniciar el flujo de GitHub App
+    const clientId = process.env.GITHUB_APP_CLIENT_ID
     const redirectUri = process.env.NODE_ENV === 'production' 
       ? 'https://todd-the-automator.vercel.app/api/auth/github'
       : 'http://localhost:3000/api/auth/github'
@@ -22,8 +23,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Intercambiar código por token
-    const clientId = process.env.GITHUB_CLIENT_ID
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET
+    const clientId = process.env.GITHUB_APP_CLIENT_ID
+    const clientSecret = process.env.GITHUB_APP_CLIENT_SECRET
     
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
