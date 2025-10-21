@@ -44,6 +44,26 @@ async function getInstallationToken(installationId: string) {
   return data.token
 }
 
+// Función para obtener todas las instalaciones de la GitHub App
+async function getInstallations() {
+  const jwt = generateJWT()
+  
+  const response = await fetch('https://api.github.com/app/installations', {
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'TODD-Automator'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to get installations: ${response.statusText}`)
+  }
+
+  const installations = await response.json()
+  return installations
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const installationId = searchParams.get('installation_id')
@@ -63,7 +83,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(redirectUrl.toString())
     }
 
-    // Si no hay instalación, redirigir a la instalación de la GitHub App
+    // Si no hay parámetros, buscar instalaciones existentes
+    const installations = await getInstallations()
+    
+    if (installations.length > 0) {
+      // Usar la primera instalación disponible
+      const firstInstallation = installations[0]
+      const accessToken = await getInstallationToken(firstInstallation.id.toString())
+      
+      // Redirigir a la página principal con el token
+      const redirectUrl = new URL('/', request.url)
+      redirectUrl.searchParams.set('token', accessToken)
+      redirectUrl.searchParams.set('installation_id', firstInstallation.id.toString())
+      
+      return NextResponse.redirect(redirectUrl.toString())
+    }
+
+    // Si no hay instalaciones, redirigir a la instalación de la GitHub App
     const appId = process.env.GITHUB_APP_ID
     if (!appId) {
       throw new Error('GitHub App ID not configured')
