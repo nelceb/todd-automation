@@ -560,28 +560,18 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - use analyzed methods
+    // For Home/Homepage tests, stay on Home page - analyze specific actions needed
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      // Use existing methods that handle scroll automatically
-      if (existingMethods?.homePage?.includes('clickOnAddMealButton')) {
-        return `// User is already on Home page - use existing method that handles scroll automatically
-    await homePage.clickOnAddMealButton(1);`
-      } else {
-        return `// User is already on Home page - scroll to find Order Again swimlane
+      // For Order Again swimlane, need to scroll to find it
+      return `// User is already on Home page - scroll to find Order Again swimlane
     await homePage.scrollToBottom();`
-      }
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
       return `// User is already on Home page - banner should be visible without scroll
     // No action needed - banner is at top of page`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      // Use existing methods that handle scroll automatically
-      if (existingMethods?.homePage?.includes('clickOnAddMealButton')) {
-        return `// User is already on Home page - use existing method that handles scroll automatically
-    await homePage.clickOnAddMealButton(1);`
-      } else {
-        return `// User is already on Home page - scroll to find meals section
+      // For meals section, need to scroll to find it
+      return `// User is already on Home page - scroll to find meals section
     await homePage.scrollToBottom();`
-      }
     } else {
       return `// User is already on Home page - no navigation needed`
     }
