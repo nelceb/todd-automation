@@ -164,7 +164,7 @@ export default function TestGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/30 to-indigo-100/50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -173,25 +173,29 @@ export default function TestGenerator() {
           className="text-center mb-8"
         >
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mr-4">
-              <SparklesIcon className="w-6 h-6 text-white" />
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+              <SparklesIcon className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Test Generator</h1>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Test Generator
+              </h1>
+              <p className="text-gray-600 text-lg font-medium">Generate automated tests from Jira acceptance criteria</p>
+            </div>
           </div>
-          <p className="text-gray-600 text-lg">Generate automated tests from Jira acceptance criteria</p>
         </motion.div>
 
         {/* Progress Steps */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-8"
+          className="flex items-center justify-center mb-12"
         >
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-8">
             {[
-              { key: 'jira', label: 'Connect Jira', icon: LinkIcon, color: 'blue' },
-              { key: 'generate', label: 'Generate Test', icon: BoltIcon, color: 'purple' },
-              { key: 'result', label: 'Review & Commit', icon: CheckBadgeIcon, color: 'green' }
+              { key: 'jira', label: 'Connect Jira', icon: LinkIcon, color: 'blue', gradient: 'from-blue-500 to-cyan-500' },
+              { key: 'generate', label: 'Generate Test', icon: BoltIcon, color: 'purple', gradient: 'from-purple-500 to-pink-500' },
+              { key: 'result', label: 'Review & Commit', icon: CheckBadgeIcon, color: 'green', gradient: 'from-green-500 to-emerald-500' }
             ].map((stepItem, index) => {
               const isActive = step === stepItem.key
               const isCompleted = ['jira', 'generate', 'result'].indexOf(step) > index
@@ -199,23 +203,23 @@ export default function TestGenerator() {
               
               return (
                 <div key={stepItem.key} className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${
                     isActive 
-                      ? `bg-${stepItem.color}-500 text-white shadow-lg` 
+                      ? `bg-gradient-to-br ${stepItem.gradient} text-white scale-110` 
                       : isCompleted
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-300 text-gray-600'
+                      ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white'
+                      : 'bg-white/60 text-gray-400 border border-gray-200'
                   }`}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-6 h-6" />
                   </div>
-                  <span className={`ml-3 text-sm font-medium transition-colors duration-300 ${
+                  <span className={`ml-4 text-sm font-semibold transition-colors duration-300 ${
                     isActive ? 'text-gray-900' : isCompleted ? 'text-green-600' : 'text-gray-500'
                   }`}>
                     {stepItem.label}
                   </span>
                   {index < 2 && (
-                    <div className={`w-12 h-0.5 mx-4 transition-colors duration-300 ${
-                      isCompleted ? 'bg-green-500' : 'bg-gray-300'
+                    <div className={`w-16 h-1 mx-6 rounded-full transition-colors duration-300 ${
+                      isCompleted ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-200'
                     }`} />
                   )}
                 </div>
@@ -235,63 +239,63 @@ export default function TestGenerator() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden"
+              className="bg-white/30 backdrop-blur-sm border border-white/40 rounded-2xl shadow-xl overflow-hidden"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 px-6 py-4 border-b border-gray-200/50">
+              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-8 py-6 border-b border-white/30">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-                      <LinkIcon className="w-5 h-5 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                      <LinkIcon className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">Jira Integration</h3>
-                      <p className="text-sm text-gray-600">Connect to Jira and extract acceptance criteria</p>
+                      <h3 className="text-xl font-bold text-gray-900">Jira Integration</h3>
+                      <p className="text-sm text-gray-600 font-medium">Connect to Jira and extract acceptance criteria</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm text-gray-600 font-medium">Ready</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg"></div>
+                    <span className="text-sm text-gray-700 font-semibold">Ready</span>
                   </div>
                 </div>
               </div>
               
               {/* Content */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {/* Configuration Status */}
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-gray-800 mb-4">Configuration Status</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-3 px-4 bg-white/50 rounded-lg border border-gray-200/50">
+                  <div className="space-y-6">
+                    <h4 className="text-lg font-bold text-gray-900 mb-6">Configuration Status</h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
                         <div className="flex items-center">
-                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                          <span className="text-sm text-gray-700">Jira URL</span>
+                          <div className="w-3 h-3 bg-green-500 rounded-full mr-4 shadow-sm"></div>
+                          <span className="text-sm font-semibold text-gray-800">Jira URL</span>
                         </div>
-                        <span className="text-sm font-medium text-green-600">Connected</span>
+                        <span className="text-sm font-bold text-green-600">Connected</span>
                       </div>
-                      <div className="flex items-center justify-between py-3 px-4 bg-white/50 rounded-lg border border-gray-200/50">
+                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
                         <div className="flex items-center">
-                          <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                          <span className="text-sm text-gray-700">Authentication</span>
+                          <div className="w-3 h-3 bg-green-500 rounded-full mr-4 shadow-sm"></div>
+                          <span className="text-sm font-semibold text-gray-800">Authentication</span>
                         </div>
-                        <span className="text-sm font-medium text-green-600">Ready</span>
+                        <span className="text-sm font-bold text-green-600">Ready</span>
                       </div>
-                      <div className="flex items-center justify-between py-3 px-4 bg-white/50 rounded-lg border border-gray-200/50">
+                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
                         <div className="flex items-center">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                          <span className="text-sm text-gray-700">Environment</span>
+                          <div className="w-3 h-3 bg-blue-500 rounded-full mr-4 shadow-sm"></div>
+                          <span className="text-sm font-semibold text-gray-800">Environment</span>
                         </div>
-                        <span className="text-sm font-medium text-blue-600">Production</span>
+                        <span className="text-sm font-bold text-blue-600">Production</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Issue Input */}
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-gray-800 mb-4">Issue Details</h4>
+                  <div className="space-y-6">
+                    <h4 className="text-lg font-bold text-gray-900 mb-6">Issue Details</h4>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-bold text-gray-800 mb-3">
                         Jira Issue Key
                       </label>
                       <input
@@ -299,9 +303,9 @@ export default function TestGenerator() {
                         value={jiraConfig.issueKey}
                         onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
                         placeholder="QA-2301"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
+                        className="w-full px-5 py-4 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/60 backdrop-blur-sm shadow-sm font-medium"
                       />
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-600 mt-3 font-medium">
                         Enter the Jira issue key (e.g., QA-2301, PROJ-123)
                       </p>
                     </div>
@@ -309,20 +313,20 @@ export default function TestGenerator() {
                 </div>
                 
                 {/* Action Button */}
-                <div className="mt-8 flex justify-end">
+                <div className="mt-10 flex justify-end">
                   <button
                     onClick={fetchJiraIssue}
                     disabled={loading || !jiraConfig.issueKey}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-300 font-semibold shadow-lg hover:shadow-xl flex items-center transform hover:scale-105 disabled:scale-100"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-10 py-4 rounded-2xl hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-300 font-bold shadow-xl hover:shadow-2xl flex items-center transform hover:scale-105 disabled:scale-100 text-lg"
                   >
                     {loading ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-4"></div>
                         Fetching Issue...
                       </>
                     ) : (
                       <>
-                        <BoltIcon className="w-4 h-4 mr-3" />
+                        <BoltIcon className="w-5 h-5 mr-4" />
                         Fetch & Generate Test
                       </>
                     )}
