@@ -160,8 +160,11 @@ async function fetchJiraIssue(
 function parseAcceptanceCriteria(issue: JiraIssue): ParsedAcceptanceCriteria {
   const { summary, description, labels, priority } = issue.fields
   
+  // Convert Jira description object to string
+  const descriptionText = convertJiraDescriptionToString(description)
+  
   // Extraer acceptance criteria del description
-  const acceptanceCriteria = extractAcceptanceCriteria(description)
+  const acceptanceCriteria = extractAcceptanceCriteria(descriptionText)
   
   // Determinar prioridad
   const priorityMap: { [key: string]: 'high' | 'medium' | 'low' } = {
@@ -177,7 +180,7 @@ function parseAcceptanceCriteria(issue: JiraIssue): ParsedAcceptanceCriteria {
   return {
     id: issue.id,
     title: summary,
-    description,
+    description: descriptionText,
     given: acceptanceCriteria.given,
     when: acceptanceCriteria.when,
     then: acceptanceCriteria.then,
@@ -185,6 +188,52 @@ function parseAcceptanceCriteria(issue: JiraIssue): ParsedAcceptanceCriteria {
     labels,
     framework: 'maestro' // Se determinará después
   }
+}
+
+// Function to convert Jira description object to plain text
+function convertJiraDescriptionToString(description: any): string {
+  if (typeof description === 'string') {
+    return description
+  }
+  
+  if (typeof description === 'object' && description !== null) {
+    // Handle Jira's document structure
+    if (description.type === 'doc' && Array.isArray(description.content)) {
+      return extractTextFromContent(description.content)
+    }
+  }
+  
+  return String(description || '')
+}
+
+// Recursively extract text from Jira content structure
+function extractTextFromContent(content: any[]): string {
+  let text = ''
+  
+  for (const item of content) {
+    if (item.type === 'paragraph' && Array.isArray(item.content)) {
+      for (const textItem of item.content) {
+        if (textItem.type === 'text' && textItem.text) {
+          text += textItem.text
+        } else if (textItem.type === 'hardBreak') {
+          text += '\n'
+        }
+      }
+      text += '\n'
+    } else if (item.type === 'bulletList' && Array.isArray(item.content)) {
+      for (const listItem of item.content) {
+        if (listItem.type === 'listItem' && Array.isArray(listItem.content)) {
+          text += '• '
+          text += extractTextFromContent(listItem.content)
+          text += '\n'
+        }
+      }
+    } else if (Array.isArray(item.content)) {
+      text += extractTextFromContent(item.content)
+    }
+  }
+  
+  return text.trim()
 }
 
 function extractAcceptanceCriteria(description: string): {
@@ -198,7 +247,9 @@ function extractAcceptanceCriteria(description: string): {
     return { given: [], when: [], then: [] }
   }
   
-  const lines = description.split('\n').map(line => line.trim())
+  console.log('Extracting from description:', description.substring(0, 200) + '...')
+  
+  const lines = description.split('\n').map(line => line.trim()).filter(line => line.length > 0)
   
   let given: string[] = []
   let when: string[] = []
@@ -239,24 +290,40 @@ function extractAcceptanceCriteria(description: string): {
   
   // Si no se encontraron secciones explícitas, intentar extraer del texto general
   if (given.length === 0 && when.length === 0 && then.length === 0) {
-    const sentences = description.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0)
+    // Try to extract from the actual content
+    const sentences = description.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10)
     
-    // Heurística simple para clasificar oraciones
+    console.log('No explicit sections found, trying heuristic extraction from:', sentences.length, 'sentences')
+    
+    // Heurística mejorada para clasificar oraciones
     for (const sentence of sentences) {
       const lowerSentence = sentence.toLowerCase()
       
-      if (lowerSentence.includes('user') || lowerSentence.includes('usuario') || 
-          lowerSentence.includes('system') || lowerSentence.includes('sistema')) {
+      // Given: Context and preconditions
+      if (lowerSentence.includes('as a') || lowerSentence.includes('given') || 
+          lowerSentence.includes('user') || lowerSentence.includes('usuario') || 
+          lowerSentence.includes('system') || lowerSentence.includes('sistema') ||
+          lowerSentence.includes('when') || lowerSentence.includes('cuando')) {
         given.push(sentence)
-      } else if (lowerSentence.includes('click') || lowerSentence.includes('tap') || 
-                 lowerSentence.includes('enter') || lowerSentence.includes('select')) {
+      } 
+      // When: Actions
+      else if (lowerSentence.includes('click') || lowerSentence.includes('tap') || 
+               lowerSentence.includes('enter') || lowerSentence.includes('select') ||
+               lowerSentence.includes('navigate') || lowerSentence.includes('open') ||
+               lowerSentence.includes('fill') || lowerSentence.includes('submit')) {
         when.push(sentence)
-      } else if (lowerSentence.includes('should') || lowerSentence.includes('must') || 
-                 lowerSentence.includes('expect') || lowerSentence.includes('verify')) {
+      } 
+      // Then: Expected results
+      else if (lowerSentence.includes('should') || lowerSentence.includes('must') || 
+               lowerSentence.includes('expect') || lowerSentence.includes('verify') ||
+               lowerSentence.includes('see') || lowerSentence.includes('display') ||
+               lowerSentence.includes('receive') || lowerSentence.includes('get')) {
         then.push(sentence)
       }
     }
   }
+  
+  console.log('Extracted criteria:', { given: given.length, when: when.length, then: then.length })
   
   return { given, when, then }
 }
