@@ -170,32 +170,27 @@ export default function TestGenerator() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-8 sm:mb-12 lg:mb-16"
         >
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-              <SparklesIcon className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Test Generator
-              </h1>
-              <p className="text-gray-600 text-lg font-medium">Generate automated tests from Jira acceptance criteria</p>
-            </div>
-          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
+            Test Generator
+          </h1>
+          <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
+            Generate automated tests from Jira acceptance criteria
+          </p>
         </motion.div>
 
         {/* Progress Steps */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-12"
+          className="flex items-center justify-center mb-8"
         >
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-6">
             {[
-              { key: 'jira', label: 'Connect Jira', icon: LinkIcon, color: 'blue', gradient: 'from-blue-500 to-cyan-500' },
-              { key: 'generate', label: 'Generate Test', icon: BoltIcon, color: 'purple', gradient: 'from-purple-500 to-pink-500' },
-              { key: 'result', label: 'Review & Commit', icon: CheckBadgeIcon, color: 'green', gradient: 'from-green-500 to-emerald-500' }
+              { key: 'jira', label: 'Enter Issue', icon: LinkIcon },
+              { key: 'generate', label: 'Generate Test', icon: BoltIcon },
+              { key: 'result', label: 'Review Result', icon: CheckBadgeIcon }
             ].map((stepItem, index) => {
               const isActive = step === stepItem.key
               const isCompleted = ['jira', 'generate', 'result'].indexOf(step) > index
@@ -203,23 +198,23 @@ export default function TestGenerator() {
               
               return (
                 <div key={stepItem.key} className="flex items-center">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isActive 
-                      ? `bg-gradient-to-br ${stepItem.gradient} text-white scale-110` 
+                      ? 'bg-blue-500 text-white shadow-lg' 
                       : isCompleted
-                      ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white'
-                      : 'bg-white/60 text-gray-400 border border-gray-200'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-300 text-gray-600'
                   }`}>
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <span className={`ml-4 text-sm font-semibold transition-colors duration-300 ${
+                  <span className={`ml-2 text-sm font-medium transition-colors duration-300 ${
                     isActive ? 'text-gray-900' : isCompleted ? 'text-green-600' : 'text-gray-500'
                   }`}>
                     {stepItem.label}
                   </span>
                   {index < 2 && (
-                    <div className={`w-16 h-1 mx-6 rounded-full transition-colors duration-300 ${
-                      isCompleted ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-200'
+                    <div className={`w-8 h-0.5 mx-2 transition-colors duration-300 ${
+                      isCompleted ? 'bg-green-500' : 'bg-gray-300'
                     }`} />
                   )}
                 </div>
@@ -239,98 +234,54 @@ export default function TestGenerator() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-white/30 backdrop-blur-sm border border-white/40 rounded-2xl shadow-xl overflow-hidden"
+              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg"
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 px-8 py-6 border-b border-white/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-                      <LinkIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">Jira Integration</h3>
-                      <p className="text-sm text-gray-600 font-medium">Connect to Jira and extract acceptance criteria</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg"></div>
-                    <span className="text-sm text-gray-700 font-semibold">Ready</span>
-                  </div>
-                </div>
-              </div>
-              
               {/* Content */}
-              <div className="p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                  {/* Configuration Status */}
-                  <div className="space-y-6">
-                    <h4 className="text-lg font-bold text-gray-900 mb-6">Configuration Status</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-green-500 rounded-full mr-4 shadow-sm"></div>
-                          <span className="text-sm font-semibold text-gray-800">Jira URL</span>
-                        </div>
-                        <span className="text-sm font-bold text-green-600">Connected</span>
-                      </div>
-                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-green-500 rounded-full mr-4 shadow-sm"></div>
-                          <span className="text-sm font-semibold text-gray-800">Authentication</span>
-                        </div>
-                        <span className="text-sm font-bold text-green-600">Ready</span>
-                      </div>
-                      <div className="flex items-center justify-between py-4 px-5 bg-white/40 backdrop-blur-sm rounded-xl border border-white/50 shadow-sm">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full mr-4 shadow-sm"></div>
-                          <span className="text-sm font-semibold text-gray-800">Environment</span>
-                        </div>
-                        <span className="text-sm font-bold text-blue-600">Production</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Issue Input */}
-                  <div className="space-y-6">
-                    <h4 className="text-lg font-bold text-gray-900 mb-6">Issue Details</h4>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-800 mb-3">
-                        Jira Issue Key
-                      </label>
-                      <input
-                        type="text"
-                        value={jiraConfig.issueKey}
-                        onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
-                        placeholder="QA-2301"
-                        className="w-full px-5 py-4 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/60 backdrop-blur-sm shadow-sm font-medium"
-                      />
-                      <p className="text-xs text-gray-600 mt-3 font-medium">
-                        Enter the Jira issue key (e.g., QA-2301, PROJ-123)
-                      </p>
-                    </div>
-                  </div>
+              <div className="p-6">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Enter Jira Issue</h3>
+                  <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                    Enter the Jira issue key to extract acceptance criteria and generate tests
+                  </p>
                 </div>
                 
-                {/* Action Button */}
-                <div className="mt-10 flex justify-end">
-                  <button
-                    onClick={fetchJiraIssue}
-                    disabled={loading || !jiraConfig.issueKey}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-10 py-4 rounded-2xl hover:from-blue-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-300 font-bold shadow-xl hover:shadow-2xl flex items-center transform hover:scale-105 disabled:scale-100 text-lg"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-4"></div>
-                        Fetching Issue...
-                      </>
-                    ) : (
-                      <>
-                        <BoltIcon className="w-5 h-5 mr-4" />
-                        Fetch & Generate Test
-                      </>
-                    )}
-                  </button>
+                <div className="max-w-md mx-auto">
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      Jira Issue Key
+                    </label>
+                    <input
+                      type="text"
+                      value={jiraConfig.issueKey}
+                      onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
+                      placeholder="QA-2301"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
+                    />
+                    <p className="text-xs text-gray-500 mt-2 font-mono">
+                      Format: PROJECT-NUMBER (e.g., QA-2301, PROJ-123)
+                    </p>
+                  </div>
+                  
+                  {/* Action Button */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={fetchJiraIssue}
+                      disabled={loading || !jiraConfig.issueKey}
+                      className="bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Fetching Issue...
+                        </>
+                      ) : (
+                        <>
+                          <BoltIcon className="w-4 h-4 mr-2" />
+                          Generate Test
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -343,69 +294,53 @@ export default function TestGenerator() {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              {/* Success Header */}
-              <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-6 py-4 border-b border-gray-200/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
-                        <CheckBadgeIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">Test Generated Successfully</h3>
-                        <p className="text-sm text-gray-600">Test has been created and committed to repository</p>
-                      </div>
+              <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg">
+                <div className="p-6">
+                  <div className="text-center mb-6">
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckBadgeIcon className="w-6 h-6 text-white" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-gray-600 font-medium">Completed</span>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Test Generated Successfully</h3>
+                    <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                      Test has been created and committed to repository
+                    </p>
+                  </div>
+                  
+                  {/* Test Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="text-center p-4 bg-white/40 rounded-lg">
+                      <p className="text-xs font-mono text-gray-600 mb-1">Framework</p>
+                      <p className="text-sm font-semibold text-blue-600">{generatedTest.framework}</p>
+                    </div>
+                    <div className="text-center p-4 bg-white/40 rounded-lg">
+                      <p className="text-xs font-mono text-gray-600 mb-1">Branch</p>
+                      <p className="text-sm font-semibold text-purple-600 font-mono">{generatedTest.branchName}</p>
+                    </div>
+                    <div className="text-center p-4 bg-white/40 rounded-lg">
+                      <p className="text-xs font-mono text-gray-600 mb-1">File</p>
+                      <p className="text-sm font-semibold text-gray-800 font-mono">{generatedTest.fileName}</p>
                     </div>
                   </div>
-                </div>
-                
-                <div className="p-6">
-                  {/* Test Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-800">Test Information</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between py-2 px-3 bg-white/50 rounded-lg">
-                          <span className="text-sm text-gray-600">Framework</span>
-                          <span className="text-sm font-medium text-blue-600">{generatedTest.framework}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 px-3 bg-white/50 rounded-lg">
-                          <span className="text-sm text-gray-600">Branch</span>
-                          <span className="text-sm font-medium text-purple-600">{generatedTest.branchName}</span>
-                        </div>
-                        <div className="flex items-center justify-between py-2 px-3 bg-white/50 rounded-lg">
-                          <span className="text-sm text-gray-600">File Path</span>
-                          <span className="text-sm font-medium text-gray-800">{generatedTest.testPath}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-800">Actions</h4>
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(generatedTest.content)
-                            alert('Test code copied to clipboard!')
-                          }}
-                          className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center justify-center"
-                        >
-                          <DocumentTextIcon className="w-4 h-4 mr-2" />
-                          Copy Test Code
-                        </button>
-                        <button
-                          onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
-                          className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center justify-center"
-                        >
-                          <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
-                          View in GitHub
-                        </button>
-                      </div>
-                    </div>
+                  
+                  {/* Actions */}
+                  <div className="flex justify-center space-x-4 mb-6">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedTest.content)
+                        alert('Test code copied to clipboard!')
+                      }}
+                      className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center"
+                    >
+                      <DocumentTextIcon className="w-4 h-4 mr-2" />
+                      Copy Code
+                    </button>
+                    <button
+                      onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
+                      className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
+                      View in GitHub
+                    </button>
                   </div>
                   
                   {/* Generated Code */}
@@ -417,20 +352,20 @@ export default function TestGenerator() {
                           <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                           <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                           <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          <span className="text-gray-400 text-sm ml-4">{generatedTest.fileName}</span>
+                          <span className="text-gray-400 text-sm ml-4 font-mono">{generatedTest.fileName}</span>
                         </div>
                       </div>
-                      <pre className="text-green-400 p-4 overflow-x-auto text-sm">
+                      <pre className="text-green-400 p-4 overflow-x-auto text-sm font-mono">
                         {generatedTest.content}
                       </pre>
                     </div>
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="mt-6 flex space-x-4">
+                  <div className="mt-6 flex justify-center">
                     <button
                       onClick={() => setStep('jira')}
-                      className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl flex items-center"
+                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
                     >
                       <SparklesIcon className="w-4 h-4 mr-2" />
                       Generate Another Test
