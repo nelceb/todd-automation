@@ -538,7 +538,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders') || 
              titleLower.includes('past orders') || titleLower.includes('rate')) {
-    return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
+    await ordersHubPage.clickOnPastOrdersTab();`
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
     return `const searchPage = await homePage.clickOnSearchBar();
     await searchPage.fillSearchInput('chicken');`
@@ -577,14 +578,16 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   } else if (whenLower.trim() === '' || whenLower.includes('tooltip should appear automatically')) {
     // For empty WHEN or automatic tooltips, check title for context
     if (titleLower.includes('past orders') || titleLower.includes('rate')) {
-      return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
+      return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
+    await ordersHubPage.clickOnPastOrdersTab();`
     } else {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     }
   } else {
     // Default action - check title for context
     if (titleLower.includes('past orders') || titleLower.includes('rate')) {
-      return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
+      return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
+    await ordersHubPage.clickOnPastOrdersTab();`
     } else {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     }
