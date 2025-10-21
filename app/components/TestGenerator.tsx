@@ -180,48 +180,6 @@ export default function TestGenerator() {
           </p>
         </motion.div>
 
-        {/* Progress Steps */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-8"
-        >
-          <div className="flex items-center space-x-6">
-            {[
-              { key: 'jira', label: 'Enter Issue', icon: LinkIcon },
-              { key: 'generate', label: 'Generate Test', icon: BoltIcon },
-              { key: 'result', label: 'Review Result', icon: CheckBadgeIcon }
-            ].map((stepItem, index) => {
-              const isActive = step === stepItem.key
-              const isCompleted = ['jira', 'generate', 'result'].indexOf(step) > index
-              const Icon = stepItem.icon
-              
-              return (
-                <div key={stepItem.key} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-blue-500 text-white shadow-lg' 
-                      : isCompleted
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-300 text-gray-600'
-                  }`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className={`ml-2 text-sm font-medium transition-colors duration-300 ${
-                    isActive ? 'text-gray-900' : isCompleted ? 'text-green-600' : 'text-gray-500'
-                  }`}>
-                    {stepItem.label}
-                  </span>
-                  {index < 2 && (
-                    <div className={`w-8 h-0.5 mx-2 transition-colors duration-300 ${
-                      isCompleted ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </motion.div>
 
         {/* Main Content */}
         <motion.div
