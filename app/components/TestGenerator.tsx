@@ -270,26 +270,6 @@ export default function TestGenerator() {
                   </div>
                   
                   
-                  {/* Actions */}
-                  <div className="flex justify-center space-x-4 mb-6">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedTest.content)
-                        alert('Test code copied to clipboard!')
-                      }}
-                      className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center"
-                    >
-                      <DocumentTextIcon className="w-4 h-4 mr-2" />
-                      Copy Code
-                    </button>
-                    <button
-                      onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
-                      className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center"
-                    >
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
-                      View in GitHub
-                    </button>
-                  </div>
                   
                   {/* Generated Code */}
                   <div>
@@ -310,7 +290,24 @@ export default function TestGenerator() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="mt-6 flex justify-center">
+                  <div className="mt-6 flex justify-center space-x-4">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedTest.content)
+                        alert('Test code copied to clipboard!')
+                      }}
+                      className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center"
+                    >
+                      <DocumentTextIcon className="w-4 h-4 mr-2" />
+                      Copy Code
+                    </button>
+                    <button
+                      onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
+                      className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
+                      View in GitHub
+                    </button>
                     <button
                       onClick={() => setStep('jira')}
                       className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
