@@ -467,8 +467,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
     return `await homePage.clickOnPastOrdersNavItem();`
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
-    return `await homePage.fillSearchInput('test search query');
-    await homePage.clickOnSearchButton();`
+    return `const searchPage = await homePage.clickOnSearchBar();
+    await searchPage.fillSearchInput('test search query');`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -542,7 +542,7 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
   } else if (thenLower.includes('banner') && thenLower.includes('displayed')) {
     return `expect.soft(await homePage.isBannerCarouselDisplayed(), 'Banner carousel is displayed').toBeTruthy();`
   } else if (thenLower.includes('redirects to results page') || thenLower.includes('results page') || thenLower.includes('search results')) {
-    return `expect.soft(await homePage.isSearchResultsVisible(), 'Search results are displayed').toBeTruthy();`
+    return `expect.soft(await searchPage.isSearchResultsVisible(), 'Search results are displayed').toBeTruthy();`
   } else if (thenLower.includes('no past orders') && thenLower.includes('empty state')) {
     return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
   } else {
