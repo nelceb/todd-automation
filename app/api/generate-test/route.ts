@@ -283,7 +283,11 @@ async function analyzeRepositorySelectors(repository: string, token: string): Pr
 }
 
 async function extractSelectorsFromFiles(files: any[], repository: string, token: string): Promise<any> {
-  const selectors = {
+  const selectors: {
+    ordersHub: { [key: string]: string }
+    home: { [key: string]: string }
+    common: { [key: string]: string }
+  } = {
     ordersHub: {},
     home: {},
     common: {}
