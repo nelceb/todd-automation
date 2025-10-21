@@ -498,9 +498,10 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   }
 }
 
-function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any): string {
+function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any, title?: string): string {
   // Analyze the when steps to determine the appropriate actions based on real patterns
   const whenLower = when.toLowerCase()
+  const titleLower = title ? title.toLowerCase() : ''
   
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
     return `await homePage.clickOnOrdersHubNavItem();`
@@ -622,7 +623,7 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
     when: scenario.when, 
     then: scenario.then 
   })
-  const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors)
+  const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors, scenario.title)
   const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors, { 
     when: scenario.when, 
     title: scenario.title 
