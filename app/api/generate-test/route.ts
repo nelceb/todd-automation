@@ -468,7 +468,7 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     return `await homePage.clickOnPastOrdersNavItem();`
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
     return `const searchPage = await homePage.clickOnSearchBar();
-    await searchPage.fillSearchInput('test search query');`
+    await searchPage.fillSearchInput('chicken');`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
