@@ -584,9 +584,19 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     return `expect.soft(await searchPage.isSearchResultsVisible(), 'Search results are displayed').toBeTruthy();`
   } else if (thenLower.includes('no past orders') && thenLower.includes('empty state')) {
     return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
+  } else if (thenLower.includes('onboarding') && thenLower.includes('walkthrough') || titleLower.includes('onboarding') || titleLower.includes('walkthrough')) {
+    return `expect.soft(await ordersHubPage.isOnboardingWalkthroughShown(), 'Onboarding walkthrough is shown').toBeTruthy();`
+  } else if (thenLower.includes('upcoming orders') || titleLower.includes('upcoming orders')) {
+    return `expect.soft(await ordersHubPage.isUpcomingOrdersSectionVisible(), 'Upcoming Orders section is visible').toBeTruthy();`
   } else {
-    // Default assertion
-    return `expect.soft(await ordersHubPage.isEmptyCartStateVisible(), 'Empty cart state component is shown').toBeTruthy();`
+    // Default assertion - try to be more intelligent
+    if (titleLower.includes('empty') || thenLower.includes('empty')) {
+      return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state is shown').toBeTruthy();`
+    } else if (titleLower.includes('tooltip') || thenLower.includes('tooltip')) {
+      return `expect.soft(await ordersHubPage.isTooltipShown(), 'Tooltip is shown').toBeTruthy();`
+    } else {
+      return `expect.soft(await ordersHubPage.isOrdersHubPageLoaded(), 'Orders Hub page is loaded').toBeTruthy();`
+    }
   }
 }
 
