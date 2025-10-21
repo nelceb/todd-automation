@@ -296,7 +296,7 @@ export default function TestGenerator() {
                         navigator.clipboard.writeText(generatedTest.content)
                         alert('Test code copied to clipboard!')
                       }}
-                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
                       style={{ color: '#344055' }}
                     >
                       <DocumentTextIcon className="w-4 h-4" />
@@ -304,7 +304,7 @@ export default function TestGenerator() {
                     </button>
                     <button
                       onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
-                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
                       style={{ color: '#344055' }}
                     >
                       <ArrowTopRightOnSquareIcon className="w-4 h-4" />
@@ -312,7 +312,7 @@ export default function TestGenerator() {
                     </button>
                     <button
                       onClick={() => setStep('jira')}
-                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
                       style={{ color: '#344055' }}
                     >
                       <SparklesIcon className="w-4 h-4" />
