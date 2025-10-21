@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 
 interface AcceptanceCriteria {
@@ -32,10 +32,24 @@ export default function TestGenerator() {
   const [generatedTest, setGeneratedTest] = useState<GeneratedTest | null>(null)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'jira' | 'criteria' | 'generate' | 'result'>('jira')
+  const [error, setError] = useState<string | null>(null)
+
+  // Add error boundary effect
+  React.useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Component error:', error)
+      setError(error.message)
+    }
+    
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [])
 
   const fetchJiraIssue = async () => {
     setLoading(true)
     try {
+      console.log('Fetching Jira issue with:', { issueKey: jiraConfig.issueKey })
+      
       const response = await fetch('/api/jira', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,14 +57,27 @@ export default function TestGenerator() {
       })
       
       const data = await response.json()
+      console.log('Jira API response:', data)
       
-      if (data.success) {
-        setAcceptanceCriteria(data.acceptanceCriteria)
-        setStep('criteria')
+      if (data.success && data.acceptanceCriteria) {
+        // Validate the acceptance criteria object
+        const criteria = data.acceptanceCriteria
+        if (criteria && typeof criteria === 'object' && 
+            Array.isArray(criteria.given) && 
+            Array.isArray(criteria.when) && 
+            Array.isArray(criteria.then)) {
+          setAcceptanceCriteria(criteria)
+          setStep('criteria')
+        } else {
+          console.error('Invalid acceptance criteria format:', criteria)
+          alert('Error: Invalid acceptance criteria format')
+        }
       } else {
-        alert('Error: ' + data.error)
+        console.error('Jira API error:', data.error)
+        alert('Error: ' + (data.error || 'Unknown error'))
       }
     } catch (error) {
+      console.error('Fetch error:', error)
       alert('Error fetching Jira issue: ' + error)
     } finally {
       setLoading(false)
@@ -85,6 +112,36 @@ export default function TestGenerator() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show error if there's one
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Application Error</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => {
+                setError(null)
+                setStep('jira')
+                setAcceptanceCriteria(null)
+                setGeneratedTest(null)
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Reset Application
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
