@@ -670,12 +670,10 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
     ` : ''
   
   return `  test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
-${dataSection}    //GIVEN
+    ${dataSection}    //GIVEN
     ${given}
-    
     //WHEN
     ${when}
-    
     //THEN
     ${then}
   });`
