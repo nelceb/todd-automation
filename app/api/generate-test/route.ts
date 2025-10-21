@@ -461,6 +461,16 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
     await homePage.skipHomeOnboardingTooltips();`
   }
   
+  // Check for onboarding walkthrough scenarios - need user who hasn't seen Orders Hub onboarding
+  if (givenLower.includes('onboarding') || titleLower.includes('onboarding') || whenLower.includes('onboarding') || thenLower.includes('onboarding') ||
+      givenLower.includes('walkthrough') || titleLower.includes('walkthrough') || whenLower.includes('walkthrough') || thenLower.includes('walkthrough')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithOrdersHubOnboardingNotViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+    // Skip home onboarding tooltips to focus on Orders Hub onboarding
+    await homePage.skipHomeOnboardingTooltips();`
+  }
+  
   // Check for specific scenarios based on real test patterns
   if (givenLower.includes('user has no past orders') || givenLower.includes('empty state') || givenLower.includes('empty cart')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
@@ -502,6 +512,9 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   } else if (whenLower.includes('tooltip') || whenLower.includes('prompt')) {
     // For tooltip tests, the action is usually just navigating to the page
     return `// Tooltip should appear automatically when navigating to Orders Hub`
+  } else if (whenLower.includes('onboarding') || whenLower.includes('walkthrough') || titleLower.includes('onboarding') || titleLower.includes('walkthrough')) {
+    // For onboarding walkthrough tests, need to navigate to Orders Hub
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
