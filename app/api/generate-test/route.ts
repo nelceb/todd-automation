@@ -456,7 +456,9 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   if (givenLower.includes('tooltip') || titleLower.includes('tooltip') || whenLower.includes('tooltip') || thenLower.includes('tooltip')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithOrdersHubOnboardingNotViewed();
     const loginPage = await siteMap.loginPage(page);
-    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+    // Skip home onboarding tooltips to focus on Orders Hub tooltips
+    await homePage.skipHomeOnboardingTooltips();`
   }
   
   // Check for specific scenarios based on real test patterns
@@ -589,7 +591,7 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
 }
 
 function generateSingleScenario(scenario: TestScenario, selectors: any): string {
-  const tags = generateTags(scenario.tags, 'playwright').join("', '")
+  const tags = generateTags(scenario.tags, 'playwright', scenario.title, scenario.given + ' ' + scenario.when + ' ' + scenario.then).join("', '")
   
   // Generate single scenario based on the acceptance criteria
   const given = generatePlaywrightGivenSteps(scenario.given, 'single', selectors, { 
