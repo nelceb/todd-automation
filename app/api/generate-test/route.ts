@@ -503,6 +503,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   const whenLower = when.toLowerCase()
   const titleLower = title ? title.toLowerCase() : ''
   
+  console.log('Generating WHEN steps for:', { when, whenLower, title, titleLower })
+  
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
     return `await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
@@ -512,7 +514,7 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     await searchPage.fillSearchInput('chicken');`
   } else if (whenLower.includes('tooltip') || whenLower.includes('prompt')) {
     // For tooltip tests, the action is usually just navigating to the page
-    return `// Tooltip should appear automatically when navigating to Orders Hub`
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('onboarding') || whenLower.includes('walkthrough') || titleLower.includes('onboarding') || titleLower.includes('walkthrough')) {
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
@@ -542,9 +544,12 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     await homePage.clickOnTooltipNextStepButton();
     const findExactlyYouCravingTooltip = await homePage.isFindExactlyYouCravingTooltipShown();
     await homePage.clickOnTooltipNextStepButton();`
+  } else if (whenLower.trim() === '' || whenLower.includes('tooltip should appear automatically')) {
+    // For empty WHEN or automatic tooltips, navigate to Orders Hub
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else {
     // Default action
-    return `await homePage.clickOnOrdersHubNavItem();`
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   }
 }
 
