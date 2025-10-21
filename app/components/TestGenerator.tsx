@@ -2,6 +2,16 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
+import { 
+  CheckCircleIcon, 
+  XCircleIcon, 
+  ClockIcon,
+  PlayIcon,
+  ArrowPathIcon,
+  CodeBracketIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline'
 
 interface AcceptanceCriteria {
   id: string
