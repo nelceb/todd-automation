@@ -95,12 +95,20 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   
   // Generate a proper test title based on the acceptance criteria
   let testTitle = title
-  if (title.toLowerCase().includes('validate the empty cart state')) {
+  const titleLower = title.toLowerCase()
+  
+  if (titleLower.includes('validate the empty cart state')) {
     testTitle = 'Orders Hub - Empty Cart State'
-  } else if (title.toLowerCase().includes('validate the display of the homepage banner')) {
+  } else if (titleLower.includes('validate the display of the homepage banner')) {
     testTitle = 'Home - Banner Carousel Display'
-  } else if (title.toLowerCase().includes('validate the empty state for users with no past orders')) {
+  } else if (titleLower.includes('validate the empty state for users with no past orders')) {
     testTitle = 'Orders Hub - Empty State for No Past Orders'
+  } else if (titleLower.includes('search bar') || titleLower.includes('search functionality')) {
+    testTitle = 'Home - Search Bar Functionality'
+  } else if (titleLower.includes('homepage') || titleLower.includes('home page')) {
+    testTitle = 'Home - ' + title.split(' - ')[1] || 'Homepage Functionality'
+  } else if (titleLower.includes('orders') || titleLower.includes('order management')) {
+    testTitle = 'Orders Hub - ' + title.split(' - ')[1] || 'Orders Functionality'
   }
   
   return {
@@ -458,6 +466,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     return `await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
     return `await homePage.clickOnPastOrdersNavItem();`
+  } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
+    return `await homePage.typeInSearchBar('test search query');`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -530,6 +540,8 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     expect(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
   } else if (thenLower.includes('banner') && thenLower.includes('displayed')) {
     return `expect.soft(await homePage.isBannerCarouselDisplayed(), 'Banner carousel is displayed').toBeTruthy();`
+  } else if (thenLower.includes('redirects to results page') || thenLower.includes('results page') || thenLower.includes('search results')) {
+    return `expect.soft(await homePage.isSearchResultsPageDisplayed(), 'Search results page is displayed').toBeTruthy();`
   } else if (thenLower.includes('no past orders') && thenLower.includes('empty state')) {
     return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
   } else {

@@ -179,7 +179,7 @@ function parseAcceptanceCriteria(issue: JiraIssue): ParsedAcceptanceCriteria {
   
   return {
     id: issue.id,
-    title: summary,
+    title: `${issue.key} - ${summary}`, // Include QA number in title
     description: descriptionText,
     given: acceptanceCriteria.given,
     when: acceptanceCriteria.when,
