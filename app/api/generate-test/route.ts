@@ -536,7 +536,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
-  } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
+  } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders') || 
+             titleLower.includes('past orders') || titleLower.includes('rate')) {
     return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
     return `const searchPage = await homePage.clickOnSearchBar();
@@ -574,11 +575,19 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     const findExactlyYouCravingTooltip = await homePage.isFindExactlyYouCravingTooltipShown();
     await homePage.clickOnTooltipNextStepButton();`
   } else if (whenLower.trim() === '' || whenLower.includes('tooltip should appear automatically')) {
-    // For empty WHEN or automatic tooltips, navigate to Orders Hub
-    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    // For empty WHEN or automatic tooltips, check title for context
+    if (titleLower.includes('past orders') || titleLower.includes('rate')) {
+      return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
+    } else {
+      return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    }
   } else {
-    // Default action - always navigate to Orders Hub
-    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    // Default action - check title for context
+    if (titleLower.includes('past orders') || titleLower.includes('rate')) {
+      return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
+    } else {
+      return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    }
   }
 }
 
@@ -603,6 +612,18 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
       return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
     } else {
       return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
+    }
+  } else if (thenLower.includes('past orders') || thenLower.includes('history') || thenLower.includes('rate') || 
+             titleLower.includes('past orders') || titleLower.includes('rate')) {
+    // For past orders related tests
+    if (thenLower.includes('empty') || thenLower.includes('no past orders')) {
+      return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
+    } else if (thenLower.includes('list') || thenLower.includes('orders') || thenLower.includes('visible')) {
+      return `expect.soft(await ordersHubPage.isPastOrdersListVisible(), 'Past orders list is visible').toBeTruthy();`
+    } else if (thenLower.includes('rate') || thenLower.includes('rating')) {
+      return `expect.soft(await ordersHubPage.isRatingSectionVisible(), 'Rating section is visible').toBeTruthy();`
+    } else {
+      return `expect.soft(await ordersHubPage.isPastOrdersSectionVisible(), 'Past orders section is visible').toBeTruthy();`
     }
   } else if (thenLower.includes('modal') && thenLower.includes('shown')) {
     return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
