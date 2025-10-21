@@ -329,6 +329,15 @@ export default function TestGenerator() {
                 Generate Another Test
               </button>
               <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedTest.content)
+                  alert('Test code copied to clipboard!')
+                }}
+                className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600"
+              >
+                Copy Code
+              </button>
+              <button
                 onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
                 className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
               >

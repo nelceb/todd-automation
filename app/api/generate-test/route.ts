@@ -104,15 +104,21 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
 function determineCategory(labels: string[], title: string): string {
   const titleLower = title.toLowerCase()
   
-  if (titleLower.includes('login') || labels.includes('login')) return 'login'
-  if (titleLower.includes('signup') || labels.includes('signup')) return 'signup'
-  if (titleLower.includes('cart') || labels.includes('cart')) return 'cart'
-  if (titleLower.includes('menu') || labels.includes('menu')) return 'menu'
-  if (titleLower.includes('checkout') || labels.includes('checkout')) return 'checkout'
-  if (titleLower.includes('home') || labels.includes('home')) return 'home'
-  if (titleLower.includes('search') || labels.includes('search')) return 'search'
+  if (titleLower.includes('orders') || titleLower.includes('hub') || labels.includes('coreUx')) {
+    return 'Core UX - Orders Hub Tests'
+  }
+  if (titleLower.includes('subscription') || labels.includes('subscription')) {
+    return 'Core UX - Subscription Tests'
+  }
+  if (titleLower.includes('login') || labels.includes('login')) return 'Login Tests'
+  if (titleLower.includes('signup') || labels.includes('signup')) return 'Signup Tests'
+  if (titleLower.includes('cart') || labels.includes('cart')) return 'Cart Tests'
+  if (titleLower.includes('menu') || labels.includes('menu')) return 'Menu Tests'
+  if (titleLower.includes('checkout') || labels.includes('checkout')) return 'Checkout Tests'
+  if (titleLower.includes('home') || labels.includes('home')) return 'Home Tests'
+  if (titleLower.includes('search') || labels.includes('search')) return 'Search Tests'
   
-  return 'general'
+  return 'Core UX - General Tests'
 }
 
 function generateTags(labels: string[], framework: string): string[] {
@@ -259,23 +265,47 @@ function generateMaestroAssertions(then: string): string {
 
 async function analyzeRepositorySelectors(repository: string, token: string): Promise<any> {
   try {
-    // Analyze the real repository to find actual selectors
-    const response = await fetch(`https://api.github.com/repos/${repository}/contents/tests/frontend/desktop/subscription/coreUx`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    })
+    // Analyze multiple directories to get comprehensive selector data
+    const directories = [
+      'tests/frontend/desktop/subscription/coreUx',
+      'tests/frontend/desktop/subscription',
+      'tests/frontend/desktop'
+    ]
     
-    if (!response.ok) {
-      console.log('Could not fetch repository contents, using fallback selectors')
-      return getFallbackSelectors()
+    let allSelectors = {
+      ordersHub: {},
+      home: {},
+      common: {},
+      helpers: {},
+      pageObjects: {}
     }
     
-    const files = await response.json()
-    const selectors = await extractSelectorsFromFiles(files, repository, token)
+    for (const dir of directories) {
+      try {
+        const response = await fetch(`https://api.github.com/repos/${repository}/contents/${dir}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+        
+        if (response.ok) {
+          const files = await response.json()
+          const selectors = await extractSelectorsFromFiles(files, repository, token)
+          
+          // Merge selectors
+          allSelectors.ordersHub = { ...allSelectors.ordersHub, ...selectors.ordersHub }
+          allSelectors.home = { ...allSelectors.home, ...selectors.home }
+          allSelectors.common = { ...allSelectors.common, ...selectors.common }
+          allSelectors.helpers = { ...allSelectors.helpers, ...selectors.helpers }
+          allSelectors.pageObjects = { ...allSelectors.pageObjects, ...selectors.pageObjects }
+        }
+      } catch (error) {
+        console.log(`Error analyzing directory ${dir}:`, error)
+      }
+    }
     
-    return selectors
+    return allSelectors
   } catch (error) {
     console.log('Error analyzing repository:', error)
     return getFallbackSelectors()
@@ -287,13 +317,17 @@ async function extractSelectorsFromFiles(files: any[], repository: string, token
     ordersHub: { [key: string]: string }
     home: { [key: string]: string }
     common: { [key: string]: string }
+    helpers: { [key: string]: string }
+    pageObjects: { [key: string]: string }
   } = {
     ordersHub: {},
     home: {},
-    common: {}
+    common: {},
+    helpers: {},
+    pageObjects: {}
   }
   
-  // Analyze each test file to extract selectors
+  // Analyze each test file to extract patterns and selectors
   for (const file of files) {
     if (file.name.endsWith('.spec.ts')) {
       try {
@@ -304,7 +338,25 @@ async function extractSelectorsFromFiles(files: any[], repository: string, token
           }
         }).then(res => res.text())
         
-        // Extract selectors using regex patterns
+        // Extract helper patterns
+        const helperMatches = content.match(/await usersHelper\.(\w+)/g)
+        if (helperMatches) {
+          helperMatches.forEach(match => {
+            const method = match.replace(/await usersHelper\.(\w+)/, '$1')
+            selectors.helpers[method] = `usersHelper.${method}()`
+          })
+        }
+        
+        // Extract page object patterns
+        const pageObjectMatches = content.match(/await (\w+Page)\.(\w+)/g)
+        if (pageObjectMatches) {
+          pageObjectMatches.forEach(match => {
+            const [pageObject, method] = match.replace(/await (\w+Page)\.(\w+)/, '$1,$2').split(',')
+            selectors.pageObjects[`${pageObject}.${method}`] = `${pageObject}.${method}()`
+          })
+        }
+        
+        // Extract data-testid selectors
         const selectorMatches = content.match(/\[data-testid="([^"]+)"\]/g)
         if (selectorMatches) {
           selectorMatches.forEach(match => {
@@ -354,42 +406,40 @@ function getFallbackSelectors(): any {
 
 function generatePlaywrightGivenSteps(given: string, type: string = 'happy', selectors: any): string {
   if (type === 'happy') {
-    return `await page.goto('/');`
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else {
-    return `await page.goto('/');
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     // Edge case: User already has onboarding viewed
-    await page.evaluate(() => localStorage.setItem('onboarding_viewed', 'true'));`
+    await page.evaluate(() => localStorage.setItem('onboarding_viewed', 'true'));
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   }
 }
 
 function generatePlaywrightWhenSteps(when: string, type: string = 'happy', selectors: any): string {
-  const ordersHubSelectors = selectors.ordersHub || {}
-  const navItem = ordersHubSelectors['orders-hub-nav-item'] || '[data-testid="orders-hub-nav-item"]'
-  const onboardingModal = ordersHubSelectors['onboarding-modal'] || '[data-testid="onboarding-modal"]'
-  const skipButton = ordersHubSelectors['skip-onboarding-button'] || '[data-testid="skip-onboarding-button"]'
-  
   if (type === 'happy') {
-    return `await page.click('${navItem}');
-    await page.waitForSelector('${onboardingModal}');`
+    return `await ordersHubPage.clickOnFirstOrderManagementButton();
+    await ordersHubPage.clickOnSelectMealsButton();
+    await homePage.clickOnAddMealButton(expectedCount);
+    await homePage.clickOnOrdersHubNavItem();
+    await ordersHubPage.clickOnOrderCardSummaryBelowAddMealsText();`
   } else {
-    return `await page.click('${navItem}');
-    await page.click('${skipButton}');`
+    return `await ordersHubPage.clickOnFirstOrderManagementButton();
+    await ordersHubPage.clickOnSkipDeliveryButton();
+    await ordersHubPage.clickOnConfirmSkipButton();`
   }
 }
 
 function generatePlaywrightThenAssertions(then: string, type: string = 'happy', selectors: any): string {
-  const ordersHubSelectors = selectors.ordersHub || {}
-  const tooltip = ordersHubSelectors['onboarding-tooltip'] || '[data-testid="onboarding-tooltip"]'
-  const nextButton = ordersHubSelectors['onboarding-next-button'] || '[data-testid="onboarding-next-button"]'
-  const content = ordersHubSelectors['orders-hub-content'] || '[data-testid="orders-hub-content"]'
-  const onboardingModal = ordersHubSelectors['onboarding-modal'] || '[data-testid="onboarding-modal"]'
-  
   if (type === 'happy') {
-    return `await expect(page.locator('${tooltip}')).toBeVisible();
-    await expect(page.locator('${nextButton}')).toBeVisible();`
+    return `const cartCount = await ordersHubPage.getCartMealsCount();
+    expect.soft(cartCount, \`Meals quantity '\${expectedCount}' is visible in cart\`).toBe(expectedCount);`
   } else {
-    return `await expect(page.locator('${content}')).toBeVisible();
-    await expect(page.locator('${onboardingModal}')).not.toBeVisible();`
+    return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
   }
 }
 
@@ -415,6 +465,8 @@ function generateMultipleScenarios(scenario: TestScenario, selectors: any): stri
   ]
   
   return scenarios.map(scenario => `  test('${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
+    //Data
+    const expectedCount = 1;
     //GIVEN
     ${scenario.given}
     
