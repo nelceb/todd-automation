@@ -182,9 +182,38 @@ async function generateTestCode(
   token: string
 ): Promise<GeneratedTest> {
   const timestamp = Date.now()
-  // Create shorter branch name
-  const shortTitle = scenario.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 30)
-  const branchName = `feature/${scenario.id}-${shortTitle}`
+  
+  // Create cleaner branch name based on test content
+  const createBranchName = (scenario: TestScenario): string => {
+    const id = scenario.id
+    const title = scenario.title.toLowerCase()
+    
+    // Extract key words from title for branch name
+    let keyWords = []
+    
+    if (title.includes('tooltip')) keyWords.push('tooltip')
+    if (title.includes('onboarding') || title.includes('walkthrough')) keyWords.push('onboarding')
+    if (title.includes('empty state') || title.includes('empty cart')) keyWords.push('empty-state')
+    if (title.includes('search')) keyWords.push('search')
+    if (title.includes('past orders')) keyWords.push('past-orders')
+    if (title.includes('upcoming orders')) keyWords.push('upcoming-orders')
+    if (title.includes('orders hub')) keyWords.push('orders-hub')
+    if (title.includes('homepage') || title.includes('home page')) keyWords.push('homepage')
+    
+    // If no specific keywords found, use a generic approach
+    if (keyWords.length === 0) {
+      const words = title.split(' ').filter(word => 
+        word.length > 3 && 
+        !['orders', 'hub', 'automate', 'test', 'validate', 'user', 'should', 'can'].includes(word)
+      )
+      keyWords = words.slice(0, 2)
+    }
+    
+    const cleanKeyWords = keyWords.join('-')
+    return `feature/${id}-${cleanKeyWords}`
+  }
+  
+  const branchName = createBranchName(scenario)
   
   // Analyze repository to get real selectors
   const selectors = await analyzeRepositorySelectors(repository, token)
