@@ -87,7 +87,7 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   const category = determineCategory(labels, title)
   
   // Generar tags apropiados para el framework
-  const tags = generateTags(labels, framework)
+  const tags = generateTags(labels, framework, title, given.join(' ') + ' ' + when.join(' ') + ' ' + then.join(' '))
   
   // Extract Jira ticket number from title (this should come from the Jira API response)
   const jiraMatch = title.match(/(QA-\d+)/i)
@@ -143,10 +143,28 @@ function determineCategory(labels: string[], title: string): string {
   return 'Core UX - General Tests'
 }
 
-function generateTags(labels: string[], framework: string): string[] {
+function generateTags(labels: string[], framework: string, title: string, description: string): string[] {
   const baseTags = [...labels]
+  const content = `${title} ${description}`.toLowerCase()
   
   if (framework === 'playwright') {
+    // Add coreUx tag for Orders Hub related tests
+    if (content.includes('orders hub') || content.includes('orders') || content.includes('tooltip') || 
+        content.includes('past orders') || content.includes('timeline')) {
+      if (!baseTags.includes('@coreUx')) baseTags.push('@coreUx')
+    }
+    
+    // Add home tag for homepage related tests
+    if (content.includes('homepage') || content.includes('home page') || content.includes('search bar')) {
+      if (!baseTags.includes('@home')) baseTags.push('@home')
+    }
+    
+    // Add subscription tag for subscription related tests
+    if (content.includes('subscription') || content.includes('delivery') || content.includes('menu')) {
+      if (!baseTags.includes('@subscription')) baseTags.push('@subscription')
+    }
+    
+    // Always add base tags
     if (!baseTags.includes('@e2e')) baseTags.push('@e2e')
     if (!baseTags.includes('@regression')) baseTags.push('@regression')
   } else if (framework === 'selenium') {
@@ -469,6 +487,9 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
     return `const searchPage = await homePage.clickOnSearchBar();
     await searchPage.fillSearchInput('chicken');`
+  } else if (whenLower.includes('tooltip') || whenLower.includes('prompt')) {
+    // For tooltip tests, the action is usually just navigating to the page
+    return `// Tooltip should appear automatically when navigating to Orders Hub`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -532,8 +553,14 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     return `const selectedDeliveryDate = await ordersHubPage.getFormattedShippingDate(0);
     expect.soft(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
   } else if (thenLower.includes('tooltip') && thenLower.includes('shown')) {
-    return `expect.soft(menuUpcomingDeliveriesTooltip, 'Menu Upcoming Deliveries Tooltip is shown').toBeTruthy();
-    expect.soft(findExactlyYouCravingTooltip, 'Find Exactly You Craving Tooltip is shown').toBeTruthy();`
+    // Detect specific tooltip types
+    if (thenLower.includes('past orders') || titleLower.includes('past orders')) {
+      return `expect.soft(await ordersHubPage.isPastOrdersTooltipShown(), 'Past Orders tooltip is shown').toBeTruthy();`
+    } else if (thenLower.includes('timeline') || titleLower.includes('timeline')) {
+      return `expect.soft(await ordersHubPage.isOrderTimelineTooltipShown(), 'Order Timeline tooltip is shown').toBeTruthy();`
+    } else {
+      return `expect.soft(await ordersHubPage.isTooltipShown(), 'Tooltip is shown').toBeTruthy();`
+    }
   } else if (thenLower.includes('onboarding') && thenLower.includes('not shown')) {
     return `expect.soft(await homePage.isOrderInAdvanceModalShown(), 'Order In Advance Modal is not shown').toBeFalsy();`
   } else if (thenLower.includes('delivery date') && thenLower.includes('visible')) {
