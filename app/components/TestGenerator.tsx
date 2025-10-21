@@ -164,7 +164,7 @@ export default function TestGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen p-6" style={{ backgroundColor: '#AED4E6' }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
