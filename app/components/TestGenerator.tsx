@@ -269,21 +269,6 @@ export default function TestGenerator() {
                     </p>
                   </div>
                   
-                  {/* Test Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="text-center p-4 bg-white/40 rounded-lg">
-                      <p className="text-xs font-mono text-gray-600 mb-1">Framework</p>
-                      <p className="text-sm font-semibold text-blue-600">{generatedTest.framework}</p>
-                    </div>
-                    <div className="text-center p-4 bg-white/40 rounded-lg">
-                      <p className="text-xs font-mono text-gray-600 mb-1">Branch</p>
-                      <p className="text-sm font-semibold text-purple-600 font-mono">{generatedTest.branchName}</p>
-                    </div>
-                    <div className="text-center p-4 bg-white/40 rounded-lg">
-                      <p className="text-xs font-mono text-gray-600 mb-1">File</p>
-                      <p className="text-sm font-semibold text-gray-800 font-mono">{generatedTest.fileName}</p>
-                    </div>
-                  </div>
                   
                   {/* Actions */}
                   <div className="flex justify-center space-x-4 mb-6">
