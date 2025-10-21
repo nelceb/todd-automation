@@ -207,11 +207,11 @@ function analyzeEpicPatterns(epicData: any): EpicAnalysis {
   const parsedTickets = tickets.map((ticket: JiraIssue) => parseTicketAcceptanceCriteria(ticket))
   
   // Analyze patterns
-  const allGiven = parsedTickets.flatMap(t => t.given)
-  const allWhen = parsedTickets.flatMap(t => t.when)
-  const allThen = parsedTickets.flatMap(t => t.then)
-  const allLabels = parsedTickets.flatMap(t => t.labels)
-  const allFrameworks = parsedTickets.map(t => t.framework)
+  const allGiven = parsedTickets.flatMap((t: ParsedAcceptanceCriteria) => t.given)
+  const allWhen = parsedTickets.flatMap((t: ParsedAcceptanceCriteria) => t.when)
+  const allThen = parsedTickets.flatMap((t: ParsedAcceptanceCriteria) => t.then)
+  const allLabels = parsedTickets.flatMap((t: ParsedAcceptanceCriteria) => t.labels)
+  const allFrameworks = parsedTickets.map((t: ParsedAcceptanceCriteria) => t.framework)
   
   // Find common patterns
   const commonGiven = findCommonPatterns(allGiven)
@@ -320,7 +320,7 @@ function findCommonPatterns(items: string[]): string[] {
   return Object.entries(frequency)
     .filter(([_, count]) => count > 1)
     .sort(([_, a], [__, b]) => b - a)
-    .map(([pattern, _]) => pattern)
+    .map(([pattern, _]: [string, number]) => pattern)
     .slice(0, 10) // Top 10 patterns
 }
 
@@ -412,7 +412,7 @@ function extractAcceptanceCriteria(description: string): {
   
   console.log('Extracting from description:', description.substring(0, 200) + '...')
   
-  const lines = description.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  const lines = description.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
   
   let given: string[] = []
   let when: string[] = []
@@ -454,7 +454,7 @@ function extractAcceptanceCriteria(description: string): {
   // Si no se encontraron secciones explícitas, intentar extraer del texto general
   if (given.length === 0 && when.length === 0 && then.length === 0) {
     // Try to extract from the actual content
-    const sentences = description.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10)
+    const sentences = description.split(/[.!?]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 10)
     
     console.log('No explicit sections found, trying heuristic extraction from:', sentences.length, 'sentences')
     
