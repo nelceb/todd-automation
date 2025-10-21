@@ -156,7 +156,9 @@ async function generateTestCode(
   token: string
 ): Promise<GeneratedTest> {
   const timestamp = Date.now()
-  const branchName = `feature/${scenario.id}-${scenario.title.toLowerCase().replace(/\s+/g, '-').substring(0, 50)}`
+  // Create shorter branch name
+  const shortTitle = scenario.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 30)
+  const branchName = `feature/${scenario.id}-${shortTitle}`
   
   // Analyze repository to get real selectors
   const selectors = await analyzeRepositorySelectors(repository, token)
@@ -488,16 +490,24 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   }
 }
 
-function generatePlaywrightThenAssertions(then: string, type: string = 'single', selectors: any): string {
+function generatePlaywrightThenAssertions(then: string, type: string = 'single', selectors: any, context?: { when?: string, title?: string }): string {
   // Analyze the then steps to determine the appropriate assertions based on real patterns
   const thenLower = then.toLowerCase()
+  const whenLower = context?.when?.toLowerCase() || ''
+  const titleLower = context?.title?.toLowerCase() || ''
   
   // Determine the specific type of empty state based on context
   if (thenLower.includes('empty state') && thenLower.includes('shown') || thenLower.includes('empty state component is shown')) {
     // Check if it's about cart, past orders, or general empty state
-    if (thenLower.includes('cart') || thenLower.includes('meals')) {
+    // Analyze context from title, when, and then
+    const isPastOrders = thenLower.includes('past orders') || thenLower.includes('history') || thenLower.includes('no past orders') || 
+                        whenLower.includes('past orders') || titleLower.includes('past orders')
+    const isCart = thenLower.includes('cart') || thenLower.includes('meals') || 
+                   whenLower.includes('cart') || titleLower.includes('cart')
+    
+    if (isCart) {
       return `expect.soft(await ordersHubPage.isEmptyCartStateVisible(), 'Empty cart state component is shown').toBeTruthy();`
-    } else if (thenLower.includes('past orders') || thenLower.includes('history') || thenLower.includes('no past orders')) {
+    } else if (isPastOrders) {
       return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
     } else {
       return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
@@ -534,7 +544,10 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
   // Generate single scenario based on the acceptance criteria
   const given = generatePlaywrightGivenSteps(scenario.given, 'single', selectors)
   const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors)
-  const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors)
+  const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors, { 
+    when: scenario.when, 
+    title: scenario.title 
+  })
   
   // Only include Data section if the test actually needs it
   const needsData = when.includes('expectedCount') || then.includes('expectedCount')
