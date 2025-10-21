@@ -557,16 +557,16 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - analyze existing methods
+    // For Home/Homepage tests, stay on Home page - analyze what actions are needed
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      return `// User is already on Home page - use existing method that handles scroll automatically
-    await homePage.clickOnAddMealButton(1);`
+      return `// User is already on Home page - may need to scroll to find Order Again swimlane
+    // TODO: Analyze existing methods to find the right scroll approach`
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
       return `// User is already on Home page - banner should be visible without scroll
     // No action needed - banner is at top of page`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      return `// User is already on Home page - use existing method that handles scroll automatically
-    await homePage.clickOnAddMealButton(1);`
+      return `// User is already on Home page - may need to scroll to find meals section
+    // TODO: Analyze existing methods to find the right scroll approach`
     } else {
       return `// User is already on Home page - no navigation needed`
     }
