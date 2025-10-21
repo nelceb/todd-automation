@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitHubToken } from '../utils/github'
 
+export const dynamic = 'force-dynamic'
+
 interface WorkflowRun {
   id: number
   name: string
