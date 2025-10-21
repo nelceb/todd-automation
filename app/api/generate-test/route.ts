@@ -560,18 +560,20 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - use real patterns
+    // For Home/Homepage tests, stay on Home page - use abstract scroll pattern
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      // For Order Again swimlane, use the real pattern with forceScrollIntoView
-      return `// User is already on Home page - scroll to Order Again swimlane using real pattern
-    await homePage.scrollToOrderAgainSection();`
+      // For Order Again swimlane, use abstract scroll pattern with forceScrollIntoView
+      return `// User is already on Home page - scroll to Order Again section using forceScrollIntoView pattern
+    const orderAgainElement = await homePage.page.locator('[data-testid="order-again-section"]');
+    await orderAgainElement.scrollIntoViewIfNeeded();`
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
       return `// User is already on Home page - banner should be visible without scroll
     // No action needed - banner is at top of page`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      // For meals section, use the real pattern with forceScrollIntoView
-      return `// User is already on Home page - scroll to meals section using real pattern
-    await homePage.scrollToMealsSection();`
+      // For meals section, use abstract scroll pattern with forceScrollIntoView
+      return `// User is already on Home page - scroll to meals section using forceScrollIntoView pattern
+    const mealsElement = await homePage.page.locator('[data-testid="meals-section"]');
+    await mealsElement.scrollIntoViewIfNeeded();`
     } else {
       return `// User is already on Home page - no navigation needed`
     }
@@ -766,7 +768,7 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (title.includes('home') || title.includes('homepage')) {
     if (title.includes('swimlane') || then.includes('swimlane')) {
-      suggestions.push('homePage.scrollToOrderAgainSection() - Use real method that handles scroll with forceScrollIntoView pattern')
+      suggestions.push('homePage.page.locator("[data-testid=\\"order-again-section\\"]").scrollIntoViewIfNeeded() - Use abstract scroll pattern with forceScrollIntoView')
       suggestions.push('homePage.isOrderAgainSwimlaneVisible() - Check if Order Again swimlane is visible (specific method)')
     }
     if (title.includes('banner') || then.includes('banner')) {
@@ -774,7 +776,7 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
       suggestions.push('homePage.isBannerCarouselDisplayed() - Check if banner carousel is displayed (existing method)')
     }
     if (title.includes('meals') || then.includes('meals')) {
-      suggestions.push('homePage.scrollToMealsSection() - Use real method that handles scroll with forceScrollIntoView pattern')
+      suggestions.push('homePage.page.locator("[data-testid=\\"meals-section\\"]").scrollIntoViewIfNeeded() - Use abstract scroll pattern with forceScrollIntoView')
       suggestions.push('homePage.isMealsSectionVisible() - Check if meals section is visible (existing method)')
     }
   }
