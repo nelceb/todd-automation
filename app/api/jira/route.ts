@@ -31,12 +31,24 @@ interface ParsedAcceptanceCriteria {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { jiraUrl, username, apiToken, issueKey } = body
+    const { issueKey } = body
 
-    if (!jiraUrl || !username || !apiToken || !issueKey) {
+    if (!issueKey) {
       return NextResponse.json(
-        { error: 'Missing required fields: jiraUrl, username, apiToken, issueKey' },
+        { error: 'Missing required field: issueKey' },
         { status: 400 }
+      )
+    }
+
+    // Usar variables de entorno para configuración de Jira
+    const jiraUrl = process.env.JIRA_URL
+    const username = process.env.JIRA_USERNAME
+    const apiToken = process.env.JIRA_API_TOKEN
+
+    if (!jiraUrl || !username || !apiToken) {
+      return NextResponse.json(
+        { error: 'Jira configuration not found in environment variables' },
+        { status: 500 }
       )
     }
 

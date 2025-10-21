@@ -25,9 +25,6 @@ interface GeneratedTest {
 
 export default function TestGenerator() {
   const [jiraConfig, setJiraConfig] = useState({
-    jiraUrl: '',
-    username: '',
-    apiToken: '',
     issueKey: ''
   })
   
@@ -42,7 +39,7 @@ export default function TestGenerator() {
       const response = await fetch('/api/jira', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jiraConfig)
+        body: JSON.stringify({ issueKey: jiraConfig.issueKey })
       })
       
       const data = await response.json()
@@ -132,73 +129,55 @@ export default function TestGenerator() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              🔗 Configuración de Jira
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Jira URL
-                </label>
-                <input
-                  type="url"
-                  value={jiraConfig.jiraUrl}
-                  onChange={(e) => setJiraConfig({...jiraConfig, jiraUrl: e.target.value})}
-                  placeholder="https://yourcompany.atlassian.net"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={jiraConfig.username}
-                  onChange={(e) => setJiraConfig({...jiraConfig, username: e.target.value})}
-                  placeholder="your.email@company.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  API Token
-                </label>
-                <input
-                  type="password"
-                  value={jiraConfig.apiToken}
-                  onChange={(e) => setJiraConfig({...jiraConfig, apiToken: e.target.value})}
-                  placeholder="Your Jira API token"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Issue Key
-                </label>
-                <input
-                  type="text"
-                  value={jiraConfig.issueKey}
-                  onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
-                  placeholder="PROJ-123"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            {/* Card-style Jira Configuration */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Jira Integration</h3>
+                    <p className="text-sm text-gray-500">Connect to your Jira instance to extract acceptance criteria</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Issue Key
+                    </label>
+                    <input
+                      type="text"
+                      value={jiraConfig.issueKey}
+                      onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
+                      placeholder="QA-2301"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter the Jira issue key (e.g., QA-2301, PROJ-123)
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Configuration:</span> Using Vercel environment variables
+                    </div>
+                    <button
+                      onClick={fetchJiraIssue}
+                      disabled={loading || !jiraConfig.issueKey}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
+                    >
+                      {loading ? 'Fetching...' : 'Fetch Issue'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <button
-              onClick={fetchJiraIssue}
-              disabled={loading || !jiraConfig.jiraUrl || !jiraConfig.username || !jiraConfig.apiToken || !jiraConfig.issueKey}
-              className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Fetching...' : 'Fetch Jira Issue'}
-            </button>
           </motion.div>
         )}
 
