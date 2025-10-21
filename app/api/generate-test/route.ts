@@ -556,6 +556,9 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   } else if (whenLower.includes('onboarding') || whenLower.includes('walkthrough') || titleLower.includes('onboarding') || titleLower.includes('walkthrough')) {
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+  } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
+    // For Home/Homepage tests, stay on Home page - no navigation needed
+    return `// User is already on Home page - no navigation needed`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -634,6 +637,15 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
       return `expect.soft(await ordersHubPage.isRatingSectionVisible(), 'Rating section is visible').toBeTruthy();`
     } else {
       return `expect.soft(await ordersHubPage.isPastOrdersSectionVisible(), 'Past orders section is visible').toBeTruthy();`
+    }
+  } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
+    // For Home/Homepage tests, use homePage assertions
+    if (thenLower.includes('swimlane') || thenLower.includes('order again')) {
+      return `expect.soft(await homePage.isOrderAgainSwimlaneVisible(), 'Order Again swimlane is visible').toBeTruthy();`
+    } else if (thenLower.includes('display') || thenLower.includes('visible')) {
+      return `expect.soft(await homePage.isHomePageLoaded(), 'Home page is loaded').toBeTruthy();`
+    } else {
+      return `expect.soft(await homePage.isHomePageLoaded(), 'Home page is loaded').toBeTruthy();`
     }
   } else if (thenLower.includes('modal') && thenLower.includes('shown')) {
     return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
