@@ -490,8 +490,16 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
   // Analyze the then steps to determine the appropriate assertions based on real patterns
   const thenLower = then.toLowerCase()
   
+  // Determine the specific type of empty state based on context
   if (thenLower.includes('empty state') && thenLower.includes('shown') || thenLower.includes('empty state component is shown')) {
-    return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
+    // Check if it's about cart, past orders, or general empty state
+    if (thenLower.includes('cart') || thenLower.includes('meals')) {
+      return `expect.soft(await ordersHubPage.isEmptyCartStateVisible(), 'Empty cart state component is shown').toBeTruthy();`
+    } else if (thenLower.includes('past orders') || thenLower.includes('history')) {
+      return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
+    } else {
+      return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
+    }
   } else if (thenLower.includes('modal') && thenLower.includes('shown')) {
     return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
   } else if (thenLower.includes('count') || thenLower.includes('quantity')) {
@@ -509,10 +517,12 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     return `const selectedDeliveryDate = await menuCoreUxPage.getSelectedDeliveryDate();
     expect(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
   } else if (thenLower.includes('banner') && thenLower.includes('displayed')) {
-    return `expect.soft(await homePage.isBannerCarouselVisible(), 'Banner carousel is visible').toBeTruthy();`
+    return `expect.soft(await homePage.isBannerCarouselDisplayed(), 'Banner carousel is displayed').toBeTruthy();`
+  } else if (thenLower.includes('no past orders') && thenLower.includes('empty state')) {
+    return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
   } else {
     // Default assertion
-    return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
+    return `expect.soft(await ordersHubPage.isEmptyCartStateVisible(), 'Empty cart state component is shown').toBeTruthy();`
   }
 }
 
@@ -536,6 +546,31 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
     //THEN
     ${then}
   });`
+}
+
+// Function to suggest methods that should exist in page objects
+function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): string[] {
+  const suggestions: string[] = []
+  const title = acceptanceCriteria.title.toLowerCase()
+  const then = acceptanceCriteria.then.join(' ').toLowerCase()
+  
+  if (then.includes('empty state') && then.includes('cart')) {
+    suggestions.push('isEmptyCartStateVisible() - Check if empty cart state is visible')
+  }
+  
+  if (then.includes('empty state') && then.includes('past orders')) {
+    suggestions.push('isEmptyPastOrdersStateVisible() - Check if empty past orders state is visible')
+  }
+  
+  if (then.includes('banner') && then.includes('carousel')) {
+    suggestions.push('isBannerCarouselDisplayed() - Check if banner carousel is displayed')
+  }
+  
+  if (then.includes('modal') && then.includes('shown')) {
+    suggestions.push('isModalShown() - Check if specific modal is shown')
+  }
+  
+  return suggestions
 }
 
 function generateSeleniumGivenSteps(given: string): string {
