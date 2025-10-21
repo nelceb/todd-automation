@@ -535,9 +535,9 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   console.log('Generating WHEN steps for:', { when, whenLower, title, titleLower })
   
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
-    return `await homePage.clickOnOrdersHubNavItem();`
+    return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
-    return `await homePage.clickOnPastOrdersNavItem();`
+    return `const ordersHubPage = await homePage.clickOnPastOrdersNavItem();`
   } else if (whenLower.includes('types in the search bar') || whenLower.includes('search bar') || whenLower.includes('user types in search')) {
     return `const searchPage = await homePage.clickOnSearchBar();
     await searchPage.fillSearchInput('chicken');`
@@ -577,7 +577,7 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For empty WHEN or automatic tooltips, navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else {
-    // Default action
+    // Default action - always navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   }
 }
