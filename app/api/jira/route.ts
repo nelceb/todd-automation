@@ -30,10 +30,15 @@ interface ParsedAcceptanceCriteria {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Jira API called')
+    
     const body = await request.json()
     const { issueKey } = body
 
+    console.log('Request body:', { issueKey })
+
     if (!issueKey) {
+      console.log('Missing issueKey')
       return NextResponse.json(
         { error: 'Missing required field: issueKey' },
         { status: 400 }
@@ -53,27 +58,35 @@ export async function POST(request: NextRequest) {
     })
 
     if (!jiraUrl || !username || !apiToken) {
+      console.log('Missing Jira configuration')
       return NextResponse.json(
         { error: 'Jira configuration not found in environment variables' },
         { status: 500 }
       )
     }
 
+    console.log('Attempting to fetch Jira issue...')
+    
     // Obtener issue de Jira
     const issue = await fetchJiraIssue(jiraUrl, username, apiToken, issueKey)
     
     if (!issue) {
+      console.log('Issue not found in Jira')
       return NextResponse.json(
         { error: 'Issue not found' },
         { status: 404 }
       )
     }
 
+    console.log('Issue found, parsing acceptance criteria...')
+
     // Parsear acceptance criteria
     const acceptanceCriteria = parseAcceptanceCriteria(issue)
     
     // Determinar framework basado en labels y contenido
     const framework = determineFramework(acceptanceCriteria)
+
+    console.log('Successfully processed Jira issue')
 
     return NextResponse.json({
       success: true,
@@ -89,9 +102,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error fetching Jira issue:', error)
+    console.error('Error in Jira API:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
-      { error: 'Failed to fetch Jira issue' },
+      { error: 'Failed to fetch Jira issue: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     )
   }
