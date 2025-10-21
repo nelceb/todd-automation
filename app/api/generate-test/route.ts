@@ -445,9 +445,19 @@ function getFallbackSelectors(): any {
   }
 }
 
-function generatePlaywrightGivenSteps(given: string, type: string = 'single', selectors: any): string {
+function generatePlaywrightGivenSteps(given: string, type: string = 'single', selectors: any, context?: { title?: string, when?: string, then?: string }): string {
   // Analyze the given steps to determine the appropriate setup
   const givenLower = given.toLowerCase()
+  const titleLower = context?.title?.toLowerCase() || ''
+  const whenLower = context?.when?.toLowerCase() || ''
+  const thenLower = context?.then?.toLowerCase() || ''
+  
+  // Check for tooltip scenarios - need user who hasn't seen Orders Hub onboarding
+  if (givenLower.includes('tooltip') || titleLower.includes('tooltip') || whenLower.includes('tooltip') || thenLower.includes('tooltip')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithOrdersHubOnboardingNotViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
+  }
   
   // Check for specific scenarios based on real test patterns
   if (givenLower.includes('user has no past orders') || givenLower.includes('empty state') || givenLower.includes('empty cart')) {
@@ -582,7 +592,11 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
   const tags = generateTags(scenario.tags, 'playwright').join("', '")
   
   // Generate single scenario based on the acceptance criteria
-  const given = generatePlaywrightGivenSteps(scenario.given, 'single', selectors)
+  const given = generatePlaywrightGivenSteps(scenario.given, 'single', selectors, { 
+    title: scenario.title, 
+    when: scenario.when, 
+    then: scenario.then 
+  })
   const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors)
   const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors, { 
     when: scenario.when, 
