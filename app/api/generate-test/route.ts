@@ -91,7 +91,7 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   
   // Extract Jira ticket number from title or use timestamp
   const jiraMatch = title.match(/(QA-\d+)/i)
-  const ticketId = jiraMatch ? jiraMatch[1] : `test_${Date.now()}`
+  const ticketId = jiraMatch ? jiraMatch[1] : `QA-${Date.now().toString().slice(-4)}`
   
   // Generate a proper test title based on the acceptance criteria
   let testTitle = title
@@ -534,10 +534,14 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
   const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors)
   const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors)
   
-  return `  test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
-    //Data
+  // Only include Data section if the test actually needs it
+  const needsData = when.includes('expectedCount') || then.includes('expectedCount')
+  const dataSection = needsData ? `    //Data
     const expectedCount = 1;
-    //GIVEN
+    ` : ''
+  
+  return `  test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
+${dataSection}    //GIVEN
     ${given}
     
     //WHEN
