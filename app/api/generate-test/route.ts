@@ -93,6 +93,11 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   const jiraMatch = title.match(/(QA-\d+)/i)
   const ticketId = jiraMatch ? jiraMatch[1] : `QA-${Date.now().toString().slice(-4)}`
   
+  // Also check in the full acceptance criteria text for QA numbers
+  const fullText = `${title} ${given.join(' ')} ${when.join(' ')} ${then.join(' ')}`
+  const fullJiraMatch = fullText.match(/(QA-\d+)/i)
+  const finalTicketId = fullJiraMatch ? fullJiraMatch[1] : ticketId
+  
   // Generate a proper test title based on the acceptance criteria
   let testTitle = title
   if (title.toLowerCase().includes('validate the empty cart state')) {
@@ -104,7 +109,7 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   }
   
   return {
-    id: ticketId,
+    id: finalTicketId,
     title: testTitle,
     given: given.join(' '),
     when: when.join(' '),
@@ -454,6 +459,8 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
     return `await homePage.clickOnOrdersHubNavItem();`
+  } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders')) {
+    return `await homePage.clickOnPastOrdersNavItem();`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -495,7 +502,7 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     // Check if it's about cart, past orders, or general empty state
     if (thenLower.includes('cart') || thenLower.includes('meals')) {
       return `expect.soft(await ordersHubPage.isEmptyCartStateVisible(), 'Empty cart state component is shown').toBeTruthy();`
-    } else if (thenLower.includes('past orders') || thenLower.includes('history')) {
+    } else if (thenLower.includes('past orders') || thenLower.includes('history') || thenLower.includes('no past orders')) {
       return `expect.soft(await ordersHubPage.isEmptyPastOrdersStateVisible(), 'Empty past orders state is shown').toBeTruthy();`
     } else {
       return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
