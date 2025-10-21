@@ -164,7 +164,7 @@ export default function TestGenerator() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50/30 to-indigo-100/50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -254,11 +254,16 @@ export default function TestGenerator() {
                       type="text"
                       value={jiraConfig.issueKey}
                       onChange={(e) => setJiraConfig({...jiraConfig, issueKey: e.target.value})}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !loading && jiraConfig.issueKey) {
+                          fetchJiraIssue()
+                        }
+                      }}
                       placeholder="QA-2301"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
                     />
                     <p className="text-xs text-gray-500 mt-2 font-mono">
-                      Format: PROJECT-NUMBER (e.g., QA-2301, PROJ-123)
+                      Format: PROJECT-NUMBER (e.g., QA-2301, PROJ-123) • Press Enter to generate
                     </p>
                   </div>
                   
