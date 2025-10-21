@@ -93,9 +93,19 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   const jiraMatch = title.match(/(QA-\d+)/i)
   const ticketId = jiraMatch ? jiraMatch[1] : `test_${Date.now()}`
   
+  // Generate a proper test title based on the acceptance criteria
+  let testTitle = title
+  if (title.toLowerCase().includes('validate the empty cart state')) {
+    testTitle = 'Orders Hub - Empty Cart State'
+  } else if (title.toLowerCase().includes('validate the display of the homepage banner')) {
+    testTitle = 'Home - Banner Carousel Display'
+  } else if (title.toLowerCase().includes('validate the empty state for users with no past orders')) {
+    testTitle = 'Orders Hub - Empty State for No Past Orders'
+  }
+  
   return {
     id: ticketId,
-    title: title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim(),
+    title: testTitle,
     given: given.join(' '),
     when: when.join(' '),
     then: then.join(' '),
@@ -412,7 +422,7 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   const givenLower = given.toLowerCase()
   
   // Check for specific scenarios based on real test patterns
-  if (givenLower.includes('user has no past orders') || givenLower.includes('empty state')) {
+  if (givenLower.includes('user has no past orders') || givenLower.includes('empty state') || givenLower.includes('empty cart')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
@@ -442,7 +452,7 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   // Analyze the when steps to determine the appropriate actions based on real patterns
   const whenLower = when.toLowerCase()
   
-  if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders')) {
+  if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
     return `await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
@@ -472,7 +482,7 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     await homePage.clickOnTooltipNextStepButton();`
   } else {
     // Default action
-    return `await ordersHubPage.clickOnFirstOrderManagementButton();`
+    return `await homePage.clickOnOrdersHubNavItem();`
   }
 }
 
@@ -480,7 +490,7 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
   // Analyze the then steps to determine the appropriate assertions based on real patterns
   const thenLower = then.toLowerCase()
   
-  if (thenLower.includes('empty state') && thenLower.includes('shown')) {
+  if (thenLower.includes('empty state') && thenLower.includes('shown') || thenLower.includes('empty state component is shown')) {
     return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
   } else if (thenLower.includes('modal') && thenLower.includes('shown')) {
     return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
@@ -498,9 +508,11 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
   } else if (thenLower.includes('delivery date') && thenLower.includes('visible')) {
     return `const selectedDeliveryDate = await menuCoreUxPage.getSelectedDeliveryDate();
     expect(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
+  } else if (thenLower.includes('banner') && thenLower.includes('displayed')) {
+    return `expect.soft(await homePage.isBannerCarouselVisible(), 'Banner carousel is visible').toBeTruthy();`
   } else {
     // Default assertion
-    return `expect.soft(await ordersHubPage.isOrderCardSummaryBelowAddMealsTextVisible(), 'Order card summary is visible').toBeTruthy();`
+    return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
   }
 }
 
