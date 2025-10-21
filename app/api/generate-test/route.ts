@@ -409,17 +409,29 @@ function getFallbackSelectors(): any {
 
 function generatePlaywrightGivenSteps(given: string, type: string = 'single', selectors: any): string {
   // Analyze the given steps to determine the appropriate setup
-  if (given.toLowerCase().includes('user') && given.toLowerCase().includes('login')) {
+  const givenLower = given.toLowerCase()
+  
+  // Check for specific scenarios based on real test patterns
+  if (givenLower.includes('user has no past orders') || givenLower.includes('empty state')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
-  } else if (given.toLowerCase().includes('orders') && given.toLowerCase().includes('hub')) {
+  } else if (givenLower.includes('user is on orders hub') || givenLower.includes('orders tab')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+  } else if (givenLower.includes('user is on home page') || givenLower.includes('homepage')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
+  } else if (givenLower.includes('onboarding') && givenLower.includes('not viewed')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingNotViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD, true);`
   } else {
+    // Default setup for most scenarios
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
@@ -427,32 +439,67 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
 }
 
 function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any): string {
-  // Analyze the when steps to determine the appropriate actions
-  if (when.toLowerCase().includes('click') && when.toLowerCase().includes('button')) {
+  // Analyze the when steps to determine the appropriate actions based on real patterns
+  const whenLower = when.toLowerCase()
+  
+  if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders')) {
+    return `await homePage.clickOnOrdersHubNavItem();`
+  } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
-    await ordersHubPage.clickOnSelectMealsButton();
+    await ordersHubPage.clickOnSkipDeliveryButton();
+    await ordersHubPage.clickOnConfirmSkipButton();`
+  } else if (whenLower.includes('reschedule') || whenLower.includes('reschedule order')) {
+    return `await ordersHubPage.clickOnOrderManagementButton(0);
+    const calendarPage = await ordersHubPage.clickOnRescheduleButton();
+    await calendarPage.clickOnFirstAvailableDateChip();
+    const selectedDate = await calendarPage.getSelectedDateFromCalendar();
+    ordersHubPage = await calendarPage.clickOnConfirmButton();`
+  } else if (whenLower.includes('add meals') || whenLower.includes('select meals')) {
+    return `await ordersHubPage.clickOnSelectMealsButton();
     await homePage.clickOnAddMealButton(expectedCount);
     await homePage.clickOnOrdersHubNavItem();
     await ordersHubPage.clickOnOrderCardSummaryBelowAddMealsText();`
-  } else if (when.toLowerCase().includes('navigate') || when.toLowerCase().includes('go')) {
-    return `await homePage.clickOnOrdersHubNavItem();
-    await ordersHubPage.clickOnFirstOrderManagementButton();`
+  } else if (whenLower.includes('add delivery date') || whenLower.includes('calendar')) {
+    return `await homePage.clickOnCalendarSelector();
+    const calendarPage = await homePage.clickOnAddDeliveryDayButton();
+    await calendarPage.clickOnFirstAvailableDateChip(true);
+    const selectedDate = await calendarPage.getSelectedDateFromCalendar();
+    const menuCoreUxPage = await calendarPage.clickOnContinueButton();`
+  } else if (whenLower.includes('onboarding') || whenLower.includes('walkthrough')) {
+    return `const menuUpcomingDeliveriesTooltip = await homePage.isMenuUpcomingDeliveriesTooltipShown();
+    await homePage.clickOnTooltipNextStepButton();
+    const findExactlyYouCravingTooltip = await homePage.isFindExactlyYouCravingTooltipShown();
+    await homePage.clickOnTooltipNextStepButton();`
   } else {
-    return `await ordersHubPage.clickOnFirstOrderManagementButton();
-    await ordersHubPage.clickOnSelectMealsButton();`
+    // Default action
+    return `await ordersHubPage.clickOnFirstOrderManagementButton();`
   }
 }
 
 function generatePlaywrightThenAssertions(then: string, type: string = 'single', selectors: any): string {
-  // Analyze the then steps to determine the appropriate assertions
-  if (then.toLowerCase().includes('visible') || then.toLowerCase().includes('displayed')) {
-    return `expect.soft(await ordersHubPage.isOrderCardSummaryBelowAddMealsTextVisible(), 'Order card summary is visible').toBeTruthy();`
-  } else if (then.toLowerCase().includes('count') || then.toLowerCase().includes('quantity')) {
+  // Analyze the then steps to determine the appropriate assertions based on real patterns
+  const thenLower = then.toLowerCase()
+  
+  if (thenLower.includes('empty state') && thenLower.includes('shown')) {
+    return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
+  } else if (thenLower.includes('modal') && thenLower.includes('shown')) {
+    return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
+  } else if (thenLower.includes('count') || thenLower.includes('quantity')) {
     return `const cartCount = await ordersHubPage.getCartMealsCount();
     expect.soft(cartCount, \`Meals quantity '\${expectedCount}' is visible in cart\`).toBe(expectedCount);`
-  } else if (then.toLowerCase().includes('modal') || then.toLowerCase().includes('popup')) {
-    return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
+  } else if (thenLower.includes('date') && thenLower.includes('selected')) {
+    return `const selectedDeliveryDate = await ordersHubPage.getFormattedShippingDate(0);
+    expect.soft(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
+  } else if (thenLower.includes('tooltip') && thenLower.includes('shown')) {
+    return `expect.soft(menuUpcomingDeliveriesTooltip, 'Menu Upcoming Deliveries Tooltip is shown').toBeTruthy();
+    expect.soft(findExactlyYouCravingTooltip, 'Find Exactly You Craving Tooltip is shown').toBeTruthy();`
+  } else if (thenLower.includes('onboarding') && thenLower.includes('not shown')) {
+    return `expect.soft(await homePage.isOrderInAdvanceModalShown(), 'Order In Advance Modal is not shown').toBeFalsy();`
+  } else if (thenLower.includes('delivery date') && thenLower.includes('visible')) {
+    return `const selectedDeliveryDate = await menuCoreUxPage.getSelectedDeliveryDate();
+    expect(selectedDate, 'Selected Date is visible').toEqual(selectedDeliveryDate);`
   } else {
+    // Default assertion
     return `expect.soft(await ordersHubPage.isOrderCardSummaryBelowAddMealsTextVisible(), 'Order card summary is visible').toBeTruthy();`
   }
 }
