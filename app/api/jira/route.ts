@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
     const username = process.env.JIRA_USERNAME
     const apiToken = process.env.JIRA_API_TOKEN
 
+    console.log('Jira config check:', {
+      hasUrl: !!jiraUrl,
+      hasUsername: !!username,
+      hasApiToken: !!apiToken,
+      url: jiraUrl
+    })
+
     if (!jiraUrl || !username || !apiToken) {
       return NextResponse.json(
         { error: 'Jira configuration not found in environment variables' },
@@ -98,8 +105,15 @@ async function fetchJiraIssue(
 ): Promise<JiraIssue | null> {
   try {
     const auth = Buffer.from(`${username}:${apiToken}`).toString('base64')
+    const fullUrl = `${jiraUrl}/rest/api/3/issue/${issueKey}`
     
-    const response = await fetch(`${jiraUrl}/rest/api/3/issue/${issueKey}`, {
+    console.log('Fetching Jira issue:', {
+      url: fullUrl,
+      issueKey,
+      hasAuth: !!auth
+    })
+    
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Basic ${auth}`,
@@ -108,11 +122,21 @@ async function fetchJiraIssue(
       }
     })
 
+    console.log('Jira API response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    })
+
     if (!response.ok) {
-      throw new Error(`Jira API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error('Jira API error response:', errorText)
+      throw new Error(`Jira API error: ${response.status} - ${errorText}`)
     }
 
-    return await response.json()
+    const data = await response.json()
+    console.log('Jira issue data received:', { key: data.key, summary: data.fields?.summary })
+    return data
   } catch (error) {
     console.error('Error fetching from Jira:', error)
     return null
