@@ -218,6 +218,9 @@ async function generateTestCode(
   // Analyze repository to get real selectors
   const selectors = await analyzeRepositorySelectors(repository, token)
   
+  // Analyze existing methods to understand real patterns
+  const existingMethods = await analyzeExistingMethods(repository, token)
+  
   let fileName: string
   let content: string
   let testPath: string
@@ -239,7 +242,7 @@ async function generateTestCode(
         fileName = 'ordersHub.spec.ts'
       }
       testPath = `tests/frontend/desktop/subscription/coreUx/${fileName}`
-      content = generatePlaywrightTest(scenario, selectors)
+      content = generatePlaywrightTest(scenario, selectors, existingMethods)
       break
       
     case 'selenium':
@@ -282,8 +285,8 @@ ${generateMaestroAssertions(scenario.then)}
 - clearState`
 }
 
-function generatePlaywrightTest(scenario: TestScenario, selectors: any): string {
-  const singleScenario = generateSingleScenario(scenario, selectors)
+function generatePlaywrightTest(scenario: TestScenario, selectors: any, existingMethods?: any): string {
+  const singleScenario = generateSingleScenario(scenario, selectors, existingMethods)
   
   // Return only the test function, not the full file structure
   return singleScenario
@@ -534,7 +537,7 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   }
 }
 
-function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any, title?: string): string {
+function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any, title?: string, existingMethods?: any): string {
   // Analyze the when steps to determine the appropriate actions based on real patterns
   const whenLower = when.toLowerCase()
   const titleLower = title ? title.toLowerCase() : ''
@@ -557,16 +560,28 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - analyze what actions are needed
+    // For Home/Homepage tests, stay on Home page - use analyzed methods
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      return `// User is already on Home page - may need to scroll to find Order Again swimlane
-    // TODO: Analyze existing methods to find the right scroll approach`
+      // Use existing methods that handle scroll automatically
+      if (existingMethods?.homePage?.includes('clickOnAddMealButton')) {
+        return `// User is already on Home page - use existing method that handles scroll automatically
+    await homePage.clickOnAddMealButton(1);`
+      } else {
+        return `// User is already on Home page - scroll to find Order Again swimlane
+    await homePage.scrollToBottom();`
+      }
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
       return `// User is already on Home page - banner should be visible without scroll
     // No action needed - banner is at top of page`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      return `// User is already on Home page - may need to scroll to find meals section
-    // TODO: Analyze existing methods to find the right scroll approach`
+      // Use existing methods that handle scroll automatically
+      if (existingMethods?.homePage?.includes('clickOnAddMealButton')) {
+        return `// User is already on Home page - use existing method that handles scroll automatically
+    await homePage.clickOnAddMealButton(1);`
+      } else {
+        return `// User is already on Home page - scroll to find meals section
+    await homePage.scrollToBottom();`
+      }
     } else {
       return `// User is already on Home page - no navigation needed`
     }
@@ -706,7 +721,7 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
   }
 }
 
-function generateSingleScenario(scenario: TestScenario, selectors: any): string {
+function generateSingleScenario(scenario: TestScenario, selectors: any, existingMethods?: any): string {
   const tags = generateTags(scenario.tags, 'playwright', scenario.title, scenario.given + ' ' + scenario.when + ' ' + scenario.then).join("', '")
   
   // Generate single scenario based on the acceptance criteria
@@ -715,7 +730,7 @@ function generateSingleScenario(scenario: TestScenario, selectors: any): string 
     when: scenario.when, 
     then: scenario.then 
   })
-  const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors, scenario.title)
+  const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors, scenario.title, existingMethods)
   const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors, { 
     when: scenario.when, 
     title: scenario.title 
@@ -775,6 +790,109 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   }
   
   return suggestions
+}
+
+// Function to analyze existing methods and their patterns
+async function analyzeExistingMethods(repository: string, token: string): Promise<any> {
+  try {
+    console.log(`Analyzing existing methods from repository: ${repository}`)
+    
+    // Get the contents of the page objects directory
+    const pageObjectsPath = 'tests/frontend/desktop/subscription/coreUx'
+    
+    const response = await fetch(`https://api.github.com/repos/${repository}/contents/${pageObjectsPath}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    })
+    
+    if (!response.ok) {
+      console.log(`Failed to fetch page objects from ${repository}: ${response.status}`)
+      return {}
+    }
+    
+    const files = await response.json()
+    console.log(`Found ${files.length} page object files`)
+    
+    const methods = {
+      homePage: [],
+      ordersHubPage: [],
+      commonPage: [],
+      scrollMethods: [],
+      assertionMethods: [],
+      navigationMethods: []
+    }
+    
+    // Analyze each page object file
+    for (const file of files) {
+      if (file.name.endsWith('.ts') && !file.name.endsWith('.spec.ts')) {
+        try {
+          const content = await fetch(file.download_url, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          }).then(res => res.text())
+          
+          // Extract method patterns
+          const methodMatches = content.match(/async (\w+)\([^)]*\): Promise<[^>]*> \{[\s\S]*?\}/g)
+          if (methodMatches) {
+            methodMatches.forEach(match => {
+              const methodName = match.match(/async (\w+)\(/)?.[1]
+              if (methodName) {
+                if (file.name.includes('home')) {
+                  methods.homePage.push(methodName)
+                } else if (file.name.includes('orders')) {
+                  methods.ordersHubPage.push(methodName)
+                } else {
+                  methods.commonPage.push(methodName)
+                }
+                
+                // Check for scroll methods
+                if (methodName.includes('scroll') || methodName.includes('Scroll')) {
+                  methods.scrollMethods.push(methodName)
+                }
+                
+                // Check for assertion methods
+                if (methodName.includes('is') || methodName.includes('Is')) {
+                  methods.assertionMethods.push(methodName)
+                }
+                
+                // Check for navigation methods
+                if (methodName.includes('click') || methodName.includes('navigate') || methodName.includes('go')) {
+                  methods.navigationMethods.push(methodName)
+                }
+              }
+            })
+          }
+          
+          // Extract specific patterns like forceScrollIntoView usage
+          if (content.includes('forceScrollIntoView')) {
+            const scrollMatches = content.match(/async (\w+)\([^)]*\): Promise<[^>]*> \{[\s\S]*?forceScrollIntoView[\s\S]*?\}/g)
+            if (scrollMatches) {
+              scrollMatches.forEach(match => {
+                const methodName = match.match(/async (\w+)\(/)?.[1]
+                if (methodName) {
+                  methods.scrollMethods.push(`${methodName} (uses forceScrollIntoView)`)
+                }
+              })
+            }
+          }
+          
+        } catch (error) {
+          console.error(`Error analyzing file ${file.name}:`, error)
+        }
+      }
+    }
+    
+    console.log('Analyzed methods:', methods)
+    return methods
+    
+  } catch (error) {
+    console.error(`Error analyzing existing methods from ${repository}:`, error)
+    return {}
+  }
 }
 
 // Function to suggest usersHelper methods that should exist
