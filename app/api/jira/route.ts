@@ -332,12 +332,13 @@ function determineFramework(acceptanceCriteria: ParsedAcceptanceCriteria): 'maes
   const { labels, title, description } = acceptanceCriteria
   const content = `${title} ${description}`.toLowerCase()
   
-  // Reglas para determinar framework
-  if (labels.includes('ios') || labels.includes('mobile') || content.includes('app') || content.includes('mobile')) {
+  // Reglas para determinar framework - orden de prioridad
+  if (labels.includes('ios') || labels.includes('mobile') || content.includes('mobile app') || content.includes('ios app')) {
     return 'maestro'
   }
   
-  if (labels.includes('web') || labels.includes('frontend') || content.includes('browser') || content.includes('web')) {
+  if (labels.includes('web') || labels.includes('frontend') || content.includes('browser') || content.includes('web') || 
+      content.includes('homepage') || content.includes('search bar') || content.includes('home page')) {
     return 'playwright'
   }
   
