@@ -557,16 +557,16 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - may need to scroll to find elements
+    // For Home/Homepage tests, stay on Home page - use existing methods
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      return `// User is already on Home page - scroll to find Order Again swimlane
-    await homePage.scrollToOrderAgainSection();`
+      return `// User is already on Home page - use existing scroll method
+    await homePage.scrollToBottom();`
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
-      return `// User is already on Home page - scroll to find banner carousel
-    await homePage.scrollToBannerSection();`
+      return `// User is already on Home page - use existing scroll method
+    await homePage.scrollToTop();`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      return `// User is already on Home page - scroll to find meals section
-    await homePage.scrollToMealsSection();`
+      return `// User is already on Home page - use existing scroll method
+    await homePage.scrollToBottom();`
     } else {
       return `// User is already on Home page - no navigation needed`
     }
@@ -650,9 +650,11 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
       return `expect.soft(await ordersHubPage.isPastOrdersSectionVisible(), 'Past orders section is visible').toBeTruthy();`
     }
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, use homePage assertions
+    // For Home/Homepage tests, use existing homePage assertions
     if (thenLower.includes('swimlane') || thenLower.includes('order again')) {
-      return `expect.soft(await homePage.isOrderAgainSwimlaneVisible(), 'Order Again swimlane is visible').toBeTruthy();`
+      return `expect.soft(await homePage.isOrderAgainSectionVisible(), 'Order Again section is visible').toBeTruthy();`
+    } else if (thenLower.includes('banner') || thenLower.includes('carousel')) {
+      return `expect.soft(await homePage.isBannerCarouselDisplayed(), 'Banner carousel is displayed').toBeTruthy();`
     } else if (thenLower.includes('display') || thenLower.includes('visible')) {
       return `expect.soft(await homePage.isHomePageLoaded(), 'Home page is loaded').toBeTruthy();`
     } else {
@@ -757,16 +759,16 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (title.includes('home') || title.includes('homepage')) {
     if (title.includes('swimlane') || then.includes('swimlane')) {
-      suggestions.push('homePage.scrollToOrderAgainSection() - Scroll to Order Again swimlane section')
-      suggestions.push('homePage.isOrderAgainSwimlaneVisible() - Check if Order Again swimlane is visible')
+      suggestions.push('homePage.scrollToBottom() - Scroll to find Order Again section (reuse existing method)')
+      suggestions.push('homePage.isOrderAgainSectionVisible() - Check if Order Again section is visible (reuse existing method)')
     }
     if (title.includes('banner') || then.includes('banner')) {
-      suggestions.push('homePage.scrollToBannerSection() - Scroll to banner carousel section')
-      suggestions.push('homePage.isBannerCarouselDisplayed() - Check if banner carousel is displayed')
+      suggestions.push('homePage.scrollToTop() - Scroll to find banner carousel (reuse existing method)')
+      suggestions.push('homePage.isBannerCarouselDisplayed() - Check if banner carousel is displayed (reuse existing method)')
     }
     if (title.includes('meals') || then.includes('meals')) {
-      suggestions.push('homePage.scrollToMealsSection() - Scroll to meals section')
-      suggestions.push('homePage.isMealsSectionVisible() - Check if meals section is visible')
+      suggestions.push('homePage.scrollToBottom() - Scroll to find meals section (reuse existing method)')
+      suggestions.push('homePage.isMealsSectionVisible() - Check if meals section is visible (reuse existing method)')
     }
   }
   
