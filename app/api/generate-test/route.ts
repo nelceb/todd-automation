@@ -119,9 +119,11 @@ function generateTags(labels: string[], framework: string): string[] {
   const baseTags = [...labels]
   
   if (framework === 'playwright') {
-    baseTags.push('@e2e', '@regression')
+    if (!baseTags.includes('@e2e')) baseTags.push('@e2e')
+    if (!baseTags.includes('@regression')) baseTags.push('@regression')
   } else if (framework === 'selenium') {
-    baseTags.push('e2e', 'regression')
+    if (!baseTags.includes('e2e')) baseTags.push('e2e')
+    if (!baseTags.includes('regression')) baseTags.push('regression')
   }
   
   return baseTags
@@ -136,6 +138,9 @@ async function generateTestCode(
   const timestamp = Date.now()
   const branchName = `feature/auto-test-${scenario.id}-${timestamp}`
   
+  // Analyze repository to get real selectors
+  const selectors = await analyzeRepositorySelectors(repository, token)
+  
   let fileName: string
   let content: string
   let testPath: string
@@ -149,8 +154,8 @@ async function generateTestCode(
       
     case 'playwright':
       fileName = `${scenario.category}.spec.ts`
-      testPath = `tests/frontend/desktop/${fileName}`
-      content = generatePlaywrightTest(scenario)
+      testPath = `tests/frontend/desktop/subscription/coreUx/${fileName}`
+      content = generatePlaywrightTest(scenario, selectors)
       break
       
     case 'selenium':
@@ -193,9 +198,9 @@ ${generateMaestroAssertions(scenario.then)}
 - clearState`
 }
 
-function generatePlaywrightTest(scenario: TestScenario): string {
+function generatePlaywrightTest(scenario: TestScenario, selectors: any): string {
   const tags = generateTags(scenario.tags, 'playwright').join("', '")
-  const scenarios = generateMultipleScenarios(scenario)
+  const scenarios = generateMultipleScenarios(scenario, selectors)
   
   return `// Generated test from acceptance criteria
 // Test ID: ${scenario.id}
@@ -252,20 +257,139 @@ function generateMaestroAssertions(then: string): string {
 - assertVisible: "Next Screen"`
 }
 
-function generatePlaywrightGivenSteps(given: string): string {
-  return `await page.goto('/');`
+async function analyzeRepositorySelectors(repository: string, token: string): Promise<any> {
+  try {
+    // Analyze the real repository to find actual selectors
+    const response = await fetch(`https://api.github.com/repos/${repository}/contents/tests/frontend/desktop/subscription/coreUx`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    })
+    
+    if (!response.ok) {
+      console.log('Could not fetch repository contents, using fallback selectors')
+      return getFallbackSelectors()
+    }
+    
+    const files = await response.json()
+    const selectors = await extractSelectorsFromFiles(files, repository, token)
+    
+    return selectors
+  } catch (error) {
+    console.log('Error analyzing repository:', error)
+    return getFallbackSelectors()
+  }
 }
 
-function generatePlaywrightWhenSteps(when: string): string {
-  return `await page.click('[data-testid="button"]');
-await page.fill('[data-testid="input"]', 'test@example.com');`
+async function extractSelectorsFromFiles(files: any[], repository: string, token: string): Promise<any> {
+  const selectors = {
+    ordersHub: {},
+    home: {},
+    common: {}
+  }
+  
+  // Analyze each test file to extract selectors
+  for (const file of files) {
+    if (file.name.endsWith('.spec.ts')) {
+      try {
+        const content = await fetch(file.download_url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        }).then(res => res.text())
+        
+        // Extract selectors using regex patterns
+        const selectorMatches = content.match(/\[data-testid="([^"]+)"\]/g)
+        if (selectorMatches) {
+          selectorMatches.forEach(match => {
+            const selector = match.replace(/\[data-testid="([^"]+)"\]/, '$1')
+            
+            // Categorize selectors based on context
+            if (selector.includes('orders') || selector.includes('hub')) {
+              selectors.ordersHub[selector] = `[data-testid="${selector}"]`
+            } else if (selector.includes('home') || selector.includes('nav')) {
+              selectors.home[selector] = `[data-testid="${selector}"]`
+            } else {
+              selectors.common[selector] = `[data-testid="${selector}"]`
+            }
+          })
+        }
+      } catch (error) {
+        console.log(`Error analyzing file ${file.name}:`, error)
+      }
+    }
+  }
+  
+  return selectors
 }
 
-function generatePlaywrightThenAssertions(then: string): string {
-  return `await expect(page.locator('[data-testid="success"]')).toBeVisible();`
+function getFallbackSelectors(): any {
+  // Fallback selectors based on common patterns
+  return {
+    ordersHub: {
+      'orders-hub-nav-item': '[data-testid="orders-hub-nav-item"]',
+      'orders-hub-content': '[data-testid="orders-hub-content"]',
+      'onboarding-modal': '[data-testid="onboarding-modal"]',
+      'skip-onboarding-button': '[data-testid="skip-onboarding-button"]',
+      'onboarding-tooltip': '[data-testid="onboarding-tooltip"]',
+      'onboarding-next-button': '[data-testid="onboarding-next-button"]'
+    },
+    home: {
+      'home-nav-item': '[data-testid="home-nav-item"]',
+      'home-content': '[data-testid="home-content"]'
+    },
+    common: {
+      'login-button': '[data-testid="login-button"]',
+      'email-input': '[data-testid="email-input"]',
+      'password-input': '[data-testid="password-input"]'
+    }
+  }
 }
 
-function generateMultipleScenarios(scenario: TestScenario): string {
+function generatePlaywrightGivenSteps(given: string, type: string = 'happy', selectors: any): string {
+  if (type === 'happy') {
+    return `await page.goto('/');`
+  } else {
+    return `await page.goto('/');
+    // Edge case: User already has onboarding viewed
+    await page.evaluate(() => localStorage.setItem('onboarding_viewed', 'true'));`
+  }
+}
+
+function generatePlaywrightWhenSteps(when: string, type: string = 'happy', selectors: any): string {
+  const ordersHubSelectors = selectors.ordersHub || {}
+  const navItem = ordersHubSelectors['orders-hub-nav-item'] || '[data-testid="orders-hub-nav-item"]'
+  const onboardingModal = ordersHubSelectors['onboarding-modal'] || '[data-testid="onboarding-modal"]'
+  const skipButton = ordersHubSelectors['skip-onboarding-button'] || '[data-testid="skip-onboarding-button"]'
+  
+  if (type === 'happy') {
+    return `await page.click('${navItem}');
+    await page.waitForSelector('${onboardingModal}');`
+  } else {
+    return `await page.click('${navItem}');
+    await page.click('${skipButton}');`
+  }
+}
+
+function generatePlaywrightThenAssertions(then: string, type: string = 'happy', selectors: any): string {
+  const ordersHubSelectors = selectors.ordersHub || {}
+  const tooltip = ordersHubSelectors['onboarding-tooltip'] || '[data-testid="onboarding-tooltip"]'
+  const nextButton = ordersHubSelectors['onboarding-next-button'] || '[data-testid="onboarding-next-button"]'
+  const content = ordersHubSelectors['orders-hub-content'] || '[data-testid="orders-hub-content"]'
+  const onboardingModal = ordersHubSelectors['onboarding-modal'] || '[data-testid="onboarding-modal"]'
+  
+  if (type === 'happy') {
+    return `await expect(page.locator('${tooltip}')).toBeVisible();
+    await expect(page.locator('${nextButton}')).toBeVisible();`
+  } else {
+    return `await expect(page.locator('${content}')).toBeVisible();
+    await expect(page.locator('${onboardingModal}')).not.toBeVisible();`
+  }
+}
+
+function generateMultipleScenarios(scenario: TestScenario, selectors: any): string {
   const tags = generateTags(scenario.tags, 'playwright').join("', '")
   
   // Generate multiple scenarios based on the acceptance criteria
@@ -273,16 +397,16 @@ function generateMultipleScenarios(scenario: TestScenario): string {
     {
       title: `${scenario.title} - Happy Path`,
       type: 'happy',
-      given: generatePlaywrightGivenSteps(scenario.given, 'happy'),
-      when: generatePlaywrightWhenSteps(scenario.when, 'happy'),
-      then: generatePlaywrightThenAssertions(scenario.then, 'happy')
+      given: generatePlaywrightGivenSteps(scenario.given, 'happy', selectors),
+      when: generatePlaywrightWhenSteps(scenario.when, 'happy', selectors),
+      then: generatePlaywrightThenAssertions(scenario.then, 'happy', selectors)
     },
     {
       title: `${scenario.title} - Edge Case`,
       type: 'edge',
-      given: generatePlaywrightGivenSteps(scenario.given, 'edge'),
-      when: generatePlaywrightWhenSteps(scenario.when, 'edge'),
-      then: generatePlaywrightThenAssertions(scenario.then, 'edge')
+      given: generatePlaywrightGivenSteps(scenario.given, 'edge', selectors),
+      when: generatePlaywrightWhenSteps(scenario.when, 'edge', selectors),
+      then: generatePlaywrightThenAssertions(scenario.then, 'edge', selectors)
     }
   ]
   
