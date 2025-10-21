@@ -237,7 +237,7 @@ function analyzeEpicPatterns(epicData: any): EpicAnalysis {
       commonWhen,
       commonThen,
       commonLabels,
-      frameworks: [...new Set(allFrameworks)]
+      frameworks: Array.from(new Set(allFrameworks))
     },
     insights: {
       totalTickets: parsedTickets.length,
