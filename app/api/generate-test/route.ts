@@ -218,15 +218,8 @@ ${generateMaestroAssertions(scenario.then)}
 function generatePlaywrightTest(scenario: TestScenario, selectors: any): string {
   const singleScenario = generateSingleScenario(scenario, selectors)
   
-  return `// Generated test from acceptance criteria
-// Test ID: ${scenario.id}
-// Category: ${scenario.category}
-
-import { test, expect } from '@playwright/test';
-
-test.describe('${scenario.category}', () => {
-${singleScenario}
-});`
+  // Return only the test function, not the full file structure
+  return singleScenario
 }
 
 function generateSeleniumTest(scenario: TestScenario): string {
@@ -415,23 +408,53 @@ function getFallbackSelectors(): any {
 }
 
 function generatePlaywrightGivenSteps(given: string, type: string = 'single', selectors: any): string {
-  return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+  // Analyze the given steps to determine the appropriate setup
+  if (given.toLowerCase().includes('user') && given.toLowerCase().includes('login')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+  } else if (given.toLowerCase().includes('orders') && given.toLowerCase().includes('hub')) {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+  } else {
+    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
+  }
 }
 
 function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any): string {
-  return `await ordersHubPage.clickOnFirstOrderManagementButton();
+  // Analyze the when steps to determine the appropriate actions
+  if (when.toLowerCase().includes('click') && when.toLowerCase().includes('button')) {
+    return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSelectMealsButton();
     await homePage.clickOnAddMealButton(expectedCount);
     await homePage.clickOnOrdersHubNavItem();
     await ordersHubPage.clickOnOrderCardSummaryBelowAddMealsText();`
+  } else if (when.toLowerCase().includes('navigate') || when.toLowerCase().includes('go')) {
+    return `await homePage.clickOnOrdersHubNavItem();
+    await ordersHubPage.clickOnFirstOrderManagementButton();`
+  } else {
+    return `await ordersHubPage.clickOnFirstOrderManagementButton();
+    await ordersHubPage.clickOnSelectMealsButton();`
+  }
 }
 
 function generatePlaywrightThenAssertions(then: string, type: string = 'single', selectors: any): string {
-  return `const cartCount = await ordersHubPage.getCartMealsCount();
+  // Analyze the then steps to determine the appropriate assertions
+  if (then.toLowerCase().includes('visible') || then.toLowerCase().includes('displayed')) {
+    return `expect.soft(await ordersHubPage.isOrderCardSummaryBelowAddMealsTextVisible(), 'Order card summary is visible').toBeTruthy();`
+  } else if (then.toLowerCase().includes('count') || then.toLowerCase().includes('quantity')) {
+    return `const cartCount = await ordersHubPage.getCartMealsCount();
     expect.soft(cartCount, \`Meals quantity '\${expectedCount}' is visible in cart\`).toBe(expectedCount);`
+  } else if (then.toLowerCase().includes('modal') || then.toLowerCase().includes('popup')) {
+    return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
+  } else {
+    return `expect.soft(await ordersHubPage.isOrderCardSummaryBelowAddMealsTextVisible(), 'Order card summary is visible').toBeTruthy();`
+  }
 }
 
 function generateSingleScenario(scenario: TestScenario, selectors: any): string {
