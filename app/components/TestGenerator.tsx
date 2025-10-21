@@ -131,43 +131,57 @@ export default function TestGenerator() {
             animate={{ opacity: 1, x: 0 }}
             className="space-y-6"
           >
-            {/* Card-style Jira Configuration - Similar to WorkflowStatus cards */}
+            {/* Workflow-style Jira Configuration Card */}
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+              {/* Header similar to workflow cards */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">Jira Integration</h3>
-                      <p className="text-sm text-gray-500 mt-1">Extract acceptance criteria from Jira issues</p>
+                      <h3 className="text-lg font-bold text-gray-900">Jira Integration</h3>
+                      <p className="text-sm text-gray-600">Extract acceptance criteria from Jira issues</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     <span className="text-sm text-gray-600 font-medium">Ready</span>
                   </div>
                 </div>
-                
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-between mb-4">
+              </div>
+              
+              {/* Content area */}
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left column - Configuration */}
+                  <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold text-gray-800">Issue Configuration</h4>
-                      <p className="text-sm text-gray-600">Enter the Jira issue key to extract acceptance criteria</p>
-                    </div>
-                    <div className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                      ENV CONFIG
+                      <h4 className="font-semibold text-gray-800 mb-2">Configuration</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm text-gray-600">Jira URL</span>
+                          <span className="text-sm font-medium text-green-600">Configured</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm text-gray-600">Authentication</span>
+                          <span className="text-sm font-medium text-green-600">Ready</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm text-gray-600">Environment</span>
+                          <span className="text-sm font-medium text-blue-600">Production</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
+                  {/* Right column - Issue Input */}
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Issue Key
-                      </label>
+                      <h4 className="font-semibold text-gray-800 mb-2">Issue Key</h4>
                       <input
                         type="text"
                         value={jiraConfig.issueKey}
@@ -182,30 +196,25 @@ export default function TestGenerator() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                      <span>Jira URL: {process.env.NODE_ENV === 'development' ? 'https://cookunity.atlassian.net' : 'Configured'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                      <span>Auth: Ready</span>
-                    </div>
-                  </div>
-                  
+                {/* Action button */}
+                <div className="mt-6 flex justify-end">
                   <button
                     onClick={fetchJiraIssue}
                     disabled={loading || !jiraConfig.issueKey}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
                   >
                     {loading ? (
-                      <div className="flex items-center">
+                      <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                         Fetching...
-                      </div>
+                      </>
                     ) : (
-                      'Fetch Issue'
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Fetch Issue
+                      </>
                     )}
                   </button>
                 </div>

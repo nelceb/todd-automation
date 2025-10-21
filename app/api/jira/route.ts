@@ -192,6 +192,12 @@ function extractAcceptanceCriteria(description: string): {
   when: string[]
   then: string[]
 } {
+  // Ensure description is a string
+  if (!description || typeof description !== 'string') {
+    console.log('Invalid description:', description)
+    return { given: [], when: [], then: [] }
+  }
+  
   const lines = description.split('\n').map(line => line.trim())
   
   let given: string[] = []
