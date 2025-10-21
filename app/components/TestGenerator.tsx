@@ -296,24 +296,27 @@ export default function TestGenerator() {
                         navigator.clipboard.writeText(generatedTest.content)
                         alert('Test code copied to clipboard!')
                       }}
-                      className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center"
+                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      style={{ color: '#344055' }}
                     >
-                      <DocumentTextIcon className="w-4 h-4 mr-2" />
-                      Copy Code
+                      <DocumentTextIcon className="w-4 h-4" />
+                      <span>Copy Code</span>
                     </button>
                     <button
                       onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
-                      className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors duration-200 flex items-center"
+                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      style={{ color: '#344055' }}
                     >
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
-                      View in GitHub
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      <span>View in GitHub</span>
                     </button>
                     <button
                       onClick={() => setStep('jira')}
-                      className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
+                      className="flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-mono text-sm border-gray-600 hover:border-gray-700"
+                      style={{ color: '#344055' }}
                     >
-                      <SparklesIcon className="w-4 h-4 mr-2" />
-                      Generate Another Test
+                      <SparklesIcon className="w-4 h-4" />
+                      <span>Generate Another Test</span>
                     </button>
                   </div>
                 </div>
