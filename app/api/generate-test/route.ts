@@ -506,6 +506,13 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+  } else if (givenLower.includes('user has past orders') || givenLower.includes('past orders') || 
+             titleLower.includes('past orders') || titleLower.includes('rate') || 
+             thenLower.includes('past orders') || thenLower.includes('rate')) {
+    // For tests that need users with past orders - we need to suggest the correct method
+    return `const userEmail = await usersHelper.getActiveUserEmailWithPastOrders();
+    const loginPage = await siteMap.loginPage(page);
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
   } else if (givenLower.includes('user is on orders hub') || givenLower.includes('orders tab')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
@@ -723,6 +730,29 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (then.includes('modal') && then.includes('shown')) {
     suggestions.push('isModalShown() - Check if specific modal is shown')
+  }
+  
+  return suggestions
+}
+
+// Function to suggest usersHelper methods that should exist
+function suggestUsersHelperMethods(acceptanceCriteria: AcceptanceCriteria): string[] {
+  const suggestions: string[] = []
+  
+  const { title, description, given, when, then } = acceptanceCriteria
+  const content = `${title} ${description} ${given.join(' ')} ${when.join(' ')} ${then.join(' ')}`.toLowerCase()
+  
+  if (content.includes('past orders') && !content.includes('empty') && !content.includes('no past orders')) {
+    suggestions.push('usersHelper.getActiveUserEmailWithPastOrders() - Get user with past orders for testing')
+    suggestions.push('usersHelper.getActiveUserEmailWithOrderHistory() - Get user with order history')
+  }
+  
+  if (content.includes('rate') || content.includes('rating')) {
+    suggestions.push('usersHelper.getActiveUserEmailWithRatableOrders() - Get user with orders that can be rated')
+  }
+  
+  if (content.includes('empty state') && content.includes('past orders')) {
+    suggestions.push('usersHelper.getActiveUserEmailWithNoPastOrders() - Get user with no past orders for empty state testing')
   }
   
   return suggestions
