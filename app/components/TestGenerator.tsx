@@ -31,7 +31,7 @@ export default function TestGenerator() {
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<AcceptanceCriteria | null>(null)
   const [generatedTest, setGeneratedTest] = useState<GeneratedTest | null>(null)
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'jira' | 'criteria' | 'generate' | 'result'>('jira')
+  const [step, setStep] = useState<'jira' | 'generate' | 'result'>('jira')
   const [error, setError] = useState<string | null>(null)
 
   // Add error boundary effect
@@ -67,7 +67,8 @@ export default function TestGenerator() {
             Array.isArray(criteria.when) && 
             Array.isArray(criteria.then)) {
           setAcceptanceCriteria(criteria)
-          setStep('criteria')
+          // Go directly to test generation
+          await generateTestFromCriteria(criteria)
         } else {
           console.error('Invalid acceptance criteria format:', criteria)
           alert('Error: Invalid acceptance criteria format')
@@ -84,18 +85,16 @@ export default function TestGenerator() {
     }
   }
 
-  const generateTest = async () => {
-    if (!acceptanceCriteria) return
-    
+  const generateTestFromCriteria = async (criteria: AcceptanceCriteria) => {
     setLoading(true)
     try {
       const response = await fetch('/api/generate-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          acceptanceCriteria,
-          repository: 'Cook-Unity/maestro-test', // Por ahora hardcodeado
-          framework: acceptanceCriteria.framework
+          acceptanceCriteria: criteria,
+          repository: 'Cook-Unity/pw-cookunity-automation', // Use Playwright for web tests
+          framework: criteria.framework
         })
       })
       
@@ -112,6 +111,11 @@ export default function TestGenerator() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const generateTest = async () => {
+    if (!acceptanceCriteria) return
+    await generateTestFromCriteria(acceptanceCriteria)
   }
 
   // Show error if there's one
@@ -152,7 +156,7 @@ export default function TestGenerator() {
         className="bg-white rounded-lg shadow-lg p-6"
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          🤖 Generador Automático de Tests
+          🤖 Automatic Test Generator
         </h2>
         
         {/* Progress Steps */}
@@ -160,7 +164,6 @@ export default function TestGenerator() {
           <div className="flex items-center space-x-4">
             {[
               { key: 'jira', label: 'Jira', icon: '🔗' },
-              { key: 'criteria', label: 'Criteria', icon: '📋' },
               { key: 'generate', label: 'Generate', icon: '⚡' },
               { key: 'result', label: 'Result', icon: '✅' }
             ].map((stepItem, index) => (
@@ -168,14 +171,14 @@ export default function TestGenerator() {
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                   step === stepItem.key 
                     ? 'bg-blue-500 text-white' 
-                    : index < ['jira', 'criteria', 'generate', 'result'].indexOf(step)
+                    : index < ['jira', 'generate', 'result'].indexOf(step)
                     ? 'bg-green-500 text-white'
                     : 'bg-gray-300 text-gray-600'
                 }`}>
                   {stepItem.icon}
                 </div>
                 <span className="ml-2 text-sm font-medium">{stepItem.label}</span>
-                {index < 3 && <div className="w-8 h-0.5 bg-gray-300 mx-2" />}
+                {index < 2 && <div className="w-8 h-0.5 bg-gray-300 mx-2" />}
               </div>
             ))}
           </div>
@@ -280,73 +283,8 @@ export default function TestGenerator() {
           </motion.div>
         )}
 
-        {/* Step 2: Acceptance Criteria Review */}
-        {step === 'criteria' && acceptanceCriteria && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
-          >
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              📋 Acceptance Criteria Extraídos
-            </h3>
-            
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">{acceptanceCriteria.title}</h4>
-              <p className="text-gray-600 mb-4">{acceptanceCriteria.description}</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <h5 className="font-medium text-green-700 mb-2">Given:</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {acceptanceCriteria.given.map((item, index) => (
-                      <li key={index}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h5 className="font-medium text-blue-700 mb-2">When:</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {acceptanceCriteria.when.map((item, index) => (
-                      <li key={index}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h5 className="font-medium text-purple-700 mb-2">Then:</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {acceptanceCriteria.then.map((item, index) => (
-                      <li key={index}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">
-                    Framework: <span className="font-semibold">{acceptanceCriteria.framework}</span>
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    Priority: <span className="font-semibold">{acceptanceCriteria.priority}</span>
-                  </span>
-                </div>
-                
-                <button
-                  onClick={generateTest}
-                  disabled={loading}
-                  className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 disabled:bg-gray-400"
-                >
-                  {loading ? 'Generating...' : 'Generate Test'}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
-        {/* Step 3: Generated Test Result */}
+        {/* Step 2: Generated Test Result */}
         {step === 'result' && generatedTest && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -354,14 +292,14 @@ export default function TestGenerator() {
             className="space-y-4"
           >
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              ✅ Test Generado Exitosamente
+              ✅ Test Generated Successfully
             </h3>
             
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-center">
                 <div className="text-green-500 mr-2">✅</div>
                 <div>
-                  <h4 className="font-semibold text-green-800">Test generado y committeado</h4>
+                  <h4 className="font-semibold text-green-800">Test generated and committed</h4>
                   <p className="text-green-600 text-sm">
                     Branch: {generatedTest.branchName} | Framework: {generatedTest.framework}
                   </p>
@@ -371,12 +309,12 @@ export default function TestGenerator() {
             
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-gray-800 mb-2">Archivo generado:</h4>
+                <h4 className="font-medium text-gray-800 mb-2">Generated file:</h4>
                 <code className="text-sm bg-gray-100 px-2 py-1 rounded">{generatedTest.testPath}</code>
               </div>
               
               <div>
-                <h4 className="font-medium text-gray-800 mb-2">Código del test:</h4>
+                <h4 className="font-medium text-gray-800 mb-2">Test code:</h4>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">
                   {generatedTest.content}
                 </pre>
@@ -388,13 +326,13 @@ export default function TestGenerator() {
                 onClick={() => setStep('jira')}
                 className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
               >
-                Generar Otro Test
+                Generate Another Test
               </button>
               <button
-                onClick={() => window.open(`https://github.com/Cook-Unity/maestro-test/tree/${generatedTest.branchName}`, '_blank')}
+                onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
                 className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
               >
-                Ver en GitHub
+                View in GitHub
               </button>
             </div>
           </motion.div>

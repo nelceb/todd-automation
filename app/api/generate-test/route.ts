@@ -194,6 +194,9 @@ ${generateMaestroAssertions(scenario.then)}
 }
 
 function generatePlaywrightTest(scenario: TestScenario): string {
+  const tags = generateTags(scenario.tags, 'playwright').join("', '")
+  const scenarios = generateMultipleScenarios(scenario)
+  
   return `// Generated test from acceptance criteria
 // Test ID: ${scenario.id}
 // Category: ${scenario.category}
@@ -201,16 +204,7 @@ function generatePlaywrightTest(scenario: TestScenario): string {
 import { test, expect } from '@playwright/test';
 
 test.describe('${scenario.category}', () => {
-  test('${scenario.title}', async ({ page }) => {
-    // Given: ${scenario.given}
-    ${generatePlaywrightGivenSteps(scenario.given)}
-    
-    // When: ${scenario.when}
-    ${generatePlaywrightWhenSteps(scenario.when)}
-    
-    // Then: ${scenario.then}
-    ${generatePlaywrightThenAssertions(scenario.then)}
-  });
+${scenarios}
 });`
 }
 
@@ -269,6 +263,39 @@ await page.fill('[data-testid="input"]', 'test@example.com');`
 
 function generatePlaywrightThenAssertions(then: string): string {
   return `await expect(page.locator('[data-testid="success"]')).toBeVisible();`
+}
+
+function generateMultipleScenarios(scenario: TestScenario): string {
+  const tags = generateTags(scenario.tags, 'playwright').join("', '")
+  
+  // Generate multiple scenarios based on the acceptance criteria
+  const scenarios = [
+    {
+      title: `${scenario.title} - Happy Path`,
+      type: 'happy',
+      given: generatePlaywrightGivenSteps(scenario.given, 'happy'),
+      when: generatePlaywrightWhenSteps(scenario.when, 'happy'),
+      then: generatePlaywrightThenAssertions(scenario.then, 'happy')
+    },
+    {
+      title: `${scenario.title} - Edge Case`,
+      type: 'edge',
+      given: generatePlaywrightGivenSteps(scenario.given, 'edge'),
+      when: generatePlaywrightWhenSteps(scenario.when, 'edge'),
+      then: generatePlaywrightThenAssertions(scenario.then, 'edge')
+    }
+  ]
+  
+  return scenarios.map(scenario => `  test('${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
+    //GIVEN
+    ${scenario.given}
+    
+    //WHEN
+    ${scenario.when}
+    
+    //THEN
+    ${scenario.then}
+  });`).join('\n\n')
 }
 
 function generateSeleniumGivenSteps(given: string): string {

@@ -1,19 +1,18 @@
-// Template para tests Playwright (Web)
-// Generado automáticamente desde acceptance criteria
-// Ticket Jira: {TICKET_ID}
-// Fecha: {DATE}
+// Generated test from acceptance criteria
+// Test ID: {TEST_ID}
+// Category: {CATEGORY}
 
 import { test, expect } from '@playwright/test';
 
 test.describe('{CATEGORY}', () => {
-  test('{TEST_TITLE}', async ({ page }) => {
-    // Given: {GIVEN_DESCRIPTION}
+  test('{TEST_TITLE}', { tag: ['{TAGS}'] }, async ({ page }) => {
+    //GIVEN
     {GIVEN_STEPS}
     
-    // When: {WHEN_DESCRIPTION}
+    //WHEN
     {WHEN_STEPS}
     
-    // Then: {THEN_DESCRIPTION}
+    //THEN
     {THEN_ASSERTIONS}
   });
 });
