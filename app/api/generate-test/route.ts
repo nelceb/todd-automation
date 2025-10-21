@@ -557,8 +557,19 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - no navigation needed
-    return `// User is already on Home page - no navigation needed`
+    // For Home/Homepage tests, stay on Home page - may need to scroll to find elements
+    if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
+      return `// User is already on Home page - scroll to find Order Again swimlane
+    await homePage.scrollToOrderAgainSection();`
+    } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
+      return `// User is already on Home page - scroll to find banner carousel
+    await homePage.scrollToBannerSection();`
+    } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
+      return `// User is already on Home page - scroll to find meals section
+    await homePage.scrollToMealsSection();`
+    } else {
+      return `// User is already on Home page - no navigation needed`
+    }
   } else if (whenLower.includes('skip') && whenLower.includes('order')) {
     return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSkipDeliveryButton();
@@ -742,6 +753,21 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (then.includes('modal') && then.includes('shown')) {
     suggestions.push('isModalShown() - Check if specific modal is shown')
+  }
+  
+  if (title.includes('home') || title.includes('homepage')) {
+    if (title.includes('swimlane') || then.includes('swimlane')) {
+      suggestions.push('homePage.scrollToOrderAgainSection() - Scroll to Order Again swimlane section')
+      suggestions.push('homePage.isOrderAgainSwimlaneVisible() - Check if Order Again swimlane is visible')
+    }
+    if (title.includes('banner') || then.includes('banner')) {
+      suggestions.push('homePage.scrollToBannerSection() - Scroll to banner carousel section')
+      suggestions.push('homePage.isBannerCarouselDisplayed() - Check if banner carousel is displayed')
+    }
+    if (title.includes('meals') || then.includes('meals')) {
+      suggestions.push('homePage.scrollToMealsSection() - Scroll to meals section')
+      suggestions.push('homePage.isMealsSectionVisible() - Check if meals section is visible')
+    }
   }
   
   return suggestions
