@@ -560,18 +560,18 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     // For onboarding walkthrough tests, need to navigate to Orders Hub
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (titleLower.includes('home') || titleLower.includes('homepage') || titleLower.includes('swimlane')) {
-    // For Home/Homepage tests, stay on Home page - analyze specific actions needed
+    // For Home/Homepage tests, stay on Home page - use real patterns
     if (titleLower.includes('swimlane') || whenLower.includes('scroll') || whenLower.includes('swimlane')) {
-      // For Order Again swimlane, need to scroll to find it
-      return `// User is already on Home page - scroll to find Order Again swimlane
-    await homePage.scrollToBottom();`
+      // For Order Again swimlane, use the real pattern with forceScrollIntoView
+      return `// User is already on Home page - scroll to Order Again swimlane using real pattern
+    await homePage.scrollToOrderAgainSection();`
     } else if (titleLower.includes('banner') || titleLower.includes('carousel')) {
       return `// User is already on Home page - banner should be visible without scroll
     // No action needed - banner is at top of page`
     } else if (titleLower.includes('meals') || titleLower.includes('menu')) {
-      // For meals section, need to scroll to find it
-      return `// User is already on Home page - scroll to find meals section
-    await homePage.scrollToBottom();`
+      // For meals section, use the real pattern with forceScrollIntoView
+      return `// User is already on Home page - scroll to meals section using real pattern
+    await homePage.scrollToMealsSection();`
     } else {
       return `// User is already on Home page - no navigation needed`
     }
@@ -766,7 +766,7 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (title.includes('home') || title.includes('homepage')) {
     if (title.includes('swimlane') || then.includes('swimlane')) {
-      suggestions.push('homePage.clickOnAddMealButton(1) - Use existing method that handles scroll automatically with forceScrollIntoView')
+      suggestions.push('homePage.scrollToOrderAgainSection() - Use real method that handles scroll with forceScrollIntoView pattern')
       suggestions.push('homePage.isOrderAgainSwimlaneVisible() - Check if Order Again swimlane is visible (specific method)')
     }
     if (title.includes('banner') || then.includes('banner')) {
@@ -774,7 +774,7 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
       suggestions.push('homePage.isBannerCarouselDisplayed() - Check if banner carousel is displayed (existing method)')
     }
     if (title.includes('meals') || then.includes('meals')) {
-      suggestions.push('homePage.clickOnAddMealButton(1) - Use existing method that handles scroll automatically with forceScrollIntoView')
+      suggestions.push('homePage.scrollToMealsSection() - Use real method that handles scroll with forceScrollIntoView pattern')
       suggestions.push('homePage.isMealsSectionVisible() - Check if meals section is visible (existing method)')
     }
   }
