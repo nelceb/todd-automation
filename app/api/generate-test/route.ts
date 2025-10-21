@@ -89,14 +89,9 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   // Generar tags apropiados para el framework
   const tags = generateTags(labels, framework)
   
-  // Extract Jira ticket number from title or use timestamp
+  // Extract Jira ticket number from title (this should come from the Jira API response)
   const jiraMatch = title.match(/(QA-\d+)/i)
   const ticketId = jiraMatch ? jiraMatch[1] : `QA-${Date.now().toString().slice(-4)}`
-  
-  // Also check in the full acceptance criteria text for QA numbers
-  const fullText = `${title} ${given.join(' ')} ${when.join(' ')} ${then.join(' ')}`
-  const fullJiraMatch = fullText.match(/(QA-\d+)/i)
-  const finalTicketId = fullJiraMatch ? fullJiraMatch[1] : ticketId
   
   // Generate a proper test title based on the acceptance criteria
   let testTitle = title
@@ -109,7 +104,7 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   }
   
   return {
-    id: finalTicketId,
+    id: ticketId,
     title: testTitle,
     given: given.join(' '),
     when: when.join(' '),
