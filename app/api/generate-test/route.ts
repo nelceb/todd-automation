@@ -89,8 +89,12 @@ function generateScenario(acceptanceCriteria: AcceptanceCriteria, framework: str
   // Generar tags apropiados para el framework
   const tags = generateTags(labels, framework)
   
+  // Extract Jira ticket number from title or use timestamp
+  const jiraMatch = title.match(/(QA-\d+)/i)
+  const ticketId = jiraMatch ? jiraMatch[1] : `test_${Date.now()}`
+  
   return {
-    id: `test_${Date.now()}`,
+    id: ticketId,
     title: title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim(),
     given: given.join(' '),
     when: when.join(' '),
@@ -142,7 +146,7 @@ async function generateTestCode(
   token: string
 ): Promise<GeneratedTest> {
   const timestamp = Date.now()
-  const branchName = `feature/auto-test-${scenario.id}-${timestamp}`
+  const branchName = `feature/${scenario.id}-${scenario.title.toLowerCase().replace(/\s+/g, '-').substring(0, 50)}`
   
   // Analyze repository to get real selectors
   const selectors = await analyzeRepositorySelectors(repository, token)
@@ -159,7 +163,14 @@ async function generateTestCode(
       break
       
     case 'playwright':
-      fileName = `${scenario.category}.spec.ts`
+      // Determine target file based on category
+      if (scenario.category.includes('Home')) {
+        fileName = 'homePage.spec.ts'
+      } else if (scenario.category.includes('Subscription')) {
+        fileName = 'subscription.spec.ts'
+      } else {
+        fileName = 'ordersHub.spec.ts'
+      }
       testPath = `tests/frontend/desktop/subscription/coreUx/${fileName}`
       content = generatePlaywrightTest(scenario, selectors)
       break
@@ -205,8 +216,7 @@ ${generateMaestroAssertions(scenario.then)}
 }
 
 function generatePlaywrightTest(scenario: TestScenario, selectors: any): string {
-  const tags = generateTags(scenario.tags, 'playwright').join("', '")
-  const scenarios = generateMultipleScenarios(scenario, selectors)
+  const singleScenario = generateSingleScenario(scenario, selectors)
   
   return `// Generated test from acceptance criteria
 // Test ID: ${scenario.id}
@@ -215,7 +225,7 @@ function generatePlaywrightTest(scenario: TestScenario, selectors: any): string 
 import { test, expect } from '@playwright/test';
 
 test.describe('${scenario.category}', () => {
-${scenarios}
+${singleScenario}
 });`
 }
 
@@ -404,78 +414,46 @@ function getFallbackSelectors(): any {
   }
 }
 
-function generatePlaywrightGivenSteps(given: string, type: string = 'happy', selectors: any): string {
-  if (type === 'happy') {
-    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+function generatePlaywrightGivenSteps(given: string, type: string = 'single', selectors: any): string {
+  return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
     const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
     const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
-  } else {
-    return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
-    const loginPage = await siteMap.loginPage(page);
-    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
-    // Edge case: User already has onboarding viewed
-    await page.evaluate(() => localStorage.setItem('onboarding_viewed', 'true'));
-    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
-  }
 }
 
-function generatePlaywrightWhenSteps(when: string, type: string = 'happy', selectors: any): string {
-  if (type === 'happy') {
-    return `await ordersHubPage.clickOnFirstOrderManagementButton();
+function generatePlaywrightWhenSteps(when: string, type: string = 'single', selectors: any): string {
+  return `await ordersHubPage.clickOnFirstOrderManagementButton();
     await ordersHubPage.clickOnSelectMealsButton();
     await homePage.clickOnAddMealButton(expectedCount);
     await homePage.clickOnOrdersHubNavItem();
     await ordersHubPage.clickOnOrderCardSummaryBelowAddMealsText();`
-  } else {
-    return `await ordersHubPage.clickOnFirstOrderManagementButton();
-    await ordersHubPage.clickOnSkipDeliveryButton();
-    await ordersHubPage.clickOnConfirmSkipButton();`
-  }
 }
 
-function generatePlaywrightThenAssertions(then: string, type: string = 'happy', selectors: any): string {
-  if (type === 'happy') {
-    return `const cartCount = await ordersHubPage.getCartMealsCount();
+function generatePlaywrightThenAssertions(then: string, type: string = 'single', selectors: any): string {
+  return `const cartCount = await ordersHubPage.getCartMealsCount();
     expect.soft(cartCount, \`Meals quantity '\${expectedCount}' is visible in cart\`).toBe(expectedCount);`
-  } else {
-    return `expect.soft(await ordersHubPage.isOrderSkippedModalShown(), 'Order Skipped Modal is shown').toBeTruthy();`
-  }
 }
 
-function generateMultipleScenarios(scenario: TestScenario, selectors: any): string {
+function generateSingleScenario(scenario: TestScenario, selectors: any): string {
   const tags = generateTags(scenario.tags, 'playwright').join("', '")
   
-  // Generate multiple scenarios based on the acceptance criteria
-  const scenarios = [
-    {
-      title: `${scenario.title} - Happy Path`,
-      type: 'happy',
-      given: generatePlaywrightGivenSteps(scenario.given, 'happy', selectors),
-      when: generatePlaywrightWhenSteps(scenario.when, 'happy', selectors),
-      then: generatePlaywrightThenAssertions(scenario.then, 'happy', selectors)
-    },
-    {
-      title: `${scenario.title} - Edge Case`,
-      type: 'edge',
-      given: generatePlaywrightGivenSteps(scenario.given, 'edge', selectors),
-      when: generatePlaywrightWhenSteps(scenario.when, 'edge', selectors),
-      then: generatePlaywrightThenAssertions(scenario.then, 'edge', selectors)
-    }
-  ]
+  // Generate single scenario based on the acceptance criteria
+  const given = generatePlaywrightGivenSteps(scenario.given, 'single', selectors)
+  const when = generatePlaywrightWhenSteps(scenario.when, 'single', selectors)
+  const then = generatePlaywrightThenAssertions(scenario.then, 'single', selectors)
   
-  return scenarios.map(scenario => `  test('${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
+  return `  test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
     //Data
     const expectedCount = 1;
     //GIVEN
-    ${scenario.given}
+    ${given}
     
     //WHEN
-    ${scenario.when}
+    ${when}
     
     //THEN
-    ${scenario.then}
-  });`).join('\n\n')
+    ${then}
+  });`
 }
 
 function generateSeleniumGivenSteps(given: string): string {
@@ -513,3 +491,4 @@ async function createBranchAndCommit(
     pullRequestUrl: `https://github.com/${repository}/compare/${generatedTest.branchName}`
   }
 }
+
