@@ -805,7 +805,14 @@ async function analyzeExistingMethods(repository: string, token: string): Promis
     const files = await response.json()
     console.log(`Found ${files.length} page object files`)
     
-    const methods = {
+    const methods: {
+      homePage: string[];
+      ordersHubPage: string[];
+      commonPage: string[];
+      scrollMethods: string[];
+      assertionMethods: string[];
+      navigationMethods: string[];
+    } = {
       homePage: [],
       ordersHubPage: [],
       commonPage: [],
