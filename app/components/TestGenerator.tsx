@@ -312,12 +312,18 @@ export default function TestGenerator() {
                           
                           // Reset after 2 seconds
                           setTimeout(() => {
-                            if (button && button.innerHTML !== null) {
-                              button.innerHTML = originalHTML
-                              button.style.backgroundColor = ''
-                              button.style.borderColor = '#6B7280'
-                              button.style.color = '#344055'
-                              button.disabled = false
+                            try {
+                              if (button && button.innerHTML !== null && button.innerHTML !== undefined) {
+                                button.innerHTML = originalHTML
+                                button.style.backgroundColor = ''
+                                button.style.borderColor = '#6B7280'
+                                button.style.color = '#344055'
+                                button.disabled = false
+                              }
+                            } catch (resetError) {
+                              console.error('Error resetting button:', resetError)
+                              // Fallback: just show success message
+                              alert('Test code copied to clipboard!')
                             }
                           }, 2000)
                         } catch (err) {
