@@ -19,16 +19,16 @@ export async function GET(request: NextRequest) {
     // Set environment variable for the script
     process.env.GITHUB_TOKEN = githubToken;
     
-    // Import and run the analysis script
-    const { updateFrameworkArchitecture } = await import('../../scripts/analyze-repository-methods.js');
-    const framework = await updateFrameworkArchitecture();
-    
-    console.log('✅ Framework analysis completed successfully');
-    
+    // For now, return a placeholder response since the script can't be imported in Vercel build
+    // TODO: Implement the analysis logic directly in this endpoint
     return NextResponse.json({
       success: true,
-      message: 'Framework analysis completed successfully',
-      framework
+      message: 'Framework analysis endpoint ready - implementation pending',
+      framework: {
+        pageObjects: {},
+        lastUpdated: new Date().toISOString(),
+        analysisSource: 'placeholder'
+      }
     });
     
   } catch (error) {
