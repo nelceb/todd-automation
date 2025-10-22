@@ -292,9 +292,26 @@ export default function TestGenerator() {
                   {/* Action Buttons */}
                   <div className="mt-6 flex justify-center space-x-4">
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedTest.content)
-                        alert('Test code copied to clipboard!')
+                      onClick={async (e) => {
+                        try {
+                          await navigator.clipboard.writeText(generatedTest.content)
+                          // Change button state temporarily
+                          const button = e.currentTarget as HTMLButtonElement
+                          const originalText = button.innerHTML
+                          button.innerHTML = '<div class="flex items-center space-x-1 sm:space-x-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span></div>'
+                          button.style.backgroundColor = '#10B981'
+                          button.style.borderColor = '#10B981'
+                          button.style.color = 'white'
+                          
+                          setTimeout(() => {
+                            button.innerHTML = originalText
+                            button.style.backgroundColor = ''
+                            button.style.borderColor = '#6B7280'
+                            button.style.color = '#344055'
+                          }, 2000)
+                        } catch (err) {
+                          console.error('Failed to copy: ', err)
+                        }
                       }}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
                       style={{ color: '#344055' }}
