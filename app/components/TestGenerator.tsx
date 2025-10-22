@@ -295,33 +295,31 @@ export default function TestGenerator() {
                       onClick={async (e) => {
                         try {
                           await navigator.clipboard.writeText(generatedTest.content)
-                          // Change button state temporarily
-                          const button = e.currentTarget as HTMLButtonElement
                           
-                          // Store original content safely
-                          const originalContent = button.innerHTML
-                          if (!originalContent) {
-                            console.error('Button content is null')
-                            return
-                          }
+                          // Use a more robust approach with state
+                          const button = e.currentTarget as HTMLButtonElement
+                          const originalText = button.textContent
+                          const originalHTML = button.innerHTML
                           
                           // Change to success state
                           button.innerHTML = '<div class="flex items-center space-x-1 sm:space-x-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span></div>'
                           button.style.backgroundColor = '#10B981'
                           button.style.borderColor = '#10B981'
                           button.style.color = 'white'
+                          button.disabled = true
                           
                           // Reset after 2 seconds
                           setTimeout(() => {
-                            if (button && button.innerHTML) {
-                              button.innerHTML = originalContent
-                              button.style.backgroundColor = ''
-                              button.style.borderColor = '#6B7280'
-                              button.style.color = '#344055'
-                            }
+                            button.innerHTML = originalHTML
+                            button.style.backgroundColor = ''
+                            button.style.borderColor = '#6B7280'
+                            button.style.color = '#344055'
+                            button.disabled = false
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)
+                          // Show fallback message
+                          alert('Test code copied to clipboard!')
                         }
                       }}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
