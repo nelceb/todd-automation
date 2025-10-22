@@ -48,6 +48,7 @@ export default function TestGenerator() {
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'jira' | 'generate' | 'result'>('jira')
   const [error, setError] = useState<string | null>(null)
+  const [copyButtonState, setCopyButtonState] = useState<'idle' | 'copied'>('idle')
 
   // Add error boundary effect
   React.useEffect(() => {
@@ -292,53 +293,40 @@ export default function TestGenerator() {
                   {/* Action Buttons */}
                   <div className="mt-6 flex justify-center space-x-4">
                     <button
-                      onClick={async (e) => {
+                      onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(generatedTest.content)
-                          
-                          // Use a more robust approach with state
-                          const button = e.currentTarget as HTMLButtonElement
-                          
-                          // Check if button exists and has innerHTML
-                          if (!button || button.innerHTML === null || button.innerHTML === undefined) {
-                            console.error('Button not found or innerHTML is null')
-                            return
-                          }
-                          
-                          // Store original state safely
-                          const originalHTML = button.innerHTML
-                          const originalText = button.textContent || ''
-                          
-                          // Change to success state
-                          button.innerHTML = '<div class="flex items-center space-x-1 sm:space-x-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span></div>'
-                          button.style.backgroundColor = '#10B981'
-                          button.style.borderColor = '#10B981'
-                          button.style.color = 'white'
-                          button.disabled = true
+                          setCopyButtonState('copied')
                           
                           // Reset after 2 seconds
                           setTimeout(() => {
-                            try {
-                              if (button && button.innerHTML !== null && button.innerHTML !== undefined) {
-                                button.innerHTML = originalHTML
-                                button.style.backgroundColor = ''
-                                button.style.borderColor = '#6B7280'
-                                button.style.color = '#344055'
-                                button.disabled = false
-                              }
-                            } catch (resetError) {
-                              console.error('Error resetting button:', resetError)
-                            }
+                            setCopyButtonState('idle')
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)
                         }
                       }}
-                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
-                      style={{ color: '#344055' }}
+                      className={`flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] ${
+                        copyButtonState === 'copied' 
+                          ? 'bg-green-500 border-green-500 text-white' 
+                          : 'border-gray-600 hover:border-gray-700'
+                      }`}
+                      style={{ color: copyButtonState === 'copied' ? 'white' : '#344055' }}
+                      disabled={copyButtonState === 'copied'}
                     >
-                      <DocumentTextIcon className="w-4 h-4" />
-                      <span>Copy Code</span>
+                      {copyButtonState === 'copied' ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <DocumentTextIcon className="w-4 h-4" />
+                          <span>Copy Code</span>
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
