@@ -297,17 +297,28 @@ export default function TestGenerator() {
                           await navigator.clipboard.writeText(generatedTest.content)
                           // Change button state temporarily
                           const button = e.currentTarget as HTMLButtonElement
-                          const originalText = button.innerHTML
+                          
+                          // Store original content safely
+                          const originalContent = button.innerHTML
+                          if (!originalContent) {
+                            console.error('Button content is null')
+                            return
+                          }
+                          
+                          // Change to success state
                           button.innerHTML = '<div class="flex items-center space-x-1 sm:space-x-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span></div>'
                           button.style.backgroundColor = '#10B981'
                           button.style.borderColor = '#10B981'
                           button.style.color = 'white'
                           
+                          // Reset after 2 seconds
                           setTimeout(() => {
-                            button.innerHTML = originalText
-                            button.style.backgroundColor = ''
-                            button.style.borderColor = '#6B7280'
-                            button.style.color = '#344055'
+                            if (button && button.innerHTML) {
+                              button.innerHTML = originalContent
+                              button.style.backgroundColor = ''
+                              button.style.borderColor = '#6B7280'
+                              button.style.color = '#344055'
+                            }
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)
