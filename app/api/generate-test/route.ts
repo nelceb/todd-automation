@@ -728,18 +728,18 @@ function generateSingleScenario(scenario: TestScenario, selectors: any, existing
   
   // Only include Data section if the test actually needs it
   const needsData = when.includes('expectedCount') || then.includes('expectedCount')
-  const dataSection = needsData ? `    //Data
-    const expectedCount = 1;
-    ` : ''
+  const dataSection = needsData ? `//Data
+  const expectedCount = 1;
+  ` : ''
   
-  return `  test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
-    ${dataSection}    //GIVEN
-    ${given}
-    //WHEN
-    ${when}
-    //THEN
-    ${then}
-  });`
+  return `test('${scenario.id} - ${scenario.title}', { tag: ['${tags}'] }, async ({ page }) => {
+  ${dataSection}//GIVEN
+  ${given}
+  //WHEN
+  ${when}
+  //THEN
+  ${then}
+});`
 }
 
 // Function to suggest methods that should exist in page objects
