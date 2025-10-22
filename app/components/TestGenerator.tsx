@@ -299,6 +299,12 @@ export default function TestGenerator() {
                           // Use a more robust approach with state
                           const button = e.currentTarget as HTMLButtonElement
                           
+                          // Check if button exists and has innerHTML
+                          if (!button || button.innerHTML === null || button.innerHTML === undefined) {
+                            console.error('Button not found or innerHTML is null')
+                            return
+                          }
+                          
                           // Store original state safely
                           const originalHTML = button.innerHTML
                           const originalText = button.textContent || ''
@@ -322,12 +328,10 @@ export default function TestGenerator() {
                               }
                             } catch (resetError) {
                               console.error('Error resetting button:', resetError)
-                              // Don't show alert on reset error
                             }
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)
-                          // Don't show alert on copy error - just log it
                         }
                       }}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
