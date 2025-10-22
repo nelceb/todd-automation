@@ -308,7 +308,7 @@ export default function TestGenerator() {
                       }}
                       className={`flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] ${
                         copyButtonState === 'copied' 
-                          ? 'bg-green-500 border-green-500 text-white' 
+                          ? 'bg-green-600 border-green-600 text-white' 
                           : 'border-gray-600 hover:border-gray-700'
                       }`}
                       style={{ color: copyButtonState === 'copied' ? 'white' : '#344055' }}
