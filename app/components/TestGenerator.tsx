@@ -261,9 +261,6 @@ export default function TestGenerator() {
               <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg">
                 <div className="p-6">
                   <div className="text-center mb-6">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckBadgeIcon className="w-6 h-6 text-white" />
-                    </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">Test Generated Successfully</h3>
                     <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
                       Test has been created and committed to repository
