@@ -8,18 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 Analyzing framework from repository...');
     
-    // Check if we have GitHub token
-    const githubToken = process.env.GITHUB_TOKEN_NELCEB || process.env.GITHUB_TOKEN;
-    if (!githubToken) {
-      return NextResponse.json({ 
-        error: 'GitHub token not configured' 
-      }, { status: 500 });
-    }
-    
-    // Set environment variable for the script
-    if (githubToken) {
-      process.env.GITHUB_TOKEN = githubToken;
-    }
+    // For now, this endpoint is a placeholder
+    // TODO: Implement the analysis logic directly in this endpoint
     
     // For now, return a placeholder response since the script can't be imported in Vercel build
     // TODO: Implement the analysis logic directly in this endpoint
