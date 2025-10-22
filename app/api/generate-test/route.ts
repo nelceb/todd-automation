@@ -830,7 +830,7 @@ async function analyzeExistingMethods(repository: string, token: string): Promis
           if (methodMatches) {
             methodMatches.forEach(match => {
               const methodName = match.match(/async (\w+)\(/)?.[1]
-              if (methodName) {
+              if (methodName && typeof methodName === 'string') {
                 if (file.name.includes('home')) {
                   methods.homePage.push(methodName)
                 } else if (file.name.includes('orders')) {
