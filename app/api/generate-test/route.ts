@@ -144,32 +144,30 @@ function determineCategory(labels: string[], title: string): string {
 }
 
 function generateTags(labels: string[], framework: string, title: string, description: string): string[] {
-  const baseTags = [...labels]
+  const baseTags: string[] = []
   const content = `${title} ${description}`.toLowerCase()
   
   if (framework === 'playwright') {
+    // Always add base tags first
+    baseTags.push('@qa', '@e2e')
+    
     // Add coreUx tag for Orders Hub related tests
     if (content.includes('orders hub') || content.includes('orders') || content.includes('tooltip') || 
         content.includes('past orders') || content.includes('timeline')) {
-      if (!baseTags.includes('@coreUx')) baseTags.push('@coreUx')
+      baseTags.push('@coreUx')
     }
     
     // Add home tag for homepage related tests
     if (content.includes('homepage') || content.includes('home page') || content.includes('search bar')) {
-      if (!baseTags.includes('@home')) baseTags.push('@home')
+      baseTags.push('@home')
     }
     
     // Add subscription tag for subscription related tests
     if (content.includes('subscription') || content.includes('delivery') || content.includes('menu')) {
-      if (!baseTags.includes('@subscription')) baseTags.push('@subscription')
+      baseTags.push('@subscription')
     }
-    
-    // Always add base tags
-    if (!baseTags.includes('@qa')) baseTags.push('@qa')
-    if (!baseTags.includes('@e2e')) baseTags.push('@e2e')
   } else if (framework === 'selenium') {
-    if (!baseTags.includes('e2e')) baseTags.push('e2e')
-    if (!baseTags.includes('regression')) baseTags.push('regression')
+    baseTags.push('@qa', '@e2e')
   }
   
   return baseTags
@@ -610,6 +608,10 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     if (titleLower.includes('past orders') || titleLower.includes('rate')) {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
     await ordersHubPage.clickOnPastOrdersTab();`
+    } else if (titleLower.includes('partial cart') || titleLower.includes('partial')) {
+      return `// Create partial cart first
+    await homePage.clickOnAddMealButton(1);
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     } else {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     }
@@ -618,6 +620,10 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
     if (titleLower.includes('past orders') || titleLower.includes('rate')) {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
     await ordersHubPage.clickOnPastOrdersTab();`
+    } else if (titleLower.includes('partial cart') || titleLower.includes('partial')) {
+      return `// Create partial cart first
+    await homePage.clickOnAddMealButton(1);
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     } else {
       return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
     }
