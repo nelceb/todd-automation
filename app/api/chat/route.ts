@@ -172,6 +172,8 @@ PLAYWRIGHT:
 - "Execute lighthouse performance tests" → pw-cookunity-automation, PROD US - LCP Lighthouse, environment: "prod", groups: "@lcpLighthouse"
 - "Run growth tests in QA" → pw-cookunity-automation, QA US - GROWTH, environment: "qa", groups: "@growth"
 - "Execute core ux tests" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@coreUx"
+- "Run e2e core ux tests" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@e2e,@coreUx"
+- "Execute e2e core ux tests in QA" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@e2e,@coreUx"
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
@@ -207,9 +209,16 @@ IMPORTANT:
 - Choose the correct repository and workflow based on technology keywords
 - Map test types to correct inputs for each framework
 - Include user_email and user_password only for Maestro tests and only if explicitly mentioned
-- If environment not specified, default to "prod"
+- If environment not specified, default to "qa"
 - For Playwright: use appropriate groups (@e2e, @landings, @signup, @growth, @visual, @lighthouse)
 - For Selenium: use appropriate groups (e2e, api, mobile, regression, logistics, menu, kitchen)
+
+TAG COMBINATION RULES:
+- If user mentions multiple test types, combine them with commas
+- Examples: "e2e core ux" → groups: "@e2e,@coreUx"
+- Examples: "e2e signup" → groups: "@e2e,@signup"
+- Examples: "e2e growth" → groups: "@e2e,@growth"
+- Always combine ALL mentioned tags, don't just use the last one
 
 FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 1. If user mentions "selenium" or "java" or "testng" → use Selenium (automation-framework)
