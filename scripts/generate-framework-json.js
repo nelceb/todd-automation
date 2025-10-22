@@ -122,10 +122,8 @@ function parseFrameworkDoc(content) {
   // Parse Tags System - Manual parsing for better accuracy
   framework.tags = {
     base: [
-      { name: 'qa', description: 'All tests' },
-      { name: 'web-automation', description: 'Web tests' },
-      { name: 'e2e', description: 'End-to-end tests' },
-      { name: 'regression', description: 'Regression tests' }
+      { name: '@qa', description: 'All tests' },
+      { name: '@e2e', description: 'End-to-end tests' }
     ],
     feature: [
       { name: '@coreUx', description: 'Core UX tests' },

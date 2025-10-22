@@ -166,7 +166,6 @@ function generateTags(labels: string[], framework: string, title: string, descri
     
     // Always add base tags
     if (!baseTags.includes('@e2e')) baseTags.push('@e2e')
-    if (!baseTags.includes('@regression')) baseTags.push('@regression')
   } else if (framework === 'selenium') {
     if (!baseTags.includes('e2e')) baseTags.push('e2e')
     if (!baseTags.includes('regression')) baseTags.push('regression')

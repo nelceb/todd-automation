@@ -81,10 +81,8 @@ This document defines the architecture and patterns for the test automation fram
 ## Tags System
 
 ### Base Tags
-- `qa` - All tests
-- `web-automation` - Web tests
-- `e2e` - End-to-end tests
-- `regression` - Regression tests
+- `@qa` - All tests
+- `@e2e` - End-to-end tests
 
 ### Feature Tags
 - `@coreUx` - Core UX tests
