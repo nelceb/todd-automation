@@ -17,7 +17,9 @@ export async function GET(request: NextRequest) {
     }
     
     // Set environment variable for the script
-    process.env.GITHUB_TOKEN = githubToken;
+    if (githubToken) {
+      process.env.GITHUB_TOKEN = githubToken;
+    }
     
     // For now, return a placeholder response since the script can't be imported in Vercel build
     // TODO: Implement the analysis logic directly in this endpoint
