@@ -736,6 +736,15 @@ function generateSingleScenario(scenario: TestScenario, selectors: any, existing
     title: scenario.title 
   })
   
+  // Check if ordersHubPage is already declared in GIVEN
+  const hasOrdersHubInGiven = given.includes('ordersHubPage') || given.includes('ordersHub')
+  
+  // If ordersHubPage is already declared in GIVEN, remove the declaration from WHEN
+  let cleanWhen = when
+  if (hasOrdersHubInGiven && when.includes('const ordersHubPage = await homePage.clickOnOrdersHubNavItem();')) {
+    cleanWhen = when.replace(/const ordersHubPage = await homePage\.clickOnOrdersHubNavItem\(\);\s*/, '')
+  }
+  
   // Only include Data section if the test actually needs it
   const needsData = when.includes('expectedCount') || then.includes('expectedCount')
   const dataSection = needsData ? `//Data
@@ -746,7 +755,7 @@ function generateSingleScenario(scenario: TestScenario, selectors: any, existing
   ${dataSection}//GIVEN
   ${given}
   //WHEN
-  ${when}
+  ${cleanWhen}
   //THEN
   ${then}
 });`
