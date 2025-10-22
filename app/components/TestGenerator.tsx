@@ -322,14 +322,12 @@ export default function TestGenerator() {
                               }
                             } catch (resetError) {
                               console.error('Error resetting button:', resetError)
-                              // Fallback: just show success message
-                              alert('Test code copied to clipboard!')
+                              // Don't show alert on reset error
                             }
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)
-                          // Show fallback message
-                          alert('Test code copied to clipboard!')
+                          // Don't show alert on copy error - just log it
                         }
                       }}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
