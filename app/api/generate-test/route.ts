@@ -545,6 +545,12 @@ function generatePlaywrightWhenSteps(when: string, type: string = 'single', sele
   console.log('Generating WHEN steps for:', { when, whenLower, title, titleLower })
   
   if (whenLower.includes('taps orders tab') || whenLower.includes('navigates to orders') || whenLower.includes('user taps orders tab')) {
+    // Check if this is about partial cart
+    if (whenLower.includes('partial cart') || whenLower.includes('partially filled cart') || titleLower.includes('partial cart')) {
+      return `// Create partial cart first
+    await homePage.clickOnAddMealButton(1);
+    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    }
     return `const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
   } else if (whenLower.includes('taps past orders') || whenLower.includes('user taps past orders') || 
              titleLower.includes('past orders') || titleLower.includes('rate')) {
@@ -642,6 +648,10 @@ function generatePlaywrightThenAssertions(then: string, type: string = 'single',
     } else {
       return `expect.soft(await ordersHubPage.isEmptyStateVisible(), 'Empty state component is shown').toBeTruthy();`
     }
+  } else if (thenLower.includes('partial cart') || thenLower.includes('partial cart component') || 
+             whenLower.includes('partial cart') || titleLower.includes('partial cart')) {
+    // For partial cart component tests
+    return `expect.soft(await ordersHubPage.isPartialCartComponentVisible(), 'Partial cart component is shown as designed').toBeTruthy();`
   } else if (thenLower.includes('past orders') || thenLower.includes('history') || thenLower.includes('rate') || 
              titleLower.includes('past orders') || titleLower.includes('rate')) {
     // For past orders related tests
@@ -750,6 +760,10 @@ function suggestPageObjectMethods(acceptanceCriteria: AcceptanceCriteria): strin
   
   if (then.includes('empty state') && then.includes('cart')) {
     suggestions.push('isEmptyCartStateVisible() - Check if empty cart state is visible')
+  }
+  
+  if (then.includes('partial cart') || then.includes('partial cart component')) {
+    suggestions.push('isPartialCartComponentVisible() - Check if partial cart component is visible')
   }
   
   if (then.includes('empty state') && then.includes('past orders')) {
