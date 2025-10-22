@@ -298,8 +298,10 @@ export default function TestGenerator() {
                           
                           // Use a more robust approach with state
                           const button = e.currentTarget as HTMLButtonElement
-                          const originalText = button.textContent
+                          
+                          // Store original state safely
                           const originalHTML = button.innerHTML
+                          const originalText = button.textContent || ''
                           
                           // Change to success state
                           button.innerHTML = '<div class="flex items-center space-x-1 sm:space-x-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Copied!</span></div>'
@@ -310,11 +312,13 @@ export default function TestGenerator() {
                           
                           // Reset after 2 seconds
                           setTimeout(() => {
-                            button.innerHTML = originalHTML
-                            button.style.backgroundColor = ''
-                            button.style.borderColor = '#6B7280'
-                            button.style.color = '#344055'
-                            button.disabled = false
+                            if (button && button.innerHTML !== null) {
+                              button.innerHTML = originalHTML
+                              button.style.backgroundColor = ''
+                              button.style.borderColor = '#6B7280'
+                              button.style.color = '#344055'
+                              button.disabled = false
+                            }
                           }, 2000)
                         } catch (err) {
                           console.error('Failed to copy: ', err)

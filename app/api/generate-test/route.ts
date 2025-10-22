@@ -507,8 +507,7 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   if (givenLower.includes('user has no past orders') || givenLower.includes('empty state') || givenLower.includes('empty cart')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
-    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
-    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
   } else if (givenLower.includes('user has past orders') || givenLower.includes('past orders') || 
              titleLower.includes('past orders') || titleLower.includes('rate') || 
              thenLower.includes('past orders') || thenLower.includes('rate')) {
@@ -519,8 +518,7 @@ function generatePlaywrightGivenSteps(given: string, type: string = 'single', se
   } else if (givenLower.includes('user is on orders hub') || givenLower.includes('orders tab')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
-    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
-    const ordersHubPage = await homePage.clickOnOrdersHubNavItem();`
+    const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`
   } else if (givenLower.includes('user is on home page') || givenLower.includes('homepage')) {
     return `const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
     const loginPage = await siteMap.loginPage(page);
