@@ -104,23 +104,49 @@ export default function TestGenerator() {
   const generateTestFromCriteria = async (criteria: AcceptanceCriteria) => {
     setLoading(true)
     try {
-      const response = await fetch('/api/generate-test', {
+      // 1. Try smart synapse first
+      const smartResponse = await fetch('/api/smart-synapse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          acceptanceCriteria: criteria,
-          repository: 'Cook-Unity/pw-cookunity-automation', // Use Playwright for web tests
-          framework: criteria.framework
+          acceptanceCriteria: criteria.description
         })
       })
       
-      const data = await response.json()
+      const smartData = await smartResponse.json()
       
-      if (data.success) {
-        setGeneratedTest(data.generatedTest)
+      if (smartData.success) {
+        // Use smart synapse result
+        setGeneratedTest({
+          framework: criteria.framework,
+          fileName: `${criteria.id.toLowerCase()}.spec.ts`,
+          content: smartData.smartTest,
+          testPath: `tests/frontend/desktop/subscription/coreUx/${criteria.id.toLowerCase()}.spec.ts`,
+          branchName: `feature/${criteria.id}-${criteria.title.toLowerCase().replace(/\s+/g, '-')}`,
+          synapse: smartData.synapse,
+          generatedMethods: smartData.generatedMethods
+        })
         setStep('result')
       } else {
-        alert('Error: ' + data.error)
+        // Fallback to original method
+        const response = await fetch('/api/generate-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            acceptanceCriteria: criteria,
+            repository: 'Cook-Unity/pw-cookunity-automation',
+            framework: criteria.framework
+          })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setGeneratedTest(data.generatedTest)
+          setStep('result')
+        } else {
+          alert('Error: ' + data.error)
+        }
       }
     } catch (error) {
       alert('Error generating test: ' + error)
@@ -133,6 +159,7 @@ export default function TestGenerator() {
     if (!acceptanceCriteria) return
     await generateTestFromCriteria(acceptanceCriteria)
   }
+
 
   // Show error if there's one
   if (error) {
@@ -269,6 +296,45 @@ export default function TestGenerator() {
                   
                   
                   
+                  {/* Smart Synapse Analysis */}
+                  {generatedTest.synapse && (
+                    <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-blue-800 mb-3">🧠 Smart Synapse Analysis</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h5 className="font-medium text-blue-700 mb-2">👤 UsersHelper</h5>
+                          <p className="text-sm text-blue-600">{generatedTest.synapse.usersHelper.method}</p>
+                          <p className="text-xs text-blue-500">Confidence: {Math.round(generatedTest.synapse.usersHelper.confidence * 100)}%</p>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-blue-700 mb-2">🎯 Keywords Detected</h5>
+                          <div className="flex flex-wrap gap-1">
+                            {generatedTest.synapse.keywords.map((keyword: any, index: number) => (
+                              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                {keyword.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Generated Methods */}
+                  {generatedTest.generatedMethods && generatedTest.generatedMethods.length > 0 && (
+                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-green-800 mb-3">🛠️ Generated Methods</h4>
+                      {generatedTest.generatedMethods.map((method: any, index: number) => (
+                        <div key={index} className="mb-3">
+                          <h5 className="font-medium text-green-700 mb-1">Method {index + 1}</h5>
+                          <div className="bg-gray-900 text-green-400 p-3 rounded overflow-x-auto">
+                            <pre className="text-sm font-mono">{method.method}</pre>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Generated Code */}
                   <div>
                     <h4 className="font-semibold text-gray-800 mb-3">Generated Test Code</h4>
@@ -325,6 +391,7 @@ export default function TestGenerator() {
                         </>
                       )}
                     </button>
+                    
                     <button
                       onClick={() => window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${generatedTest.branchName}`, '_blank')}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
@@ -333,6 +400,7 @@ export default function TestGenerator() {
                       <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                       <span>View in GitHub</span>
                     </button>
+                    
                     <button
                       onClick={() => setStep('jira')}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
@@ -342,6 +410,7 @@ export default function TestGenerator() {
                       <span>Generate Another Test</span>
                     </button>
                   </div>
+                  
                 </div>
               </div>
             </motion.div>
