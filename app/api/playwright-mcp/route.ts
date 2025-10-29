@@ -15,13 +15,26 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Verificar si estamos en Vercel (serverless) - Playwright no funciona bien aquí
+    const isVercel = process.env.VERCEL === '1';
+    
+    if (isVercel) {
+      console.log('⚠️ Playwright MCP: Entorno Vercel detectado. Playwright no funciona en serverless.');
+      console.log('💡 Usando Smart Synapse como fallback. Para navegación real, usar localmente.');
+      
+      return NextResponse.json({ 
+        success: false,
+        error: 'Playwright MCP no funciona en Vercel serverless. Usa localmente o Smart Synapse como fallback.',
+        mode: 'serverless_unsupported',
+        fallback: true
+      }, { status: 200 });
+    }
+
     // Verificar si hay variables de entorno configuradas
     const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
     
     if (!hasCredentials) {
       console.log('⚠️ Playwright MCP: Variables de entorno no configuradas');
-      console.log('📝 Agrega TEST_EMAIL y VALID_LOGIN_PASSWORD a .env.local');
-      console.log('📖 Ver: CONFIGURACION_PLAYWRIGHT_MCP.md');
       
       return NextResponse.json({ 
         success: false,
