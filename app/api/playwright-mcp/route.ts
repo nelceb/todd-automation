@@ -43,11 +43,10 @@ export async function POST(request: NextRequest) {
     // Configurar Chromium para serverless o local
     if (isVercel) {
       // En Vercel: usar @sparticuz/chromium optimizado para serverless
-      chromium.setGraphicsMode(false);
       browser = await playwright.chromium.launch({
         args: chromium.args,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       });
       console.log('✅ Playwright MCP: Usando Chromium optimizado para serverless');
     } else {
