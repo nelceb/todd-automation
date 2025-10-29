@@ -198,9 +198,9 @@ function extractAssertions(criteria: string) {
 
 function determineURL(context: string) {
   const urls: Record<string, string> = {
-    homepage: 'https://cook-unity.com/menu',
-    ordersHub: 'https://cook-unity.com/orders-hub',
-    search: 'https://cook-unity.com/search'
+    homepage: 'https://qa.cookunity.com/menu',
+    ordersHub: 'https://qa.cookunity.com/orders-hub',
+    search: 'https://qa.cookunity.com/search'
   };
   
   return urls[context] || urls.homepage;
@@ -209,19 +209,20 @@ function determineURL(context: string) {
 // 🎯 PASO CRÍTICO: Login PRIMERO antes de navegar
 async function loginToApp(page: Page) {
   try {
-    // 1. Ir a la página de login
-    await page.goto('https://cook-unity.com/login', { waitUntil: 'networkidle' });
+    // 1. Ir a la página de login de QA
+    const loginURL = 'https://auth.qa.cookunity.com/login?state=hKFo2SBYOW5CeU5WWllDMmZsQlRGRGVZNEFoVmZEOXc4LVhlNqFupWxvZ2luo3RpZNkgWmltR2h6b0RGbVdscnU3QzJ0YllSaGlmSzFwY0F5MFSjY2lk2SBnbDg4NWwwbjNzS3E0WU1TSGhuUHB3VzU5M3NXdjFHSw&client=gl885l0n3sKq4YMSHhnPpwW593sWv1GK&protocol=oauth2&scope=openid%20profile%20email&response_type=code&redirect_uri=https%3A%2F%2Fqa.cookunity.com%2Fapi%2Fauth%2Fcallback&rebexp=TREATMENT&countryCode=US&nonce=AGH3IaNdWbZGjuP_gvjCiJzI0G0zEAi9Qc7QfCOuGKY&code_challenge_method=S256&code_challenge=oZN7s6AFoeeQP-bkKlW8_irQWhf2rlR8GcVFHryatFI';
+    await page.goto(loginURL, { waitUntil: 'networkidle', timeout: 30000 });
     
     // 2. Esperar a que los campos de login estén visibles
-    await page.waitForSelector('input[name="email"], input[type="email"]', { timeout: 10000 });
+    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"]', { timeout: 15000 });
     
     // 3. Llenar email
-    const emailInput = page.locator('input[name="email"], input[type="email"]').first();
+    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"]').first();
     await emailInput.click();
     await emailInput.fill(process.env.TEST_EMAIL || 'test@example.com');
     
     // 4. Llenar password
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = page.locator('input[name="password"], input[type="password"], input[id*="password"], input[id*="Password"]').first();
     await passwordInput.click();
     await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || 'password');
     
@@ -229,8 +230,8 @@ async function loginToApp(page: Page) {
     const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
     await submitButton.click();
     
-    // 6. Esperar a que el login sea exitoso (navega a /menu)
-    await page.waitForURL('**/menu**', { timeout: 15000 });
+    // 6. Esperar a que el login sea exitoso (redirige a qa.cookunity.com/menu)
+    await page.waitForURL(/\/(qa\.)?cookunity\.com\/.*/, { timeout: 20000 });
     
     return {
       success: true,
