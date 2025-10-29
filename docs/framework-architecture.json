@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-10-22T14:11:56.188Z",
+  "lastUpdated": "2025-10-24T13:36:30.739Z",
   "pageObjects": {
     "HomePage": {
       "location": "tests/frontend/desktop/subscription/coreUx/homePage.ts",

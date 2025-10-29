@@ -206,39 +206,151 @@ function determineURL(context: string) {
   return urls[context] || urls.homepage;
 }
 
-// 🎯 PASO CRÍTICO: Login PRIMERO antes de navegar
+// 🎯 PLAYWRIGHT MCP-STYLE OBSERVABILIDAD: Usar accessibility snapshot (como browser_snapshot de MCP)
+// Esto es lo que Playwright MCP hace internamente - usar el accessibility tree
+async function observePageWithAccessibility(page: Page) {
+  console.log('👀 Playwright MCP-style: Obteniendo accessibility snapshot de la página...');
+  
+  // Obtener snapshot de accesibilidad (equivalente a browser_snapshot de Playwright MCP)
+  const snapshot = await page.accessibility.snapshot();
+  
+  if (!snapshot) {
+    return null;
+  }
+  
+  console.log(`✅ Accessibility snapshot obtenido con ${JSON.stringify(snapshot).length} bytes`);
+  return snapshot;
+}
+
+// 🎯 Encontrar elemento usando accessibility snapshot (self-healing como MCP)
+async function findElementWithAccessibility(page: Page, intent: string) {
+  console.log(`🔍 Playwright MCP-style: Buscando "${intent}" usando accessibility tree...`);
+  
+  // 1. Obtener snapshot de accesibilidad
+  const snapshot = await observePageWithAccessibility(page);
+  
+  // 2. Buscar en el snapshot (similar a cómo MCP usa refs del snapshot)
+  // Por ahora, usar múltiples estrategias de Playwright nativo
+  const keywords = intent.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  
+  // Estrategia 1: getByRole con texto que contiene keywords
+  for (const keyword of keywords) {
+    try {
+      const element = page.getByRole('button', { name: new RegExp(keyword, 'i') }).first();
+      if (await element.isVisible({ timeout: 2000 })) {
+        const text = await element.textContent();
+        console.log(`✅ Encontrado con accessibility (getByRole): "${text?.trim()}"`);
+        return element;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  
+  // Estrategia 2: getByLabel si es un campo de formulario
+  for (const keyword of keywords) {
+    try {
+      const element = page.getByLabel(new RegExp(keyword, 'i')).first();
+      if (await element.isVisible({ timeout: 2000 })) {
+        console.log(`✅ Encontrado con accessibility (getByLabel): label con "${keyword}"`);
+        return element;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  
+  // Estrategia 3: getByText
+  for (const keyword of keywords) {
+    try {
+      const element = page.getByText(new RegExp(keyword, 'i')).first();
+      if (await element.isVisible({ timeout: 2000 })) {
+        console.log(`✅ Encontrado con accessibility (getByText): texto "${keyword}"`);
+        return element;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  
+  // Estrategia 4: data-testid
+  for (const keyword of keywords) {
+    try {
+      const element = page.locator(`[data-testid*="${keyword}" i]`).first();
+      if (await element.isVisible({ timeout: 2000 })) {
+        console.log(`✅ Encontrado con accessibility (data-testid): contiene "${keyword}"`);
+        return element;
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  
+  throw new Error(`No se pudo encontrar elemento para "${intent}" usando accessibility tree`);
+}
+
+// 🎯 PASO CRÍTICO: Login usando OBSERVABILIDAD desde el inicio
 async function loginToApp(page: Page) {
   try {
-    // 1. Ir a la página de login de QA
-    const loginURL = 'https://auth.qa.cookunity.com/login?state=hKFo2SBYOW5CeU5WWllDMmZsQlRGRGVZNEFoVmZEOXc4LVhlNqFupWxvZ2luo3RpZNkgWmltR2h6b0RGbVdscnU3QzJ0YllSaGlmSzFwY0F5MFSjY2lk2SBnbDg4NWwwbjNzS3E0WU1TSGhuUHB3VzU5M3NXdjFHSw&client=gl885l0n3sKq4YMSHhnPpwW593sWv1GK&protocol=oauth2&scope=openid%20profile%20email&response_type=code&redirect_uri=https%3A%2F%2Fqa.cookunity.com%2Fapi%2Fauth%2Fcallback&rebexp=TREATMENT&countryCode=US&nonce=AGH3IaNdWbZGjuP_gvjCiJzI0G0zEAi9Qc7QfCOuGKY&code_challenge_method=S256&code_challenge=oZN7s6AFoeeQP-bkKlW8_irQWhf2rlR8GcVFHryatFI';
-    await page.goto(loginURL, { waitUntil: 'networkidle', timeout: 30000 });
+    // 1. Ir a qa.cookunity.com y EMPEZAR A OBSERVAR
+    console.log('🔐 Navegando a qa.cookunity.com para iniciar login...');
+    await page.goto('https://qa.cookunity.com', { waitUntil: 'networkidle', timeout: 30000 });
+    console.log(`✅ Página cargada: ${page.url()}`);
     
-    // 2. Esperar a que los campos de login estén visibles
-    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"]', { timeout: 15000 });
+    // 2. Observar la página usando accessibility snapshot (como Playwright MCP)
+    console.log('👀 Empezando observabilidad MCP-style: obteniendo accessibility snapshot...');
+    await page.waitForLoadState('networkidle');
     
-    // 3. Llenar email
-    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"]').first();
-    await emailInput.click();
-    await emailInput.fill(process.env.TEST_EMAIL || 'test@example.com');
+    // Obtener snapshot de accesibilidad (equivalente a browser_snapshot de MCP)
+    await observePageWithAccessibility(page);
     
-    // 4. Llenar password
+    // 3. Encontrar el botón de login usando accessibility tree
+    console.log('🔍 Buscando botón de login usando accessibility tree...');
+    const loginButton = await findElementWithAccessibility(page, 'log in');
+    
+    // 4. Click en el botón de login encontrado
+    console.log('🚀 Click en botón de login encontrado...');
+    await loginButton.click({ timeout: 5000 });
+    
+    // 4. Esperar a que redirija al login (auth.qa.cookunity.com)
+    console.log('⏳ Esperando redirección al formulario de login...');
+    await page.waitForURL(/auth\.qa\.cookunity\.com/, { timeout: 20000 });
+    console.log(`✅ Redirigido a: ${page.url()}`);
+    
+    // 5. Esperar a que los campos de login estén visibles
+    console.log('🔍 Esperando campos de login...');
+    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]', { timeout: 15000 });
+    
+    // 6. Llenar email
+    console.log('📧 Llenando email...');
+    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]').first();
+    await emailInput.click({ timeout: 5000 });
+    await emailInput.fill(process.env.TEST_EMAIL || '', { timeout: 5000 });
+    
+    // 7. Llenar password
+    console.log('🔑 Llenando password...');
     const passwordInput = page.locator('input[name="password"], input[type="password"], input[id*="password"], input[id*="Password"]').first();
-    await passwordInput.click();
-    await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || 'password');
+    await passwordInput.click({ timeout: 5000 });
+    await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || '', { timeout: 5000 });
     
-    // 5. Click en submit
-    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
-    await submitButton.click();
+    // 8. Click en submit
+    console.log('🚀 Haciendo click en submit...');
+    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in")').first();
+    await submitButton.click({ timeout: 5000 });
     
-    // 6. Esperar a que el login sea exitoso (redirige a qa.cookunity.com/menu)
-    await page.waitForURL(/\/(qa\.)?cookunity\.com\/.*/, { timeout: 20000 });
+    // 9. Esperar a que el login sea exitoso (redirige a qa.cookunity.com)
+    console.log('✅ Esperando redirección después del login...');
+    await page.waitForURL(/qa\.cookunity\.com/, { timeout: 20000 });
+    
+    console.log(`✅ Login exitoso! URL final: ${page.url()}`);
     
     return {
       success: true,
       url: page.url(),
-      message: 'Login successful'
+      message: 'Login successful - usando observabilidad para encontrar botón de login'
     };
   } catch (error) {
+    console.error('❌ Error en login:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error)
