@@ -6,6 +6,18 @@ const nextConfig = {
     GITHUB_OWNER: process.env.GITHUB_OWNER || 'cookunity',
     GITHUB_REPO: process.env.GITHUB_REPO || 'test-runner-ai',
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Excluir playwright-core y @sparticuz/chromium del bundling
+      config.externals = config.externals || [];
+      config.externals.push({
+        'playwright-core': 'commonjs playwright-core',
+        '@sparticuz/chromium': 'commonjs @sparticuz/chromium',
+        'playwright': 'commonjs playwright',
+      });
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig
