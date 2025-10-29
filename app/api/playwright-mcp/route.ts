@@ -406,6 +406,8 @@ async function observeBehavior(page: Page, interpretation: any) {
       observed: boolean;
       exists?: boolean;
       visible?: boolean;
+      foundBy?: string;
+      note?: string;
       error?: string;
     }>;
     elements: Array<{ testId: string | null; text: string | null }>;
@@ -437,37 +439,65 @@ async function observeBehavior(page: Page, interpretation: any) {
     
     behavior.elements = visibleElements;
     
-    // Intentar realizar cada acción y observar el resultado
+    // Intentar realizar cada acción y observar el resultado usando MCP-style observability
     for (const action of interpretation.actions) {
       try {
-        // Buscar el elemento usando el selector
-        const element = page.locator(action.selector);
-        const isVisible = await element.isVisible();
+        // 🎯 MCP-STYLE: Intentar encontrar el elemento usando accessibility tree primero
+        let foundElement = null;
+        let foundBy = null;
         
-        if (isVisible) {
-          // Elemento existe y es visible
+        // Estrategia 1: Buscar usando accessibility tree (keywords del elemento)
+        try {
+          const elementKeywords = action.element.toLowerCase().replace(/([A-Z])/g, ' $1').trim();
+          foundElement = await findElementWithAccessibility(page, elementKeywords);
+          foundBy = 'accessibility';
+        } catch (accessibilityError) {
+          // Estrategia 2: Intentar con selector data-testid si está disponible
+          try {
+            if (action.selector && action.selector.includes('data-testid')) {
+              const testId = action.selector.match(/data-testid="([^"]+)"/)?.[1];
+              if (testId) {
+                foundElement = page.locator(`[data-testid="${testId}"]`).first();
+                const isVisible = await foundElement.isVisible({ timeout: 2000 });
+                if (isVisible) {
+                  foundBy = 'data-testid';
+                } else {
+                  foundElement = null;
+                }
+              }
+            }
+          } catch (testIdError) {
+            // Continuar
+          }
+        }
+        
+        if (foundElement && foundBy) {
+          // Elemento encontrado usando observabilidad MCP-style
+          const isVisible = await foundElement.isVisible({ timeout: 2000 });
           behavior.interactions.push({
             type: action.type,
             element: action.element,
             selector: action.selector,
             observed: true,
             exists: true,
-            visible: true
+            visible: isVisible,
+            foundBy: foundBy,
+            note: isVisible ? 'Found and visible' : 'Found but not visible'
           });
         } else {
-          // Elemento existe pero no es visible
+          // Elemento no encontrado en este momento (puede aparecer después de interacciones)
           behavior.interactions.push({
             type: action.type,
             element: action.element,
             selector: action.selector,
             observed: false,
-            exists: true,
+            exists: false,
             visible: false,
-            error: 'Element exists but is not visible'
+            note: 'Not found during observation - may appear after interactions'
           });
         }
       } catch (error) {
-        // Elemento no existe
+        // Error al observar
         behavior.interactions.push({
           type: action.type,
           element: action.element,
@@ -559,17 +589,28 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const loginPage = await siteMap.loginPage(page);
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
   
-  // Agregar acciones observadas (solo las que realmente existen)
-  if (behavior.interactions.length > 0) {
+  // Agregar acciones del acceptance criteria (basado en interpretation.actions, no solo las visibles)
+  // Esto asegura que todas las acciones detectadas del acceptance criteria se incluyan en el test
+  if (interpretation.actions.length > 0) {
+    testCode += `\n\n  //WHEN - Actions from acceptance criteria (observed with Playwright MCP)`;
+    
+    for (const action of interpretation.actions) {
+      const elementName = action.element;
+      const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
+      
+      // Incluir todas las acciones del acceptance criteria, independientemente de si están visibles ahora
+      // (pueden aparecer después de interacciones previas)
+      testCode += `\n  await homePage.${methodName}();`;
+    }
+  } else if (behavior.interactions.length > 0) {
+    // Fallback: si no hay acciones en interpretation, usar las observadas
     testCode += `\n\n  //WHEN - Observed with Playwright MCP (Real Navigation)`;
     
     for (const interaction of behavior.interactions) {
-      if (interaction.observed && interaction.exists && interaction.visible) {
-        const elementName = interaction.element;
-        const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
-        
-        testCode += `\n  await homePage.${methodName}();`;
-      }
+      const elementName = interaction.element;
+      const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
+      
+      testCode += `\n  await homePage.${methodName}();`;
     }
   }
   
