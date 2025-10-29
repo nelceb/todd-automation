@@ -8,11 +8,37 @@ export async function POST(request: NextRequest) {
     const { acceptanceCriteria } = await request.json();
     
     if (!acceptanceCriteria) {
-      return NextResponse.json({ error: 'Acceptance criteria is required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        error: 'Acceptance criteria is required' 
+      }, { status: 400 });
+    }
+
+    // Verificar si hay variables de entorno configuradas
+    const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
+    
+    if (!hasCredentials) {
+      console.log('⚠️ Playwright MCP: Variables de entorno no configuradas, usando modo simulado');
+      // Modo simulado: solo interpretar y generar sin navegar
+      const interpretation = interpretAcceptanceCriteria(acceptanceCriteria);
+      const navigation = { success: false, method: 'Simulated (no credentials)' };
+      const behavior = await simulateBehavior(interpretation);
+      const smartTest = generateTestFromObservations(interpretation, navigation, behavior);
+      
+      return NextResponse.json({
+        success: true,
+        interpretation,
+        navigation,
+        behavior,
+        smartTest,
+        mode: 'simulated'
+      });
     }
 
     // 1. Interpretar acceptance criteria
     const interpretation = interpretAcceptanceCriteria(acceptanceCriteria);
+    
+    console.log('🚀 Playwright MCP: Iniciando navegación real...');
     
     // 2. ¡NAVEGAR REALMENTE con Playwright!
     browser = await chromium.launch({ headless: true });
@@ -23,23 +49,44 @@ export async function POST(request: NextRequest) {
     const loginResult = await loginToApp(page);
     
     if (!loginResult.success) {
+      console.log('❌ Playwright MCP: Login falló, cerrando navegador');
       await browser.close();
+      // Devuelve success: false para que el cliente haga fallback
       return NextResponse.json({ 
         success: false, 
-        error: `Login failed: ${loginResult.error}` 
-      }, { status: 500 });
+        error: `Login failed: ${loginResult.error}`,
+        fallback: true // Indica que debe usar fallback
+      }, { status: 200 }); // Status 200 para que no se considere error HTTP
     }
+    
+    console.log('✅ Playwright MCP: Login exitoso, navegando a URL objetivo...');
     
     // 4. Navegar a la URL objetivo
     const navigation = await navigateToTargetURL(page, interpretation);
     
+    if (!navigation.success) {
+      console.log('❌ Playwright MCP: Navegación falló');
+      await browser.close();
+      return NextResponse.json({ 
+        success: false, 
+        error: `Navigation failed: ${navigation.error}`,
+        fallback: true
+      }, { status: 200 });
+    }
+    
+    console.log('👀 Playwright MCP: Observando comportamiento...');
+    
     // 5. Observar comportamiento REAL
     const behavior = await observeBehavior(page, interpretation);
+    
+    console.log(`✅ Playwright MCP: Observados ${behavior.elements.length} elementos`);
     
     // 6. Generar test con datos reales observados
     const smartTest = generateTestFromObservations(interpretation, navigation, behavior);
     
     await browser.close();
+    
+    console.log('✅ Playwright MCP: Test generado exitosamente');
     
     return NextResponse.json({
       success: true,
@@ -47,15 +94,24 @@ export async function POST(request: NextRequest) {
       loginResult,
       navigation,
       behavior,
-      smartTest
+      smartTest,
+      mode: 'real'
     });
   } catch (error) {
-    console.error('Playwright MCP Error:', error);
-    if (browser) await browser.close();
+    console.error('❌ Playwright MCP Error:', error);
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('Error cerrando navegador:', closeError);
+      }
+    }
+    // Devuelve success: false para fallback, pero no como error HTTP
     return NextResponse.json({ 
       success: false, 
-      error: `Internal server error: ${error instanceof Error ? error.message : String(error)}` 
-    }, { status: 500 });
+      error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
+      fallback: true
+    }, { status: 200 });
   }
 }
 
@@ -279,6 +335,32 @@ async function observePageState(page: Page) {
     title,
     timestamp: Date.now()
   };
+}
+
+// Simular comportamiento (cuando no hay credenciales)
+async function simulateBehavior(interpretation: any) {
+  const behavior = {
+    observed: false,
+    interactions: [],
+    elements: [],
+    observations: []
+  };
+  
+  // Simular observación de cada acción
+  for (const action of interpretation.actions) {
+    behavior.interactions.push({
+      type: action.type,
+      element: action.element,
+      observed: true, // Asumimos que existe para simular
+      selfHealing: true,
+      selector: action.selector,
+      exists: true,
+      visible: true,
+      simulated: true
+    });
+  }
+  
+  return behavior;
 }
 
 // Generar test desde observaciones reales
