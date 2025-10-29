@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chromium, Browser, Page } from 'playwright';
+import { execSync } from 'child_process';
 
 export async function POST(request: NextRequest) {
   let browser: Browser | null = null;
@@ -37,7 +38,30 @@ export async function POST(request: NextRequest) {
     console.log('🚀 Playwright MCP: Iniciando navegación real...');
     
     // 2. ¡NAVEGAR REALMENTE con Playwright!
-    browser = await chromium.launch({ headless: true });
+    try {
+      browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Necesario para serverless
+      });
+    } catch (error: any) {
+      // Si falla por falta de chromium, intentar instalarlo
+      if (error.message?.includes('Executable doesn\'t exist') || error.message?.includes('chromium')) {
+        console.log('⚠️ Playwright MCP: Chromium no encontrado, intentando instalar...');
+        try {
+          execSync('npx playwright install chromium', { stdio: 'inherit', timeout: 120000 });
+          // Intentar de nuevo
+          browser = await chromium.launch({ 
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+        } catch (installError) {
+          console.error('❌ Playwright MCP: No se pudo instalar Chromium:', installError);
+          throw new Error('Chromium binary not available. Playwright needs to be installed with: npx playwright install chromium');
+        }
+      } else {
+        throw error;
+      }
+    }
     const context = await browser.newContext();
     const page = await context.newPage();
     
