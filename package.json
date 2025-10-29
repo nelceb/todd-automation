@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "playwright install chromium || true"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
