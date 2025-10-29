@@ -104,7 +104,36 @@ export default function TestGenerator() {
   const generateTestFromCriteria = async (criteria: AcceptanceCriteria) => {
     setLoading(true)
     try {
-      // 1. Try smart synapse first
+      // 🚀 NEW: Try Playwright MCP first (GAME CHANGER!)
+      const mcpResponse = await fetch('/api/playwright-mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptanceCriteria: criteria.description
+        })
+      })
+      
+      const mcpData = await mcpResponse.json()
+      
+      if (mcpData.success) {
+        // Use Playwright MCP result (observed behavior!)
+        setGeneratedTest({
+          framework: criteria.framework,
+          fileName: `${criteria.id.toLowerCase()}.spec.ts`,
+          content: mcpData.smartTest,
+          testPath: `tests/frontend/desktop/subscription/coreUx/${criteria.id.toLowerCase()}.spec.ts`,
+          branchName: `feature/${criteria.id}-${criteria.title.toLowerCase().replace(/\s+/g, '-')}`,
+          mcpData: {
+            interpretation: mcpData.interpretation,
+            loginResult: mcpData.loginResult,
+            behavior: mcpData.behavior
+          }
+        })
+        setStep('result')
+        return
+      }
+      
+      // 2. Fallback to Smart Synapse
       const smartResponse = await fetch('/api/smart-synapse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,7 +145,6 @@ export default function TestGenerator() {
       const smartData = await smartResponse.json()
       
       if (smartData.success) {
-        // Use smart synapse result
         setGeneratedTest({
           framework: criteria.framework,
           fileName: `${criteria.id.toLowerCase()}.spec.ts`,
@@ -128,7 +156,7 @@ export default function TestGenerator() {
         })
         setStep('result')
       } else {
-        // Fallback to original method
+        // Final fallback to original method
         const response = await fetch('/api/generate-test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -296,6 +324,33 @@ export default function TestGenerator() {
                   
                   
                   
+                  {/* TODD Ultimate Analysis */}
+                  {generatedTest.interpretation && (
+                    <div className="mb-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-purple-800 mb-3">🚀 TODD Ultimate Analysis</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <h5 className="font-medium text-purple-700 mb-2">🧠 Interpretation</h5>
+                          <p className="text-sm text-purple-600">Context: {generatedTest.interpretation.context}</p>
+                          <p className="text-sm text-purple-600">UsersHelper: {generatedTest.interpretation.usersHelper}</p>
+                          <p className="text-sm text-purple-600">Tags: {generatedTest.interpretation.tags.join(', ')}</p>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-purple-700 mb-2">🌐 Navigation</h5>
+                          <p className="text-sm text-purple-600">URL: {generatedTest.navigation?.url}</p>
+                          <p className="text-sm text-purple-600">Steps: {generatedTest.navigation?.steps?.length}</p>
+                          <p className="text-sm text-purple-600">Self-Healing: {generatedTest.navigation?.selfHealing ? '✅' : '❌'}</p>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-purple-700 mb-2">👀 Behavior</h5>
+                          <p className="text-sm text-purple-600">Observed: {generatedTest.behavior?.observed ? '✅' : '❌'}</p>
+                          <p className="text-sm text-purple-600">Interactions: {generatedTest.behavior?.interactions?.length}</p>
+                          <p className="text-sm text-purple-600">Self-Healing: {generatedTest.behavior?.interactions?.[0]?.selfHealing ? '✅' : '❌'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Smart Synapse Analysis */}
                   {generatedTest.synapse && (
                     <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
