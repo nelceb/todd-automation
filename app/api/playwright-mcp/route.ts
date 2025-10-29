@@ -120,19 +120,42 @@ function interpretAcceptanceCriteria(criteria: string) {
 }
 
 function detectContext(criteria: string) {
+  if (criteria.includes('past order') || criteria.includes('past orders')) return 'pastOrders';
+  if (criteria.includes('orders hub') || criteria.includes('order hub')) return 'ordersHub';
   if (criteria.includes('home') || criteria.includes('homepage')) return 'homepage';
-  if (criteria.includes('orders hub')) return 'ordersHub';
   if (criteria.includes('search')) return 'search';
+  // Por defecto, si hay "order" podría ser ordersHub
+  if (criteria.includes('order') && !criteria.includes('cart')) return 'ordersHub';
   return 'homepage';
 }
 
 function extractActions(criteria: string) {
   const actions = [];
   
+  // Detectar invoice icon en past order
+  if ((criteria.includes('invoice icon') || criteria.includes('invoice') || criteria.includes('taps invoice')) && 
+      (criteria.includes('past order') || criteria.includes('past orders'))) {
+    actions.push({ type: 'click', element: 'invoiceIcon', selector: '[data-testid*="invoice"], [aria-label*="invoice" i], button:has-text("invoice"), [data-testid*="invoice-icon"]' });
+  }
+  
+  // Detectar clicks en past order
+  if (criteria.includes('past order') || criteria.includes('past orders')) {
+    if (criteria.includes('tap') || criteria.includes('click')) {
+      actions.push({ type: 'click', element: 'pastOrderItem', selector: '[data-testid*="past-order"], [data-testid*="order-item"]' });
+    }
+  }
+  
+  // Detectar modal actions
+  if (criteria.includes('modal') && criteria.includes('open')) {
+    actions.push({ type: 'click', element: 'modalTrigger', selector: '[data-testid*="modal-trigger"], button:has-text("view"), button:has-text("open")' });
+  }
+  
   if (criteria.includes('add') && (criteria.includes('item') || criteria.includes('meal'))) {
     actions.push({ type: 'click', element: 'addMealButton', selector: '[data-testid="add-meal-btn"]' });
   }
-  if (criteria.includes('cart') || criteria.includes('open cart')) {
+  // Solo detectar cart si NO hay invoice/past order (evitar falsos positivos)
+  if ((criteria.includes('cart') || criteria.includes('open cart')) && 
+      !criteria.includes('invoice') && !criteria.includes('past order')) {
     actions.push({ type: 'click', element: 'cartButton', selector: '[data-testid="cart-btn"]' });
   }
   if (criteria.includes('orders hub') || criteria.includes('navigate to orders hub')) {
@@ -151,6 +174,18 @@ function extractActions(criteria: string) {
 function extractAssertions(criteria: string) {
   const assertions = [];
   
+  // Detectar modal displayed
+  if ((criteria.includes('modal') && criteria.includes('display')) || 
+      (criteria.includes('modal') && criteria.includes('shown')) ||
+      (criteria.includes('modal') && criteria.includes('displayed correctly'))) {
+    assertions.push({ type: 'visibility', description: 'Invoice modal should be displayed correctly', element: 'invoiceModal' });
+  }
+  
+  // Detectar invoice details
+  if (criteria.includes('invoice') && (criteria.includes('detail') || criteria.includes('view'))) {
+    assertions.push({ type: 'visibility', description: 'Invoice details should be visible', element: 'invoiceDetails' });
+  }
+  
   if (criteria.includes('visible') || criteria.includes('show')) {
     assertions.push({ type: 'visibility', description: 'Element should be visible' });
   }
@@ -168,6 +203,7 @@ function determineURL(context: string) {
   const urls: Record<string, string> = {
     homepage: 'https://qa.cookunity.com', // Empezar desde la homepage base después del login
     ordersHub: 'https://qa.cookunity.com/orders-hub',
+    pastOrders: 'https://qa.cookunity.com/orders-hub', // Past orders está en orders-hub
     search: 'https://qa.cookunity.com/search'
   };
   
@@ -581,13 +617,23 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const tags = ['@qa', '@e2e'];
   
   if (interpretation.context === 'homepage') tags.push('@home');
-  if (interpretation.context === 'ordersHub') tags.push('@subscription');
+  if (interpretation.context === 'ordersHub' || interpretation.context === 'pastOrders') tags.push('@subscription');
+  
+  // Determinar qué página usar según el contexto
+  const pageVarName = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub' 
+    ? 'ordersHubPage' 
+    : 'homePage';
+  
+  const pageInitialization = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub'
+    ? `const ${pageVarName} = await homePage.navigateToOrdersHub();`
+    : `const ${pageVarName} = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
   
   let testCode = `test('${testTitle}', { tag: [${tags.map(t => `'${t}'`).join(', ')}] }, async ({ page }) => {
   //GIVEN
   const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
   const loginPage = await siteMap.loginPage(page);
-  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
+  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+  ${pageInitialization}`;
   
   // Agregar acciones del acceptance criteria (basado en interpretation.actions, no solo las visibles)
   // Esto asegura que todas las acciones detectadas del acceptance criteria se incluyan en el test
@@ -600,7 +646,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       // Incluir todas las acciones del acceptance criteria, independientemente de si están visibles ahora
       // (pueden aparecer después de interacciones previas)
-      testCode += `\n  await homePage.${methodName}();`;
+      testCode += `\n  await ${pageVarName}.${methodName}();`;
     }
   } else if (behavior.interactions.length > 0) {
     // Fallback: si no hay acciones en interpretation, usar las observadas
@@ -610,7 +656,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       const elementName = interaction.element;
       const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
       
-      testCode += `\n  await homePage.${methodName}();`;
+      testCode += `\n  await ${pageVarName}.${methodName}();`;
     }
   }
   
@@ -620,7 +666,14 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     
     for (const assertion of interpretation.assertions) {
       if (assertion.type === 'visibility') {
-        testCode += `\n  expect.soft(await homePage.isElementVisible(), '${assertion.description}').toBeTruthy();`;
+        // Si la assertion tiene un element específico, usar ese método
+        if (assertion.element === 'invoiceModal') {
+          testCode += `\n  expect(await ${pageVarName}.isInvoiceModalVisible(), '${assertion.description}').toBeTruthy();`;
+        } else if (assertion.element === 'invoiceDetails') {
+          testCode += `\n  expect(await ${pageVarName}.isInvoiceDetailsVisible(), '${assertion.description}').toBeTruthy();`;
+        } else {
+          testCode += `\n  expect.soft(await ${pageVarName}.isElementVisible(), '${assertion.description}').toBeTruthy();`;
+        }
       }
     }
   }
