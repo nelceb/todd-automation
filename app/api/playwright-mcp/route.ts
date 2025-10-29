@@ -242,7 +242,15 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
 async function observeBehavior(page: Page, interpretation: any) {
   const behavior: {
     observed: boolean;
-    interactions: any[];
+    interactions: Array<{
+      type: any;
+      element: any;
+      selector?: any;
+      observed: boolean;
+      exists?: boolean;
+      visible?: boolean;
+      error?: string;
+    }>;
     elements: Array<{ testId: string | null; text: string | null }>;
     observations: any[];
     error?: string;
@@ -341,7 +349,22 @@ async function observePageState(page: Page) {
 
 // Simular comportamiento (cuando no hay credenciales)
 async function simulateBehavior(interpretation: any) {
-  const behavior = {
+  const behavior: {
+    observed: boolean;
+    interactions: Array<{
+      type: any;
+      element: any;
+      observed: boolean;
+      selfHealing: boolean;
+      selector: any;
+      exists: boolean;
+      visible: boolean;
+      simulated: boolean;
+    }>;
+    elements: Array<{ testId: string | null; text: string | null }>;
+    observations: any[];
+    error?: string;
+  } = {
     observed: false,
     interactions: [],
     elements: [],

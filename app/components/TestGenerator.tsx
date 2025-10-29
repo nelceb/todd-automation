@@ -36,6 +36,12 @@ interface GeneratedTest {
   content: string
   testPath: string
   branchName: string
+  mcpData?: any
+  synapse?: any
+  generatedMethods?: any
+  interpretation?: any
+  navigation?: any
+  behavior?: any
 }
 
 export default function TestGenerator() {
