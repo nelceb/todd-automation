@@ -240,7 +240,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
 
 // Observar comportamiento REAL en la página
 async function observeBehavior(page: Page, interpretation: any) {
-  const behavior = {
+  const behavior: {
+    observed: boolean;
+    interactions: any[];
+    elements: Array<{ testId: string | null; text: string | null }>;
+    observations: any[];
+  } = {
     observed: true,
     interactions: [],
     elements: [],
@@ -253,7 +258,7 @@ async function observeBehavior(page: Page, interpretation: any) {
     
     // Observar elementos visibles en la página
     const allElements = await page.$$('[data-testid]');
-    const visibleElements = [];
+    const visibleElements: Array<{ testId: string | null; text: string | null }> = [];
     
     for (const element of allElements) {
       const isVisible = await element.isVisible();
