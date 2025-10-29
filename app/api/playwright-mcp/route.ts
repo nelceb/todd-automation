@@ -19,21 +19,6 @@ export async function POST(request: NextRequest) {
     // Detectar si estamos en Vercel serverless
     const isVercel = process.env.VERCEL === '1';
 
-    // Verificar si hay variables de entorno configuradas
-    const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
-    
-    if (!hasCredentials) {
-      console.log('⚠️ Playwright MCP: Variables de entorno no configuradas');
-      
-      return NextResponse.json({ 
-        success: false,
-        error: 'Playwright MCP requires TEST_EMAIL and VALID_LOGIN_PASSWORD environment variables',
-        mode: 'simulated',
-        fallback: true,
-        instructions: 'Agrega TEST_EMAIL y VALID_LOGIN_PASSWORD a .env.local para usar navegación real'
-      }, { status: 200 });
-    }
-
     // 1. Interpretar acceptance criteria
     const interpretation = interpretAcceptanceCriteria(acceptanceCriteria);
     
@@ -69,23 +54,7 @@ export async function POST(request: NextRequest) {
     const context = await browser.newContext();
     const page = await context.newPage();
     
-    // 3. PASO CRÍTICO: Hacer login primero
-    const loginResult = await loginToApp(page);
-    
-    if (!loginResult.success) {
-      console.log('❌ Playwright MCP: Login falló, cerrando navegador');
-      await browser.close();
-      // Devuelve success: false para que el cliente haga fallback
-      return NextResponse.json({ 
-        success: false, 
-        error: `Login failed: ${loginResult.error}`,
-        fallback: true // Indica que debe usar fallback
-      }, { status: 200 }); // Status 200 para que no se considere error HTTP
-    }
-    
-    console.log('✅ Playwright MCP: Login exitoso, navegando a URL objetivo...');
-    
-    // 4. Navegar a la URL objetivo
+    // 3. Navegar directamente a la URL objetivo (el login se hará si es necesario)
     const navigation = await navigateToTargetURL(page, interpretation);
     
     if (!navigation.success) {
@@ -115,7 +84,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       interpretation,
-      loginResult,
       navigation,
       behavior,
       smartTest,
@@ -289,121 +257,65 @@ async function findElementWithAccessibility(page: Page, intent: string) {
   throw new Error(`No se pudo encontrar elemento para "${intent}" usando accessibility tree`);
 }
 
-// 🎯 PASO CRÍTICO: Login usando OBSERVABILIDAD desde el inicio
-async function loginToApp(page: Page) {
-  try {
-    // 1. Ir a qa.cookunity.com y EMPEZAR A OBSERVAR
-    console.log('🔐 Navegando a qa.cookunity.com para iniciar login...');
-    await page.goto('https://qa.cookunity.com', { waitUntil: 'networkidle', timeout: 30000 });
-    console.log(`✅ Página cargada: ${page.url()}`);
-    
-    // 2. Observar la página usando accessibility snapshot (como Playwright MCP)
-    console.log('👀 Empezando observabilidad MCP-style: obteniendo accessibility snapshot...');
-    await page.waitForLoadState('networkidle');
-    
-    // Obtener snapshot de accesibilidad (equivalente a browser_snapshot de MCP)
-    await observePageWithAccessibility(page);
-    
-    // 3. Encontrar el botón de login usando accessibility tree
-    console.log('🔍 Buscando botón de login usando accessibility tree...');
-    const loginButton = await findElementWithAccessibility(page, 'log in');
-    
-    // 4. Click en el botón de login encontrado
-    console.log('🚀 Click en botón de login encontrado...');
-    await loginButton.click({ timeout: 5000 });
-    
-    // 4. Esperar a que redirija al login (auth.qa.cookunity.com)
-    console.log('⏳ Esperando redirección al formulario de login...');
-    await page.waitForURL(/auth\.qa\.cookunity\.com/, { timeout: 20000 });
-    console.log(`✅ Redirigido a: ${page.url()}`);
-    
-    // 5. Esperar a que los campos de login estén visibles
-    console.log('🔍 Esperando campos de login...');
-    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]', { timeout: 15000 });
-    
-    // 6. Llenar email
-    console.log('📧 Llenando email...');
-    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]').first();
-    await emailInput.click({ timeout: 5000 });
-    await emailInput.fill(process.env.TEST_EMAIL || '', { timeout: 5000 });
-    
-    // 7. Llenar password
-    console.log('🔑 Llenando password...');
-    const passwordInput = page.locator('input[name="password"], input[type="password"], input[id*="password"], input[id*="Password"]').first();
-    await passwordInput.click({ timeout: 5000 });
-    await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || '', { timeout: 5000 });
-    
-    // 8. Click en submit
-    console.log('🚀 Haciendo click en submit...');
-    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in")').first();
-    await submitButton.click({ timeout: 5000 });
-    
-    // 9. Esperar a que el login sea exitoso (redirige a qa.cookunity.com)
-    console.log('✅ Esperando redirección después del login...');
-    await page.waitForURL(/qa\.cookunity\.com/, { timeout: 20000 });
-    
-    // 10. Esperar a que la página esté completamente cargada
-    console.log('⏳ Esperando carga completa de la página después del login...');
-    await page.waitForLoadState('networkidle', { timeout: 15000 });
-    
-    console.log(`✅ Login exitoso! URL final: ${page.url()}`);
-    
-    return {
-      success: true,
-      url: page.url(),
-      message: 'Login successful - usando observabilidad para encontrar botón de login'
-    };
-  } catch (error) {
-    console.error('❌ Error en login:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-// Navegar a la URL objetivo DESPUÉS del login
+// Navegar a la URL objetivo - hacer login automáticamente si es necesario
 async function navigateToTargetURL(page: Page, interpretation: any) {
   try {
-    const currentURL = page.url();
     const targetURL = interpretation.targetURL;
     
-    console.log(`🧭 Navegando a URL objetivo: ${targetURL} (actual: ${currentURL})`);
-    
-    // Si la URL objetivo es la homepage base y ya estamos ahí, no navegar de nuevo
-    if (targetURL === 'https://qa.cookunity.com' && currentURL.includes('qa.cookunity.com')) {
-      console.log('✅ Ya estamos en la homepage, no es necesario navegar');
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
-      
-      return {
-        success: true,
-        url: page.url(),
-        method: 'Playwright MCP (Already on target)',
-        timestamp: Date.now()
-      };
-    }
+    console.log(`🧭 Navegando directamente a URL objetivo: ${targetURL}`);
     
     // Intentar navegar con diferentes estrategias
     try {
-      // Estrategia 1: Intentar con domcontentloaded (más tolerante)
       await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      // Esperar a que cargue o redirija (puede redirigir automáticamente al login)
       await page.waitForLoadState('networkidle', { timeout: 15000 });
     } catch (gotoError) {
-      // Estrategia 2: Si falla, intentar con load
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
       await page.goto(targetURL, { waitUntil: 'load', timeout: 30000 });
       await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
     }
     
-    // Verificar que la navegación fue exitosa
+    // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
+    console.log(`📍 Esperando redirección potencial al login...`);
+    try {
+      // Esperar hasta 10 segundos a que redirija a login
+      await page.waitForURL(/auth\.qa\.cookunity\.com|\/login/, { timeout: 10000 });
+    } catch (timeoutError) {
+      // Si no redirige, continuar
+      console.log('✅ No se detectó redirección al login, continuando...');
+    }
+    
+    const currentURL = page.url();
+    console.log(`📍 URL actual después de navegación: ${currentURL}`);
+    
+    // Si estamos en página de login, hacer login automáticamente
+    if (currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login')) {
+      console.log('🔐 Detectada redirección a página de login, realizando login automático...');
+      
+      const loginResult = await performLoginIfNeeded(page);
+      
+      if (!loginResult.success) {
+        return {
+          success: false,
+          error: `Login automático falló: ${loginResult.error}`,
+          url: page.url()
+        };
+      }
+      
+      // Después del login, esperar a que redirija de vuelta a la página original o a qa.cookunity.com
+      console.log('⏳ Esperando redirección después del login...');
+      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      console.log(`✅ Login exitoso, redirigido a: ${page.url()}`);
+    }
+    
     const finalURL = page.url();
-    console.log(`✅ Navegación exitosa: ${finalURL}`);
+    console.log(`✅ Navegación completada: ${finalURL}`);
     
     // Si la URL objetivo requiere navegación interna (ej: /menu), intentarlo después
     if (targetURL.includes('/menu') && !finalURL.includes('/menu')) {
       console.log('🔍 URL objetivo incluye /menu, intentando navegar internamente...');
       
-      // Buscar botón o enlace que lleve al menú usando observabilidad
       try {
         const menuLink = await findElementWithAccessibility(page, 'menu meals');
         if (menuLink) {
@@ -432,6 +344,53 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       success: false,
       error: `Navigation failed: ${errorMessage}`,
       url: page.url()
+    };
+  }
+}
+
+// Hacer login solo si es necesario (cuando detectamos que estamos en página de login)
+async function performLoginIfNeeded(page: Page) {
+  try {
+    // Verificar si tenemos credenciales
+    const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
+    
+    if (!hasCredentials) {
+      return {
+        success: false,
+        error: 'Credenciales no configuradas (TEST_EMAIL y VALID_LOGIN_PASSWORD requeridos)'
+      };
+    }
+    
+    // Esperar a que los campos de login estén visibles
+    console.log('🔍 Esperando campos de login...');
+    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]', { timeout: 15000 });
+    
+    // Llenar email
+    console.log('📧 Llenando email...');
+    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]').first();
+    await emailInput.click({ timeout: 5000 });
+    await emailInput.fill(process.env.TEST_EMAIL || '', { timeout: 5000 });
+    
+    // Llenar password
+    console.log('🔑 Llenando password...');
+    const passwordInput = page.locator('input[name="password"], input[type="password"], input[id*="password"], input[id*="Password"]').first();
+    await passwordInput.click({ timeout: 5000 });
+    await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || '', { timeout: 5000 });
+    
+    // Click en submit
+    console.log('🚀 Haciendo click en submit...');
+    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in")').first();
+    await submitButton.click({ timeout: 5000 });
+    
+    return {
+      success: true,
+      message: 'Login realizado automáticamente'
+    };
+  } catch (error) {
+    console.error('❌ Error en login automático:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 }
