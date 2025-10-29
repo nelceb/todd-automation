@@ -18,21 +18,17 @@ export async function POST(request: NextRequest) {
     const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
     
     if (!hasCredentials) {
-      console.log('⚠️ Playwright MCP: Variables de entorno no configuradas, usando modo simulado');
-      // Modo simulado: solo interpretar y generar sin navegar
-      const interpretation = interpretAcceptanceCriteria(acceptanceCriteria);
-      const navigation = { success: false, method: 'Simulated (no credentials)' };
-      const behavior = await simulateBehavior(interpretation);
-      const smartTest = generateTestFromObservations(interpretation, navigation, behavior);
+      console.log('⚠️ Playwright MCP: Variables de entorno no configuradas');
+      console.log('📝 Agrega TEST_EMAIL y VALID_LOGIN_PASSWORD a .env.local');
+      console.log('📖 Ver: CONFIGURACION_PLAYWRIGHT_MCP.md');
       
-      return NextResponse.json({
-        success: true,
-        interpretation,
-        navigation,
-        behavior,
-        smartTest,
-        mode: 'simulated'
-      });
+      return NextResponse.json({ 
+        success: false,
+        error: 'Playwright MCP requires TEST_EMAIL and VALID_LOGIN_PASSWORD environment variables',
+        mode: 'simulated',
+        fallback: true,
+        instructions: 'Agrega TEST_EMAIL y VALID_LOGIN_PASSWORD a .env.local para usar navegación real'
+      }, { status: 200 });
     }
 
     // 1. Interpretar acceptance criteria
