@@ -1,6 +1,10 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "installCommand": "npm install && npx playwright install chromium",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "app/api/playwright-mcp/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }

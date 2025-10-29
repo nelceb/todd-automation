@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { chromium, Browser, Page } from 'playwright';
-import { execSync } from 'child_process';
+import { Browser, Page } from 'playwright';
+import chromium from '@sparticuz/chromium';
+import playwright from 'playwright-core';
 
 export async function POST(request: NextRequest) {
   let browser: Browser | null = null;
@@ -15,20 +16,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verificar si estamos en Vercel (serverless) - Playwright no funciona bien aquí
+    // Detectar si estamos en Vercel serverless
     const isVercel = process.env.VERCEL === '1';
-    
-    if (isVercel) {
-      console.log('⚠️ Playwright MCP: Entorno Vercel detectado. Playwright no funciona en serverless.');
-      console.log('💡 Usando Smart Synapse como fallback. Para navegación real, usar localmente.');
-      
-      return NextResponse.json({ 
-        success: false,
-        error: 'Playwright MCP no funciona en Vercel serverless. Usa localmente o Smart Synapse como fallback.',
-        mode: 'serverless_unsupported',
-        fallback: true
-      }, { status: 200 });
-    }
 
     // Verificar si hay variables de entorno configuradas
     const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
@@ -51,29 +40,32 @@ export async function POST(request: NextRequest) {
     console.log('🚀 Playwright MCP: Iniciando navegación real...');
     
     // 2. ¡NAVEGAR REALMENTE con Playwright!
-    try {
-      browser = await chromium.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Necesario para serverless
+    // Configurar Chromium para serverless o local
+    if (isVercel) {
+      // En Vercel: usar @sparticuz/chromium optimizado para serverless
+      chromium.setGraphicsMode(false);
+      browser = await playwright.chromium.launch({
+        args: chromium.args,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
       });
-    } catch (error: any) {
-      // Si falla por falta de chromium, intentar instalarlo
-      if (error.message?.includes('Executable doesn\'t exist') || error.message?.includes('chromium')) {
-        console.log('⚠️ Playwright MCP: Chromium no encontrado, intentando instalar...');
-        try {
-          execSync('npx playwright install chromium', { stdio: 'inherit', timeout: 120000 });
-          // Intentar de nuevo
-          browser = await chromium.launch({ 
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-          });
-        } catch (installError) {
-          console.error('❌ Playwright MCP: No se pudo instalar Chromium:', installError);
-          throw new Error('Chromium binary not available. Playwright needs to be installed with: npx playwright install chromium');
-        }
-      } else {
-        throw error;
+      console.log('✅ Playwright MCP: Usando Chromium optimizado para serverless');
+    } else {
+      // Localmente: usar Playwright normal
+      try {
+        browser = await playwright.chromium.launch({ 
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+      } catch (error: any) {
+        // Si falla, intentar con playwright normal (no playwright-core)
+        const { chromium: chromiumLocal } = await import('playwright');
+        browser = await chromiumLocal.launch({ 
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
       }
+      console.log('✅ Playwright MCP: Usando Playwright local');
     }
     const context = await browser.newContext();
     const page = await context.newPage();
