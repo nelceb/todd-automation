@@ -245,6 +245,7 @@ async function observeBehavior(page: Page, interpretation: any) {
     interactions: any[];
     elements: Array<{ testId: string | null; text: string | null }>;
     observations: any[];
+    error?: string;
   } = {
     observed: true,
     interactions: [],
