@@ -169,7 +169,7 @@ function extractAssertions(criteria: string) {
 }
 
 function determineURL(context: string) {
-  const urls = {
+  const urls: Record<string, string> = {
     homepage: 'https://cook-unity.com/menu',
     ordersHub: 'https://cook-unity.com/orders-hub',
     search: 'https://cook-unity.com/search'
