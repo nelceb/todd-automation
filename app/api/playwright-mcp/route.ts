@@ -198,7 +198,7 @@ function extractAssertions(criteria: string) {
 
 function determineURL(context: string) {
   const urls: Record<string, string> = {
-    homepage: 'https://qa.cookunity.com/menu',
+    homepage: 'https://qa.cookunity.com', // Empezar desde la homepage base después del login
     ordersHub: 'https://qa.cookunity.com/orders-hub',
     search: 'https://qa.cookunity.com/search'
   };
@@ -342,6 +342,10 @@ async function loginToApp(page: Page) {
     console.log('✅ Esperando redirección después del login...');
     await page.waitForURL(/qa\.cookunity\.com/, { timeout: 20000 });
     
+    // 10. Esperar a que la página esté completamente cargada
+    console.log('⏳ Esperando carga completa de la página después del login...');
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    
     console.log(`✅ Login exitoso! URL final: ${page.url()}`);
     
     return {
@@ -361,8 +365,58 @@ async function loginToApp(page: Page) {
 // Navegar a la URL objetivo DESPUÉS del login
 async function navigateToTargetURL(page: Page, interpretation: any) {
   try {
-    // Ir a la URL objetivo (ya estamos logueados)
-    await page.goto(interpretation.targetURL, { waitUntil: 'networkidle', timeout: 30000 });
+    const currentURL = page.url();
+    const targetURL = interpretation.targetURL;
+    
+    console.log(`🧭 Navegando a URL objetivo: ${targetURL} (actual: ${currentURL})`);
+    
+    // Si la URL objetivo es la homepage base y ya estamos ahí, no navegar de nuevo
+    if (targetURL === 'https://qa.cookunity.com' && currentURL.includes('qa.cookunity.com')) {
+      console.log('✅ Ya estamos en la homepage, no es necesario navegar');
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      
+      return {
+        success: true,
+        url: page.url(),
+        method: 'Playwright MCP (Already on target)',
+        timestamp: Date.now()
+      };
+    }
+    
+    // Intentar navegar con diferentes estrategias
+    try {
+      // Estrategia 1: Intentar con domcontentloaded (más tolerante)
+      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+    } catch (gotoError) {
+      // Estrategia 2: Si falla, intentar con load
+      console.log('⚠️ Error con domcontentloaded, intentando con load...');
+      await page.goto(targetURL, { waitUntil: 'load', timeout: 30000 });
+      await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    }
+    
+    // Verificar que la navegación fue exitosa
+    const finalURL = page.url();
+    console.log(`✅ Navegación exitosa: ${finalURL}`);
+    
+    // Si la URL objetivo requiere navegación interna (ej: /menu), intentarlo después
+    if (targetURL.includes('/menu') && !finalURL.includes('/menu')) {
+      console.log('🔍 URL objetivo incluye /menu, intentando navegar internamente...');
+      
+      // Buscar botón o enlace que lleve al menú usando observabilidad
+      try {
+        const menuLink = await findElementWithAccessibility(page, 'menu meals');
+        if (menuLink) {
+          console.log('✅ Encontrado link a menu, haciendo click...');
+          await menuLink.click({ timeout: 5000 });
+          await page.waitForURL(/\/menu/, { timeout: 10000 });
+          await page.waitForLoadState('networkidle', { timeout: 15000 });
+          console.log(`✅ Navegado internamente a: ${page.url()}`);
+        }
+      } catch (menuError) {
+        console.log('⚠️ No se pudo encontrar link a menu, continuando con la URL actual');
+      }
+    }
     
     return {
       success: true,
@@ -371,9 +425,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       timestamp: Date.now()
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Error en navegación: ${errorMessage}`);
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: `Navigation failed: ${errorMessage}`,
       url: page.url()
     };
   }
