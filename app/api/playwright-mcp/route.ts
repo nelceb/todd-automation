@@ -1255,14 +1255,26 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId);
     
     // 5. Crear Husky pre-commit hook
-    const huskyConfig = generateHuskyConfig(interpretation, ticketId);
+    const huskyConfig = {
+      file: '.husky/pre-commit',
+      content: `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Playwright tests before commit
+npm run test:playwright || exit 1
+`
+    };
     
     // 6. Preparar PR data con draft status
     const prData = {
       title: `QA-${ticketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`,
       description: generatePRDescription(interpretation, codeGeneration),
       branch: branchName,
-      files: codeGeneration.files.map((f: any) => f.file),
+      files: [
+        ...codeGeneration.files.map((f: any) => f.file),
+        workflowFile.file,
+        huskyConfig.file
+      ],
       draft: true, // PR como draft inicialmente
       workflowFile,
       huskyConfig
@@ -1422,7 +1434,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: '✅ **Tests passed!** PR moved from draft to ready for review.\\n\\n**Tests executed:**\\n\\`\\`\\`\\n${{ steps.detect-tests.outputs.test_files }}\\n\\`\\`\\`'
+              body: "✅ **Tests passed!** PR moved from draft to ready for review.\\n\\n**Tests executed:**\\nCheck the workflow logs for details."
             });
           }
           
@@ -1435,7 +1447,7 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number,
-            body: '❌ **Tests failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\n**Failed tests:**\\n\\`\\`\\`\\n${{ steps.detect-tests.outputs.test_files }}\\n\\`\\`\\`'
+            body: "❌ **Tests failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\n**Failed tests:**\\nCheck the workflow logs for details."
           });
 `
   };
