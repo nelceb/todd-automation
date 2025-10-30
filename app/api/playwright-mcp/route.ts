@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Browser, Page } from 'playwright';
 import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(request: NextRequest) {
   let browser: Browser | null = null;
@@ -19,8 +24,18 @@ export async function POST(request: NextRequest) {
     // Detectar si estamos en Vercel serverless
     const isVercel = process.env.VERCEL === '1';
 
-    // 1. Interpretar acceptance criteria
-    const interpretation = interpretAcceptanceCriteria(acceptanceCriteria);
+    // 1. Interpretar acceptance criteria (con LLM si está disponible)
+    const interpretation = await interpretAcceptanceCriteria(acceptanceCriteria);
+    
+    // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos
+    console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
+    const codebaseAnalysis = await analyzeCodebaseForPatterns();
+    if (codebaseAnalysis) {
+      const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
+      console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
+      // Combinar interpretación con conocimiento del codebase
+      interpretation.codebasePatterns = codebaseAnalysis;
+    }
     
     console.log('🚀 Playwright MCP: Iniciando navegación real...');
     
@@ -107,16 +122,147 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Interpretar acceptance criteria
-function interpretAcceptanceCriteria(criteria: string) {
-  const lowerCriteria = criteria.toLowerCase();
+// Interpretar acceptance criteria usando LLM para abstracción
+async function interpretAcceptanceCriteria(criteria: string) {
+  // Intentar usar LLM primero para interpretación abstracta
+  try {
+    const llmInterpretation = await interpretWithLLM(criteria);
+    if (llmInterpretation) {
+      // Complementar con URLs determinadas del contexto
+      llmInterpretation.targetURL = determineURL(llmInterpretation.context);
+      return llmInterpretation;
+    }
+  } catch (error) {
+    console.log('⚠️ LLM interpretation falló, usando método tradicional:', error);
+  }
   
+  // Fallback a método tradicional
+  const lowerCriteria = criteria.toLowerCase();
   return {
     context: detectContext(lowerCriteria),
     actions: extractActions(lowerCriteria),
     assertions: extractAssertions(lowerCriteria),
     targetURL: determineURL(lowerCriteria)
   };
+}
+
+// Interpretar usando LLM de forma abstracta
+async function interpretWithLLM(criteria: string) {
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini", // Usar modelo más económico para interpretación
+    messages: [
+      {
+        role: "system",
+        content: `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity).
+
+Tu tarea es extraer de forma abstracta:
+1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
+2. ACCIONES: Qué acciones debe realizar el usuario EN ORDEN CORRECTO (click, tap, fill, navigate, etc.)
+3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.)
+4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, etc.)
+
+IMPORTANTE: Las acciones deben estar en el orden correcto según el acceptance criteria. 
+Por ejemplo: "User taps invoice icon on past order" significa:
+1. Primero: click en past order item
+2. Segundo: click en invoice icon
+
+Para CookUnity ecommerce, los contextos comunes son:
+- homepage: página principal
+- ordersHub: hub de órdenes
+- pastOrders: órdenes pasadas
+- search: página de búsqueda
+- cart: carrito de compras
+- menu: menú de comidas
+
+Responde SOLO con JSON válido en este formato:
+{
+  "context": "homepage|ordersHub|pastOrders|search|cart|menu",
+  "actions": [
+    {
+      "type": "click|tap|fill|navigate|scroll",
+      "element": "nombreDescriptivoDelElemento",
+      "description": "descripción clara de qué elemento es",
+      "intent": "qué intenta hacer el usuario",
+      "order": 1
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visibility|state|text|value",
+      "element": "nombreDelElementoAVerificar",
+      "description": "qué se debe verificar",
+      "expected": "qué se espera"
+    }
+  ]
+}`
+      },
+      {
+        role: "user",
+        content: criteria
+      }
+    ],
+    temperature: 0.1, // Baja temperatura para respuestas más consistentes
+    response_format: { type: "json_object" }
+  });
+
+  const response = completion.choices[0]?.message?.content;
+  if (!response) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(response);
+    console.log('✅ LLM Interpretation:', parsed);
+    return parsed;
+  } catch (error) {
+    console.error('❌ Error parseando respuesta LLM:', error);
+    return null;
+  }
+}
+
+// Analizar codebase para aprender de tests existentes
+async function analyzeCodebaseForPatterns() {
+  try {
+    // Análisis del codebase de pw-cookunity-automation
+    // Esto podría mejorarse consultando GitHub API para obtener tests reales
+    return {
+      methods: {
+        homePage: [
+          'clickOnAddMealButton',
+          'clickOnOrdersHubNavItem',
+          'clickOnCartButton',
+          'scrollToOrderAgainSection',
+          'isOrderAgainSectionVisible',
+          'navigateToOrdersHub'
+        ],
+        ordersHubPage: [
+          'clickOnPastOrdersTab',
+          'clickOnInvoiceIcon',
+          'isEmptyPastOrdersStateVisible',
+          'isUpcomingOrdersSectionVisible',
+          'isInvoiceModalVisible',
+          'isInvoiceDetailsVisible'
+        ]
+      },
+      selectors: [
+        { name: 'invoiceIcon', patterns: ['invoice', 'invoice-icon', 'invoiceIcon'], dataTestId: ['invoice-icon', 'invoice-icon-button'] },
+        { name: 'invoiceModal', patterns: ['invoice-modal', 'modal-invoice'], dataTestId: ['invoice-modal', 'modal-invoice'] },
+        { name: 'pastOrderItem', patterns: ['past-order', 'order-item'], dataTestId: ['past-order-item', 'order-item'] },
+        { name: 'cartButton', patterns: ['cart', 'shopping-cart'], dataTestId: ['cart-btn', 'cart-button'] }
+      ],
+      testPatterns: [
+        { pattern: 'invoice.*modal', context: 'pastOrders', actions: ['clickOnInvoiceIcon'], assertions: ['isInvoiceModalVisible'] },
+        { pattern: 'past.*order', context: 'pastOrders', actions: ['clickOnPastOrdersTab'], assertions: [] }
+      ]
+    };
+  } catch (error) {
+    console.error('⚠️ Error analizando codebase:', error);
+    return null;
+  }
 }
 
 function detectContext(criteria: string) {
@@ -478,17 +624,54 @@ async function observeBehavior(page: Page, interpretation: any) {
     // Intentar realizar cada acción y observar el resultado usando MCP-style observability
     for (const action of interpretation.actions) {
       try {
-        // 🎯 MCP-STYLE: Intentar encontrar el elemento usando accessibility tree primero
+        // 🎯 MCP-STYLE: Usar observabilidad para encontrar elementos basándose en intents del LLM
         let foundElement = null;
         let foundBy = null;
         
-        // Estrategia 1: Buscar usando accessibility tree (keywords del elemento)
+        // Si la acción viene del LLM, usar el "intent" o "description" para buscar
+        const searchTerms = action.intent || action.description || action.element;
+        
+        // 🎯 ESTRATEGIA MCP: Usar conocimiento del codebase para mejorar búsqueda
+        let codebaseHints = null;
+        if (interpretation.codebasePatterns) {
+          // Buscar selectors conocidos del codebase que coincidan con el elemento
+          const matchingSelector = interpretation.codebasePatterns.selectors?.find(
+            (s: any) => s.name === action.element || 
+            s.patterns.some((p: string) => action.element.toLowerCase().includes(p))
+          );
+          if (matchingSelector) {
+            codebaseHints = matchingSelector;
+            console.log(`📚 Codebase knowledge: Usando selector conocido "${matchingSelector.name}"`);
+          }
+        }
+        
+        // Estrategia 1: Buscar usando accessibility tree con el intent/description del LLM
         try {
-          const elementKeywords = action.element.toLowerCase().replace(/([A-Z])/g, ' $1').trim();
-          foundElement = await findElementWithAccessibility(page, elementKeywords);
-          foundBy = 'accessibility';
+          console.log(`🔍 MCP Observability: Buscando "${searchTerms}" usando accessibility tree...`);
+          
+          // Si tenemos hints del codebase, intentar primero con data-testid conocidos
+          if (codebaseHints?.dataTestId) {
+            for (const testId of codebaseHints.dataTestId) {
+              try {
+                const testIdElement = page.locator(`[data-testid="${testId}"]`).first();
+                if (await testIdElement.isVisible({ timeout: 2000 })) {
+                  foundElement = testIdElement;
+                  foundBy = 'codebase-data-testid';
+                  break;
+                }
+              } catch (e) {
+                // Continuar
+              }
+            }
+          }
+          
+          // Si no encontramos con codebase hints, usar accessibility tree
+          if (!foundElement) {
+            foundElement = await findElementWithAccessibility(page, searchTerms);
+            foundBy = 'accessibility-mcp';
+          }
         } catch (accessibilityError) {
-          // Estrategia 2: Intentar con selector data-testid si está disponible
+          // Estrategia 2: Si hay selector, intentar con él
           try {
             if (action.selector && action.selector.includes('data-testid')) {
               const testId = action.selector.match(/data-testid="([^"]+)"/)?.[1];
@@ -504,6 +687,17 @@ async function observeBehavior(page: Page, interpretation: any) {
             }
           } catch (testIdError) {
             // Continuar
+          }
+          
+          // Estrategia 3: Fallback - convertir element name a keywords
+          if (!foundElement) {
+            try {
+              const elementKeywords = action.element.toLowerCase().replace(/([A-Z])/g, ' $1').trim();
+              foundElement = await findElementWithAccessibility(page, elementKeywords);
+              foundBy = 'accessibility-fallback';
+            } catch (fallbackError) {
+              // No encontrado
+            }
           }
         }
         
@@ -640,7 +834,15 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   if (interpretation.actions.length > 0) {
     testCode += `\n\n  //WHEN - Actions from acceptance criteria (observed with Playwright MCP)`;
     
-    for (const action of interpretation.actions) {
+    // Ordenar acciones por el campo "order" si existe, sino mantener orden original
+    const sortedActions = interpretation.actions.sort((a: any, b: any) => {
+      if (a.order && b.order) {
+        return a.order - b.order;
+      }
+      return 0; // Mantener orden original si no hay campo order
+    });
+    
+    for (const action of sortedActions) {
       const elementName = action.element;
       const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
       
