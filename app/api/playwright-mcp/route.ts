@@ -919,7 +919,9 @@ async function simulateBehavior(interpretation: any) {
 
 // Generar test desde observaciones reales
 function generateTestFromObservations(interpretation: any, navigation: any, behavior: any, ticketId?: string) {
-  const testTitle = ticketId ? `QA-${ticketId} - ${interpretation.context} Test` : `QA-${Date.now()} - ${interpretation.context} Test`;
+  // Normalizar ticketId (evitar duplicar "QA-")
+  const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : `QA-${Date.now()}`;
+  const testTitle = `${normalizedTicketId} - ${interpretation.context} Test`;
   const tags = ['@qa', '@e2e'];
   
   if (interpretation.context === 'homepage') tags.push('@home');
@@ -930,6 +932,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     ? 'ordersHubPage' 
     : 'homePage';
   
+  // Inicialización básica de página
   const pageInitialization = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub'
     ? `const ${pageVarName} = await homePage.navigateToOrdersHub();`
     : `const ${pageVarName} = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
@@ -940,6 +943,126 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const loginPage = await siteMap.loginPage(page);
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
   ${pageInitialization}`;
+  
+  // Si el contexto es pastOrders, navegar específicamente a Past Orders antes de las acciones
+  if (interpretation.context === 'pastOrders') {
+    testCode += `\n  const pastOrdersPage = await ${pageVarName}.navigateToPastOrders();`;
+    // Actualizar la variable de página para usar pastOrdersPage en las acciones
+    const pastOrdersVarName = 'pastOrdersPage';
+    
+    // Debug: Log interpretation data
+    console.log('🔍 Debug - Interpretation data:', JSON.stringify(interpretation, null, 2));
+    console.log('🔍 Debug - Behavior data:', JSON.stringify(behavior, null, 2));
+    
+    // Generar acciones específicas basadas en el acceptance criteria
+    if (interpretation.actions && interpretation.actions.length > 0) {
+      testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
+      
+      const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      
+      // Verificación previa: verificar que hay órdenes iniciales antes de hacer Load More
+      const hasLoadMoreAction = sortedActions.some((a: any) => 
+        a.element?.toLowerCase().includes('loadmore') || 
+        a.element?.toLowerCase().includes('load-more') ||
+        a.description?.toLowerCase().includes('load more')
+      );
+      
+      if (hasLoadMoreAction) {
+        testCode += `\n  // Verify initial past orders are visible`;
+        testCode += `\n  expect(await pastOrdersPage.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
+      }
+      
+      for (const action of sortedActions) {
+        const elementName = action.element;
+        const description = action.description || `Click on ${elementName}`;
+        
+        // Generar método específico basado en el tipo de acción
+        let methodCall = '';
+        switch (action.type) {
+          case 'click':
+          case 'tap':
+            methodCall = `await ${pastOrdersVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          case 'fill':
+            methodCall = `await ${pastOrdersVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+            break;
+          case 'navigate':
+            methodCall = `await ${pastOrdersVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          case 'scroll':
+            methodCall = `await ${pastOrdersVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          default:
+            methodCall = `await ${pastOrdersVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+        }
+        
+        testCode += `\n  // ${description}`;
+        testCode += `\n  ${methodCall}`;
+      }
+    } else {
+      // Fallback sin acciones específicas
+      testCode += `\n\n  //WHEN - No specific actions detected from acceptance criteria`;
+    }
+    
+    // Actualizar la referencia de página para las assertions
+    const assertionsPageVar = 'pastOrdersPage';
+    
+    // Generar assertions específicas
+    if (interpretation.assertions && interpretation.assertions.length > 0) {
+      testCode += `\n\n  //THEN - Verify expected behavior`;
+      
+      for (const assertion of interpretation.assertions) {
+        const elementName = assertion.element;
+        const description = assertion.description || `Verify ${elementName}`;
+        const expected = assertion.expected || 'visible';
+        
+        let assertionCode = '';
+        switch (assertion.type) {
+          case 'visibility':
+            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+            break;
+          case 'text':
+            assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
+            break;
+          case 'state':
+            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Enabled(), '${description}').toBeTruthy();`;
+            break;
+          case 'value':
+            assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
+            break;
+          default:
+            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+        }
+        
+        testCode += `\n  ${assertionCode}`;
+      }
+    } else if (behavior.elements && behavior.elements.length > 0) {
+      // Fallback: usar elementos observados
+      testCode += `\n\n  //THEN - Verify elements are present`;
+      
+      for (const element of behavior.elements) {
+        const elementName = element.name;
+        const methodCall = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${elementName} should be visible').toBeTruthy();`;
+        testCode += `\n  ${methodCall}`;
+      }
+    } else {
+      // Fallback final para pastOrders
+      testCode += `\n\n  //THEN - Verify expected behavior`;
+      testCode += `\n  expect(await ${assertionsPageVar}.isAdditionalPastOrdersVisible(), 'Additional past orders should be displayed').toBeTruthy();`;
+    }
+    
+    testCode += `\n});`;
+    
+    return {
+      title: testTitle,
+      code: testCode,
+      tags: tags,
+      context: interpretation.context,
+      actions: interpretation.actions?.length || 0,
+      assertions: interpretation.assertions?.length || 0,
+      description: `Test for ${interpretation.context} functionality with ${interpretation.actions?.length || 0} actions and ${interpretation.assertions?.length || 0} assertions`
+    };
+  }
   
   // Debug: Log interpretation data
   console.log('🔍 Debug - Interpretation data:', JSON.stringify(interpretation, null, 2));
