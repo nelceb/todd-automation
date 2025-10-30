@@ -44,6 +44,14 @@ interface GeneratedTest {
   behavior?: any
 }
 
+interface ProgressLog {
+  step: string
+  message: string
+  status: 'info' | 'success' | 'warning' | 'error'
+  timestamp: number
+  details?: any
+}
+
 export default function TestGenerator() {
   const [jiraConfig, setJiraConfig] = useState({
     issueKey: ''
@@ -55,6 +63,8 @@ export default function TestGenerator() {
   const [step, setStep] = useState<'jira' | 'generate' | 'result'>('jira')
   const [error, setError] = useState<string | null>(null)
   const [copyButtonState, setCopyButtonState] = useState<'idle' | 'copied'>('idle')
+  const [progressLog, setProgressLog] = useState<ProgressLog[]>([])
+  const [showProgress, setShowProgress] = useState(false)
 
   // Add error boundary effect
   React.useEffect(() => {
@@ -109,7 +119,81 @@ export default function TestGenerator() {
 
   const generateTestFromCriteria = async (criteria: AcceptanceCriteria) => {
     setLoading(true)
+    setProgressLog([])
+    setShowProgress(true)
+    
     try {
+      // Usar Server-Sent Events para progreso en tiempo real
+      const eventSource = new EventSource(`/api/playwright-mcp-stream?issueKey=${jiraConfig.issueKey}&framework=playwright`)
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          
+          if (data.type === 'progress') {
+            setProgressLog(prev => [...prev, {
+              step: data.step,
+              message: data.message,
+              status: data.status,
+              timestamp: Date.now(),
+              details: data.details
+            }])
+          } else if (data.type === 'result') {
+            if (data.success) {
+              setGeneratedTest({
+                framework: 'playwright',
+                fileName: `test-${jiraConfig.issueKey}.spec.ts`,
+                content: data.smartTest,
+                testPath: `tests/specs/test-${jiraConfig.issueKey}.spec.ts`,
+                branchName: `feature/${jiraConfig.issueKey}-test`,
+                mcpData: data
+              })
+              setStep('result')
+            } else {
+              // Fallback a Smart Synapse si Playwright MCP falla
+              handleFallbackGeneration(criteria)
+            }
+            eventSource.close()
+          } else if (data.type === 'error') {
+            setError(data.message)
+            eventSource.close()
+          }
+        } catch (err) {
+          console.error('Error parsing SSE data:', err)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error)
+        eventSource.close()
+        handleFallbackGeneration(criteria)
+      }
+
+      // Timeout de 60 segundos
+      setTimeout(() => {
+        eventSource.close()
+        if (loading) {
+          setError('Request timeout - falling back to Smart Synapse')
+          handleFallbackGeneration(criteria)
+        }
+      }, 60000)
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setLoading(false)
+      setShowProgress(false)
+    }
+  }
+
+  const handleFallbackGeneration = async (criteria: AcceptanceCriteria) => {
+    try {
+      setProgressLog(prev => [...prev, {
+        step: 'fallback',
+        message: 'Playwright MCP failed, trying Smart Synapse...',
+        status: 'warning',
+        timestamp: Date.now()
+      }])
+
       // 🚀 NEW: Try Playwright MCP first (GAME CHANGER!)
       const mcpResponse = await fetch('/api/playwright-mcp', {
         method: 'POST',
@@ -242,6 +326,62 @@ export default function TestGenerator() {
           </p>
         </motion.div>
 
+
+        {/* Progress Log */}
+        {showProgress && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-white/20 border border-gray-300/50 rounded-xl shadow-lg"
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                  Generating Test...
+                </h3>
+                <button
+                  onClick={() => setShowProgress(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircleIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {progressLog.map((log, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start space-x-3 p-3 rounded-lg ${
+                      log.status === 'success' ? 'bg-green-50 border-l-4 border-green-400' :
+                      log.status === 'warning' ? 'bg-yellow-50 border-l-4 border-yellow-400' :
+                      log.status === 'error' ? 'bg-red-50 border-l-4 border-red-400' :
+                      'bg-blue-50 border-l-4 border-blue-400'
+                    }`}
+                  >
+                    <div className="flex-shrink-0">
+                      {log.status === 'success' && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
+                      {log.status === 'warning' && <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />}
+                      {log.status === 'error' && <XCircleIcon className="w-5 h-5 text-red-500" />}
+                      {log.status === 'info' && <ClockIcon className="w-5 h-5 text-blue-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{log.step}</p>
+                      <p className="text-sm text-gray-600">{log.message}</p>
+                      {log.details && (
+                        <pre className="text-xs text-gray-500 mt-1 bg-gray-100 p-2 rounded overflow-x-auto">
+                          {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Main Content */}
         <motion.div
