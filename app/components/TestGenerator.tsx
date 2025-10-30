@@ -469,20 +469,24 @@ export default function TestGenerator() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <h5 className="font-medium text-purple-700 mb-2">🧠 Interpretation</h5>
-                          <p className="text-sm text-purple-600">Context: {generatedTest.interpretation.context}</p>
-                          <p className="text-sm text-purple-600">UsersHelper: {generatedTest.interpretation.usersHelper}</p>
-                          <p className="text-sm text-purple-600">Tags: {generatedTest.interpretation.tags.join(', ')}</p>
+                          <p className="text-sm text-purple-600">Context: {generatedTest.interpretation?.context || 'N/A'}</p>
+                          <p className="text-sm text-purple-600">UsersHelper: {generatedTest.interpretation?.usersHelper || 'N/A'}</p>
+                          <p className="text-sm text-purple-600">Tags: {Array.isArray(generatedTest.interpretation?.tags) ? generatedTest.interpretation.tags.join(', ') : 'N/A'}</p>
+                          <p className="text-sm text-purple-600">Actions: {generatedTest.interpretation?.actions?.length || 0}</p>
+                          <p className="text-sm text-purple-600">Assertions: {generatedTest.interpretation?.assertions?.length || 0}</p>
                         </div>
                         <div>
                           <h5 className="font-medium text-purple-700 mb-2">🌐 Navigation</h5>
-                          <p className="text-sm text-purple-600">URL: {generatedTest.navigation?.url}</p>
-                          <p className="text-sm text-purple-600">Steps: {generatedTest.navigation?.steps?.length}</p>
+                          <p className="text-sm text-purple-600">URL: {generatedTest.navigation?.url || 'N/A'}</p>
+                          <p className="text-sm text-purple-600">Success: {generatedTest.navigation?.success ? '✅' : '❌'}</p>
+                          <p className="text-sm text-purple-600">Steps: {generatedTest.navigation?.steps?.length || 0}</p>
                           <p className="text-sm text-purple-600">Self-Healing: {generatedTest.navigation?.selfHealing ? '✅' : '❌'}</p>
                         </div>
                         <div>
                           <h5 className="font-medium text-purple-700 mb-2">👀 Behavior</h5>
                           <p className="text-sm text-purple-600">Observed: {generatedTest.behavior?.observed ? '✅' : '❌'}</p>
-                          <p className="text-sm text-purple-600">Interactions: {generatedTest.behavior?.interactions?.length}</p>
+                          <p className="text-sm text-purple-600">Interactions: {generatedTest.behavior?.interactions?.length || 0}</p>
+                          <p className="text-sm text-purple-600">Elements: {generatedTest.behavior?.elements?.length || 0}</p>
                           <p className="text-sm text-purple-600">Self-Healing: {generatedTest.behavior?.interactions?.[0]?.selfHealing ? '✅' : '❌'}</p>
                         </div>
                       </div>
@@ -496,17 +500,21 @@ export default function TestGenerator() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <h5 className="font-medium text-blue-700 mb-2">👤 UsersHelper</h5>
-                          <p className="text-sm text-blue-600">{generatedTest.synapse.usersHelper.method}</p>
-                          <p className="text-xs text-blue-500">Confidence: {Math.round(generatedTest.synapse.usersHelper.confidence * 100)}%</p>
+                          <p className="text-sm text-blue-600">{generatedTest.synapse?.usersHelper?.method || 'N/A'}</p>
+                          <p className="text-xs text-blue-500">Confidence: {generatedTest.synapse?.usersHelper?.confidence ? Math.round(generatedTest.synapse.usersHelper.confidence * 100) : 0}%</p>
                         </div>
                         <div>
                           <h5 className="font-medium text-blue-700 mb-2">🎯 Keywords Detected</h5>
                           <div className="flex flex-wrap gap-1">
-                            {generatedTest.synapse.keywords.map((keyword: any, index: number) => (
-                              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                {keyword.name}
-                              </span>
-                            ))}
+                            {Array.isArray(generatedTest.synapse?.keywords) ? (
+                              generatedTest.synapse.keywords.map((keyword: any, index: number) => (
+                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                                  {keyword?.name || keyword}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-blue-500">No keywords detected</span>
+                            )}
                           </div>
                         </div>
                       </div>
