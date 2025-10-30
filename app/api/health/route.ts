@@ -3,8 +3,14 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     // Verificar que las variables de entorno estén configuradas
-    const requiredEnvVars = ['GITHUB_TOKEN', 'OPENAI_API_KEY']
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+    const baseRequired = ['GITHUB_TOKEN']
+    const missingBase = baseRequired.filter(varName => !process.env[varName])
+    const hasOpenAI = !!process.env.OPENAI_API_KEY
+    const hasClaude = !!process.env.CLAUDE_API_KEY
+    const missingVars = [
+      ...missingBase,
+      ...(hasOpenAI || hasClaude ? [] : ['OPENAI_API_KEY or CLAUDE_API_KEY'])
+    ]
     
     if (missingVars.length > 0) {
       return NextResponse.json(
@@ -42,7 +48,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       services: {
         github: 'connected',
-        openai: 'configured'
+        llm: hasClaude ? 'anthropic' : (hasOpenAI ? 'openai' : 'not_configured')
       }
     })
 

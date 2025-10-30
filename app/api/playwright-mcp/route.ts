@@ -8,6 +8,32 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+async function anthropicJSON(systemPrompt: string, userMessage: string) {
+  const apiKey = process.env.CLAUDE_API_KEY;
+  if (!apiKey) return null;
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Anthropic API error: ${text}`);
+  }
+  const data: any = await res.json();
+  const content = data?.content?.[0]?.text;
+  return content || null;
+}
+
 export async function POST(request: NextRequest) {
   let browser: Browser | null = null;
   
@@ -174,16 +200,7 @@ async function interpretAcceptanceCriteria(criteria: string) {
 
 // Interpretar usando LLM de forma abstracta
 async function interpretWithLLM(criteria: string) {
-  if (!process.env.OPENAI_API_KEY) {
-    return null;
-  }
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini", // Usar modelo más económico para interpretación
-    messages: [
-      {
-        role: "system",
-        content: `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity).
+  const systemPrompt = `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity).
 
 Tu tarea es extraer de forma abstracta:
 1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
@@ -224,12 +241,33 @@ Responde SOLO con JSON válido en este formato:
       "expected": "qué se espera"
     }
   ]
-}`
-      },
-      {
-        role: "user",
-        content: criteria
+}`;
+
+  // Intentar con Claude si está disponible
+  if (process.env.CLAUDE_API_KEY) {
+    try {
+      const claudeText = await anthropicJSON(systemPrompt, criteria);
+      if (claudeText) {
+        try {
+          const parsed = JSON.parse(claudeText);
+          console.log('✅ LLM Interpretation (Claude):', parsed);
+          return parsed;
+        } catch {}
       }
+    } catch (e) {
+      console.warn('Claude failed, will fallback to OpenAI:', e);
+    }
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-4o-mini", // Usar modelo más económico para interpretación
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: criteria }
     ],
     temperature: 0.1, // Baja temperatura para respuestas más consistentes
     response_format: { type: "json_object" }

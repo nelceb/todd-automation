@@ -15,6 +15,7 @@ import ChatInterface from './components/ChatInterface'
 import WorkflowStatus from './components/WorkflowStatus'
 import GitHubAuth from './components/GitHubAuth'
 import TestGenerator from './components/TestGenerator'
+import MetricsDashboard from './components/MetricsDashboard'
 import { useWorkflowStore } from './store/workflowStore'
 
 interface Message {
@@ -27,7 +28,7 @@ interface Message {
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'workflows' | 'generator'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'workflows' | 'generator' | 'metrics'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const { workflows, isLoading } = useWorkflowStore()
@@ -36,10 +37,10 @@ export default function Home() {
     setGithubToken(token)
   }
 
-  const handleTabChange = (tab: 'chat' | 'workflows' | 'generator') => {
+  const handleTabChange = (tab: 'chat' | 'workflows' | 'generator' | 'metrics') => {
     setActiveTab(tab)
-    if (tab === 'workflows' || tab === 'generator') {
-      // Scroll to top when switching to workflows or generator
+    if (tab === 'workflows' || tab === 'generator' || tab === 'metrics') {
+      // Scroll to top when switching to workflows, generator, or metrics
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -141,6 +142,23 @@ export default function Home() {
               </svg>
               <span>Generator</span>
             </button>
+            <button 
+              onClick={() => handleTabChange('metrics')}
+              className={`flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] ${
+                activeTab === 'metrics'
+                  ? 'border-gray-600 bg-gray-600 text-white'
+                  : 'border-gray-600 hover:border-gray-700'
+              }`}
+              style={{ 
+                color: activeTab === 'metrics' ? 'white' : '#344055', 
+                backgroundColor: activeTab === 'metrics' ? '#4B5563' : 'transparent' 
+              }}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+              </svg>
+              <span>Metrics</span>
+            </button>
             <GitHubAuth onAuthSuccess={handleAuthSuccess} />
           </div>
           {/* Línea divisoria fina */}
@@ -179,7 +197,7 @@ export default function Home() {
             >
               <WorkflowStatus githubToken={githubToken} />
             </motion.div>
-          ) : (
+          ) : activeTab === 'generator' ? (
             <motion.div
               key="generator"
               initial={{ opacity: 0, y: 20 }}
@@ -189,6 +207,17 @@ export default function Home() {
               className="w-full"
             >
               <TestGenerator />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="metrics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="w-full p-6"
+            >
+              <MetricsDashboard />
             </motion.div>
           )}
         </AnimatePresence>

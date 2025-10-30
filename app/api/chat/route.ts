@@ -7,6 +7,34 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
+async function chatWithClaude(systemPrompt: string, userMessage: string) {
+  const apiKey = process.env.CLAUDE_API_KEY
+  if (!apiKey) return null
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [
+        { role: 'user', content: userMessage }
+      ]
+    })
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Anthropic API error: ${text}`)
+  }
+  const data: any = await response.json()
+  const content = data?.content?.[0]?.text
+  return content || null
+}
+
 // Mapeo de comandos a workflows
 const WORKFLOW_MAPPING = {
   'mobile-tests': {
@@ -30,13 +58,8 @@ export async function POST(request: NextRequest) {
   try {
     const { message, preview = false } = await request.json()
 
-    // Procesar el mensaje con OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-            content: `You are a multi-repository test automation assistant that can execute tests across different frameworks using natural language commands.
+    // Preparar prompts
+    const systemPrompt = `You are a multi-repository test automation assistant that can execute tests across different frameworks using natural language commands.
 
 AVAILABLE REPOSITORIES AND WORKFLOWS:
 
@@ -361,16 +384,28 @@ IMPORTANT: The iOS Maestro Tests workflow accepts these test_suite values:
 - "search" → only search tests
 - "smoke" → basic tests
 - "regression" → full regression tests`
-        },
-        {
-          role: "user",
-          content: preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
-        }
-      ],
-      temperature: 0.3,
-    })
+    const userPrompt = preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
 
-    const response = completion.choices[0]?.message?.content
+    // Intentar con Claude si está disponible
+    let responseText: string | null = null
+    if (process.env.CLAUDE_API_KEY) {
+      responseText = await chatWithClaude(systemPrompt, userPrompt)
+    }
+
+    // Fallback a OpenAI
+    if (!responseText) {
+      const completion = await openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.3,
+      })
+      responseText = completion.choices[0]?.message?.content || null
+    }
+
+    const response = responseText
     if (!response) {
       throw new Error('No response from OpenAI')
     }
