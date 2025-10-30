@@ -16,12 +16,36 @@ interface WorkflowMetrics {
   last_run: string
 }
 
+interface WorkflowMetrics {
+  workflow_id: string
+  workflow_name: string
+  total_runs: number
+  successful_runs: number
+  failed_runs: number
+  cancelled_runs: number
+  in_progress_runs: number
+  success_rate: number
+  avg_duration_ms: number
+  last_run: string
+  runs_this_month: number
+  runs_last_month: number
+  trend: 'up' | 'down' | 'stable'
+}
+
 interface MetricsData {
   workflows: WorkflowMetrics[]
-  total_workflows: number
-  total_runs: number
-  success_rate: number
-  avg_response_time: number
+  summary: {
+    total_workflows: number
+    total_runs: number
+    successful_runs: number
+    failed_runs: number
+    success_rate: number
+    avg_response_time: number
+    in_progress_runs: number
+  }
+  time_range: string
+  repository: string
+  last_updated: string
 }
 
 export default function MetricsDashboard() {
@@ -37,7 +61,7 @@ export default function MetricsDashboard() {
   const fetchMetrics = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/workflow-metrics?range=${timeRange}`)
+      const response = await fetch(`/api/github-workflow-metrics?range=${timeRange}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch metrics')
@@ -90,9 +114,9 @@ export default function MetricsDashboard() {
   }
 
   const getSuccessRateChartData = () => {
-    if (!metrics) return null
+    if (!metrics?.summary) return null
 
-    const successRate = metrics.success_rate
+    const successRate = metrics.summary.success_rate
     const failureRate = 100 - successRate
 
     return {
@@ -169,7 +193,17 @@ export default function MetricsDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Workflow Metrics</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Workflow Metrics</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Historial de ejecución - Últimos 30 días + Today
+            {metrics?.period && (
+              <span className="ml-2 text-blue-600">
+                ({metrics.period.start_date} → {metrics.period.end_date})
+              </span>
+            )}
+          </p>
+        </div>
         <div className="flex space-x-2">
           {(['24h', '7d', '30d'] as const).map((range) => (
             <button
@@ -190,19 +224,19 @@ export default function MetricsDashboard() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-blue-600">{metrics.total_workflows}</div>
+          <div className="text-2xl font-bold text-blue-600">{metrics.summary.total_workflows}</div>
           <div className="text-sm text-gray-500">Total Workflows</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-green-600">{metrics.total_runs}</div>
+          <div className="text-2xl font-bold text-green-600">{metrics.summary.total_runs}</div>
           <div className="text-sm text-gray-500">Total Runs</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-purple-600">{metrics.success_rate.toFixed(1)}%</div>
+          <div className="text-2xl font-bold text-purple-600">{metrics.summary.success_rate.toFixed(1)}%</div>
           <div className="text-sm text-gray-500">Success Rate</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-orange-600">{metrics.avg_response_time.toFixed(0)}ms</div>
+          <div className="text-2xl font-bold text-orange-600">{metrics.summary.avg_response_time.toFixed(0)}ms</div>
           <div className="text-sm text-gray-500">Avg Response Time</div>
         </div>
       </div>
@@ -243,10 +277,13 @@ export default function MetricsDashboard() {
                   Workflow
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Runs
+                  Total Runs (30d)
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Success Rate
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Trend
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Avg Duration
@@ -260,27 +297,41 @@ export default function MetricsDashboard() {
               {metrics.workflows.map((workflow) => (
                 <tr key={workflow.workflow_id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {workflow.name}
+                    {workflow.workflow_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {workflow.total_runs}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      (workflow.successful_runs / workflow.total_runs) >= 0.8
+                      workflow.success_rate >= 80
                         ? 'bg-green-100 text-green-800'
-                        : (workflow.successful_runs / workflow.total_runs) >= 0.6
+                        : workflow.success_rate >= 60
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {((workflow.successful_runs / workflow.total_runs) * 100).toFixed(1)}%
+                      {workflow.success_rate.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                      workflow.trend === 'up'
+                        ? 'bg-green-100 text-green-800'
+                        : workflow.trend === 'down'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {workflow.trend === 'up' && '↗️'}
+                      {workflow.trend === 'down' && '↘️'}
+                      {workflow.trend === 'stable' && '→'}
+                      <span className="ml-1">{workflow.trend}</span>
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {workflow.avg_duration_ms.toFixed(0)}ms
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(workflow.last_run).toLocaleString()}
+                    {workflow.last_run ? new Date(workflow.last_run).toLocaleString() : 'N/A'}
                   </td>
                 </tr>
               ))}
