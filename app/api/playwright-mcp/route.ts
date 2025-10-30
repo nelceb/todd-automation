@@ -221,6 +221,42 @@ Para CookUnity ecommerce, los contextos comunes son:
 - cart: carrito de compras
 - menu: menú de comidas
 
+EJEMPLO DE RESPUESTA CORRECTA:
+Si el acceptance criteria es: "User taps invoice icon on past order"
+{
+  "context": "pastOrders",
+  "actions": [
+    {
+      "type": "click",
+      "element": "pastOrderItem",
+      "description": "Click on past order item to open details",
+      "intent": "Navigate to order details",
+      "order": 1
+    },
+    {
+      "type": "click", 
+      "element": "invoiceIcon",
+      "description": "Click on invoice icon to view invoice",
+      "intent": "Open invoice modal",
+      "order": 2
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visibility",
+      "element": "invoiceModal",
+      "description": "Invoice modal should be visible",
+      "expected": "visible"
+    },
+    {
+      "type": "visibility",
+      "element": "invoiceDetails",
+      "description": "Invoice details should be displayed",
+      "expected": "visible"
+    }
+  ]
+}
+
 Responde SOLO con JSON válido en este formato:
 {
   "context": "homepage|ordersHub|pastOrders|search|cart|menu",
@@ -246,13 +282,21 @@ Responde SOLO con JSON válido en este formato:
   // Intentar con Claude si está disponible
   if (process.env.CLAUDE_API_KEY) {
     try {
+      console.log('🤖 Claude: Sending request with criteria:', criteria);
       const claudeText = await anthropicJSON(systemPrompt, criteria);
+      console.log('🤖 Claude: Raw response:', claudeText);
+      
       if (claudeText) {
         try {
           const parsed = JSON.parse(claudeText);
-          console.log('✅ LLM Interpretation (Claude):', parsed);
+          console.log('✅ Claude interpretation successful:', JSON.stringify(parsed, null, 2));
           return parsed;
-        } catch {}
+        } catch (parseError) {
+          console.log('❌ Claude JSON parse error:', parseError);
+          console.log('❌ Raw response that failed to parse:', claudeText);
+        }
+      } else {
+        console.log('❌ Claude returned empty response');
       }
     } catch (e) {
       console.warn('Claude failed, will fallback to OpenAI:', e);
@@ -274,16 +318,20 @@ Responde SOLO con JSON válido en este formato:
   });
 
   const response = completion.choices[0]?.message?.content;
+  console.log('🤖 OpenAI: Raw response:', response);
+  
   if (!response) {
+    console.log('❌ OpenAI returned empty response');
     return null;
   }
 
   try {
     const parsed = JSON.parse(response);
-    console.log('✅ LLM Interpretation:', parsed);
+    console.log('✅ OpenAI interpretation successful:', JSON.stringify(parsed, null, 2));
     return parsed;
   } catch (error) {
-    console.error('❌ Error parseando respuesta LLM:', error);
+    console.error('❌ OpenAI JSON parse error:', error);
+    console.error('❌ Raw response that failed to parse:', response);
     return null;
   }
 }
@@ -893,8 +941,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
   ${pageInitialization}`;
   
+  // Debug: Log interpretation data
+  console.log('🔍 Debug - Interpretation data:', JSON.stringify(interpretation, null, 2));
+  console.log('🔍 Debug - Behavior data:', JSON.stringify(behavior, null, 2));
+  
   // Generar acciones específicas basadas en el acceptance criteria
-  if (interpretation.actions.length > 0) {
+  if (interpretation.actions && interpretation.actions.length > 0) {
     testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
     
     const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
@@ -926,7 +978,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       testCode += `\n  // ${description}`;
       testCode += `\n  ${methodCall}`;
     }
-  } else if (behavior.interactions.length > 0) {
+  } else if (behavior.interactions && behavior.interactions.length > 0) {
     // Fallback: usar interacciones observadas
     testCode += `\n\n  //WHEN - Observed interactions`;
     
@@ -935,10 +987,28 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       const methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
       testCode += `\n  ${methodCall}`;
     }
+  } else {
+    // Fallback final: generar acciones genéricas basadas en el contexto
+    testCode += `\n\n  //WHEN - Generic actions based on context`;
+    
+    if (interpretation.context === 'pastOrders') {
+      testCode += `\n  // Navigate to past orders`;
+      testCode += `\n  await ${pageVarName}.navigateToPastOrders();`;
+      testCode += `\n  // Click on invoice icon`;
+      testCode += `\n  await ${pageVarName}.clickOnInvoiceIcon();`;
+    } else if (interpretation.context === 'ordersHub') {
+      testCode += `\n  // Navigate to orders hub`;
+      testCode += `\n  await ${pageVarName}.navigateToOrdersHub();`;
+      testCode += `\n  // Click on order item`;
+      testCode += `\n  await ${pageVarName}.clickOnOrderItem();`;
+    } else {
+      testCode += `\n  // Perform main action`;
+      testCode += `\n  await ${pageVarName}.performMainAction();`;
+    }
   }
   
   // Generar assertions específicas basadas en el acceptance criteria
-  if (interpretation.assertions.length > 0) {
+  if (interpretation.assertions && interpretation.assertions.length > 0) {
     testCode += `\n\n  //THEN - Verify expected behavior`;
     
     for (const assertion of interpretation.assertions) {
@@ -966,7 +1036,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       testCode += `\n  ${assertionCode}`;
     }
-  } else if (behavior.elements.length > 0) {
+  } else if (behavior.elements && behavior.elements.length > 0) {
     // Fallback: usar elementos observados
     testCode += `\n\n  //THEN - Verify elements are present`;
     
@@ -974,6 +1044,22 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       const elementName = element.name;
       const methodCall = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${elementName} should be visible').toBeTruthy();`;
       testCode += `\n  ${methodCall}`;
+    }
+  } else {
+    // Fallback final: generar assertions genéricas basadas en el contexto
+    testCode += `\n\n  //THEN - Verify expected behavior`;
+    
+    if (interpretation.context === 'pastOrders') {
+      testCode += `\n  // Verify invoice modal is visible`;
+      testCode += `\n  expect(await ${pageVarName}.isInvoiceModalVisible(), 'Invoice modal should be visible').toBeTruthy();`;
+      testCode += `\n  // Verify invoice details are displayed`;
+      testCode += `\n  expect(await ${pageVarName}.isInvoiceDetailsVisible(), 'Invoice details should be visible').toBeTruthy();`;
+    } else if (interpretation.context === 'ordersHub') {
+      testCode += `\n  // Verify order details are visible`;
+      testCode += `\n  expect(await ${pageVarName}.isOrderDetailsVisible(), 'Order details should be visible').toBeTruthy();`;
+    } else {
+      testCode += `\n  // Verify main element is visible`;
+      testCode += `\n  expect(await ${pageVarName}.isMainElementVisible(), 'Main element should be visible').toBeTruthy();`;
     }
   }
   
