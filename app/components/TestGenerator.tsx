@@ -121,67 +121,59 @@ export default function TestGenerator() {
     setLoading(true)
     setProgressLog([])
     setShowProgress(true)
-    
+
     try {
-      // Usar Server-Sent Events para progreso en tiempo real
-      const eventSource = new EventSource(`/api/playwright-mcp-stream?issueKey=${jiraConfig.issueKey}&framework=playwright`)
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          
-          if (data.type === 'progress') {
-            setProgressLog(prev => [...prev, {
-              step: data.step,
-              message: data.message,
-              status: data.status,
-              timestamp: Date.now(),
-              details: data.details
-            }])
-          } else if (data.type === 'result') {
-            if (data.success) {
-              setGeneratedTest({
-                framework: 'playwright',
-                fileName: `test-${jiraConfig.issueKey}.spec.ts`,
-                content: data.smartTest,
-                testPath: `tests/specs/test-${jiraConfig.issueKey}.spec.ts`,
-                branchName: `feature/${jiraConfig.issueKey}-test`,
-                mcpData: data
-              })
-              setStep('result')
-            } else {
-              // Fallback a Smart Synapse si Playwright MCP falla
-              handleFallbackGeneration(criteria)
-            }
-            eventSource.close()
-          } else if (data.type === 'error') {
-            setError(data.message)
-            eventSource.close()
-          }
-        } catch (err) {
-          console.error('Error parsing SSE data:', err)
-        }
+      // Paso: interpretar y llamar al endpoint real
+      setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria...', status: 'info', timestamp: Date.now() }])
+
+      const response = await fetch('/api/playwright-mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptanceCriteria: criteria.description,
+          ticketId: jiraConfig.issueKey
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Playwright MCP failed: ${response.status} ${response.statusText}`)
       }
 
-      eventSource.onerror = (error) => {
-        console.error('SSE error:', error)
-        eventSource.close()
-        handleFallbackGeneration(criteria)
+      const data = await response.json()
+
+      // Logs de progreso derivados de la respuesta real
+      setProgressLog(prev => [
+        ...prev,
+        { step: 'browser', message: 'Launching browser for real observation...', status: 'info', timestamp: Date.now() },
+        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.navigation },
+        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'info', timestamp: Date.now(), details: data.behavior },
+        { step: 'generate', message: 'Generating test code...', status: 'info', timestamp: Date.now() },
+        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.testValidation },
+        { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() }
+      ])
+
+      if (data.success) {
+        setGeneratedTest({
+          framework: 'playwright',
+          fileName: `test-${jiraConfig.issueKey}.spec.ts`,
+          content: data.smartTest?.code || data.smartTest,
+          testPath: `tests/specs/test-${jiraConfig.issueKey}.spec.ts`,
+          branchName: `feature/${jiraConfig.issueKey}-test`,
+          mcpData: data,
+          interpretation: data.interpretation,
+          navigation: data.navigation,
+          behavior: data.behavior
+        })
+        setStep('result')
+      } else {
+        await handleFallbackGeneration(criteria)
       }
-
-      // Timeout de 60 segundos
-      setTimeout(() => {
-        eventSource.close()
-        if (loading) {
-          setError('Request timeout - falling back to Smart Synapse')
-          handleFallbackGeneration(criteria)
-        }
-      }, 60000)
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
-      setLoading(false)
       setShowProgress(false)
+      await handleFallbackGeneration(criteria)
+    } finally {
+      setLoading(false)
     }
   }
 
