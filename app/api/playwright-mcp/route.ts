@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   let browser: Browser | null = null;
   
   try {
-    const { acceptanceCriteria } = await request.json();
+    const { acceptanceCriteria, ticketId } = await request.json();
     
     if (!acceptanceCriteria) {
       return NextResponse.json({ 
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Playwright MCP: Observados ${behavior.elements.length} elementos`);
     
     // 6. Generar test con datos reales observados
-    const smartTest = generateTestFromObservations(interpretation, navigation, behavior);
+    const smartTest = generateTestFromObservations(interpretation, navigation, behavior, ticketId);
     
     // 7. 🎯 VALIDACIÓN: Ejecutar el test generado para verificar que funciona
     console.log('🧪 Playwright MCP: Validando test generado...');
@@ -870,8 +870,8 @@ async function simulateBehavior(interpretation: any) {
 }
 
 // Generar test desde observaciones reales
-function generateTestFromObservations(interpretation: any, navigation: any, behavior: any) {
-  const testTitle = `QA-${Date.now()} - ${interpretation.context} Test`;
+function generateTestFromObservations(interpretation: any, navigation: any, behavior: any, ticketId?: string) {
+  const testTitle = ticketId ? `QA-${ticketId} - ${interpretation.context} Test` : `QA-${Date.now()} - ${interpretation.context} Test`;
   const tags = ['@qa', '@e2e'];
   
   if (interpretation.context === 'homepage') tags.push('@home');
@@ -893,70 +893,112 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
   ${pageInitialization}`;
   
-  // Agregar acciones del acceptance criteria (basado en interpretation.actions, no solo las visibles)
-  // Esto asegura que todas las acciones detectadas del acceptance criteria se incluyan en el test
+  // Generar acciones específicas basadas en el acceptance criteria
   if (interpretation.actions.length > 0) {
-    testCode += `\n\n  //WHEN - Actions from acceptance criteria (observed with Playwright MCP)`;
+    testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
     
-    // Ordenar acciones por el campo "order" si existe, sino mantener orden original
-    const sortedActions = interpretation.actions.sort((a: any, b: any) => {
-      if (a.order && b.order) {
-        return a.order - b.order;
-      }
-      return 0; // Mantener orden original si no hay campo order
-    });
+    const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
     
     for (const action of sortedActions) {
       const elementName = action.element;
-      const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
+      const description = action.description || `Click on ${elementName}`;
       
-      // Incluir todas las acciones del acceptance criteria, independientemente de si están visibles ahora
-      // (pueden aparecer después de interacciones previas)
-      testCode += `\n  await ${pageVarName}.${methodName}();`;
+      // Generar método específico basado en el tipo de acción
+      let methodCall = '';
+      switch (action.type) {
+        case 'click':
+        case 'tap':
+          methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+          break;
+        case 'fill':
+          methodCall = `await ${pageVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+          break;
+        case 'navigate':
+          methodCall = `await ${pageVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+          break;
+        case 'scroll':
+          methodCall = `await ${pageVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+          break;
+        default:
+          methodCall = `await ${pageVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+      }
+      
+      testCode += `\n  // ${description}`;
+      testCode += `\n  ${methodCall}`;
     }
   } else if (behavior.interactions.length > 0) {
-    // Fallback: si no hay acciones en interpretation, usar las observadas
-    testCode += `\n\n  //WHEN - Observed with Playwright MCP (Real Navigation)`;
+    // Fallback: usar interacciones observadas
+    testCode += `\n\n  //WHEN - Observed interactions`;
     
     for (const interaction of behavior.interactions) {
       const elementName = interaction.element;
-      const methodName = `clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}`;
-      
-      testCode += `\n  await ${pageVarName}.${methodName}();`;
+      const methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+      testCode += `\n  ${methodCall}`;
     }
   }
   
-  // Agregar assertions observadas
+  // Generar assertions específicas basadas en el acceptance criteria
   if (interpretation.assertions.length > 0) {
-    testCode += `\n\n  //THEN`;
+    testCode += `\n\n  //THEN - Verify expected behavior`;
     
     for (const assertion of interpretation.assertions) {
-      if (assertion.type === 'visibility') {
-        // Si la assertion tiene un element específico, usar ese método
-        if (assertion.element === 'invoiceModal') {
-          testCode += `\n  expect(await ${pageVarName}.isInvoiceModalVisible(), '${assertion.description}').toBeTruthy();`;
-        } else if (assertion.element === 'invoiceDetails') {
-          testCode += `\n  expect(await ${pageVarName}.isInvoiceDetailsVisible(), '${assertion.description}').toBeTruthy();`;
-        } else {
-          testCode += `\n  expect.soft(await ${pageVarName}.isElementVisible(), '${assertion.description}').toBeTruthy();`;
-        }
+      const elementName = assertion.element;
+      const description = assertion.description || `Verify ${elementName}`;
+      const expected = assertion.expected || 'visible';
+      
+      let assertionCode = '';
+      switch (assertion.type) {
+        case 'visibility':
+          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+          break;
+        case 'text':
+          assertionCode = `expect(await ${pageVarName}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
+          break;
+        case 'state':
+          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Enabled(), '${description}').toBeTruthy();`;
+          break;
+        case 'value':
+          assertionCode = `expect(await ${pageVarName}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
+          break;
+        default:
+          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
       }
+      
+      testCode += `\n  ${assertionCode}`;
+    }
+  } else if (behavior.elements.length > 0) {
+    // Fallback: usar elementos observados
+    testCode += `\n\n  //THEN - Verify elements are present`;
+    
+    for (const element of behavior.elements) {
+      const elementName = element.name;
+      const methodCall = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${elementName} should be visible').toBeTruthy();`;
+      testCode += `\n  ${methodCall}`;
     }
   }
   
   testCode += `\n});`;
   
-  return testCode;
+  return {
+    title: testTitle,
+    code: testCode,
+    tags: tags,
+    context: interpretation.context,
+    actions: interpretation.actions.length,
+    assertions: interpretation.assertions.length,
+    description: `Test for ${interpretation.context} functionality with ${interpretation.actions.length} actions and ${interpretation.assertions.length} assertions`
+  };
 }
 
 // 🎯 VALIDAR TEST GENERADO: Ejecutar el test para verificar que funciona
-async function validateGeneratedTest(page: Page, testCode: string, interpretation: any) {
+async function validateGeneratedTest(page: Page, smartTest: any, interpretation: any) {
   try {
     console.log('🔍 Validando test generado...');
     
     // Simular ejecución del test (en un entorno real, esto ejecutaría el test)
     // Por ahora, validamos que el test tenga la estructura correcta
     
+    const testCode = smartTest.code;
     const hasGiven = testCode.includes('//GIVEN');
     const hasWhen = testCode.includes('//WHEN');
     const hasThen = testCode.includes('//THEN');
@@ -975,12 +1017,20 @@ async function validateGeneratedTest(page: Page, testCode: string, interpretatio
       return {
         success: true,
         message: 'Test structure validated successfully',
+        testCode,
         details: {
           hasGiven,
           hasWhen, 
           hasThen,
           hasActions,
           hasAssertions
+        },
+        testInfo: {
+          title: smartTest.title,
+          context: smartTest.context,
+          actions: smartTest.actions,
+          assertions: smartTest.assertions,
+          description: smartTest.description
         }
       };
     } else {
