@@ -44,7 +44,13 @@ interface MetricsData {
     in_progress_runs: number
   }
   time_range: string
+  query_range: string
   repository: string
+  period: {
+    start_date: string
+    end_date: string
+    days: number
+  }
   last_updated: string
 }
 
