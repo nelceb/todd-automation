@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const service = searchParams.get('service') // claude_agent, playwright_mcp, llm_usage
   
   const metrics = getMetrics()
-  let responseData = metrics
+  let responseData: any = metrics
   
   // Filtrar por servicio si se especifica
   if (service && metrics[service as keyof typeof metrics]) {
