@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { recordMetric } from '../metrics/route'
+import { recordMetric } from '../utils/metrics'
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
