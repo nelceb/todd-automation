@@ -56,6 +56,10 @@ interface MetricsData {
     success_rate: number
     avg_response_time: number
     in_progress_runs: number
+    most_active_workflow?: {
+      name: string
+      runs: number
+    } | null
   }
   time_range: string
   query_range: string
@@ -439,7 +443,12 @@ export default function MetricsDashboard() {
           <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
             {formatDuration(metrics.summary.avg_response_time)}
           </div>
-          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Avg Response Time</div>
+          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>
+            Avg Execution Time
+          </div>
+          <div className="text-xs font-mono mt-1" style={{ color: '#9CA3AF' }}>
+            (Promedio ponderado)
+          </div>
         </div>
       </div>
 

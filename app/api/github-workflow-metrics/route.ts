@@ -271,7 +271,22 @@ export async function GET(request: NextRequest) {
     const totalSuccessful = workflowMetrics.reduce((sum, w) => sum + w.successful_runs, 0)
     const totalFailed = workflowMetrics.reduce((sum, w) => sum + w.failed_runs, 0)
     const overallSuccessRate = totalRuns > 0 ? (totalSuccessful / totalRuns) * 100 : 0
-    const avgResponseTime = workflowMetrics.reduce((sum, w) => sum + w.avg_duration_ms, 0) / workflowMetrics.length || 0
+    
+    // Calcular promedio ponderado de duración (por cantidad de runs)
+    // Esto da más peso a workflows que se ejecutan más frecuentemente
+    let weightedAvgDuration = 0
+    if (totalRuns > 0) {
+      const totalDurationWeighted = workflowMetrics.reduce((sum, w) => {
+        // Cada workflow contribuye proporcionalmente a sus runs
+        return sum + (w.avg_duration_ms * w.total_runs)
+      }, 0)
+      weightedAvgDuration = totalDurationWeighted / totalRuns
+    }
+    
+    // Encontrar el workflow más activo (más runs)
+    const mostActiveWorkflow = workflowMetrics.length > 0 
+      ? workflowMetrics.reduce((max, w) => w.total_runs > max.total_runs ? w : max, workflowMetrics[0])
+      : null
 
     return NextResponse.json({
       workflows: workflowMetrics,
@@ -281,8 +296,12 @@ export async function GET(request: NextRequest) {
         successful_runs: totalSuccessful,
         failed_runs: totalFailed,
         success_rate: overallSuccessRate,
-        avg_response_time: avgResponseTime,
-        in_progress_runs: workflowMetrics.reduce((sum, w) => sum + w.in_progress_runs, 0)
+        avg_response_time: weightedAvgDuration, // Promedio ponderado por cantidad de runs
+        in_progress_runs: workflowMetrics.reduce((sum, w) => sum + w.in_progress_runs, 0),
+        most_active_workflow: mostActiveWorkflow ? {
+          name: mostActiveWorkflow.workflow_name,
+          runs: mostActiveWorkflow.total_runs
+        } : null
       },
       time_range: '30d', // Siempre 30 días
       query_range: range, // Rango de consulta específico
