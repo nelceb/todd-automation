@@ -2418,16 +2418,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       // Fallback genérico
       testCode += `\n  expect(await ${pageVarName}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
     }
-      testCode += `\n  expect(await ${pageVarName}.isInvoiceModalVisible(), 'Invoice modal should be visible').toBeTruthy();`;
-      testCode += `\n  // Verify invoice details are displayed`;
-      testCode += `\n  expect(await ${pageVarName}.isInvoiceDetailsVisible(), 'Invoice details should be visible').toBeTruthy();`;
-    } else if (interpretation.context === 'ordersHub') {
-      testCode += `\n  // Verify order details are visible`;
-      testCode += `\n  expect(await ${pageVarName}.isOrderDetailsVisible(), 'Order details should be visible').toBeTruthy();`;
-    } else {
-      testCode += `\n  // Verify main element is visible`;
-      testCode += `\n  expect(await ${pageVarName}.isMainElementVisible(), 'Main element should be visible').toBeTruthy();`;
-    }
   }
   
   testCode += `\n});`;
