@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js'
 import { Pie, Bar } from 'react-chartjs-2'
+import SmallCube from './SmallCube'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
@@ -275,11 +276,13 @@ export default function MetricsDashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center h-64 space-y-4" style={{ backgroundColor: '#AED4E6' }}>
+        <div className="relative w-32 h-32 flex items-center justify-center">
+          <SmallCube />
+        </div>
         <div className="text-center">
-          <p className="text-lg font-medium text-gray-700">{loadingMessage}</p>
-          <p className="text-sm text-gray-500 mt-2">This may take a few moments...</p>
+          <p className="text-lg font-mono font-medium" style={{ color: '#344055' }}>{loadingMessage}</p>
+          <p className="text-sm font-mono mt-2" style={{ color: '#6B7280' }}>This may take a few moments...</p>
         </div>
       </div>
     )
@@ -287,11 +290,11 @@ export default function MetricsDashboard() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-600">Error loading metrics: {error}</p>
+      <div className="bg-red-50/20 border border-red-200/50 rounded-xl p-4" style={{ backgroundColor: '#AED4E6' }}>
+        <p className="font-mono text-red-600" style={{ color: '#DC2626' }}>Error loading metrics: {error}</p>
         <button 
           onClick={fetchMetrics}
-          className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          className="mt-2 px-4 py-2 font-mono bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
         >
           Retry
         </button>
@@ -301,22 +304,24 @@ export default function MetricsDashboard() {
 
   if (!metrics) {
     return (
-      <div className="text-center text-gray-500">
+      <div className="text-center font-mono" style={{ color: '#6B7280', backgroundColor: '#AED4E6' }}>
         No metrics data available
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ backgroundColor: '#AED4E6' }}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Workflow Metrics</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-mono font-bold tracking-wide mb-3" style={{ color: '#344055' }}>
+            Workflow Metrics
+          </h2>
+          <p className="text-sm font-mono mt-1" style={{ color: '#4B5563' }}>
             Historial de ejecución - {timeRange === '24h' ? 'Últimas 24 horas' : timeRange === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'} + Today
             {metrics?.period && (
-              <span className="ml-2 text-blue-600">
+              <span className="ml-2" style={{ color: '#3B82F6' }}>
                 ({metrics.period.start_date} → {metrics.period.end_date})
               </span>
             )}
@@ -327,11 +332,15 @@ export default function MetricsDashboard() {
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-3 py-1 rounded text-sm font-medium ${
+              className={`px-3 py-1 rounded-lg border font-mono text-sm transition-colors ${
                 timeRange === range
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'border-gray-600 bg-gray-600 text-white'
+                  : 'border-gray-600 hover:border-gray-700'
               }`}
+              style={{
+                color: timeRange === range ? 'white' : '#344055',
+                backgroundColor: timeRange === range ? '#4B5563' : 'transparent'
+              }}
             >
               {range}
             </button>
@@ -341,32 +350,32 @@ export default function MetricsDashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-blue-600">{metrics.summary.total_workflows}</div>
-          <div className="text-sm text-gray-500">Total Workflows</div>
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <div className="text-2xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
+          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Workflows</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-green-600">{metrics.summary.total_runs}</div>
-          <div className="text-sm text-gray-500">Total Runs</div>
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
+          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-purple-600">{metrics.summary.success_rate.toFixed(1)}%</div>
-          <div className="text-sm text-gray-500">Success Rate</div>
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
+          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Success Rate</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-orange-600">
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
             {formatDuration(metrics.summary.avg_response_time)}
           </div>
-          <div className="text-sm text-gray-500">Avg Response Time</div>
+          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Avg Response Time</div>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Workflow Distribution */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-2">Workflow Distribution</h3>
-          <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
+          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
             Total runs por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
           </p>
           <div className="h-96">
@@ -377,9 +386,9 @@ export default function MetricsDashboard() {
         </div>
 
         {/* Trigger Breakdown */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-2">Trigger Breakdown</h3>
-          <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Trigger Breakdown</h3>
+          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
             Tipos de triggers por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
           </p>
           <div className="h-96 max-h-96 overflow-y-auto">
@@ -398,51 +407,51 @@ export default function MetricsDashboard() {
                 const scheduledTriggers = workflow.trigger_breakdown.schedule
                 
                 return (
-                  <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-200 last:border-0">
+                  <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-300/50 last:border-0">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-mono font-medium" style={{ color: '#1F2937' }}>
                         {workflow.workflow_name.length > 45 
                           ? workflow.workflow_name.substring(0, 42) + '...' 
                           : workflow.workflow_name}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs font-mono" style={{ color: '#6B7280' }}>
                         {workflow.total_runs} total
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {codeTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 font-mono">
                           📝 {codeTriggers} code
                         </span>
                       )}
                       {manualTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-mono">
                           🖐️ {manualTriggers} manual
                         </span>
                       )}
                       {scheduledTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 font-mono">
                           ⏰ {scheduledTriggers} scheduled
                         </span>
                       )}
                       {workflow.trigger_breakdown.workflow_run > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 font-mono">
                           🔗 {workflow.trigger_breakdown.workflow_run} workflow
                         </span>
                       )}
                       {workflow.trigger_breakdown.repository_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800 font-mono">
                           📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
                         </span>
                       )}
                       {workflow.trigger_breakdown.other > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 font-mono">
                           ❓ {workflow.trigger_breakdown.other} other
                         </span>
                       )}
                     </div>
                     {codeTriggers > 0 && (
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs font-mono" style={{ color: '#9CA3AF' }}>
                         {workflow.trigger_breakdown.push} push, {workflow.trigger_breakdown.pull_request} PR
                       </div>
                     )}
@@ -450,16 +459,16 @@ export default function MetricsDashboard() {
                 )
               })}
             {metrics.workflows.filter(w => w.total_runs > 0).length === 0 && (
-              <div className="text-center text-gray-500 py-8">
-                <p className="text-sm">No hay workflows en este período</p>
+              <div className="text-center py-8">
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>No hay workflows en este período</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Success Rate */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Overall Success Rate</h3>
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+          <h3 className="text-lg font-mono font-semibold mb-4" style={{ color: '#344055' }}>Overall Success Rate</h3>
           <div className="h-64">
             {getSuccessRateChartData() && (
               <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
@@ -469,87 +478,87 @@ export default function MetricsDashboard() {
       </div>
 
       {/* Workflow Details Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold">Workflow Details</h3>
+      <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-300/50">
+          <h3 className="text-lg font-mono font-semibold" style={{ color: '#344055' }}>Workflow Details</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50/30">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Workflow
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Total Runs
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Manual
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Success Rate
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Trend
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Avg Duration
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Last Run
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-300/30">
               {metrics.workflows.map((workflow) => (
-                <tr key={workflow.workflow_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={workflow.workflow_id} className="hover:bg-white/10 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium" style={{ color: '#1F2937' }}>
                     {workflow.workflow_name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     {workflow.total_runs}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="flex flex-col space-y-1">
                       {workflow.trigger_breakdown.push > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-green-100 text-green-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-green-100 text-green-800 w-fit font-mono">
                           📝 {workflow.trigger_breakdown.push} push
                         </span>
                       )}
                       {workflow.trigger_breakdown.pull_request > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 w-fit font-mono">
                           🔀 {workflow.trigger_breakdown.pull_request} PR
                         </span>
                       )}
                       {workflow.trigger_breakdown.schedule > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 w-fit font-mono">
                           ⏰ {workflow.trigger_breakdown.schedule} scheduled
                         </span>
                       )}
                       {workflow.trigger_breakdown.workflow_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 w-fit font-mono">
                           🖐️ {workflow.trigger_breakdown.workflow_dispatch} manual
                         </span>
                       )}
                       {workflow.trigger_breakdown.workflow_run > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit font-mono">
                           🔗 {workflow.trigger_breakdown.workflow_run} workflow
                         </span>
                       )}
                       {workflow.trigger_breakdown.repository_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-800 w-fit font-mono">
                           📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
                         </span>
                       )}
                       {workflow.trigger_breakdown.other > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit font-mono">
                           ❓ {workflow.trigger_breakdown.other} other
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
+                    <span className={`inline-flex px-2 py-1 text-xs font-mono font-semibold rounded-full ${
                       workflow.success_rate >= 80
                         ? 'bg-green-100 text-green-800'
                         : workflow.success_rate >= 60
@@ -559,8 +568,8 @@ export default function MetricsDashboard() {
                       {workflow.success_rate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
+                    <span className={`inline-flex items-center px-2 py-1 text-xs font-mono font-semibold rounded-full ${
                       workflow.trend === 'up'
                         ? 'bg-green-100 text-green-800'
                         : workflow.trend === 'down'
@@ -573,10 +582,10 @@ export default function MetricsDashboard() {
                       <span className="ml-1">{workflow.trend}</span>
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     {formatDuration(workflow.avg_duration_ms)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     {workflow.last_run ? new Date(workflow.last_run).toLocaleString() : 'N/A'}
                   </td>
                 </tr>
