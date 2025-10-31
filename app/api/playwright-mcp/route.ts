@@ -1987,17 +1987,21 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     ? 'ordersHubPage' 
     : 'homePage';
   
-  // Inicialización básica de página
+  // Inicialización básica de página - solo agregar si no es homepage (porque ya tenemos homePage arriba)
   const pageInitialization = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub'
     ? `const ${pageVarName} = await homePage.navigateToOrdersHub();`
-    : `const ${pageVarName} = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
+    : ''; // Para homepage, no agregar nada porque ya tenemos homePage definido arriba
   
   let testCode = `test('${testTitle}', { tag: [${tags.map(t => `'${t}'`).join(', ')}] }, async ({ page }) => {
   //GIVEN
   const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
   const loginPage = await siteMap.loginPage(page);
-  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
-  ${pageInitialization}`;
+  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
+  
+  // Solo agregar pageInitialization si no está vacío (evitar duplicación para homepage)
+  if (pageInitialization) {
+    testCode += `\n  ${pageInitialization}`;
+  }
   
   // Si el contexto es pastOrders, manejar navegación y acciones
   if (interpretation.context === 'pastOrders') {
@@ -2455,31 +2459,71 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           testCode += `\n  ${methodCall}`;
         }
       }
-    } else {
+        } else {
       // Continuar al else para usar fallback específico
     }
   } else {
-    // Fallback final: generar assertions específicas basadas en el acceptance criteria
+    // 🎯 SIEMPRE generar assertions - nunca dejar un test sin verificaciones
     testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
     
-    // Verificar si hay acciones de "Load More"
-    const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
-      a.element?.toLowerCase().includes('loadmore') || 
-      a.element?.toLowerCase().includes('load-more') ||
-      a.description?.toLowerCase().includes('load more')
-    );
-    
-    if (hasLoadMoreAction) {
-      testCode += `\n  // Verify that more orders are displayed after Load More`;
-      testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
-    } else if (interpretation.context === 'pastOrders') {
-      // Fallback genérico para pastOrders
-      testCode += `\n  expect(await ${pageVarName}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
-    } else if (interpretation.context === 'ordersHub') {
-      testCode += `\n  expect(await ${pageVarName}.isOrdersHubVisible(), 'Orders hub should be visible').toBeTruthy();`;
+    // Si hay assertions del LLM, usarlas
+    if (interpretation.assertions && interpretation.assertions.length > 0) {
+      for (const assertion of interpretation.assertions) {
+        const elementName = assertion.element;
+        if (!elementName) continue;
+        
+        const description = assertion.description || `Verify ${elementName}`;
+        const expected = assertion.expected || 'visible';
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+        
+        let assertionCode = '';
+        switch (assertion.type) {
+          case 'visibility':
+            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+            break;
+          case 'text':
+            assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
+            break;
+          default:
+            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+        }
+        testCode += `\n  ${assertionCode}`;
+      }
     } else {
-      // Fallback genérico
-      testCode += `\n  expect(await ${pageVarName}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
+      // Generar assertions basadas en las acciones realizadas
+      const lastAction = interpretation.actions?.[interpretation.actions.length - 1];
+      
+      if (lastAction) {
+        // Si la última acción es cartButton, verificar que se navegó al cart
+        if (lastAction.element?.toLowerCase().includes('cart')) {
+          testCode += `\n  // Verify navigation to cart after clicking cart button`;
+          testCode += `\n  expect(await page.url(), 'Should navigate to cart').toContain('cart');`;
+        } else if (lastAction.element?.toLowerCase().includes('loadmore')) {
+          testCode += `\n  // Verify that more orders are displayed after Load More`;
+          testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
+        } else {
+          // Assertion genérica basada en la acción realizada
+          const actionElement = lastAction.element;
+          if (actionElement) {
+            const capitalizedElement = actionElement.charAt(0).toUpperCase() + actionElement.slice(1);
+            testCode += `\n  // Verify action completed successfully`;
+            testCode += `\n  expect(await ${pageVarName}.is${capitalizedElement}Visible(), '${actionElement} interaction should be successful').toBeTruthy();`;
+          }
+        }
+      }
+      
+      // Fallback por contexto si no hay acciones
+      if (!lastAction) {
+        if (interpretation.context === 'pastOrders') {
+          testCode += `\n  expect(await ${pageVarName}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
+        } else if (interpretation.context === 'ordersHub') {
+          testCode += `\n  expect(await ${pageVarName}.isOrdersHubVisible(), 'Orders hub should be visible').toBeTruthy();`;
+        } else if (interpretation.context === 'homepage') {
+          testCode += `\n  expect(await ${pageVarName}.isMainContentVisible(), 'Home page content should be visible').toBeTruthy();`;
+        } else {
+          testCode += `\n  expect(await ${pageVarName}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
+        }
+      }
     }
   }
   
