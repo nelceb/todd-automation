@@ -2885,41 +2885,64 @@ ${interpretation.assertions
 });`;
 }
 
-// 🎯 GIT MANAGEMENT: Crear branch y preparar PR
+// 🎯 GIT MANAGEMENT: Crear branch y PR real usando GitHub API
 async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any) {
   try {
-    console.log('🌿 Creando feature branch...');
+    console.log('🌿 Creando feature branch y PR...');
     
-    // 1. Extraer ticket ID del acceptance criteria (si está disponible)
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN_NELCEB || process.env.GITHUB_TOKEN;
+    const REPOSITORY = 'Cook-Unity/pw-cookunity-automation'; // Repo donde se crean los tests
+    
+    if (!GITHUB_TOKEN) {
+      console.warn('⚠️ GITHUB_TOKEN no configurado, solo preparando comandos Git');
+      return createFeatureBranchAndPRSimulated(interpretation, codeGeneration);
+    }
+    
+    // 1. Extraer ticket ID
     const ticketId = extractTicketId(interpretation);
     
     // 2. Generar nombre de branch
     const branchName = generateBranchName(ticketId, interpretation);
     
-    // 3. Crear branch (simulado - en producción usaría git commands)
-    const branchCreation = {
-      success: true,
-      branchName,
-      message: `Created feature branch: ${branchName}`,
-      commands: [
-        `git checkout -b ${branchName}`,
-        `git add tests/`,
-        `git add .github/workflows/`,
-        `git add .husky/`,
-        `git commit -m "feat: Add ${interpretation.context} test with Playwright MCP
-
-- Generated test with real browser observation
-- Added GitHub Actions workflow for automated testing
-- Added Husky pre-commit hooks for test validation
-- Test will auto-promote PR from draft to review on success"`,
-        `git push origin ${branchName}`
-      ]
-    };
+    // 3. Obtener SHA del branch base (main o develop)
+    const baseBranch = 'main';
+    const baseResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/ref/heads/${baseBranch}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
     
-    // 4. Crear GitHub Actions workflow para el test
+    if (!baseResponse.ok) {
+      throw new Error(`Failed to get base branch: ${baseResponse.statusText}`);
+    }
+    
+    const baseData = await baseResponse.json();
+    const baseSha = baseData.object.sha;
+    
+    // 4. Crear nuevo branch desde base
+    const branchResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/refs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ref: `refs/heads/${branchName}`,
+        sha: baseSha
+      })
+    });
+    
+    if (!branchResponse.ok && branchResponse.status !== 422) { // 422 = branch already exists
+      const errorText = await branchResponse.text();
+      throw new Error(`Failed to create branch: ${branchResponse.statusText} - ${errorText}`);
+    }
+    
+    console.log(`✅ Branch creado: ${branchName}`);
+    
+    // 5. Preparar archivos para commit
     const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId);
-    
-    // 5. Crear Husky pre-commit hook
     const huskyConfig = {
       file: '.husky/pre-commit',
       content: `#!/usr/bin/env sh
@@ -2930,34 +2953,161 @@ npm run test:playwright || exit 1
 `
     };
     
-    // 6. Preparar PR data con draft status
-    const prData = {
-      title: `QA-${ticketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`,
-      description: generatePRDescription(interpretation, codeGeneration),
-      branch: branchName,
-      files: [
-        ...codeGeneration.files.map((f: any) => f.file),
-        workflowFile.file,
-        huskyConfig.file
-      ],
-      draft: true, // PR como draft inicialmente
+    const allFiles = [
+      ...codeGeneration.files,
       workflowFile,
       huskyConfig
-    };
+    ];
+    
+    // 6. Crear commits para cada archivo usando GitHub API
+    let currentSha = baseSha;
+    const commitMessage = `feat: Add ${interpretation.context} test with Playwright MCP
+
+- Generated test with real browser observation
+- Added GitHub Actions workflow for automated testing  
+- Added Husky pre-commit hooks for test validation
+- Test will auto-promote PR from draft to review on success`;
+
+    for (const file of allFiles) {
+      // Leer contenido del archivo si existe (para actualizar) o crear nuevo
+      let fileSha = null;
+      try {
+        const fileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}?ref=${branchName}`, {
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (fileResponse.ok) {
+          const fileData = await fileResponse.json();
+          fileSha = fileData.sha; // Si existe, necesitamos SHA para actualizar
+        }
+      } catch (e) {
+        // Archivo no existe, se creará nuevo
+      }
+      
+      // Crear/actualizar archivo
+      const content = Buffer.from(file.content || '').toString('base64');
+      const createFileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: fileSha ? `Update ${file.file}` : `Add ${file.file}`,
+          content: content,
+          branch: branchName,
+          ...(fileSha && { sha: fileSha }) // Solo incluir SHA si existe (actualización)
+        })
+      });
+      
+      if (!createFileResponse.ok) {
+        const errorText = await createFileResponse.text();
+        console.error(`⚠️ Error creando archivo ${file.file}:`, errorText);
+        continue; // Continuar con siguiente archivo
+      }
+      
+      const fileCommit = await createFileResponse.json();
+      currentSha = fileCommit.commit.sha;
+      console.log(`✅ Archivo creado/actualizado: ${file.file}`);
+    }
+    
+    // 7. Crear Pull Request
+    const prTitle = `QA-${ticketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`;
+    const prDescription = generatePRDescription(interpretation, codeGeneration);
+    
+    const prResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/pulls`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: prTitle,
+        body: prDescription,
+        head: branchName,
+        base: baseBranch,
+        draft: true // PR como draft inicialmente
+      })
+    });
+    
+    let prUrl = null;
+    let prNumber = null;
+    
+    if (prResponse.ok) {
+      const prData = await prResponse.json();
+      prUrl = prData.html_url;
+      prNumber = prData.number;
+      console.log(`✅ Pull Request creado: ${prUrl}`);
+    } else {
+      const errorText = await prResponse.text();
+      console.error(`⚠️ Error creando PR:`, errorText);
+      // Continuar aunque falle el PR
+    }
     
     return {
       success: true,
-      branchCreation,
-      prData,
-      message: `Ready for PR creation: ${branchName}`
+      branchName,
+      branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
+      prUrl,
+      prNumber,
+      filesCreated: allFiles.map(f => f.file),
+      message: prUrl ? `✅ PR creado exitosamente: ${prUrl}` : `✅ Branch creado pero PR falló: ${branchName}`
     };
+    
   } catch (error) {
+    console.error('❌ Error en createFeatureBranchAndPR:', error);
+    // Fallback a modo simulado
     return {
-      success: false,
+      ...createFeatureBranchAndPRSimulated(interpretation, codeGeneration),
       error: error instanceof Error ? error.message : String(error),
-      message: 'Failed to create feature branch'
+      warning: 'PR creation failed, returning simulated commands'
     };
   }
+}
+
+// Función de respaldo para cuando no hay GITHUB_TOKEN
+function createFeatureBranchAndPRSimulated(interpretation: any, codeGeneration: any) {
+  const ticketId = extractTicketId(interpretation);
+  const branchName = generateBranchName(ticketId, interpretation);
+  const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId);
+  const huskyConfig = {
+    file: '.husky/pre-commit',
+    content: `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Playwright tests before commit
+npm run test:playwright || exit 1
+`
+  };
+  
+  return {
+    success: true,
+    branchName,
+    commands: [
+      `git checkout -b ${branchName}`,
+      `git add tests/`,
+      `git add .github/workflows/`,
+      `git add .husky/`,
+      `git commit -m "feat: Add ${interpretation.context} test with Playwright MCP
+
+- Generated test with real browser observation
+- Added GitHub Actions workflow for automated testing
+- Added Husky pre-commit hooks for test validation"`,
+      `git push origin ${branchName}`,
+      `# Luego crear PR manualmente en GitHub`
+    ],
+    files: [
+      ...codeGeneration.files.map((f: any) => f.file),
+      workflowFile.file,
+      huskyConfig.file
+    ],
+    message: `Commands prepared for: ${branchName} (GitHub API not configured)`
+  };
 }
 
 // Extraer ticket ID del acceptance criteria
