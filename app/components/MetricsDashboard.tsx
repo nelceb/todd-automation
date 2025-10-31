@@ -73,6 +73,7 @@ export default function MetricsDashboard() {
   const [loadingMessage, setLoadingMessage] = useState('Loading metrics...')
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d')
+  const [selectedTriggerType, setSelectedTriggerType] = useState<string | null>(null)
 
   useEffect(() => {
     fetchMetrics()
@@ -426,7 +427,100 @@ export default function MetricsDashboard() {
       {/* Workflow Details Table */}
       <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-300/50">
-          <h3 className="text-lg font-mono font-semibold" style={{ color: '#344055' }}>Workflow Details</h3>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <h3 className="text-lg font-mono font-semibold" style={{ color: '#344055' }}>Workflow Details</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedTriggerType(null)}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === null
+                    ? 'border-gray-600 bg-gray-600 text-white'
+                    : 'border-gray-600 hover:border-gray-700'
+                }`}
+                style={{
+                  color: selectedTriggerType === null ? 'white' : '#344055',
+                  backgroundColor: selectedTriggerType === null ? '#4B5563' : 'transparent'
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setSelectedTriggerType('Code')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'Code'
+                    ? 'border-green-600 bg-green-600 text-white'
+                    : 'border-green-300 hover:border-green-400 bg-green-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'Code' ? 'white' : '#059669',
+                  backgroundColor: selectedTriggerType === 'Code' ? '#059669' : 'transparent',
+                  borderColor: selectedTriggerType === 'Code' ? '#059669' : '#6EE7B7'
+                }}
+              >
+                📝 Code
+              </button>
+              <button
+                onClick={() => setSelectedTriggerType('Scheduled')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'Scheduled'
+                    ? 'border-yellow-600 bg-yellow-600 text-white'
+                    : 'border-yellow-300 hover:border-yellow-400 bg-yellow-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'Scheduled' ? 'white' : '#D97706',
+                  backgroundColor: selectedTriggerType === 'Scheduled' ? '#D97706' : 'transparent',
+                  borderColor: selectedTriggerType === 'Scheduled' ? '#D97706' : '#FDE68A'
+                }}
+              >
+                ⏰ Scheduled
+              </button>
+              <button
+                onClick={() => setSelectedTriggerType('Manual')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'Manual'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-blue-300 hover:border-blue-400 bg-blue-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'Manual' ? 'white' : '#2563EB',
+                  backgroundColor: selectedTriggerType === 'Manual' ? '#2563EB' : 'transparent',
+                  borderColor: selectedTriggerType === 'Manual' ? '#2563EB' : '#93C5FD'
+                }}
+              >
+                🖐️ Manual
+              </button>
+              <button
+                onClick={() => setSelectedTriggerType('Dispatch')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'Dispatch'
+                    ? 'border-indigo-600 bg-indigo-600 text-white'
+                    : 'border-indigo-300 hover:border-indigo-400 bg-indigo-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'Dispatch' ? 'white' : '#4F46E5',
+                  backgroundColor: selectedTriggerType === 'Dispatch' ? '#4F46E5' : 'transparent',
+                  borderColor: selectedTriggerType === 'Dispatch' ? '#4F46E5' : '#A5B4FC'
+                }}
+              >
+                📢 Dispatch
+              </button>
+              <button
+                onClick={() => setSelectedTriggerType('Workflow')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'Workflow'
+                    ? 'border-gray-600 bg-gray-600 text-white'
+                    : 'border-gray-300 hover:border-gray-400 bg-gray-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'Workflow' ? 'white' : '#4B5563',
+                  backgroundColor: selectedTriggerType === 'Workflow' ? '#4B5563' : 'transparent',
+                  borderColor: selectedTriggerType === 'Workflow' ? '#4B5563' : '#D1D5DB'
+                }}
+              >
+                🔗 Workflow
+              </button>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -456,7 +550,36 @@ export default function MetricsDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-300/30">
-              {metrics.workflows.map((workflow) => (
+              {metrics.workflows
+                .filter((workflow) => {
+                  if (!selectedTriggerType) return true;
+                  
+                  const breakdown = workflow.trigger_breakdown;
+                  const codeTriggers = breakdown.push + breakdown.pull_request;
+                  const manualTriggers = breakdown.workflow_dispatch;
+                  const scheduledTriggers = breakdown.schedule;
+                  const dispatchTriggers = breakdown.repository_dispatch;
+                  const workflowTriggers = breakdown.workflow_run;
+                  
+                  // Determinar el tipo principal de trigger
+                  const triggers = [
+                    { count: codeTriggers, type: 'Code' },
+                    { count: scheduledTriggers, type: 'Scheduled' },
+                    { count: manualTriggers, type: 'Manual' },
+                    { count: dispatchTriggers, type: 'Dispatch' },
+                    { count: workflowTriggers, type: 'Workflow' },
+                    { count: breakdown.other, type: 'Other' }
+                  ].filter(t => t.count > 0).sort((a, b) => b.count - a.count);
+                  
+                  if (triggers.length === 0) return selectedTriggerType === null;
+                  
+                  // Filtrar por el tipo principal (más frecuente) o si tiene ese tipo
+                  const mainTrigger = triggers[0];
+                  const hasSelectedType = triggers.some(t => t.type === selectedTriggerType);
+                  
+                  return mainTrigger.type === selectedTriggerType || hasSelectedType;
+                })
+                .map((workflow) => (
                 <tr key={workflow.workflow_id} className="hover:bg-white/10 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium" style={{ color: '#1F2937' }}>
                     {workflow.workflow_name}
