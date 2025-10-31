@@ -1588,15 +1588,110 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.log('⚠️ waitForLoadState timeout en observeBehaviorWithMCP, continuando...');
     }
     
-    // 🎯 VALIDAR que la página tiene contenido antes de observar
-    console.log('🔍 Verificando que la página tiene contenido...');
+    // 🎯 VALIDAR que la página tiene contenido AUTENTICADO antes de observar
+    console.log('🔍 [PRE-OBSERVATION] Verificando que la página está autenticada...');
+    const currentURL = page.url();
+    console.log(`📍 [PRE-OBSERVATION] URL actual: ${currentURL}`);
+    
+    // Verificar que NO estamos en página de login o error
+    if (currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login')) {
+      console.error('❌ [PRE-OBSERVATION] Todavía estamos en página de login - el login no fue exitoso');
+      return {
+        observed: false,
+        interactions: interpretation.actions.map((a: any) => ({
+          ...a,
+          observed: false,
+          exists: false,
+          visible: false,
+          note: 'Login no completado - todavía en página de login'
+        })),
+        elements: [],
+        observations: [],
+        error: 'Login no completado - todavía en página de login'
+      };
+    }
+    
+    // Verificar que tenemos elementos típicos de página autenticada
+    console.log('🔍 [PRE-OBSERVATION] Verificando elementos de página autenticada...');
+    const authElements = await Promise.all([
+      page.locator('[data-testid*="add"], [data-testid*="meal"], [data-testid*="cart"], [data-testid*="nav"], nav').count(),
+      page.locator('button, a[href*="orders"], a[href*="subscription"]').count()
+    ]);
+    
+    const hasAuthElements = authElements[0] > 0 || authElements[1] > 0;
+    console.log(`🔍 [PRE-OBSERVATION] Elementos de autenticación: ${hasAuthElements ? '✅' : '❌'} (nav/data-testid: ${authElements[0]}, buttons/links: ${authElements[1]})`);
+    
+    if (!hasAuthElements) {
+      // Tomar snapshot para ver qué hay realmente
+      const snapshot = await page.accessibility.snapshot().catch(() => null);
+      const snapshotText = snapshot ? JSON.stringify(snapshot).toLowerCase() : '';
+      console.error(`📸 [PRE-OBSERVATION] Contenido de la página detectado:`, snapshotText.substring(0, 500));
+      
+      // Verificar si hay texto de error o ayuda
+      if (snapshotText.includes('experiencing') || snapshotText.includes('help') || snapshotText.includes('issue')) {
+        console.error('❌ [PRE-OBSERVATION] Página de error/ayuda detectada, no página autenticada');
+        console.error('❌ [PRE-OBSERVATION] El login probablemente falló o hubo redirección a soporte');
+        return {
+          observed: false,
+          interactions: interpretation.actions.map((a: any) => ({
+            ...a,
+            observed: false,
+            exists: false,
+            visible: false,
+            note: 'Página de error/ayuda detectada - login no exitoso'
+          })),
+          elements: [],
+          observations: [],
+          error: 'Página de error/ayuda detectada - login no exitoso'
+        };
+      }
+    }
+    
     const bodyText = await page.locator('body').textContent().catch(() => '');
     const bodyLength = bodyText?.trim().length || 0;
-    console.log(`🔍 Longitud del contenido del body: ${bodyLength} caracteres`);
+    console.log(`🔍 [PRE-OBSERVATION] Longitud del contenido del body: ${bodyLength} caracteres`);
     
     if (bodyLength < 100) {
-      console.warn('⚠️ La página parece estar vacía o sin contenido suficiente');
-      behavior.error = 'Página parece estar vacía - posible problema de autenticación';
+      console.error('❌ [PRE-OBSERVATION] La página parece estar vacía o sin contenido suficiente');
+      return {
+        observed: false,
+        interactions: interpretation.actions.map((a: any) => ({
+          ...a,
+          observed: false,
+          exists: false,
+          visible: false,
+          note: 'Página sin contenido suficiente'
+        })),
+        elements: [],
+        observations: [],
+        error: 'Página sin contenido suficiente'
+      };
+    }
+    
+    // Listar TODOS los data-testid que hay realmente en la página ANTES de observar
+    const allTestIds = await page.locator('[data-testid]').all();
+    console.log(`🔍 [PRE-OBSERVATION] Elementos con data-testid encontrados: ${allTestIds.length}`);
+    if (allTestIds.length > 0) {
+      const testIds = await Promise.all(allTestIds.slice(0, 10).map(async (el) => {
+        return await el.getAttribute('data-testid').catch(() => null);
+      }));
+      console.log(`📋 [PRE-OBSERVATION] Primeros data-testid encontrados:`, testIds.filter(Boolean));
+    } else {
+      console.error('❌ [PRE-OBSERVATION] NO se encontraron elementos con data-testid');
+      console.error('❌ [PRE-OBSERVATION] La página NO está autenticada correctamente');
+      return {
+        observed: false,
+        interactions: interpretation.actions.map((a: any) => ({
+          ...a,
+          observed: false,
+          exists: false,
+          visible: false,
+          note: 'No se encontraron elementos con data-testid - página no autenticada'
+        })),
+        elements: [],
+        observations: [],
+        error: 'No se encontraron elementos con data-testid - página no autenticada'
+      };
     }
     
     // 🎯 Usar snapshot de accesibilidad del MCP
