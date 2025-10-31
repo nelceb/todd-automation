@@ -82,6 +82,7 @@ export default function MetricsDashboard() {
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [pieChartFlipped, setPieChartFlipped] = useState(false)
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   useEffect(() => {
     fetchMetrics()
@@ -607,6 +608,27 @@ export default function MetricsDashboard() {
         <div className="px-6 py-4 border-b border-gray-300/50">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h3 className="text-lg font-mono font-semibold" style={{ color: '#344055' }}>Workflow Details</h3>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search workflow..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-4 py-2 pr-10 rounded-lg border font-mono text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                    borderColor: '#D1D5DB',
+                    color: '#1F2937',
+                    width: '250px'
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  🔍
+                </span>
+              </div>
+            </div>
+          </div>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedTriggerType(null)}
@@ -740,6 +762,16 @@ export default function MetricsDashboard() {
             <tbody className="divide-y divide-gray-300/30">
               {metrics.workflows
                 .filter((workflow) => {
+                  // Filter by search query (workflow name)
+                  if (searchQuery.trim()) {
+                    const workflowName = (workflow.workflow_name || workflow.name || workflow.workflow_id || '').toLowerCase()
+                    const query = searchQuery.toLowerCase().trim()
+                    if (!workflowName.includes(query)) {
+                      return false
+                    }
+                  }
+                  
+                  // Filter by trigger type
                   if (!selectedTriggerType || selectedTriggerType === 'All') return true;
                   
                   const breakdown = workflow.trigger_breakdown;
