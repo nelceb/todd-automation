@@ -33,6 +33,15 @@ interface WorkflowMetrics {
   manual_runs: number
   automatic_runs: number
   manual_run_percentage: number
+  trigger_breakdown: {
+    push: number
+    pull_request: number
+    schedule: number
+    workflow_dispatch: number
+    repository_dispatch: number
+    workflow_run: number
+    other: number
+  }
 }
 
 interface MetricsData {
@@ -367,47 +376,82 @@ export default function MetricsDashboard() {
           </div>
         </div>
 
-        {/* Manual vs Automatic Triggers */}
+        {/* Trigger Breakdown */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-2">Manual vs Automatic Triggers</h3>
+          <h3 className="text-lg font-semibold mb-2">Trigger Breakdown</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Workflows con triggers manuales (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
+            Tipos de triggers por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
           </p>
           <div className="h-96 max-h-96 overflow-y-auto">
             {metrics.workflows
-              .filter(w => w.manual_runs > 0)
-              .sort((a, b) => b.manual_runs - a.manual_runs)
-              .map((workflow) => (
-                <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-200 last:border-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {workflow.workflow_name.length > 50 
-                        ? workflow.workflow_name.substring(0, 47) + '...' 
-                        : workflow.workflow_name}
-                    </span>
-                    <span className="text-sm font-bold text-blue-600">
-                      {workflow.manual_runs} manual
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
-                        style={{ width: `${workflow.manual_run_percentage}%` }}
-                      ></div>
+              .filter(w => w.total_runs > 0)
+              .sort((a, b) => {
+                // Ordenar por código triggers primero (push + PR), luego por total runs
+                const aCodeTriggers = a.trigger_breakdown.push + a.trigger_breakdown.pull_request
+                const bCodeTriggers = b.trigger_breakdown.push + b.trigger_breakdown.pull_request
+                if (bCodeTriggers !== aCodeTriggers) return bCodeTriggers - aCodeTriggers
+                return b.total_runs - a.total_runs
+              })
+              .map((workflow) => {
+                const codeTriggers = workflow.trigger_breakdown.push + workflow.trigger_breakdown.pull_request
+                const manualTriggers = workflow.trigger_breakdown.workflow_dispatch
+                const scheduledTriggers = workflow.trigger_breakdown.schedule
+                
+                return (
+                  <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-200 last:border-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {workflow.workflow_name.length > 45 
+                          ? workflow.workflow_name.substring(0, 42) + '...' 
+                          : workflow.workflow_name}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {workflow.total_runs} total
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {workflow.manual_run_percentage.toFixed(0)}%
-                    </span>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {codeTriggers > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">
+                          📝 {codeTriggers} code
+                        </span>
+                      )}
+                      {manualTriggers > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                          🖐️ {manualTriggers} manual
+                        </span>
+                      )}
+                      {scheduledTriggers > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                          ⏰ {scheduledTriggers} scheduled
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.workflow_run > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
+                          🔗 {workflow.trigger_breakdown.workflow_run} workflow
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.repository_dispatch > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                          📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.other > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
+                          ❓ {workflow.trigger_breakdown.other} other
+                        </span>
+                      )}
+                    </div>
+                    {codeTriggers > 0 && (
+                      <div className="text-xs text-gray-400">
+                        {workflow.trigger_breakdown.push} push, {workflow.trigger_breakdown.pull_request} PR
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-1 text-xs text-gray-400">
-                    {workflow.total_runs} total runs ({workflow.automatic_runs} auto)
-                  </div>
-                </div>
-              ))}
-            {metrics.workflows.filter(w => w.manual_runs > 0).length === 0 && (
+                )
+              })}
+            {metrics.workflows.filter(w => w.total_runs > 0).length === 0 && (
               <div className="text-center text-gray-500 py-8">
-                <p className="text-sm">No hay workflows con triggers manuales en este período</p>
+                <p className="text-sm">No hay workflows en este período</p>
               </div>
             )}
           </div>
@@ -465,19 +509,44 @@ export default function MetricsDashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {workflow.total_runs}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {workflow.manual_runs > 0 ? (
-                      <div className="flex flex-col">
-                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mb-1">
-                          🖐️ {workflow.manual_runs} manual
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    <div className="flex flex-col space-y-1">
+                      {workflow.trigger_breakdown.push > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-green-100 text-green-800 w-fit">
+                          📝 {workflow.trigger_breakdown.push} push
                         </span>
-                        <span className="text-xs text-gray-400">
-                          {workflow.manual_run_percentage.toFixed(0)}%
+                      )}
+                      {workflow.trigger_breakdown.pull_request > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 w-fit">
+                          🔀 {workflow.trigger_breakdown.pull_request} PR
                         </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">Auto</span>
-                    )}
+                      )}
+                      {workflow.trigger_breakdown.schedule > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 w-fit">
+                          ⏰ {workflow.trigger_breakdown.schedule} scheduled
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.workflow_dispatch > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 w-fit">
+                          🖐️ {workflow.trigger_breakdown.workflow_dispatch} manual
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.workflow_run > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit">
+                          🔗 {workflow.trigger_breakdown.workflow_run} workflow
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.repository_dispatch > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-800 w-fit">
+                          📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
+                        </span>
+                      )}
+                      {workflow.trigger_breakdown.other > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit">
+                          ❓ {workflow.trigger_breakdown.other} other
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

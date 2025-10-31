@@ -58,6 +58,15 @@ interface WorkflowMetrics {
   manual_runs: number
   automatic_runs: number
   manual_run_percentage: number
+  trigger_breakdown: {
+    push: number
+    pull_request: number
+    schedule: number
+    workflow_dispatch: number
+    repository_dispatch: number
+    workflow_run: number
+    other: number
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -143,11 +152,25 @@ export async function GET(request: NextRequest) {
         const cancelledRuns = runs.filter(run => run.conclusion === 'cancelled').length
         const inProgressRuns = runs.filter(run => run.status === 'in_progress' || run.status === 'queued').length
         
+        // Contar runs por tipo de trigger (informativo)
+        const triggerBreakdown = {
+          push: runs.filter(run => run.event === 'push').length,
+          pull_request: runs.filter(run => run.event === 'pull_request').length,
+          schedule: runs.filter(run => run.event === 'schedule').length,
+          workflow_dispatch: runs.filter(run => run.event === 'workflow_dispatch').length,
+          repository_dispatch: runs.filter(run => run.event === 'repository_dispatch').length,
+          workflow_run: runs.filter(run => run.event === 'workflow_run').length,
+          other: runs.filter(run => !['push', 'pull_request', 'schedule', 'workflow_dispatch', 'repository_dispatch', 'workflow_run'].includes(run.event)).length
+        }
+        
         // Contar runs manuales vs automáticos
         // 'workflow_dispatch' = trigger manual desde GitHub UI
-        const manualRuns = runs.filter(run => run.event === 'workflow_dispatch').length
+        const manualRuns = triggerBreakdown.workflow_dispatch
         const automaticRuns = totalRuns - manualRuns
         const manualRunPercentage = totalRuns > 0 ? (manualRuns / totalRuns) * 100 : 0
+        
+        // Code triggers = push + pull_request (introducción de código)
+        const codeTriggers = triggerBreakdown.push + triggerBreakdown.pull_request
         
         const successRate = totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : 0
 
@@ -201,7 +224,8 @@ export async function GET(request: NextRequest) {
           trend,
           manual_runs: manualRuns,
           automatic_runs: automaticRuns,
-          manual_run_percentage: manualRunPercentage
+          manual_run_percentage: manualRunPercentage,
+          trigger_breakdown: triggerBreakdown
         })
 
       } catch (error) {
