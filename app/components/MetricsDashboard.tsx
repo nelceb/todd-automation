@@ -75,6 +75,9 @@ export default function MetricsDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d')
   const [selectedTriggerType, setSelectedTriggerType] = useState<string | null>(null)
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [pieChartFlipped, setPieChartFlipped] = useState(false)
 
   useEffect(() => {
     fetchMetrics()
@@ -124,6 +127,38 @@ export default function MetricsDashboard() {
     const hours = Math.floor(ms / 3600000)
     const minutes = Math.floor((ms % 3600000) / 60000)
     return `${hours}h ${minutes}m`
+  }
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('desc')
+    }
+  }
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) {
+      return <span className="ml-1 opacity-30">↕️</span>
+    }
+    return sortDirection === 'asc' ? <span className="ml-1">↑</span> : <span className="ml-1">↓</span>
+  }
+
+  const getFailedWorkflowsDetails = () => {
+    if (!metrics?.workflows) return []
+    
+    return metrics.workflows
+      .filter(w => w.failed_runs > 0)
+      .sort((a, b) => {
+        // Ordenar por cantidad de fallos (mayor primero)
+        if (b.failed_runs !== a.failed_runs) {
+          return b.failed_runs - a.failed_runs
+        }
+        // Si tienen la misma cantidad de fallos, ordenar por success rate (menor primero)
+        return a.success_rate - b.success_rate
+      })
+      .slice(0, 10) // Top 10 workflows que más fallan
   }
 
   const getWorkflowChartData = () => {
@@ -236,6 +271,17 @@ export default function MetricsDashboard() {
         font: {
           family: 'monospace'
         }
+      }
+    },
+    // Estilo 3D para el gráfico
+    elements: {
+      arc: {
+        borderWidth: 3,
+        borderColor: '#ffffff',
+        shadowOffsetX: 4,
+        shadowOffsetY: 4,
+        shadowBlur: 8,
+        shadowColor: 'rgba(0, 0, 0, 0.2)'
       }
     }
   }
@@ -402,9 +448,18 @@ export default function MetricsDashboard() {
         {/* Workflow Distribution */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
-          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
+          <p className="text-sm font-mono mb-2" style={{ color: '#6B7280' }}>
             Total runs por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
           </p>
+          <div className="mb-3 p-3 rounded-lg bg-gray-50/50 border border-gray-200/50">
+            <p className="text-xs font-mono mb-1" style={{ color: '#374151' }}><strong>📊 Cómo leer este gráfico:</strong></p>
+            <ul className="text-xs font-mono space-y-1" style={{ color: '#6B7280' }}>
+              <li>• <span style={{ color: '#F59E0B' }}>▬</span> <strong>Barra naranja</strong> = Total de ejecuciones del workflow</li>
+              <li>• <span style={{ color: '#10B981' }}>▬</span> <strong>Barra verde</strong> = Ejecuciones exitosas</li>
+              <li>• La <strong>diferencia</strong> (naranja visible después del verde) = Fallos o cancelaciones</li>
+              <li>• <strong>Más barras arriba</strong> = Workflows más ejecutados</li>
+            </ul>
+          </div>
           <div className="h-96">
             {getWorkflowChartData() && (
               <Bar data={getWorkflowChartData()!} options={barChartOptions} />
@@ -413,15 +468,108 @@ export default function MetricsDashboard() {
         </div>
 
 
-        {/* Success Rate */}
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>Overall Success Rate</h3>
-          <div className="h-64 flex items-center justify-center">
-            {getSuccessRateChartData() && (
-              <div className="w-full max-w-md">
-                <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+        {/* Success Rate with Flip Card */}
+        <div 
+          className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg cursor-pointer relative"
+          style={{ 
+            minHeight: '400px',
+            perspective: '1000px'
+          }}
+          onClick={() => setPieChartFlipped(!pieChartFlipped)}
+        >
+          <div 
+            className="relative w-full h-full"
+            style={{
+              transformStyle: 'preserve-3d',
+              transition: 'transform 0.6s',
+              transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+            }}
+          >
+            {/* Front of card - Pie Chart */}
+            <div 
+              className="absolute w-full h-full"
+              style={{
+                backfaceVisibility: 'hidden',
+                transform: 'rotateY(0deg)'
+              }}
+            >
+              <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
+                Overall Success Rate
+                <span className="ml-2 text-xs opacity-50">(Click para detalles)</span>
+              </h3>
+              <div className="h-64 flex items-center justify-center">
+                {getSuccessRateChartData() && (
+                  <div className="w-full max-w-md" style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))' }}>
+                    <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Back of card - Failed Workflows Details */}
+            <div 
+              className="absolute w-full h-full"
+              style={{
+                backfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)'
+              }}
+            >
+              <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
+                Workflows con Más Fallos
+                <span className="ml-2 text-xs opacity-50">(Click para volver)</span>
+              </h3>
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {getFailedWorkflowsDetails().length > 0 ? (
+                  getFailedWorkflowsDetails().map((workflow, index) => (
+                    <div 
+                      key={workflow.workflow_id} 
+                      className="bg-white/30 border border-red-200/50 rounded-lg p-4"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
+                          #{index + 1} {workflow.workflow_name}
+                        </span>
+                        <span className={`text-xs font-mono px-2 py-1 rounded ${
+                          workflow.success_rate >= 80 
+                            ? 'bg-green-100 text-green-800' 
+                            : workflow.success_rate >= 60 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {workflow.success_rate.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs font-mono" style={{ color: '#6B7280' }}>
+                        <div>
+                          <span className="font-semibold">Fallos:</span> {workflow.failed_runs}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Total Runs:</span> {workflow.total_runs}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Cancelados:</span> {workflow.cancelled_runs || 0}
+                        </div>
+                      </div>
+                      {workflow.last_run && (
+                        <div className="text-xs font-mono mt-2" style={{ color: '#9CA3AF' }}>
+                          Último run: {new Date(workflow.last_run).toLocaleDateString('es-ES', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center font-mono" style={{ color: '#6B7280' }}>
+                    🎉 No hay workflows con fallos recientes
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -445,21 +593,6 @@ export default function MetricsDashboard() {
                 }}
               >
                 All
-              </button>
-              <button
-                onClick={() => setSelectedTriggerType('Code')}
-                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
-                  selectedTriggerType === 'Code'
-                    ? 'border-green-600 bg-green-600 text-white'
-                    : 'border-green-300 hover:border-green-400 bg-green-50/50'
-                }`}
-                style={{
-                  color: selectedTriggerType === 'Code' ? 'white' : '#059669',
-                  backgroundColor: selectedTriggerType === 'Code' ? '#059669' : 'transparent',
-                  borderColor: selectedTriggerType === 'Code' ? '#059669' : '#6EE7B7'
-                }}
-              >
-                📝 Code
               </button>
               <button
                 onClick={() => setSelectedTriggerType('Scheduled')}
@@ -528,26 +661,50 @@ export default function MetricsDashboard() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50/30">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Workflow
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('workflow')}
+                >
+                  Workflow {getSortIcon('workflow')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Total Runs
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('total_runs')}
+                >
+                  Total Runs {getSortIcon('total_runs')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Trigger Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Success Rate
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('success_rate')}
+                >
+                  Success Rate {getSortIcon('success_rate')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Trend
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('trend')}
+                >
+                  Trend {getSortIcon('trend')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Avg Duration
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('avg_duration')}
+                >
+                  Avg Duration {getSortIcon('avg_duration')}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Last Run
+                <th 
+                  className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 transition-colors" 
+                  style={{ color: '#6B7280' }}
+                  onClick={() => handleSort('last_run')}
+                >
+                  Last Run {getSortIcon('last_run')}
                 </th>
               </tr>
             </thead>
@@ -575,53 +732,86 @@ export default function MetricsDashboard() {
                   return triggers.some(t => t.type === selectedTriggerType && t.count > 0);
                 })
                 .sort((a, b) => {
-                  // Si no hay filtro seleccionado, mantener orden original
-                  if (!selectedTriggerType || selectedTriggerType === 'All') return 0;
-                  
-                  const getTriggerInfo = (workflow: WorkflowMetrics) => {
-                    const breakdown = workflow.trigger_breakdown;
-                    const manualTriggers = breakdown.workflow_dispatch;
-                    const scheduledTriggers = breakdown.schedule;
-                    const dispatchTriggers = breakdown.repository_dispatch;
-                    const toddTriggers = breakdown.todd || 0;
+                  // Si hay una columna de ordenamiento seleccionada, usar ese orden
+                  if (sortColumn) {
+                    let comparison = 0;
                     
-                    const triggers = [
-                      { count: scheduledTriggers, type: 'Scheduled' },
-                      { count: toddTriggers, type: 'TODD' },
-                      { count: manualTriggers, type: 'Manual' },
-                      { count: dispatchTriggers, type: 'Dispatch' },
-                      { count: breakdown.other, type: 'Other' }
-                    ].filter(t => t.count > 0);
+                    switch (sortColumn) {
+                      case 'workflow':
+                        comparison = a.workflow_name.localeCompare(b.workflow_name);
+                        break;
+                      case 'total_runs':
+                        comparison = a.total_runs - b.total_runs;
+                        break;
+                      case 'success_rate':
+                        comparison = a.success_rate - b.success_rate;
+                        break;
+                      case 'avg_duration':
+                        comparison = a.avg_duration_ms - b.avg_duration_ms;
+                        break;
+                      case 'last_run':
+                        const aDate = a.last_run ? new Date(a.last_run).getTime() : 0;
+                        const bDate = b.last_run ? new Date(b.last_run).getTime() : 0;
+                        comparison = aDate - bDate;
+                        break;
+                      case 'trend':
+                        const trendOrder = { 'up': 2, 'stable': 1, 'down': 0 };
+                        comparison = (trendOrder[a.trend] || 0) - (trendOrder[b.trend] || 0);
+                        break;
+                      default:
+                        comparison = 0;
+                    }
                     
-                    const selectedTrigger = triggers.find(t => t.type === selectedTriggerType);
-                    const selectedCount = selectedTrigger?.count || 0;
-                    const isOnlyType = triggers.length === 1 && triggers[0].type === selectedTriggerType;
-                    const otherTypesCount = triggers.filter(t => t.type !== selectedTriggerType && t.count > 0).length;
-                    
-                    return {
-                      selectedCount,
-                      isOnlyType,
-                      otherTypesCount,
-                      totalTypes: triggers.length
-                    };
-                  };
-                  
-                  const aInfo = getTriggerInfo(a);
-                  const bInfo = getTriggerInfo(b);
-                  
-                  // Prioridad 1: Workflows con SOLO el tipo seleccionado (isOnlyType = true)
-                  if (aInfo.isOnlyType && !bInfo.isOnlyType) return -1;
-                  if (!aInfo.isOnlyType && bInfo.isOnlyType) return 1;
-                  
-                  // Prioridad 2: Entre workflows del mismo grupo (solo tipo vs tipo + otros)
-                  // Ordenar por cantidad del trigger seleccionado (mayor primero)
-                  if (aInfo.selectedCount !== bInfo.selectedCount) {
-                    return bInfo.selectedCount - aInfo.selectedCount;
+                    return sortDirection === 'asc' ? comparison : -comparison;
                   }
                   
-                  // Prioridad 3: Si tienen la misma cantidad, los que tienen menos tipos adicionales primero
-                  if (aInfo.otherTypesCount !== bInfo.otherTypesCount) {
-                    return aInfo.otherTypesCount - bInfo.otherTypesCount;
+                  // Si no hay columna de ordenamiento pero hay filtro de trigger type
+                  if (selectedTriggerType && selectedTriggerType !== 'All') {
+                    const getTriggerInfo = (workflow: WorkflowMetrics) => {
+                      const breakdown = workflow.trigger_breakdown;
+                      const manualTriggers = breakdown.workflow_dispatch;
+                      const scheduledTriggers = breakdown.schedule;
+                      const dispatchTriggers = breakdown.repository_dispatch;
+                      const toddTriggers = breakdown.todd || 0;
+                      
+                      const triggers = [
+                        { count: scheduledTriggers, type: 'Scheduled' },
+                        { count: toddTriggers, type: 'TODD' },
+                        { count: manualTriggers, type: 'Manual' },
+                        { count: dispatchTriggers, type: 'Dispatch' },
+                        { count: breakdown.other, type: 'Other' }
+                      ].filter(t => t.count > 0);
+                      
+                      const selectedTrigger = triggers.find(t => t.type === selectedTriggerType);
+                      const selectedCount = selectedTrigger?.count || 0;
+                      const isOnlyType = triggers.length === 1 && triggers[0].type === selectedTriggerType;
+                      const otherTypesCount = triggers.filter(t => t.type !== selectedTriggerType && t.count > 0).length;
+                      
+                      return {
+                        selectedCount,
+                        isOnlyType,
+                        otherTypesCount,
+                        totalTypes: triggers.length
+                      };
+                    };
+                    
+                    const aInfo = getTriggerInfo(a);
+                    const bInfo = getTriggerInfo(b);
+                    
+                    // Prioridad 1: Workflows con SOLO el tipo seleccionado (isOnlyType = true)
+                    if (aInfo.isOnlyType && !bInfo.isOnlyType) return -1;
+                    if (!aInfo.isOnlyType && bInfo.isOnlyType) return 1;
+                    
+                    // Prioridad 2: Entre workflows del mismo grupo (solo tipo vs tipo + otros)
+                    // Ordenar por cantidad del trigger seleccionado (mayor primero)
+                    if (aInfo.selectedCount !== bInfo.selectedCount) {
+                      return bInfo.selectedCount - aInfo.selectedCount;
+                    }
+                    
+                    // Prioridad 3: Si tienen la misma cantidad, los que tienen menos tipos adicionales primero
+                    if (aInfo.otherTypesCount !== bInfo.otherTypesCount) {
+                      return aInfo.otherTypesCount - bInfo.otherTypesCount;
+                    }
                   }
                   
                   return 0;
