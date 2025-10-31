@@ -434,7 +434,17 @@ Tu tarea es extraer de forma abstracta:
 1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
 2. ACCIONES: Qué acciones debe realizar el usuario EN ORDEN CORRECTO (click, tap, fill, navigate, etc.)
 3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.)
-4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, etc.)
+4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, load more button, etc.)
+
+🎯 IMPORTANTE - INTERPRETAR ACCIONES ESPECÍFICAS:
+- Si menciona "Load More", "Load more", "Load additional" → acción es click/tap en botón "Load More" o "loadMoreButton"
+- Si menciona "taps", "clicks", "user taps X" → acción es click/tap en ese elemento específico
+- Si menciona "user wants to validate X" → extraer la acción específica mencionada
+
+🎯 IMPORTANTE - INTERPRETAR ASSERTIONS ESPECÍFICAS:
+- Si dice "More orders are displayed" → assertion debe verificar que el número de órdenes aumentó o que hay más órdenes visibles
+- Si dice "X is displayed" → assertion debe verificar que X está visible/presente
+- Si dice "X correctly" → assertion debe verificar el estado correcto de X
 
 IMPORTANTE: Las acciones deben estar en el orden correcto según el acceptance criteria. 
 Por ejemplo: "User taps invoice icon on past order" significa:
@@ -459,41 +469,78 @@ Para CookUnity ecommerce, los contextos comunes son:
 - cart: carrito de compras
 - menu: menú de comidas
 
-EJEMPLO DE RESPUESTA CORRECTA:
-Si el acceptance criteria es: "User clicks Load More button in Past Orders section"
-{
-  "context": "pastOrders",
-  "actions": [
-    {
-      "type": "click",
-      "element": "pastOrdersTab",
-      "description": "Click on Past Orders tab to activate Past Orders section",
-      "intent": "Navigate to and activate Past Orders section",
-      "order": 1
-    },
-    {
-      "type": "click",
-      "element": "loadMoreButton",
-      "description": "Click on Load More button to fetch additional past orders",
-      "intent": "Load more past orders",
-      "order": 2
-    }
-  ],
-  "assertions": [
-    {
-      "type": "visibility",
-      "element": "invoiceModal",
-      "description": "Invoice modal should be visible",
-      "expected": "visible"
-    },
-    {
-      "type": "visibility",
-      "element": "invoiceDetails",
-      "description": "Invoice details should be displayed",
-      "expected": "visible"
-    }
-  ]
-}
+        EJEMPLO 1 - Load More:
+        Acceptance criteria: "User taps Load More in Past Orders. Expected: More orders are displayed"
+        {
+          "context": "pastOrders",
+          "actions": [
+            {
+              "type": "click",
+              "element": "pastOrdersTab",
+              "description": "Click on Past Orders tab to activate Past Orders section",
+              "intent": "Navigate to and activate Past Orders section",
+              "order": 1
+            },
+            {
+              "type": "click",
+              "element": "loadMoreButton",
+              "description": "Click on Load More button to fetch additional past orders",
+              "intent": "Load more past orders",
+              "order": 2
+            }
+          ],
+          "assertions": [
+            {
+              "type": "visibility",
+              "element": "additionalPastOrders",
+              "description": "More orders should be displayed in the list",
+              "expected": "more orders visible"
+            },
+            {
+              "type": "text",
+              "element": "pastOrdersList",
+              "description": "Past orders list should show increased number of orders",
+              "expected": "increased count"
+            }
+          ]
+        }
+        
+        EJEMPLO 2 - Click en elemento específico:
+        Acceptance criteria: "User clicks invoice icon on past order. Expected: Invoice modal opens"
+        {
+          "context": "pastOrders",
+          "actions": [
+            {
+              "type": "click",
+              "element": "pastOrdersTab",
+              "description": "Click on Past Orders tab",
+              "intent": "Navigate to Past Orders section",
+              "order": 1
+            },
+            {
+              "type": "click",
+              "element": "pastOrderItem",
+              "description": "Click on a past order item",
+              "intent": "Select a past order",
+              "order": 2
+            },
+            {
+              "type": "click",
+              "element": "invoiceIcon",
+              "description": "Click on invoice icon",
+              "intent": "Open invoice modal",
+              "order": 3
+            }
+          ],
+          "assertions": [
+            {
+              "type": "visibility",
+              "element": "invoiceModal",
+              "description": "Invoice modal should be visible",
+              "expected": "visible"
+            }
+          ]
+        }
 
 Responde SOLO con JSON válido en este formato:
 {
