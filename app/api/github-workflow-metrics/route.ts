@@ -55,6 +55,9 @@ interface WorkflowMetrics {
   runs_this_month: number
   runs_last_month: number
   trend: 'up' | 'down' | 'stable'
+  manual_runs: number
+  automatic_runs: number
+  manual_run_percentage: number
 }
 
 export async function GET(request: NextRequest) {
@@ -140,6 +143,12 @@ export async function GET(request: NextRequest) {
         const cancelledRuns = runs.filter(run => run.conclusion === 'cancelled').length
         const inProgressRuns = runs.filter(run => run.status === 'in_progress' || run.status === 'queued').length
         
+        // Contar runs manuales vs automáticos
+        // 'workflow_dispatch' = trigger manual desde GitHub UI
+        const manualRuns = runs.filter(run => run.event === 'workflow_dispatch').length
+        const automaticRuns = totalRuns - manualRuns
+        const manualRunPercentage = totalRuns > 0 ? (manualRuns / totalRuns) * 100 : 0
+        
         const successRate = totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : 0
 
         // Calcular duración promedio (solo para runs completados)
@@ -189,7 +198,10 @@ export async function GET(request: NextRequest) {
           last_run: lastRun || '',
           runs_this_month: secondHalfRuns,
           runs_last_month: firstHalfRuns,
-          trend
+          trend,
+          manual_runs: manualRuns,
+          automatic_runs: automaticRuns,
+          manual_run_percentage: manualRunPercentage
         })
 
       } catch (error) {

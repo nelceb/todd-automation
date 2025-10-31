@@ -30,6 +30,9 @@ interface WorkflowMetrics {
   runs_this_month: number
   runs_last_month: number
   trend: 'up' | 'down' | 'stable'
+  manual_runs: number
+  automatic_runs: number
+  manual_run_percentage: number
 }
 
 interface MetricsData {
@@ -364,6 +367,52 @@ export default function MetricsDashboard() {
           </div>
         </div>
 
+        {/* Manual vs Automatic Triggers */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-2">Manual vs Automatic Triggers</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Workflows con triggers manuales (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
+          </p>
+          <div className="h-96 max-h-96 overflow-y-auto">
+            {metrics.workflows
+              .filter(w => w.manual_runs > 0)
+              .sort((a, b) => b.manual_runs - a.manual_runs)
+              .map((workflow) => (
+                <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-200 last:border-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {workflow.workflow_name.length > 50 
+                        ? workflow.workflow_name.substring(0, 47) + '...' 
+                        : workflow.workflow_name}
+                    </span>
+                    <span className="text-sm font-bold text-blue-600">
+                      {workflow.manual_runs} manual
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full" 
+                        style={{ width: `${workflow.manual_run_percentage}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {workflow.manual_run_percentage.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-400">
+                    {workflow.total_runs} total runs ({workflow.automatic_runs} auto)
+                  </div>
+                </div>
+              ))}
+            {metrics.workflows.filter(w => w.manual_runs > 0).length === 0 && (
+              <div className="text-center text-gray-500 py-8">
+                <p className="text-sm">No hay workflows con triggers manuales en este período</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Success Rate */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Overall Success Rate</h3>
@@ -388,7 +437,10 @@ export default function MetricsDashboard() {
                   Workflow
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Runs (30d)
+                  Total Runs
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Manual
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Success Rate
@@ -406,12 +458,26 @@ export default function MetricsDashboard() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {metrics.workflows.map((workflow) => (
-                <tr key={workflow.workflow_id}>
+                <tr key={workflow.workflow_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {workflow.workflow_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {workflow.total_runs}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {workflow.manual_runs > 0 ? (
+                      <div className="flex flex-col">
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mb-1">
+                          🖐️ {workflow.manual_runs} manual
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {workflow.manual_run_percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Auto</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
