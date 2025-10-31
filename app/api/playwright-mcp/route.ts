@@ -428,13 +428,26 @@ async function interpretAcceptanceCriteria(criteria: string) {
 
 // Interpretar usando LLM de forma abstracta
 async function interpretWithLLM(criteria: string) {
+  console.log('📋 [LLM] Acceptance criteria recibido:', criteria);
+  
   const systemPrompt = `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity).
+
+🎯 INSTRUCCIÓN CRÍTICA: LEE TODO EL ACCEPTANCE CRITERIA COMPLETO ANTES DE RESPONDER.
+No ignores ninguna parte del texto. Extrae TODAS las acciones y assertions mencionadas.
 
 Tu tarea es extraer de forma abstracta:
 1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
 2. ACCIONES: Qué acciones debe realizar el usuario EN ORDEN CORRECTO (click, tap, fill, navigate, etc.)
-3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.)
+3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.) - SIEMPRE incluir assertions del "Expected" o "So that"
 4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, load more button, etc.)
+
+🔍 LEE ATENTAMENTE:
+- Si dice "As a QA/Developer, I want to validate X" → X es lo que se debe testear
+- Si dice "Action: User taps/clicks X" → X es una acción
+- Si dice "Expected: X should happen" → X es una assertion
+- Si dice "So that X" → X puede ser una assertion o el propósito
+
+IMPORTANTE: Si el acceptance criteria menciona "Expected:", "So that", o "Verificar que" → SIEMPRE debe generar assertions.
 
 🎯 IMPORTANTE - INTERPRETAR ACCIONES ESPECÍFICAS:
 - Si menciona "Load More", "Load more", "Load additional" → acción es click/tap en botón "Load More" o "loadMoreButton"
@@ -567,30 +580,64 @@ Responde SOLO con JSON válido en este formato:
   // Intentar con Claude si está disponible
   if (process.env.CLAUDE_API_KEY) {
     try {
-      console.log('🤖 Claude: Sending request with criteria:', criteria);
+      console.log('🤖 [LLM] Enviando acceptance criteria a Claude...');
+      console.log('🤖 [LLM] Longitud del criteria:', criteria.length, 'caracteres');
+      
       const claudeText = await anthropicJSON(systemPrompt, criteria);
-      console.log('🤖 Claude: Raw response:', claudeText);
+      
+      console.log('🤖 [LLM] Respuesta raw de Claude (primeros 500 chars):', claudeText?.substring(0, 500));
       
       if (claudeText) {
         try {
-          const parsed = JSON.parse(claudeText);
-          console.log('✅ Claude interpretation successful:', JSON.stringify(parsed, null, 2));
+          // Limpiar respuesta si tiene markdown code blocks
+          let cleanedText = claudeText.trim();
+          if (cleanedText.startsWith('```json')) {
+            cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          } else if (cleanedText.startsWith('```')) {
+            cleanedText = cleanedText.replace(/```\n?/g, '').trim();
+          }
+          
+          const parsed = JSON.parse(cleanedText);
+          
+          console.log('✅ [LLM] Interpretación exitosa:');
+          console.log('  - Contexto:', parsed.context);
+          console.log('  - Acciones:', parsed.actions?.length || 0);
+          console.log('  - Assertions:', parsed.assertions?.length || 0);
+          
+          if (!parsed.assertions || parsed.assertions.length === 0) {
+            console.warn('⚠️ [LLM] ADVERTENCIA: No se generaron assertions - revisar acceptance criteria');
+          }
+          
+          console.log('✅ [LLM] JSON completo:', JSON.stringify(parsed, null, 2));
+          
     return parsed;
         } catch (parseError) {
-          console.log('❌ Claude JSON parse error:', parseError);
-          console.log('❌ Raw response that failed to parse:', claudeText);
+          console.error('❌ [LLM] Error parseando JSON de Claude:', parseError);
+          console.error('❌ [LLM] Respuesta que falló (primeros 1000 chars):', claudeText?.substring(0, 1000));
+          
+          // Intentar extraer JSON manualmente si está dentro de markdown
+          try {
+            const jsonMatch = claudeText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              console.log('✅ [LLM] JSON extraído manualmente del markdown');
+    return parsed;
+            }
+          } catch (manualParseError) {
+            console.error('❌ [LLM] Falló extracción manual también:', manualParseError);
+          }
         }
       } else {
-        console.log('❌ Claude returned empty response');
+        console.error('❌ [LLM] Claude devolvió respuesta vacía');
       }
     } catch (e) {
-      console.error('❌ Claude API failed:', e);
+      console.error('❌ [LLM] Claude API falló:', e);
     return null;
   }
   }
 
   // ❌ OpenAI removed - Solo usamos Claude API ahora
-  console.warn('⚠️ Claude API no configurado (CLAUDE_API_KEY requerido)');
+  console.warn('⚠️ [LLM] Claude API no configurado (CLAUDE_API_KEY requerido)');
   return null;
 }
 
