@@ -396,7 +396,7 @@ export default function MetricsDashboard() {
             Workflow Metrics
           </h2>
           <p className="text-sm font-mono mt-1" style={{ color: '#4B5563' }}>
-            Historial de ejecución - {timeRange === '24h' ? 'Últimas 24 horas' : timeRange === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'} + Today
+            Execution history - {timeRange === '24h' ? 'Last 24 hours' : timeRange === '7d' ? 'Last 7 days' : 'Last 30 days'} + Today
             {metrics?.period && (
               <span className="ml-2" style={{ color: '#3B82F6' }}>
                 ({metrics.period.start_date} → {metrics.period.end_date})
@@ -447,7 +447,7 @@ export default function MetricsDashboard() {
             Avg Execution Time
           </div>
           <div className="text-xs font-mono mt-1" style={{ color: '#9CA3AF' }}>
-            (Promedio ponderado)
+            (Weighted average)
           </div>
         </div>
       </div>
@@ -458,15 +458,15 @@ export default function MetricsDashboard() {
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
           <p className="text-sm font-mono mb-2" style={{ color: '#6B7280' }}>
-            Total runs por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
+            Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
           </p>
           <div className="mb-3 p-3 rounded-lg bg-gray-50/50 border border-gray-200/50">
-            <p className="text-xs font-mono mb-1" style={{ color: '#374151' }}><strong>📊 Cómo leer este gráfico:</strong></p>
+            <p className="text-xs font-mono mb-1" style={{ color: '#374151' }}><strong>📊 How to read this chart:</strong></p>
             <ul className="text-xs font-mono space-y-1" style={{ color: '#6B7280' }}>
-              <li>• <span style={{ color: '#F59E0B' }}>▬</span> <strong>Barra naranja</strong> = Total de ejecuciones del workflow</li>
-              <li>• <span style={{ color: '#10B981' }}>▬</span> <strong>Barra verde</strong> = Ejecuciones exitosas</li>
-              <li>• La <strong>diferencia</strong> (naranja visible después del verde) = Fallos o cancelaciones</li>
-              <li>• <strong>Más barras arriba</strong> = Workflows más ejecutados</li>
+              <li>• <span style={{ color: '#F59E0B' }}>▬</span> <strong>Orange bar</strong> = Total workflow executions</li>
+              <li>• <span style={{ color: '#10B981' }}>▬</span> <strong>Green bar</strong> = Successful executions</li>
+              <li>• The <strong>difference</strong> (orange visible after green) = Failures or cancellations</li>
+              <li>• <strong>Higher bars</strong> = Most executed workflows</li>
             </ul>
           </div>
           <div className="h-96">
@@ -479,7 +479,7 @@ export default function MetricsDashboard() {
 
         {/* Success Rate with Flip Card */}
         <div 
-          className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg cursor-pointer relative"
+          className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer"
           style={{ 
             minHeight: '400px',
             perspective: '1000px'
@@ -491,12 +491,13 @@ export default function MetricsDashboard() {
             style={{
               transformStyle: 'preserve-3d',
               transition: 'transform 0.6s',
-              transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+              transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              minHeight: '400px'
             }}
           >
             {/* Front of card - Pie Chart */}
             <div 
-              className="absolute w-full h-full"
+              className="absolute w-full h-full flex flex-col justify-center items-center p-6"
               style={{
                 backfaceVisibility: 'hidden',
                 transform: 'rotateY(0deg)'
@@ -504,9 +505,9 @@ export default function MetricsDashboard() {
             >
               <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
                 Overall Success Rate
-                <span className="ml-2 text-xs opacity-50">(Click para detalles)</span>
+                <span className="ml-2 text-xs opacity-50">(Click for details)</span>
               </h3>
-              <div className="h-64 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center w-full">
                 {getSuccessRateChartData() && (
                   <div className="w-full max-w-md" style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))' }}>
                     <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
@@ -517,17 +518,17 @@ export default function MetricsDashboard() {
 
             {/* Back of card - Failed Workflows Details */}
             <div 
-              className="absolute w-full h-full"
+              className="absolute w-full h-full flex flex-col p-6"
               style={{
                 backfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)'
               }}
             >
               <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
-                Workflows con Más Fallos
-                <span className="ml-2 text-xs opacity-50">(Click para volver)</span>
+                Top Failed Workflows
+                <span className="ml-2 text-xs opacity-50">(Click to return)</span>
               </h3>
-              <div className="space-y-3 max-h-80 overflow-y-auto">
+              <div className="flex-1 space-y-3 overflow-y-auto">
                 {getFailedWorkflowsDetails().length > 0 ? (
                   getFailedWorkflowsDetails().map((workflow, index) => (
                     <div 
@@ -550,18 +551,18 @@ export default function MetricsDashboard() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs font-mono" style={{ color: '#6B7280' }}>
                         <div>
-                          <span className="font-semibold">Fallos:</span> {workflow.failed_runs}
+                          <span className="font-semibold">Failed:</span> {workflow.failed_runs}
                         </div>
                         <div>
                           <span className="font-semibold">Total Runs:</span> {workflow.total_runs}
                         </div>
                         <div>
-                          <span className="font-semibold">Cancelados:</span> {workflow.cancelled_runs || 0}
+                          <span className="font-semibold">Cancelled:</span> {workflow.cancelled_runs || 0}
                         </div>
                       </div>
                       {workflow.last_run && (
                         <div className="text-xs font-mono mt-2" style={{ color: '#9CA3AF' }}>
-                          Último run: {new Date(workflow.last_run).toLocaleDateString('es-ES', { 
+                          Last run: {new Date(workflow.last_run).toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'short', 
                             day: 'numeric',
@@ -573,8 +574,8 @@ export default function MetricsDashboard() {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center font-mono" style={{ color: '#6B7280' }}>
-                    🎉 No hay workflows con fallos recientes
+                  <div className="text-center font-mono flex items-center justify-center h-full" style={{ color: '#6B7280' }}>
+                    🎉 No workflows with recent failures
                   </div>
                 )}
               </div>
