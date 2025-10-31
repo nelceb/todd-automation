@@ -521,21 +521,6 @@ export default function MetricsDashboard() {
               >
                 🤖 TODD
               </button>
-              <button
-                onClick={() => setSelectedTriggerType('Workflow')}
-                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
-                  selectedTriggerType === 'Workflow'
-                    ? 'border-gray-600 bg-gray-600 text-white'
-                    : 'border-gray-300 hover:border-gray-400 bg-gray-50/50'
-                }`}
-                style={{
-                  color: selectedTriggerType === 'Workflow' ? 'white' : '#4B5563',
-                  backgroundColor: selectedTriggerType === 'Workflow' ? '#4B5563' : 'transparent',
-                  borderColor: selectedTriggerType === 'Workflow' ? '#4B5563' : '#D1D5DB'
-                }}
-              >
-                🔗 Workflow
-              </button>
             </div>
           </div>
         </div>
@@ -609,21 +594,17 @@ export default function MetricsDashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     {(() => {
                       const breakdown = workflow.trigger_breakdown;
-                      const codeTriggers = breakdown.push + breakdown.pull_request;
                       const manualTriggers = breakdown.workflow_dispatch;
                       const scheduledTriggers = breakdown.schedule;
                       const dispatchTriggers = breakdown.repository_dispatch;
-                      const workflowTriggers = breakdown.workflow_run;
-                      
-                      // Determinar el tipo principal de trigger
                       const toddTriggers = breakdown.todd || 0;
+                      
+                      // Determinar el tipo principal de trigger (sin Code ni Workflow)
                       const triggers = [
-                        { count: codeTriggers, type: 'Code', icon: '📝', color: 'bg-green-100 text-green-800' },
                         { count: scheduledTriggers, type: 'Scheduled', icon: '⏰', color: 'bg-yellow-100 text-yellow-800' },
                         { count: toddTriggers, type: 'TODD', icon: '🤖', color: 'bg-purple-100 text-purple-800' },
                         { count: manualTriggers, type: 'Manual', icon: '🖐️', color: 'bg-blue-100 text-blue-800' },
                         { count: dispatchTriggers, type: 'Dispatch', icon: '📢', color: 'bg-indigo-100 text-indigo-800' },
-                        { count: workflowTriggers, type: 'Workflow', icon: '🔗', color: 'bg-gray-100 text-gray-800' },
                         { count: breakdown.other, type: 'Other', icon: '❓', color: 'bg-gray-100 text-gray-800' }
                       ].filter(t => t.count > 0).sort((a, b) => b.count - a.count);
                       
