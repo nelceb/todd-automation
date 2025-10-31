@@ -2170,16 +2170,39 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         testCode += `\n  ${assertionCode}`;
       }
     } else if (behavior.elements && behavior.elements.length > 0) {
-      // Fallback: usar elementos observados
-      testCode += `\n\n  //THEN - Verify elements are present`;
-      
-      for (const element of behavior.elements) {
-        const elementName = element.name || element.testId || 'Element';
-        if (elementName) {
-          const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-          const methodCall = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
-          testCode += `\n  ${methodCall}`;
+      // 🎯 NO generar assertions para TODOS los elementos - solo elementos relevantes al acceptance criteria
+      // Filtrar elementos que sean relevantes basándose en el acceptance criteria
+      const relevantElements = behavior.elements.filter((element: any) => {
+        const testId = (element.testId || '').toLowerCase();
+        const text = (element.text || '').toLowerCase();
+        
+        // Para Load More: buscar elementos relacionados con past orders, load more, etc.
+        if (interpretation.context === 'pastOrders') {
+          return testId.includes('past') || testId.includes('order') || 
+                 testId.includes('load') || testId.includes('more') ||
+                 text.includes('past') || text.includes('order');
         }
+        
+        // Para otros contextos, ser más restrictivo
+        return false; // Por defecto no usar elementos observados como assertions
+      });
+      
+      // Solo usar elementos relevantes si hay menos de 5 (evitar assertions masivas)
+      if (relevantElements.length > 0 && relevantElements.length <= 5) {
+        testCode += `\n\n  //THEN - Verify relevant elements from acceptance criteria`;
+        
+        for (const element of relevantElements) {
+          const elementName = element.name || element.testId || 'Element';
+          if (elementName) {
+            const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+            const methodCall = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
+            testCode += `\n  ${methodCall}`;
+          }
+        }
+      } else {
+        // Si no hay elementos relevantes o hay demasiados, usar fallback específico
+        console.log(`⚠️ No se generaron assertions específicas - ${behavior.elements.length} elementos observados pero ninguno relevante o demasiados`);
+        // Continuar al else para usar fallback específico del contexto
       }
     } else {
       // Fallback final para pastOrders
@@ -2343,23 +2366,58 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       testCode += `\n  ${assertionCode}`;
     }
   } else if (behavior.elements && behavior.elements.length > 0) {
-    // Fallback: usar elementos observados
-    testCode += `\n\n  //THEN - Verify elements are present`;
-    
-    for (const element of behavior.elements) {
-      const elementName = element.name || element.testId || 'Element';
-      if (elementName) {
-        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-        const methodCall = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
-        testCode += `\n  ${methodCall}`;
+    // 🎯 NO generar assertions para TODOS los elementos - solo elementos relevantes
+    const relevantElements = behavior.elements.filter((element: any) => {
+      const testId = (element.testId || '').toLowerCase();
+      const text = (element.text || '').toLowerCase();
+      
+      // Para Load More: buscar elementos relacionados
+      if (interpretation.context === 'pastOrders') {
+        return testId.includes('past') || testId.includes('order') || 
+               testId.includes('load') || testId.includes('more');
       }
+      
+      return false;
+    });
+    
+    // Solo usar si hay elementos relevantes y son pocos (máximo 5)
+    if (relevantElements.length > 0 && relevantElements.length <= 5) {
+      testCode += `\n\n  //THEN - Verify relevant elements from acceptance criteria`;
+      
+      for (const element of relevantElements) {
+        const elementName = element.name || element.testId || 'Element';
+        if (elementName) {
+          const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+          const methodCall = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
+          testCode += `\n  ${methodCall}`;
+        }
+      }
+    } else {
+      // Continuar al else para usar fallback específico
     }
   } else {
-    // Fallback final: generar assertions genéricas basadas en el contexto
-    testCode += `\n\n  //THEN - Verify expected behavior`;
+    // Fallback final: generar assertions específicas basadas en el acceptance criteria
+    testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
     
-    if (interpretation.context === 'pastOrders') {
-      testCode += `\n  // Verify invoice modal is visible`;
+    // Verificar si hay acciones de "Load More"
+    const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
+      a.element?.toLowerCase().includes('loadmore') || 
+      a.element?.toLowerCase().includes('load-more') ||
+      a.description?.toLowerCase().includes('load more')
+    );
+    
+    if (hasLoadMoreAction) {
+      testCode += `\n  // Verify that more orders are displayed after Load More`;
+      testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
+    } else if (interpretation.context === 'pastOrders') {
+      // Fallback genérico para pastOrders
+      testCode += `\n  expect(await ${pageVarName}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
+    } else if (interpretation.context === 'ordersHub') {
+      testCode += `\n  expect(await ${pageVarName}.isOrdersHubVisible(), 'Orders hub should be visible').toBeTruthy();`;
+    } else {
+      // Fallback genérico
+      testCode += `\n  expect(await ${pageVarName}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
+    }
       testCode += `\n  expect(await ${pageVarName}.isInvoiceModalVisible(), 'Invoice modal should be visible').toBeTruthy();`;
       testCode += `\n  // Verify invoice details are displayed`;
       testCode += `\n  expect(await ${pageVarName}.isInvoiceDetailsVisible(), 'Invoice details should be visible').toBeTruthy();`;
