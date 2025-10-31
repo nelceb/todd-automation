@@ -629,6 +629,7 @@ export default function MetricsDashboard() {
               </div>
             </div>
           </div>
+          <div className="px-6 pb-4">
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedTriggerType(null)}
