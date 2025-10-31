@@ -176,7 +176,7 @@ export default function MetricsDashboard() {
     const failureRate = 100 - successRate
 
     return {
-      labels: [`Successful ${successRate.toFixed(1)}%`, `Failed ${failureRate.toFixed(1)}%`],
+      labels: ['Successful', 'Failed'],
       datasets: [
         {
           data: [successRate, failureRate],
@@ -194,6 +194,7 @@ export default function MetricsDashboard() {
     plugins: {
       legend: {
         position: 'bottom' as const,
+        align: 'center' as const,
         labels: {
           padding: 20,
           font: {
@@ -209,7 +210,7 @@ export default function MetricsDashboard() {
                 const value = dataset.data[i];
                 const percentage = ((value / total) * 100).toFixed(1);
                 return {
-                  text: `${label} (${percentage}%)`,
+                  text: `${label} ${percentage}%`,
                   fillStyle: dataset.backgroundColor[i],
                   strokeStyle: dataset.borderColor[i],
                   lineWidth: dataset.borderWidth,
@@ -229,9 +230,7 @@ export default function MetricsDashboard() {
             const value = context.parsed
             const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
             const percentage = ((value / total) * 100).toFixed(1)
-            // Extraer solo el nombre sin el porcentaje ya incluido
-            const cleanLabel = label.replace(/\s*\([\d.]+%\)$/, '')
-            return `${cleanLabel}: ${percentage}%`
+            return `${label}: ${percentage}%`
           }
         },
         font: {
@@ -416,10 +415,12 @@ export default function MetricsDashboard() {
 
         {/* Success Rate */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-mono font-semibold mb-4" style={{ color: '#344055' }}>Overall Success Rate</h3>
-          <div className="h-64">
+          <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>Overall Success Rate</h3>
+          <div className="h-64 flex items-center justify-center">
             {getSuccessRateChartData() && (
-              <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+              <div className="w-full max-w-md">
+                <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+              </div>
             )}
           </div>
         </div>
