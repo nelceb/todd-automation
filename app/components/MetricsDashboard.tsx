@@ -277,15 +277,19 @@ export default function MetricsDashboard() {
         }
       }
     },
-    // Estilo 3D para el gráfico
+    // Estilo 3D mejorado para el gráfico
     elements: {
       arc: {
-        borderWidth: 3,
+        borderWidth: 4,
         borderColor: '#ffffff',
-        shadowOffsetX: 4,
-        shadowOffsetY: 4,
-        shadowBlur: 8,
-        shadowColor: 'rgba(0, 0, 0, 0.2)'
+        borderSkipped: false,
+        borderRadius: 8, // Bordes redondeados para efecto 3D
+        hoverBorderWidth: 5,
+        hoverOffset: 10, // Efecto de "pop-out" al hover
+        shadowOffsetX: 6,
+        shadowOffsetY: 6,
+        shadowBlur: 12,
+        shadowColor: 'rgba(0, 0, 0, 0.3)'
       }
     }
   }
@@ -479,22 +483,29 @@ export default function MetricsDashboard() {
 
         {/* Success Rate with Flip Card */}
         <div 
-          className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer"
+          className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer relative"
           style={{ 
             minHeight: '400px',
-            perspective: '1000px'
+            height: '400px'
           }}
-          onClick={() => setPieChartFlipped(!pieChartFlipped)}
         >
           <div 
             className="relative w-full h-full"
             style={{
-              transformStyle: 'preserve-3d',
-              transition: 'transform 0.6s',
-              transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-              minHeight: '400px'
+              perspective: '1000px',
+              height: '100%'
             }}
           >
+            <div
+              className="relative w-full h-full"
+              style={{
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.6s',
+                transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                height: '100%'
+              }}
+              onClick={() => setPieChartFlipped(!pieChartFlipped)}
+            >
             {/* Front of card - Pie Chart */}
             <div 
               className="absolute w-full h-full flex flex-col justify-center items-center p-6"
@@ -509,7 +520,11 @@ export default function MetricsDashboard() {
               </h3>
               <div className="flex-1 flex items-center justify-center w-full">
                 {getSuccessRateChartData() && (
-                  <div className="w-full max-w-md" style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))' }}>
+                  <div className="w-full max-w-lg" style={{ 
+                    filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
+                    transform: 'perspective(1000px) rotateX(5deg) scale(1.1)',
+                    transformStyle: 'preserve-3d'
+                  }}>
                     <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
                   </div>
                 )}
@@ -580,6 +595,7 @@ export default function MetricsDashboard() {
                 )}
               </div>
             </div>
+            </div>
           </div>
         </div>
       </div>
@@ -646,6 +662,7 @@ export default function MetricsDashboard() {
                   backgroundColor: selectedTriggerType === 'Dispatch' ? '#4F46E5' : 'transparent',
                   borderColor: selectedTriggerType === 'Dispatch' ? '#4F46E5' : '#A5B4FC'
                 }}
+                title="Workflows triggered via API (repository_dispatch)"
               >
                 📢 Dispatch
               </button>
