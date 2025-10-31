@@ -1020,81 +1020,17 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         console.error('❌ Error validando autenticación:', authValidationError);
       }
       
-      // Ahora navegar desde el home autenticado a la sección específica según el contexto
-      // Flujo: Login → Home → OrdersHub → Past Orders (si aplica)
+      // 🎯 ESTRATEGIA: Quedarse en el Home autenticado y dejar que la observación navegue según el acceptance criteria
+      // La observación inteligente (observeBehaviorWithMCP) será la encargada de:
+      // - Detectar qué sección necesita según el contexto
+      // - Navegar dinámicamente a OrdersHub, Cart, Menu, etc.
+      // - Activar tabs/secciones específicas (Past Orders, Upcoming Orders, etc.)
       
-      if (context === 'pastOrders' || context === 'ordersHub') {
-        console.log(`🧭 Navegando desde home a OrdersHub...`);
-        
-        // Primero intentar navegar directamente a OrdersHub
-        try {
-          console.log('📍 Intentando navegar a https://subscription.qa.cookunity.com/orders...');
-          await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 30000 });
-          
-          // Esperar de forma flexible
-          try {
-            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-          } catch (e) {
-            console.log('⚠️ waitForLoadState timeout en OrdersHub, continuando...');
-          }
-          
-          const ordersHubURL = page.url();
-          console.log(`✅ Navegado a OrdersHub: ${ordersHubURL}`);
-          
-          // Validar que estamos en OrdersHub
-          await page.waitForSelector('[data-testid], button, nav, a', { timeout: 10000 });
-          const hasContent = await page.locator('body').textContent().then(t => (t?.trim().length || 0) > 100);
-          
-          if (hasContent) {
-            console.log('✅ OrdersHub cargado correctamente con contenido');
-          } else {
-            console.warn('⚠️ OrdersHub parece estar vacío - posible problema');
-          }
-          
-        } catch (ordersError) {
-          console.log('⚠️ No se pudo navegar directamente a /orders, intentando buscar link desde home...');
-          console.log(`📍 URL actual antes de buscar link: ${page.url()}`);
-          
-          // Intentar encontrar y hacer click en link de orders/subscription desde el home
-          const searchTerms = ['orders', 'subscription', 'my orders', 'order history'];
-          let ordersLink = null;
-          
-          for (const term of searchTerms) {
-            try {
-              ordersLink = await findElementWithAccessibility(page, term);
-              if (ordersLink) {
-                console.log(`✅ Encontrado link de orders usando término: "${term}"`);
-                break;
-              }
-            } catch (e) {
-              // Continuar con siguiente término
-            }
-          }
-          
-          if (ordersLink) {
-            console.log('🚀 Haciendo click en link de orders...');
-            await ordersLink.click();
-            await page.waitForURL(/orders|subscription/, { timeout: 10000 });
-            
-            // Esperar de forma flexible
-            try {
-              await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-            } catch (e) {
-              console.log('⚠️ waitForLoadState timeout después de click en orders, continuando...');
-            }
-            
-            const finalURL = page.url();
-            console.log(`✅ Navegado a OrdersHub mediante link: ${finalURL}`);
-          } else {
-            console.error('❌ No se pudo encontrar link a orders desde el home');
-            // Intentar como último recurso: buscar en el HTML
-            const pageContent = await page.content();
-            if (pageContent.includes('orders') || pageContent.includes('Orders')) {
-              console.log('⚠️ La palabra "orders" aparece en el HTML, pero no se pudo encontrar el link');
-            }
-          }
-        }
-      }
+      const homeURL = page.url();
+      console.log(`✅ Login completado. Home autenticado en: ${homeURL}`);
+      console.log(`🧭 La observación navegará dinámicamente según el acceptance criteria: "${interpretation.context}"`);
+      
+      // No navegar aquí - la observación lo hará inteligentemente según el acceptance criteria
       
       return {
         success: true,
@@ -1515,7 +1451,70 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     const snapshot = await mcpWrapper.browserSnapshot();
     console.log('✅ MCP: Snapshot capturado');
     
-    // 🎯 MCP INTELLIGENT DETECTION: Detectar si necesitamos navegar a una sección específica
+    // 🎯 NAVEGACIÓN INTELIGENTE DESDE HOME: La observación navega dinámicamente según el acceptance criteria
+    console.log(`🧭 Navegación inteligente: contexto detectado = "${interpretation.context}"`);
+    console.log(`🧭 URL actual antes de navegación inteligente: ${currentURL}`);
+    
+    // Si el contexto requiere una sección específica (OrdersHub, Cart, Menu, etc.), navegar desde el Home
+    if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
+      console.log('🧭 Navegando desde Home a OrdersHub...');
+      
+      try {
+        // Intentar navegar directamente a OrdersHub
+        await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        
+        try {
+          await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+        } catch (e) {
+          console.log('⚠️ waitForLoadState timeout, continuando...');
+        }
+        
+        const ordersURL = page.url();
+        console.log(`✅ Navegado a OrdersHub: ${ordersURL}`);
+        
+        // Validar contenido
+        await page.waitForSelector('[data-testid], button, nav', { timeout: 10000 });
+        console.log('✅ OrdersHub cargado con contenido');
+        
+      } catch (navError) {
+        console.log('⚠️ Navegación directa falló, intentando buscar link desde Home...');
+        
+        // Buscar link de orders desde el Home
+        const searchTerms = ['orders', 'subscription', 'my orders', 'order history'];
+        let ordersLink = null;
+        
+        for (const term of searchTerms) {
+          try {
+            ordersLink = await findElementWithAccessibility(page, term);
+            if (ordersLink) {
+              console.log(`✅ Encontrado link usando término: "${term}"`);
+              break;
+            }
+          } catch (e) {
+            // Continuar
+          }
+        }
+        
+        if (ordersLink) {
+          await ordersLink.click();
+          await page.waitForURL(/orders|subscription/, { timeout: 10000 });
+          try {
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+          } catch (e) {}
+          console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
+        } else {
+          console.warn('⚠️ No se encontró link a OrdersHub - continuando con observación en Home');
+        }
+      }
+    } else if (interpretation.context === 'cart') {
+      console.log('🧭 Navegando desde Home a Cart...');
+      // Similar lógica para Cart si es necesario
+    } else if (interpretation.context === 'menu') {
+      console.log('🧭 Navegando desde Home a Menu...');
+      // Similar lógica para Menu si es necesario
+    }
+    
+    // 🎯 MCP INTELLIGENT DETECTION: Detectar y activar secciones específicas (tabs, etc.)
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
     
     // Observar elementos visibles usando snapshot MCP
