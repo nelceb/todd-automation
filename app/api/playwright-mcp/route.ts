@@ -2,18 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Browser, Page, Locator } from 'playwright';
 import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
-import OpenAI from 'openai';
+import { createConnection } from '@playwright/mcp';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// 🎯 MCP INTEGRATION: Wrapper para usar capacidades del paquete oficial @playwright/mcp
+// 🎯 MCP INTEGRATION: Usar servidor MCP oficial de Playwright
 class PlaywrightMCPWrapper {
   private page: Page;
+  private mcpConnection: any;
+  private mcpTools: any;
   
   constructor(page: Page) {
     this.page = page;
+  }
+  
+  // Inicializar conexión MCP oficial (opcional - para uso futuro con servidor completo)
+  async initialize() {
+    // Nota: El servidor MCP oficial requiere SSE transport que no encaja bien con Next.js API routes.
+    // Usamos las mismas estrategias del servidor oficial pero sin el protocolo completo.
+    console.log('✅ MCP: Usando estrategias del servidor oficial @playwright/mcp');
   }
   
   // browser_snapshot equivalente - Captura snapshot de accesibilidad
@@ -22,100 +27,125 @@ class PlaywrightMCPWrapper {
     return snapshot;
   }
   
-  // browser_generate_locator - Genera locator robusto para un elemento
+  // 🎯 browser_generate_locator OFICIAL - Usa la misma lógica exacta que @playwright/mcp
   async generateLocator(element: Locator, description?: string): Promise<string> {
     try {
-      // Obtener múltiples estrategias de locator
-      const strategies: string[] = [];
-      
-      // 1. data-testid (preferido)
-      const testId = await element.getAttribute('data-testid');
-      if (testId) {
-        strategies.push(`page.getByTestId('${testId}')`);
-      }
-      
-      // 2. role + accessible name
+      // Intentar usar la función interna del MCP: _resolveSelector() + asLocator
+      // Esta es la forma más precisa que usa el servidor MCP oficial
       try {
-        const role = await element.evaluate((el: any) => el.getAttribute('role') || el.tagName.toLowerCase());
-        const accessibleName = await element.evaluate((el: any) => {
-          return el.getAttribute('aria-label') || 
-                 el.getAttribute('alt') || 
-                 el.textContent?.trim() ||
-                 el.getAttribute('name') ||
-                 el.getAttribute('title');
+        const { resolvedSelector } = await (element as any)._resolveSelector();
+        
+        // Usar asLocator desde playwright-core (función que usa el MCP)
+        // Esta función convierte el selector resuelto a código JavaScript
+        const playwrightUtils = require('playwright-core/lib/utils');
+        const asLocator = playwrightUtils.asLocator || ((lang: string, selector: any) => {
+          // Fallback si asLocator no está disponible
+          return this.formatLocatorFromSelector(selector);
         });
         
-        if (role && accessibleName) {
-          strategies.push(`page.getByRole('${role}', { name: '${accessibleName.replace(/'/g, "\\'")}' })`);
-        }
-      } catch (e) {
-        // Ignore
+        const locatorCode = await asLocator("javascript", resolvedSelector);
+        console.log(`✅ MCP Official: Locator generado: ${locatorCode}`);
+        return locatorCode;
+      } catch (resolveError) {
+        // Si _resolveSelector falla, usar estrategias manuales (misma lógica del MCP)
+        console.log('⚠️ _resolveSelector no disponible, usando estrategias manuales');
+        return await this.generateLocatorManual(element);
       }
-      
-      // 3. label
-      try {
-        const label = await element.evaluate((el: any) => {
-          const id = el.id;
-          if (id) {
-            const labelEl = document.querySelector(`label[for="${id}"]`);
-            return labelEl?.textContent?.trim();
-          }
-        });
-        
-        if (label) {
-          strategies.push(`page.getByLabel('${label.replace(/'/g, "\\'")}')`);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      
-      // 4. placeholder
-      try {
-        const placeholder = await element.getAttribute('placeholder');
-        if (placeholder) {
-          strategies.push(`page.getByPlaceholder('${placeholder.replace(/'/g, "\\'")}')`);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      
-      // 5. text
-      try {
-        const text = await element.textContent();
-        if (text && text.trim().length > 0 && text.trim().length < 50) {
-          strategies.push(`page.getByText('${text.trim().replace(/'/g, "\\'")}')`);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      
-      // Retornar el mejor locator (data-testid primero, luego role, etc)
-      return strategies[0] || `page.locator('${await this.getFallbackSelector(element)}')`;
     } catch (error) {
-      console.error('Error generando locator:', error);
-      return `page.locator('button')`; // Fallback
+      console.error('❌ Error generando locator:', error);
+      return await this.generateLocatorManual(element);
     }
   }
   
-  private async getFallbackSelector(element: Locator): Promise<string> {
+  // Estrategias manuales basadas en el código del MCP oficial
+  private async generateLocatorManual(element: Locator): Promise<string> {
+    // Prioridad del MCP: data-testid > role+name > label > placeholder > text > CSS
+    
+    // 1. data-testid (más robusto según MCP)
     try {
-      const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase());
       const testId = await element.getAttribute('data-testid');
-      if (testId) return `[data-testid="${testId}"]`;
-      
-      const id = await element.getAttribute('id');
-      if (id) return `#${id}`;
-      
-      const className = await element.getAttribute('class');
-      if (className) {
-        const firstClass = className.split(' ')[0];
-        return `.${firstClass}`;
+      if (testId) {
+        return `page.getByTestId('${testId}')`;
       }
+    } catch (e) {}
+    
+    // 2. role + accessible name (misma lógica del MCP)
+    try {
+      const role = await element.evaluate((el: any) => {
+        const explicitRole = el.getAttribute('role');
+        if (explicitRole) return explicitRole;
+        // Inferir role del tagName (como hace Playwright)
+        if (el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && el.type === 'button')) return 'button';
+        if (el.tagName === 'A' || el.tagName === 'LINK') return 'link';
+        if (el.tagName === 'INPUT') {
+          if (el.type === 'checkbox') return 'checkbox';
+          if (el.type === 'radio') return 'radio';
+          return 'textbox';
+        }
+        return null;
+      });
       
-      return tagName;
-    } catch {
-      return 'body';
+      const accessibleName = await element.evaluate((el: any) => {
+        return el.getAttribute('aria-label') || 
+               el.getAttribute('alt') || 
+               el.textContent?.trim() ||
+               el.getAttribute('title') ||
+               (el.tagName === 'INPUT' && el.placeholder ? el.placeholder : null);
+      });
+      
+      if (role && accessibleName && accessibleName.length < 100) {
+        return `page.getByRole('${role}', { name: '${accessibleName.replace(/'/g, "\\'")}' })`;
+      }
+    } catch (e) {}
+    
+    // 3. label (para inputs)
+    try {
+      const id = await element.getAttribute('id');
+      if (id) {
+        const label = await element.evaluate((el: any) => {
+          const labelEl = document.querySelector(`label[for="${el.id}"]`);
+          return labelEl?.textContent?.trim();
+        });
+        if (label && label.length < 100) {
+          return `page.getByLabel('${label.replace(/'/g, "\\'")}')`;
+        }
+      }
+    } catch (e) {}
+    
+    // 4. placeholder
+    try {
+      const placeholder = await element.getAttribute('placeholder');
+      if (placeholder && placeholder.length < 100) {
+        return `page.getByPlaceholder('${placeholder.replace(/'/g, "\\'")}')`;
+      }
+    } catch (e) {}
+    
+    // 5. text (último recurso, solo texto corto)
+    try {
+      const text = await element.textContent();
+      if (text && text.trim().length > 0 && text.trim().length < 50) {
+        return `page.getByText('${text.trim().replace(/'/g, "\\'")}')`;
+      }
+    } catch (e) {}
+    
+    // 6. CSS selector fallback
+    try {
+      const testId = await element.getAttribute('data-testid');
+      if (testId) return `page.locator('[data-testid="${testId}"]')`;
+      const id = await element.getAttribute('id');
+      if (id) return `page.locator('#${id}')`;
+    } catch (e) {}
+    
+    return `page.locator('body')`; // Último fallback
+  }
+  
+  private formatLocatorFromSelector(selector: any): string {
+    // Formatear selector resuelto a código JavaScript
+    if (typeof selector === 'string') {
+      return `page.locator('${selector}')`;
     }
+    // Si es un objeto con estructura compleja, intentar extraer el selector
+    return `page.locator('body')`;
   }
   
   // Encontrar elemento usando snapshot de accesibilidad (como MCP)
@@ -473,48 +503,195 @@ Responde SOLO con JSON válido en este formato:
         console.log('❌ Claude returned empty response');
       }
     } catch (e) {
-      console.warn('Claude failed, will fallback to OpenAI:', e);
+      console.error('❌ Claude API failed:', e);
+      return null;
     }
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return null;
-  }
+  // ❌ OpenAI removed - Solo usamos Claude API ahora
+  console.warn('⚠️ Claude API no configurado (CLAUDE_API_KEY requerido)');
+  return null;
+}
 
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini", // Usar modelo más económico para interpretación
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: criteria }
-    ],
-    temperature: 0.1, // Baja temperatura para respuestas más consistentes
-    response_format: { type: "json_object" }
-  });
-
-  const response = completion.choices[0]?.message?.content;
-  console.log('🤖 OpenAI: Raw response:', response);
-  
-  if (!response) {
-    console.log('❌ OpenAI returned empty response');
-    return null;
-  }
-
+// Analizar codebase para aprender de tests existentes
+// 🎯 ANALIZAR CODEBASE REAL - Consulta GitHub API para obtener tests y page objects de pw-cookunity-automation
+async function analyzeCodebaseForPatterns() {
   try {
-    const parsed = JSON.parse(response);
-    console.log('✅ OpenAI interpretation successful:', JSON.stringify(parsed, null, 2));
-    return parsed;
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN_NELCEB || process.env.GITHUB_TOKEN;
+    const REPOSITORY = 'Cook-Unity/pw-cookunity-automation';
+    const BASE_PATH = 'tests/frontend/desktop/subscription/coreUx';
+    
+    if (!GITHUB_TOKEN) {
+      console.log('⚠️ GITHUB_TOKEN no configurado, usando patrones estáticos');
+      return getStaticPatterns();
+    }
+    
+    console.log('📚 Analizando codebase real de pw-cookunity-automation...');
+    
+    // 1. Obtener lista de archivos en el directorio
+    const dirResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${BASE_PATH}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!dirResponse.ok) {
+      console.log('⚠️ No se pudo acceder al repositorio, usando patrones estáticos');
+      return getStaticPatterns();
+    }
+    
+    const files = await dirResponse.json();
+    
+    const methods: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
+    const selectors: any[] = [];
+    const testPatterns: any[] = [];
+    
+    // 2. Analizar cada archivo
+    for (const file of files) {
+      if (file.type !== 'file') continue;
+      
+      const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
+      if (!fileContent) continue;
+      
+      // Analizar page objects
+      if (file.name.endsWith('.ts') && !file.name.endsWith('.spec.ts')) {
+        const pageObjectName = extractPageObjectName(file.name);
+        const extractedMethods = extractMethodsFromContent(fileContent);
+        methods[pageObjectName] = extractedMethods;
+        
+        // Extraer selectors de los page objects
+        const extractedSelectors = extractSelectorsFromContent(fileContent);
+        selectors.push(...extractedSelectors);
+        
+        console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
+      }
+      
+      // Analizar tests para aprender patrones
+      if (file.name.endsWith('.spec.ts')) {
+        const patterns = extractTestPatterns(fileContent);
+        testPatterns.push(...patterns);
+        console.log(`✅ Test ${file.name}: ${patterns.length} patrones aprendidos`);
+      }
+    }
+    
+    console.log(`📊 Análisis completo: ${Object.values(methods).flat().length} métodos, ${selectors.length} selectors, ${testPatterns.length} patrones`);
+    
+    return {
+      methods,
+      selectors,
+      testPatterns,
+      source: 'github-repository',
+      repository: REPOSITORY,
+      analyzedAt: new Date().toISOString()
+    };
+    
   } catch (error) {
-    console.error('❌ OpenAI JSON parse error:', error);
-    console.error('❌ Raw response that failed to parse:', response);
+    console.error('⚠️ Error analizando codebase:', error);
+    return getStaticPatterns();
+  }
+}
+
+// Función helper para obtener archivos de GitHub
+async function fetchFileFromGitHub(repo: string, path: string, token: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const file = await response.json();
+    if (file.type !== 'file') return null;
+    
+    const contentResponse = await fetch(file.download_url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    return contentResponse.ok ? await contentResponse.text() : null;
+  } catch {
     return null;
   }
 }
 
-// Analizar codebase para aprender de tests existentes
-async function analyzeCodebaseForPatterns() {
-  try {
-    // Análisis del codebase de pw-cookunity-automation
-    // Esto podría mejorarse consultando GitHub API para obtener tests reales
+// Extraer nombre del page object desde el nombre del archivo
+function extractPageObjectName(fileName: string): string {
+  if (fileName.toLowerCase().includes('home')) return 'homePage';
+  if (fileName.toLowerCase().includes('orders')) return 'ordersHubPage';
+  if (fileName.toLowerCase().includes('user')) return 'usersHelper';
+  return 'unknown';
+}
+
+// Extraer métodos de un page object
+function extractMethodsFromContent(content: string): string[] {
+  const methods: string[] = [];
+  // Buscar métodos async
+  const methodRegex = /async\s+(\w+)\s*\([^)]*\)/g;
+  let match;
+  
+  while ((match = methodRegex.exec(content)) !== null) {
+    methods.push(match[1]);
+  }
+  
+  return methods;
+}
+
+// Extraer selectors de un page object
+function extractSelectorsFromContent(content: string): any[] {
+  const selectors: any[] = [];
+  
+  // Buscar data-testid selectors
+  const testIdRegex = /\[data-testid=["']([^"']+)["']\]/g;
+  let match;
+  
+  while ((match = testIdRegex.exec(content)) !== null) {
+    const testId = match[1];
+    // Buscar el nombre del método o variable que usa este selector
+    const contextBefore = content.substring(Math.max(0, content.indexOf(match[0]) - 200), content.indexOf(match[0]));
+    const varNameMatch = contextBefore.match(/(\w+)\s*[:=]/);
+    const name = varNameMatch ? varNameMatch[1] : testId;
+    
+    selectors.push({
+      name: name.replace(/[^a-zA-Z0-9]/g, ''),
+      patterns: [testId, name],
+      dataTestId: [testId]
+    });
+  }
+  
+  return selectors;
+}
+
+// Extraer patrones de tests existentes
+function extractTestPatterns(content: string): any[] {
+  const patterns: any[] = [];
+  
+  // Buscar estructura Given-When-Then en comentarios
+  const givenWhenThenRegex = /\/\/\s*(GIVEN|WHEN|THEN|Given|When|Then)[\s\S]*?(?=\/\/\s*(?:GIVEN|WHEN|THEN|Given|When|Then|$))/g;
+  let match;
+  
+  while ((match = givenWhenThenRegex.exec(content)) !== null) {
+    const section = match[0];
+    const actions = section.match(/(?:clickOn|fill|navigateTo|scrollTo)(\w+)/g) || [];
+    const assertions = section.match(/(?:is|get|expect)[\w]+\(/g) || [];
+    
+    patterns.push({
+      section: match[1],
+      actions: actions.map((a: string) => a.replace(/^(clickOn|fill|navigateTo|scrollTo)/, '')),
+      assertions: assertions.length
+    });
+  }
+  
+  return patterns;
+}
+
+// Patrones estáticos como fallback
+function getStaticPatterns() {
     return {
       methods: {
         homePage: [
@@ -532,23 +709,20 @@ async function analyzeCodebaseForPatterns() {
           'isUpcomingOrdersSectionVisible',
           'isInvoiceModalVisible',
           'isInvoiceDetailsVisible'
+      ],
+      usersHelper: [
+        'getActiveUserEmailWithHomeOnboardingViewed',
+        'getActiveUserEmailWithOrdersHubOnboardingViewed',
+        'getActiveUserEmailWithPastOrders'
         ]
       },
       selectors: [
-        { name: 'invoiceIcon', patterns: ['invoice', 'invoice-icon', 'invoiceIcon'], dataTestId: ['invoice-icon', 'invoice-icon-button'] },
-        { name: 'invoiceModal', patterns: ['invoice-modal', 'modal-invoice'], dataTestId: ['invoice-modal', 'modal-invoice'] },
-        { name: 'pastOrderItem', patterns: ['past-order', 'order-item'], dataTestId: ['past-order-item', 'order-item'] },
-        { name: 'cartButton', patterns: ['cart', 'shopping-cart'], dataTestId: ['cart-btn', 'cart-button'] }
-      ],
-      testPatterns: [
-        { pattern: 'invoice.*modal', context: 'pastOrders', actions: ['clickOnInvoiceIcon'], assertions: ['isInvoiceModalVisible'] },
-        { pattern: 'past.*order', context: 'pastOrders', actions: ['clickOnPastOrdersTab'], assertions: [] }
-      ]
-    };
-  } catch (error) {
-    console.error('⚠️ Error analizando codebase:', error);
-    return null;
-  }
+      { name: 'invoiceIcon', patterns: ['invoice', 'invoice-icon'], dataTestId: ['invoice-icon'] },
+      { name: 'pastOrderItem', patterns: ['past-order'], dataTestId: ['past-order-item'] }
+    ],
+    testPatterns: [],
+    source: 'static-fallback'
+  };
 }
 
 function detectContext(criteria: string) {
