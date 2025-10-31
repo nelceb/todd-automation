@@ -937,8 +937,75 @@ async function findElementWithAccessibility(page: Page, intent: string) {
 async function navigateToTargetURL(page: Page, interpretation: any) {
   try {
     const targetURL = interpretation.targetURL;
+    const context = interpretation.context;
     
-    console.log(`🧭 Navegando directamente a URL objetivo: ${targetURL}`);
+    // 🎯 DETECTAR SI REQUIERE LOGIN: contextos como pastOrders, ordersHub, etc. siempre requieren autenticación
+    const requiresAuth = context === 'pastOrders' || context === 'ordersHub' || context === 'cart' || context === 'menu';
+    
+    // Si requiere autenticación, SIEMPRE hacer login primero (no esperar a que redirija)
+    if (requiresAuth) {
+      console.log(`🔐 Contexto '${context}' requiere autenticación - iniciando login primero...`);
+      
+      // Navegar directamente a la página de login
+      const loginURL = 'https://auth.qa.cookunity.com/login';
+      console.log(`🧭 Navegando a página de login: ${loginURL}`);
+      
+      try {
+        await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForLoadState('networkidle', { timeout: 15000 });
+      } catch (gotoError) {
+        console.log('⚠️ Error navegando a login, intentando con load...');
+        await page.goto(loginURL, { waitUntil: 'load', timeout: 30000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+      }
+      
+      // Hacer login
+      const loginResult = await performLoginIfNeeded(page);
+      
+      if (!loginResult.success) {
+        return {
+          success: false,
+          error: `Login automático falló: ${loginResult.error}`,
+          url: page.url()
+        };
+      }
+      
+      // Después del login, esperar a que redirija al home autenticado
+      console.log('⏳ Esperando redirección después del login...');
+      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      console.log(`✅ Login exitoso, redirigido a: ${page.url()}`);
+      
+      // Ahora navegar a la sección específica según el contexto
+      if (context === 'pastOrders' || context === 'ordersHub') {
+        console.log(`🧭 Navegando a OrdersHub desde home autenticado...`);
+        // Navegar a subscription.qa.cookunity.com/orders o usar navegación interna
+        try {
+          await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'networkidle', timeout: 30000 });
+          console.log(`✅ Navegado a OrdersHub: ${page.url()}`);
+        } catch (ordersError) {
+          console.log('⚠️ No se pudo navegar directamente a /orders, intentando buscar link...');
+          // Intentar encontrar y hacer click en link de orders
+          const ordersLink = await findElementWithAccessibility(page, 'orders subscription');
+          if (ordersLink) {
+            await ordersLink.click();
+            await page.waitForURL(/orders|subscription/, { timeout: 10000 });
+            await page.waitForLoadState('networkidle', { timeout: 15000 });
+            console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        url: page.url(),
+        method: 'Playwright MCP (Real Navigation with Auth)',
+        timestamp: Date.now()
+      };
+    }
+    
+    // Si NO requiere autenticación, navegar directamente a la URL objetivo
+    console.log(`🧭 Navegando directamente a URL objetivo (no requiere auth): ${targetURL}`);
     
     // Intentar navegar con diferentes estrategias
     try {
