@@ -991,35 +991,107 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout después del login, continuando...');
       }
-      console.log(`✅ Login exitoso, redirigido a: ${page.url()}`);
       
-      // Ahora navegar a la sección específica según el contexto
+      const postLoginURL = page.url();
+      console.log(`✅ Login exitoso, redirigido a: ${postLoginURL}`);
+      
+      // 🎯 VALIDAR que estamos realmente autenticados: buscar elementos que solo aparecen cuando hay login
+      console.log('🔍 Validando autenticación: buscando elementos de página autenticada...');
+      try {
+        // Esperar a que aparezcan elementos típicos de una página autenticada
+        await page.waitForSelector('[data-testid], a[href*="orders"], a[href*="subscription"], button, nav', { timeout: 10000 });
+        const hasTestIds = await page.locator('[data-testid]').count() > 0;
+        console.log(`🔍 Elementos con data-testid encontrados: ${hasTestIds ? '✅' : '❌'}`);
+        
+        if (!hasTestIds) {
+          console.warn('⚠️ No se encontraron elementos con data-testid - posiblemente no estamos autenticados');
+          // Tomar screenshot para debug
+          try {
+            await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
+            console.log('📸 Screenshot guardado en /tmp/post-login-page.png');
+          } catch (screenshotError) {
+            console.error('⚠️ No se pudo tomar screenshot');
+          }
+        } else {
+          const elementCount = await page.locator('[data-testid]').count();
+          console.log(`✅ Autenticación validada: ${elementCount} elementos con data-testid encontrados`);
+        }
+      } catch (authValidationError) {
+        console.error('❌ Error validando autenticación:', authValidationError);
+      }
+      
+      // Ahora navegar desde el home autenticado a la sección específica según el contexto
+      // Flujo: Login → Home → OrdersHub → Past Orders (si aplica)
+      
       if (context === 'pastOrders' || context === 'ordersHub') {
-        console.log(`🧭 Navegando a OrdersHub desde home autenticado...`);
-        // Navegar a subscription.qa.cookunity.com/orders o usar navegación interna
+        console.log(`🧭 Navegando desde home a OrdersHub...`);
+        
+        // Primero intentar navegar directamente a OrdersHub
         try {
+          console.log('📍 Intentando navegar a https://subscription.qa.cookunity.com/orders...');
           await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          
           // Esperar de forma flexible
           try {
             await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
           } catch (e) {
             console.log('⚠️ waitForLoadState timeout en OrdersHub, continuando...');
           }
-          console.log(`✅ Navegado a OrdersHub: ${page.url()}`);
+          
+          const ordersHubURL = page.url();
+          console.log(`✅ Navegado a OrdersHub: ${ordersHubURL}`);
+          
+          // Validar que estamos en OrdersHub
+          await page.waitForSelector('[data-testid], button, nav, a', { timeout: 10000 });
+          const hasContent = await page.locator('body').textContent().then(t => (t?.trim().length || 0) > 100);
+          
+          if (hasContent) {
+            console.log('✅ OrdersHub cargado correctamente con contenido');
+          } else {
+            console.warn('⚠️ OrdersHub parece estar vacío - posible problema');
+          }
+          
         } catch (ordersError) {
-          console.log('⚠️ No se pudo navegar directamente a /orders, intentando buscar link...');
-          // Intentar encontrar y hacer click en link de orders
-          const ordersLink = await findElementWithAccessibility(page, 'orders subscription');
+          console.log('⚠️ No se pudo navegar directamente a /orders, intentando buscar link desde home...');
+          console.log(`📍 URL actual antes de buscar link: ${page.url()}`);
+          
+          // Intentar encontrar y hacer click en link de orders/subscription desde el home
+          const searchTerms = ['orders', 'subscription', 'my orders', 'order history'];
+          let ordersLink = null;
+          
+          for (const term of searchTerms) {
+            try {
+              ordersLink = await findElementWithAccessibility(page, term);
+              if (ordersLink) {
+                console.log(`✅ Encontrado link de orders usando término: "${term}"`);
+                break;
+              }
+            } catch (e) {
+              // Continuar con siguiente término
+            }
+          }
+          
           if (ordersLink) {
+            console.log('🚀 Haciendo click en link de orders...');
             await ordersLink.click();
             await page.waitForURL(/orders|subscription/, { timeout: 10000 });
+            
             // Esperar de forma flexible
             try {
               await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
             } catch (e) {
               console.log('⚠️ waitForLoadState timeout después de click en orders, continuando...');
             }
-            console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
+            
+            const finalURL = page.url();
+            console.log(`✅ Navegado a OrdersHub mediante link: ${finalURL}`);
+          } else {
+            console.error('❌ No se pudo encontrar link a orders desde el home');
+            // Intentar como último recurso: buscar en el HTML
+            const pageContent = await page.content();
+            if (pageContent.includes('orders') || pageContent.includes('Orders')) {
+              console.log('⚠️ La palabra "orders" aparece en el HTML, pero no se pudo encontrar el link');
+            }
           }
         }
       }
@@ -1417,11 +1489,25 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
   };
   
   try {
+    const currentURL = page.url();
+    console.log(`👀 observeBehaviorWithMCP: Iniciando observación en URL: ${currentURL}`);
+    
     // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
     try {
       await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
     } catch (e) {
       console.log('⚠️ waitForLoadState timeout en observeBehaviorWithMCP, continuando...');
+    }
+    
+    // 🎯 VALIDAR que la página tiene contenido antes de observar
+    console.log('🔍 Verificando que la página tiene contenido...');
+    const bodyText = await page.locator('body').textContent().catch(() => '');
+    const bodyLength = bodyText?.trim().length || 0;
+    console.log(`🔍 Longitud del contenido del body: ${bodyLength} caracteres`);
+    
+    if (bodyLength < 100) {
+      console.warn('⚠️ La página parece estar vacía o sin contenido suficiente');
+      behavior.error = 'Página parece estar vacía - posible problema de autenticación';
     }
     
     // 🎯 Usar snapshot de accesibilidad del MCP
@@ -1433,23 +1519,45 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
     
     // Observar elementos visibles usando snapshot MCP
+    console.log('🔍 Buscando elementos con data-testid...');
     const allElements = await page.$$('[data-testid]');
+    console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
+    
     const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string }> = [];
     
     for (const element of allElements) {
-      const isVisible = await element.isVisible();
-      if (isVisible) {
-        const testId = await element.getAttribute('data-testid');
-        const text = await element.textContent();
-        
-        // 🎯 Generar locator usando MCP
-        const locator = await mcpWrapper.generateLocator(element as any);
-        
-        visibleElements.push({ testId, text, locator });
+      try {
+        const isVisible = await element.isVisible();
+        if (isVisible) {
+          const testId = await element.getAttribute('data-testid');
+          const text = await element.textContent();
+          
+          // 🎯 Generar locator usando MCP
+          const locator = await mcpWrapper.generateLocator(element as any);
+          
+          visibleElements.push({ testId, text, locator });
+        }
+      } catch (elementError) {
+        console.warn(`⚠️ Error procesando elemento:`, elementError);
       }
     }
     
+    console.log(`✅ Elementos visibles encontrados: ${visibleElements.length}`);
     behavior.elements = visibleElements;
+    
+    // Si no hay elementos, registrar un snapshot completo para debug
+    if (visibleElements.length === 0) {
+      console.warn('⚠️ No se encontraron elementos visibles - esto puede indicar que la página está vacía o no autenticada');
+      try {
+        const pageHTML = await page.content();
+        console.log(`🔍 HTML de la página (primeros 500 caracteres): ${pageHTML.substring(0, 500)}`);
+        
+        await page.screenshot({ path: '/tmp/no-elements-page.png', fullPage: true });
+        console.log('📸 Screenshot guardado en /tmp/no-elements-page.png');
+      } catch (debugError) {
+        console.error('⚠️ Error obteniendo debug info:', debugError);
+      }
+    }
     
     // Intentar realizar cada acción y observar el resultado usando MCP
     interpretation.actions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
