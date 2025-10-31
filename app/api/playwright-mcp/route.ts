@@ -1019,7 +1019,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       console.log(`🔐 Resultado del login:`, JSON.stringify(loginResult, null, 2));
       
       if (!loginResult.success) {
-        console.error(`❌ Login automático falló: ${loginResult.error}`);
+        console.error(`❌ [LOGIN] Login automático falló: ${loginResult.error}`);
         return {
           success: false,
           error: `Login automático falló: ${loginResult.error}`,
@@ -1027,7 +1027,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         };
       }
       
-      console.log('✅ Login automático completado exitosamente');
+      console.log('✅ [LOGIN] Login automático completado exitosamente');
       
       // Después del login, esperar a que redirija al home autenticado
       console.log('⏳ Esperando redirección después del login...');
