@@ -187,20 +187,31 @@ export default function MetricsDashboard() {
       }),
       datasets: [
         {
-          label: 'Total Runs',
-          data: sortedWorkflows.map(w => w.total_runs),
-          backgroundColor: sortedWorkflows.map(w => getColorForWorkflow(w)),
-          borderColor: sortedWorkflows.map(w => getColorForWorkflow(w)),
-          borderWidth: 1,
-          borderRadius: 4
-        },
-        {
-          label: 'Successful Runs',
+          label: 'Successful',
           data: sortedWorkflows.map(w => w.successful_runs),
           backgroundColor: '#2ea043', // Verde GitHub para éxito
           borderColor: '#2ea043',
           borderWidth: 1,
-          borderRadius: 4
+          borderRadius: 4,
+          order: 2 // Mostrar primero (arriba)
+        },
+        {
+          label: 'Failed',
+          data: sortedWorkflows.map(w => w.failed_runs),
+          backgroundColor: '#da3633', // Rojo GitHub para fallos
+          borderColor: '#da3633',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 1 // Mostrar después (debajo del verde)
+        },
+        {
+          label: 'Cancelled',
+          data: sortedWorkflows.map(w => w.cancelled_runs || 0),
+          backgroundColor: '#8b949e', // Gris GitHub para cancelados
+          borderColor: '#8b949e',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 0 // Mostrar último (más abajo)
         }
       ]
     }
@@ -461,18 +472,9 @@ export default function MetricsDashboard() {
         {/* Workflow Distribution */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
-          <p className="text-sm font-mono mb-2" style={{ color: '#6B7280' }}>
+          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
             Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
           </p>
-          <div className="mb-3 p-3 rounded-lg bg-gray-50/50 border border-gray-200/50">
-            <p className="text-xs font-mono mb-1" style={{ color: '#374151' }}><strong>📊 How to read this chart:</strong></p>
-            <ul className="text-xs font-mono space-y-1" style={{ color: '#6B7280' }}>
-              <li>• <span style={{ color: '#F59E0B' }}>▬</span> <strong>Orange bar</strong> = Total workflow executions</li>
-              <li>• <span style={{ color: '#10B981' }}>▬</span> <strong>Green bar</strong> = Successful executions</li>
-              <li>• The <strong>difference</strong> (orange visible after green) = Failures or cancellations</li>
-              <li>• <strong>Higher bars</strong> = Most executed workflows</li>
-            </ul>
-          </div>
           <div className="h-96">
             {getWorkflowChartData() && (
               <Bar data={getWorkflowChartData()!} options={barChartOptions} />
