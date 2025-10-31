@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import { Pie } from 'react-chartjs-2'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js'
+import { Pie, Bar } from 'react-chartjs-2'
 
-ChartJS.register(ArcElement, Tooltip, Legend)
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
 interface WorkflowMetrics {
   workflow_id: string
@@ -114,34 +114,39 @@ export default function MetricsDashboard() {
   const getWorkflowChartData = () => {
     if (!metrics?.workflows) return null
 
-    // Usar workflow_name si está disponible, sino name, sino workflow_id como fallback
+    // Ordenar workflows por total_runs (mayor a menor) para mejor visualización
+    const sortedWorkflows = [...metrics.workflows].sort((a, b) => b.total_runs - a.total_runs)
+    
+    // Colores tipo GitHub Actions:
+    // Verde para workflows exitosos (success rate alto), amarillo para medio, rojo para bajo
+    const getColorForWorkflow = (workflow: any) => {
+      if (workflow.success_rate >= 80) return '#2ea043' // Verde GitHub
+      if (workflow.success_rate >= 60) return '#d4a72c' // Amarillo GitHub
+      return '#da3633' // Rojo GitHub
+    }
+
     const data = {
-      labels: metrics.workflows.map(w => w.workflow_name || w.name || w.workflow_id || 'Unknown'),
+      labels: sortedWorkflows.map(w => {
+        const name = w.workflow_name || w.name || w.workflow_id || 'Unknown'
+        // Truncar nombres largos para mejor visualización
+        return name.length > 40 ? name.substring(0, 37) + '...' : name
+      }),
       datasets: [
         {
-          label: 'Workflow Runs',
-          data: metrics.workflows.map(w => w.total_runs),
-          backgroundColor: [
-            '#FF6384',
-            '#36A2EB', 
-            '#FFCE56',
-            '#4BC0C0',
-            '#9966FF',
-            '#FF9F40',
-            '#FF6384',
-            '#C9CBCF'
-          ],
-          borderColor: [
-            '#FF6384',
-            '#36A2EB',
-            '#FFCE56', 
-            '#4BC0C0',
-            '#9966FF',
-            '#FF9F40',
-            '#FF6384',
-            '#C9CBCF'
-          ],
-          borderWidth: 2
+          label: 'Total Runs',
+          data: sortedWorkflows.map(w => w.total_runs),
+          backgroundColor: sortedWorkflows.map(w => getColorForWorkflow(w)),
+          borderColor: sortedWorkflows.map(w => getColorForWorkflow(w)),
+          borderWidth: 1,
+          borderRadius: 4
+        },
+        {
+          label: 'Successful Runs',
+          data: sortedWorkflows.map(w => w.successful_runs),
+          backgroundColor: '#2ea043', // Verde GitHub para éxito
+          borderColor: '#2ea043',
+          borderWidth: 1,
+          borderRadius: 4
         }
       ]
     }
@@ -168,7 +173,7 @@ export default function MetricsDashboard() {
     }
   }
 
-  const chartOptions = {
+  const pieChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -189,6 +194,67 @@ export default function MetricsDashboard() {
             const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
             const percentage = ((value / total) * 100).toFixed(1)
             return `${label}: ${value} runs (${percentage}%)`
+          }
+        }
+      }
+    }
+  }
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y' as const, // Barras horizontales
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          padding: 15,
+          font: {
+            size: 12
+          },
+          usePointStyle: true
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const label = context.dataset.label || ''
+            const value = context.parsed.x
+            const workflow = metrics?.workflows?.find((w: any) => {
+              const name = w.workflow_name || w.name || w.workflow_id || 'Unknown'
+              const shortName = name.length > 40 ? name.substring(0, 37) + '...' : name
+              return shortName === context.label
+            })
+            
+            if (workflow && context.dataset.label === 'Total Runs') {
+              const successRate = workflow.success_rate.toFixed(1)
+              return `${label}: ${value} runs (Success Rate: ${successRate}%)`
+            }
+            return `${label}: ${value} runs`
+          }
+        }
+      },
+      title: {
+        display: false
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: {
+          color: '#f3f4f6'
+        },
+        ticks: {
+          stepSize: 1
+        }
+      },
+      y: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          font: {
+            size: 11
           }
         }
       }
@@ -287,20 +353,23 @@ export default function MetricsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Workflow Distribution */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Workflow Distribution</h3>
-          <div className="h-64">
+          <h3 className="text-lg font-semibold mb-2">Workflow Distribution</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Total runs por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
+          </p>
+          <div className="h-96">
             {getWorkflowChartData() && (
-              <Pie data={getWorkflowChartData()!} options={chartOptions} />
+              <Bar data={getWorkflowChartData()!} options={barChartOptions} />
             )}
           </div>
         </div>
 
         {/* Success Rate */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Success Rate</h3>
+          <h3 className="text-lg font-semibold mb-4">Overall Success Rate</h3>
           <div className="h-64">
             {getSuccessRateChartData() && (
-              <Pie data={getSuccessRateChartData()!} options={chartOptions} />
+              <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
             )}
           </div>
         </div>
