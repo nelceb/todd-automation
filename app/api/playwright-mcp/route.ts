@@ -1104,28 +1104,73 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       console.log(`✅ Login exitoso, redirigido a: ${postLoginURL}`);
       
       // 🎯 VALIDAR que estamos realmente autenticados: buscar elementos que solo aparecen cuando hay login
-      console.log('🔍 Validando autenticación: buscando elementos de página autenticada...');
+      console.log('🔍 [AUTH VALIDATION] Validando autenticación: buscando elementos de página autenticada...');
       try {
         // Esperar a que aparezcan elementos típicos de una página autenticada
         await page.waitForSelector('[data-testid], a[href*="orders"], a[href*="subscription"], button, nav', { timeout: 10000 });
-        const hasTestIds = await page.locator('[data-testid]').count() > 0;
-        console.log(`🔍 Elementos con data-testid encontrados: ${hasTestIds ? '✅' : '❌'}`);
         
-        if (!hasTestIds) {
-          console.warn('⚠️ No se encontraron elementos con data-testid - posiblemente no estamos autenticados');
+        const testIdCount = await page.locator('[data-testid]').count();
+        const buttonCount = await page.locator('button').count();
+        const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count();
+        
+        console.log(`🔍 [AUTH VALIDATION] Elementos encontrados:`);
+        console.log(`  - data-testid: ${testIdCount}`);
+        console.log(`  - buttons: ${buttonCount}`);
+        console.log(`  - nav/links: ${navCount}`);
+        
+        if (testIdCount === 0 && buttonCount === 0 && navCount === 0) {
+          console.error('❌ [AUTH VALIDATION] No se encontraron elementos de página autenticada');
+          console.error(`❌ [AUTH VALIDATION] URL actual: ${page.url()}`);
+          
+          // Verificar el título de la página
+          const pageTitle = await page.title().catch(() => 'Unknown');
+          console.error(`❌ [AUTH VALIDATION] Título de página: ${pageTitle}`);
+          
+          // Capturar snapshot para ver qué hay
+          const snapshot = await page.accessibility.snapshot().catch(() => null);
+          if (snapshot) {
+            const snapshotStr = JSON.stringify(snapshot).substring(0, 500);
+            console.error(`❌ [AUTH VALIDATION] Contenido detectado: ${snapshotStr}`);
+          }
+          
           // Tomar screenshot para debug
           try {
             await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
-            console.log('📸 Screenshot guardado en /tmp/post-login-page.png');
+            console.log('📸 [AUTH VALIDATION] Screenshot guardado en /tmp/post-login-page.png');
           } catch (screenshotError) {
             console.error('⚠️ No se pudo tomar screenshot');
           }
+          
+          // Retornar error - el login no fue exitoso
+          return {
+            success: false,
+            error: 'Autenticación fallida - no se encontraron elementos de página autenticada después del login',
+            url: page.url(),
+            details: {
+              testIdCount,
+              buttonCount,
+              navCount,
+              pageTitle
+            }
+          };
         } else {
-          const elementCount = await page.locator('[data-testid]').count();
-          console.log(`✅ Autenticación validada: ${elementCount} elementos con data-testid encontrados`);
+          // Listar algunos testIds para verificar
+          const testIds = await Promise.all(
+            (await page.locator('[data-testid]').all()).slice(0, 5).map(async (el) => {
+              return await el.getAttribute('data-testid').catch(() => null);
+            })
+          );
+          console.log(`✅ [AUTH VALIDATION] Autenticación validada: ${testIdCount} elementos con data-testid`);
+          console.log(`✅ [AUTH VALIDATION] Primeros data-testid:`, testIds.filter(Boolean));
         }
       } catch (authValidationError) {
-        console.error('❌ Error validando autenticación:', authValidationError);
+        console.error('❌ [AUTH VALIDATION] Error validando autenticación:', authValidationError);
+        // NO continuar si no podemos validar la autenticación
+        return {
+          success: false,
+          error: `Error validando autenticación: ${authValidationError instanceof Error ? authValidationError.message : String(authValidationError)}`,
+          url: page.url()
+        };
       }
       
       // 🎯 ESTRATEGIA: Quedarse en el Home autenticado y dejar que la observación navegue según el acceptance criteria
@@ -1629,6 +1674,41 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     console.log('🔍 Buscando elementos con data-testid...');
     const allElements = await page.$$('[data-testid]');
     console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
+    
+    // Log detallado de los elementos encontrados
+    if (allElements.length === 0) {
+      console.error('❌ [OBSERVATION] NO se encontraron elementos con data-testid');
+      console.error('❌ [OBSERVATION] Esto indica que NO estamos en una página autenticada');
+      console.error(`❌ [OBSERVATION] URL actual: ${page.url()}`);
+      
+      // Intentar capturar qué hay realmente en la página
+      const snapshot = await mcpWrapper.browserSnapshot();
+      const snapshotSummary = snapshot ? JSON.stringify(snapshot).substring(0, 1000) : 'No snapshot available';
+      console.error(`❌ [OBSERVATION] Contenido de la página (snapshot):`, snapshotSummary);
+      
+      // NO continuar con la observación si no hay elementos - esto es un error
+      return {
+        observed: false,
+        interactions: interpretation.actions.map((a: any) => ({
+          ...a,
+          observed: false,
+          exists: false,
+          visible: false,
+          note: 'No se pudo observar - página no autenticada (sin data-testid)'
+        })),
+        elements: [],
+        observations: [{
+          url: page.url(),
+          title: await page.title().catch(() => 'Unknown'),
+          snapshot: snapshot || {},
+          timestamp: Date.now(),
+          error: 'No se encontraron elementos con data-testid - página probablemente no autenticada'
+        }],
+        error: 'Página no tiene elementos autenticados (sin data-testid) - login probablemente falló'
+      };
+    } else {
+      console.log(`✅ [OBSERVATION] Página autenticada validada: ${allElements.length} elementos con data-testid encontrados`);
+    }
     
     const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string }> = [];
     
@@ -2964,7 +3044,7 @@ npm run test:playwright || exit 1
     const commitMessage = `feat: Add ${interpretation.context} test with Playwright MCP
 
 - Generated test with real browser observation
-- Added GitHub Actions workflow for automated testing  
+- Added GitHub Actions workflow for automated testing
 - Added Husky pre-commit hooks for test validation
 - Test will auto-promote PR from draft to review on success`;
 
@@ -2999,7 +3079,7 @@ npm run test:playwright || exit 1
         body: JSON.stringify({
           message: fileSha ? `Update ${file.file}` : `Add ${file.file}`,
           content: content,
-          branch: branchName,
+      branch: branchName,
           ...(fileSha && { sha: fileSha }) // Solo incluir SHA si existe (actualización)
         })
       });
