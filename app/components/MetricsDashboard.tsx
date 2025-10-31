@@ -655,14 +655,26 @@ export default function MetricsDashboard() {
                         return <span className="text-xs" style={{ color: '#9CA3AF' }}>N/A</span>;
                       }
                       
-                      // Mostrar el tipo principal (el más frecuente)
-                      const mainTrigger = triggers[0];
-                      const isMultiple = triggers.length > 1;
+                      // Si hay un filtro seleccionado, priorizar mostrar ese tipo primero
+                      let mainTrigger = triggers[0];
+                      if (selectedTriggerType && selectedTriggerType !== 'All') {
+                        const selectedTrigger = triggers.find(t => t.type === selectedTriggerType);
+                        if (selectedTrigger && selectedTrigger.count > 0) {
+                          mainTrigger = selectedTrigger;
+                        }
+                      }
+                      
+                      // Contar cuántos tipos adicionales hay (excluyendo el principal)
+                      const otherTypes = triggers.filter(t => t.type !== mainTrigger.type && t.count > 0);
+                      const isMultiple = otherTypes.length > 0;
                       
                       return (
                         <span className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-mono font-semibold ${mainTrigger.color}`}>
-                          {mainTrigger.icon} {mainTrigger.type}
-                          {isMultiple && <span className="ml-1 text-xs opacity-75">+{triggers.length - 1}</span>}
+                          <span className="mr-1">{mainTrigger.icon}</span>
+                          {mainTrigger.type}
+                          {isMultiple && (
+                            <span className="ml-1" style={{ color: '#6B7280' }}>+{otherTypes.length}</span>
+                          )}
                         </span>
                       );
                     })()}
