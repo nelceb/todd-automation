@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Browser, Page } from 'playwright';
+import { Browser, Page, Locator } from 'playwright';
 import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
 import OpenAI from 'openai';
@@ -7,6 +7,167 @@ import OpenAI from 'openai';
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// 🎯 MCP INTEGRATION: Wrapper para usar capacidades del paquete oficial @playwright/mcp
+class PlaywrightMCPWrapper {
+  private page: Page;
+  
+  constructor(page: Page) {
+    this.page = page;
+  }
+  
+  // browser_snapshot equivalente - Captura snapshot de accesibilidad
+  async browserSnapshot() {
+    const snapshot = await this.page.accessibility.snapshot();
+    return snapshot;
+  }
+  
+  // browser_generate_locator - Genera locator robusto para un elemento
+  async generateLocator(element: Locator, description?: string): Promise<string> {
+    try {
+      // Obtener múltiples estrategias de locator
+      const strategies: string[] = [];
+      
+      // 1. data-testid (preferido)
+      const testId = await element.getAttribute('data-testid');
+      if (testId) {
+        strategies.push(`page.getByTestId('${testId}')`);
+      }
+      
+      // 2. role + accessible name
+      try {
+        const role = await element.evaluate((el: any) => el.getAttribute('role') || el.tagName.toLowerCase());
+        const accessibleName = await element.evaluate((el: any) => {
+          return el.getAttribute('aria-label') || 
+                 el.getAttribute('alt') || 
+                 el.textContent?.trim() ||
+                 el.getAttribute('name') ||
+                 el.getAttribute('title');
+        });
+        
+        if (role && accessibleName) {
+          strategies.push(`page.getByRole('${role}', { name: '${accessibleName.replace(/'/g, "\\'")}' })`);
+        }
+      } catch (e) {
+        // Ignore
+      }
+      
+      // 3. label
+      try {
+        const label = await element.evaluate((el: any) => {
+          const id = el.id;
+          if (id) {
+            const labelEl = document.querySelector(`label[for="${id}"]`);
+            return labelEl?.textContent?.trim();
+          }
+        });
+        
+        if (label) {
+          strategies.push(`page.getByLabel('${label.replace(/'/g, "\\'")}')`);
+        }
+      } catch (e) {
+        // Ignore
+      }
+      
+      // 4. placeholder
+      try {
+        const placeholder = await element.getAttribute('placeholder');
+        if (placeholder) {
+          strategies.push(`page.getByPlaceholder('${placeholder.replace(/'/g, "\\'")}')`);
+        }
+      } catch (e) {
+        // Ignore
+      }
+      
+      // 5. text
+      try {
+        const text = await element.textContent();
+        if (text && text.trim().length > 0 && text.trim().length < 50) {
+          strategies.push(`page.getByText('${text.trim().replace(/'/g, "\\'")}')`);
+        }
+      } catch (e) {
+        // Ignore
+      }
+      
+      // Retornar el mejor locator (data-testid primero, luego role, etc)
+      return strategies[0] || `page.locator('${await this.getFallbackSelector(element)}')`;
+    } catch (error) {
+      console.error('Error generando locator:', error);
+      return `page.locator('button')`; // Fallback
+    }
+  }
+  
+  private async getFallbackSelector(element: Locator): Promise<string> {
+    try {
+      const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase());
+      const testId = await element.getAttribute('data-testid');
+      if (testId) return `[data-testid="${testId}"]`;
+      
+      const id = await element.getAttribute('id');
+      if (id) return `#${id}`;
+      
+      const className = await element.getAttribute('class');
+      if (className) {
+        const firstClass = className.split(' ')[0];
+        return `.${firstClass}`;
+      }
+      
+      return tagName;
+    } catch {
+      return 'body';
+    }
+  }
+  
+  // Encontrar elemento usando snapshot de accesibilidad (como MCP)
+  async findElementBySnapshot(searchTerm: string): Promise<Locator | null> {
+    try {
+      const snapshot = await this.browserSnapshot();
+      if (!snapshot) return null;
+      
+      // Buscar en el snapshot recursivamente
+      const findInSnapshot = (node: any): any => {
+        if (!node) return null;
+        
+        const nodeText = JSON.stringify(node).toLowerCase();
+        if (nodeText.includes(searchTerm.toLowerCase())) {
+          return node;
+        }
+        
+        if (node.children) {
+          for (const child of node.children) {
+            const found = findInSnapshot(child);
+            if (found) return found;
+          }
+        }
+        
+        return null;
+      };
+      
+      const foundNode = findInSnapshot(snapshot);
+      if (!foundNode) return null;
+      
+      // Convertir node a locator usando role y name
+      if (foundNode.role && foundNode.name) {
+        return this.page.getByRole(foundNode.role as any, { name: foundNode.name as string });
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error en findElementBySnapshot:', error);
+      return null;
+    }
+  }
+  
+  // Verificar visibilidad de elemento (browser_verify_element_visible equivalente)
+  async verifyElementVisible(role: string, accessibleName: string): Promise<boolean> {
+    try {
+      const element = this.page.getByRole(role as any, { name: accessibleName });
+      return await element.isVisible({ timeout: 5000 });
+    } catch {
+      return false;
+    }
+  }
+}
 
 async function anthropicJSON(systemPrompt: string, userMessage: string) {
   const apiKey = process.env.CLAUDE_API_KEY;
@@ -110,8 +271,11 @@ export async function POST(request: NextRequest) {
     
     console.log('👀 Playwright MCP: Observando comportamiento...');
     
-    // 5. Observar comportamiento REAL
-    const behavior = await observeBehavior(page, interpretation);
+    // 🎯 Usar wrapper MCP oficial para observación mejorada
+    const mcpWrapper = new PlaywrightMCPWrapper(page);
+    
+    // 5. Observar comportamiento REAL usando capacidades del MCP
+    const behavior = await observeBehaviorWithMCP(page, interpretation, mcpWrapper);
     
     console.log(`✅ Playwright MCP: Observados ${behavior.elements.length} elementos`);
     
@@ -213,31 +377,41 @@ Por ejemplo: "User taps invoice icon on past order" significa:
 1. Primero: click en past order item
 2. Segundo: click en invoice icon
 
+CRÍTICO - ACTIVACIÓN DE SECCIONES:
+Si el acceptance criteria menciona una sección específica (como "Past Orders", "Upcoming Orders", etc.), 
+debes INFERIR que primero necesita ACTIVAR esa sección antes de interactuar con sus elementos.
+Las secciones web pueden estar VISIBLES pero NO ACTIVAS/SELECCIONADAS.
+
+Ejemplos:
+- Si menciona "Past Orders" → agregar acción previa para click en tab/botón "Past Orders" (order: 0 o antes)
+- Si menciona "Upcoming Orders" → agregar acción previa para click en tab/botón "Upcoming Orders"
+- Si menciona "Cart" o "Shopping Cart" → verificar si necesita navegar/activar esa sección primero
+
 Para CookUnity ecommerce, los contextos comunes son:
 - homepage: página principal
-- ordersHub: hub de órdenes
-- pastOrders: órdenes pasadas
+- ordersHub: hub de órdenes (tiene tabs: Past Orders, Upcoming Orders)
+- pastOrders: órdenes pasadas (requiere activar tab "Past Orders" en ordersHub)
 - search: página de búsqueda
 - cart: carrito de compras
 - menu: menú de comidas
 
 EJEMPLO DE RESPUESTA CORRECTA:
-Si el acceptance criteria es: "User taps invoice icon on past order"
+Si el acceptance criteria es: "User clicks Load More button in Past Orders section"
 {
   "context": "pastOrders",
   "actions": [
     {
       "type": "click",
-      "element": "pastOrderItem",
-      "description": "Click on past order item to open details",
-      "intent": "Navigate to order details",
+      "element": "pastOrdersTab",
+      "description": "Click on Past Orders tab to activate Past Orders section",
+      "intent": "Navigate to and activate Past Orders section",
       "order": 1
     },
     {
-      "type": "click", 
-      "element": "invoiceIcon",
-      "description": "Click on invoice icon to view invoice",
-      "intent": "Open invoice modal",
+      "type": "click",
+      "element": "loadMoreButton",
+      "description": "Click on Load More button to fetch additional past orders",
+      "intent": "Load more past orders",
       "order": 2
     }
   ],
@@ -689,7 +863,321 @@ async function performLoginIfNeeded(page: Page) {
   }
 }
 
-// Observar comportamiento REAL en la página
+// 🎯 MCP MOTOR: Detectar automáticamente secciones visibles pero no activas usando MCP wrapper
+async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, mcpWrapper: PlaywrightMCPWrapper) {
+  try {
+    const sectionMap: { [key: string]: string[] } = {
+      pastOrders: ['past orders', 'past orders tab', 'previous orders', 'order history'],
+      upcomingOrders: ['upcoming orders', 'upcoming orders tab', 'future orders', 'scheduled orders'],
+      cart: ['cart', 'shopping cart', 'basket'],
+      search: ['search', 'search bar', 'search input'],
+      menu: ['menu', 'food menu', 'dishes']
+    };
+
+    const context = interpretation.context;
+    const searchTerms = sectionMap[context] || [];
+
+    if (searchTerms.length === 0) return;
+
+    console.log(`🎯 MCP Motor: Buscando sección "${context}" usando snapshot MCP...`);
+
+    // 🎯 Usar snapshot MCP para encontrar tabs/secciones
+    for (const term of searchTerms) {
+      const foundElement = await mcpWrapper.findElementBySnapshot(term);
+      
+      if (foundElement) {
+        try {
+          const isActive = await foundElement.evaluate((el: any) => {
+            return el.getAttribute('aria-selected') === 'true' ||
+                   el.getAttribute('aria-current') === 'page' ||
+                   el.classList.contains('selected') ||
+                   el.classList.contains('active') ||
+                   el.classList.contains('is-active') ||
+                   el.getAttribute('data-active') === 'true';
+          }).catch(() => false);
+          
+          if (!isActive) {
+            const text = await foundElement.textContent().catch(() => '');
+            const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            
+            console.log(`🎯 MCP Motor: Sección "${text}" encontrada pero NO activa. Locator: ${generatedLocator}`);
+            
+            interpretation.actions.unshift({
+              type: 'click',
+              element: text?.trim().replace(/\s+/g, '') || `${context}Tab`,
+              description: `Click on ${text || term} tab/section to activate ${context} section`,
+              intent: `Activate ${context} section`,
+              order: 0,
+              locator: generatedLocator // 🎯 Guardar locator generado
+            });
+            
+            return; // Solo agregar una acción por sección
+          }
+        } catch (e) {
+          // Si no podemos verificar, agregar acción por seguridad
+          const text = await foundElement.textContent().catch(() => term);
+          const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          
+          console.log(`🎯 MCP Motor: Agregando acción previa para ${context} (no se pudo verificar estado)`);
+          interpretation.actions.unshift({
+            type: 'click',
+            element: text?.trim().replace(/\s+/g, '') || `${context}Tab`,
+            description: `Click on ${text || term} tab/section to activate ${context} section`,
+            intent: `Activate ${context} section`,
+            order: 0,
+            locator: generatedLocator
+          });
+          return;
+        }
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ MCP Motor: Error detectando sección:', error);
+  }
+}
+
+// 🎯 MCP MOTOR: Detectar automáticamente secciones visibles pero no activas (legacy)
+async function detectAndActivateSection(page: Page, interpretation: any) {
+  try {
+    // Mapeo de contextos a términos de búsqueda de secciones
+    const sectionMap: { [key: string]: string[] } = {
+      pastOrders: ['past orders', 'past orders tab', 'previous orders', 'order history'],
+      upcomingOrders: ['upcoming orders', 'upcoming orders tab', 'future orders', 'scheduled orders'],
+      cart: ['cart', 'shopping cart', 'basket'],
+      search: ['search', 'search bar', 'search input'],
+      menu: ['menu', 'food menu', 'dishes']
+    };
+
+    const context = interpretation.context;
+    const searchTerms = sectionMap[context] || [];
+
+    if (searchTerms.length === 0) return;
+
+    console.log(`🎯 MCP Motor: Buscando sección "${context}" con términos: ${searchTerms.join(', ')}`);
+
+    // Buscar elementos que puedan representar tabs/secciones
+    const tabSelectors = [
+      'button[role="tab"]',
+      '[role="tab"]',
+      'button[aria-controls]',
+      '.tab',
+      '[data-testid*="tab"]',
+      '[data-testid*="Tab"]',
+      'nav button',
+      '.nav-item button'
+    ];
+
+    for (const selector of tabSelectors) {
+      try {
+        const tabs = await page.$$(selector);
+        
+        for (const tab of tabs) {
+          const text = await tab.textContent().catch(() => '');
+          const ariaLabel = await tab.getAttribute('aria-label').catch(() => '');
+          const testId = await tab.getAttribute('data-testid').catch(() => '');
+          
+          const combinedText = `${text} ${ariaLabel} ${testId}`.toLowerCase();
+          
+          // Verificar si este tab corresponde a la sección que necesitamos
+          const matchesSection = searchTerms.some(term => 
+            combinedText.includes(term.toLowerCase())
+          );
+          
+          if (matchesSection) {
+            // Verificar si está activo/seleccionado
+            const isActive = await tab.evaluate((el: any) => {
+              return el.getAttribute('aria-selected') === 'true' ||
+                     el.getAttribute('aria-current') === 'page' ||
+                     el.classList.contains('selected') ||
+                     el.classList.contains('active') ||
+                     el.classList.contains('is-active') ||
+                     el.getAttribute('data-active') === 'true';
+            }).catch(() => false);
+            
+            if (!isActive) {
+              // Extraer nombre del elemento para el test
+              const elementName = (text || '').trim().split(/\s+/).map((w: string) => 
+                w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+              ).join('').replace(/[^a-zA-Z0-9]/g, '') || 'sectionTab';
+              
+              console.log(`🎯 MCP Motor: Sección "${text}" encontrada pero NO activa. Agregando acción de activación.`);
+              
+              interpretation.actions.unshift({
+                type: 'click',
+                element: elementName || `${context}Tab`,
+                description: `Click on ${text} tab/section to activate ${context} section`,
+                intent: `Activate ${context} section`,
+                order: 0,
+                selector: await tab.evaluate((el: any) => {
+                  const testId = el.getAttribute('data-testid');
+                  if (testId) return `[data-testid="${testId}"]`;
+                  const id = el.id;
+                  if (id) return `#${id}`;
+                  return null;
+                }).catch(() => null)
+              });
+              
+              return; // Solo agregar una acción por sección
+            } else {
+              console.log(`🎯 MCP Motor: Sección "${text}" ya está activa.`);
+            }
+          }
+        }
+      } catch (e) {
+        // Continuar con siguiente selector
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ MCP Motor: Error detectando sección:', error);
+  }
+}
+
+// 🎯 Observar comportamiento usando MCP wrapper (con capacidades del paquete oficial)
+async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrapper: PlaywrightMCPWrapper) {
+  const behavior: {
+    observed: boolean;
+    interactions: Array<{
+      type: any;
+      element: any;
+      selector?: any;
+      observed: boolean;
+      exists?: boolean;
+      visible?: boolean;
+      foundBy?: string;
+      note?: string;
+      error?: string;
+      locator?: string; // 🎯 Locator generado por MCP
+    }>;
+    elements: Array<{ testId: string | null; text: string | null; locator?: string }>;
+    observations: any[];
+    error?: string;
+  } = {
+    observed: true,
+    interactions: [],
+    elements: [],
+    observations: []
+  };
+  
+  try {
+    // Esperar a que la página cargue completamente
+    await page.waitForLoadState('networkidle');
+    
+    // 🎯 Usar snapshot de accesibilidad del MCP
+    console.log('📸 MCP: Capturando snapshot de accesibilidad...');
+    const snapshot = await mcpWrapper.browserSnapshot();
+    console.log('✅ MCP: Snapshot capturado');
+    
+    // 🎯 MCP INTELLIGENT DETECTION: Detectar si necesitamos navegar a una sección específica
+    await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
+    
+    // Observar elementos visibles usando snapshot MCP
+    const allElements = await page.$$('[data-testid]');
+    const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string }> = [];
+    
+    for (const element of allElements) {
+      const isVisible = await element.isVisible();
+      if (isVisible) {
+        const testId = await element.getAttribute('data-testid');
+        const text = await element.textContent();
+        
+        // 🎯 Generar locator usando MCP
+        const locator = await mcpWrapper.generateLocator(element as any);
+        
+        visibleElements.push({ testId, text, locator });
+      }
+    }
+    
+    behavior.elements = visibleElements;
+    
+    // Intentar realizar cada acción y observar el resultado usando MCP
+    interpretation.actions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    
+    for (const action of interpretation.actions) {
+      try {
+        // 🎯 MCP-STYLE: Usar snapshot para encontrar elementos
+        let foundElement: Locator | null = null;
+        let foundBy: string | undefined = undefined;
+        let generatedLocator: string | undefined;
+        
+        // Buscar usando snapshot MCP
+        foundElement = await mcpWrapper.findElementBySnapshot(action.element || action.description || action.intent);
+        
+        if (foundElement) {
+          foundBy = 'mcp-snapshot';
+          generatedLocator = await mcpWrapper.generateLocator(foundElement);
+        } else {
+          // Fallback: usar estrategias anteriores
+          const searchTerms = action.intent || action.description || action.element;
+          
+          // Intentar con getByRole
+          try {
+            foundElement = page.getByRole('button', { name: new RegExp(searchTerms, 'i') }).first();
+            if (await foundElement.isVisible({ timeout: 2000 })) {
+              foundBy = 'mcp-role';
+              generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            } else {
+              foundElement = null;
+            }
+          } catch (e) {
+            // Continuar
+          }
+        }
+        
+        if (foundElement && generatedLocator) {
+          const isVisible = await foundElement.isVisible({ timeout: 2000 });
+          behavior.interactions.push({
+            type: action.type,
+            element: action.element,
+            selector: action.selector,
+            observed: true,
+            exists: true,
+            visible: isVisible,
+            foundBy: foundBy,
+            locator: generatedLocator, // 🎯 Locator generado por MCP
+            note: isVisible ? 'Found and visible with MCP' : 'Found but not visible'
+          });
+        } else {
+          behavior.interactions.push({
+            type: action.type,
+            element: action.element,
+            selector: action.selector,
+            observed: false,
+            exists: false,
+            visible: false,
+            note: 'Not found during observation - may appear after interactions'
+          });
+        }
+      } catch (error) {
+        behavior.interactions.push({
+          type: action.type,
+          element: action.element,
+          selector: action.selector,
+          observed: false,
+          exists: false,
+          visible: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    
+    // Capturar estado de la página usando snapshot MCP
+    const pageState = {
+      url: page.url(),
+      title: await page.title(),
+      snapshot: snapshot,
+      timestamp: Date.now()
+    };
+    behavior.observations.push(pageState);
+    
+  } catch (error) {
+    behavior.observed = false;
+    behavior.error = error instanceof Error ? error.message : String(error);
+  }
+  
+  return behavior;
+}
+
+// Observar comportamiento REAL en la página (versión legacy - mantener para compatibilidad)
 async function observeBehavior(page: Page, interpretation: any) {
   const behavior: {
     observed: boolean;
@@ -718,6 +1206,50 @@ async function observeBehavior(page: Page, interpretation: any) {
     // Esperar a que la página cargue completamente
     await page.waitForLoadState('networkidle');
     
+    // 🎯 MCP INTELLIGENT DETECTION: Detectar si necesitamos navegar a una sección específica
+    // Ejemplo: En OrdersHub, si el contexto es pastOrders pero estamos en Upcoming Orders
+    if (interpretation.context === 'pastOrders') {
+      const currentUrl = page.url();
+      if (currentUrl.includes('orders') || currentUrl.includes('hub')) {
+        // Buscar tabs/botones de navegación para Past Orders
+        const pastOrdersTab = await findElementWithAccessibility(page, 'past orders');
+        const upcomingOrdersTab = await findElementWithAccessibility(page, 'upcoming orders');
+        
+        // Si encontramos el tab de Past Orders y no está seleccionado, agregarlo como acción previa
+        if (pastOrdersTab) {
+          try {
+            const isSelected = await pastOrdersTab.evaluate((el: any) => {
+              return el.getAttribute('aria-selected') === 'true' || 
+                     el.classList.contains('selected') ||
+                     el.classList.contains('active');
+            }).catch(() => false);
+            
+            if (!isSelected) {
+              // Agregar acción previa para hacer click en Past Orders tab
+              console.log('🎯 MCP Detection: Past Orders tab encontrado pero no seleccionado, agregando acción previa');
+              interpretation.actions.unshift({
+                type: 'click',
+                element: 'pastOrdersTab',
+                description: 'Click on Past Orders tab to navigate to past orders section',
+                intent: 'Navigate to past orders section',
+                order: 0 // Antes de todas las demás acciones
+              });
+            }
+          } catch (e) {
+            // Si no podemos verificar si está seleccionado, igual agregamos la acción por seguridad
+            console.log('🎯 MCP Detection: Agregando acción previa para Past Orders (no se pudo verificar estado)');
+            interpretation.actions.unshift({
+              type: 'click',
+              element: 'pastOrdersTab',
+              description: 'Click on Past Orders tab to navigate to past orders section',
+              intent: 'Navigate to past orders section',
+              order: 0
+            });
+          }
+        }
+      }
+    }
+    
     // Observar elementos visibles en la página
     const allElements = await page.$$('[data-testid]');
     const visibleElements: Array<{ testId: string | null; text: string | null }> = [];
@@ -734,6 +1266,9 @@ async function observeBehavior(page: Page, interpretation: any) {
     behavior.elements = visibleElements;
     
     // Intentar realizar cada acción y observar el resultado usando MCP-style observability
+    // Re-ordenar acciones después de potenciales inserciones
+    interpretation.actions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    
     for (const action of interpretation.actions) {
       try {
         // 🎯 MCP-STYLE: Usar observabilidad para encontrar elementos basándose en intents del LLM
@@ -944,24 +1479,60 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
   ${pageInitialization}`;
   
-  // Si el contexto es pastOrders, navegar específicamente a Past Orders antes de las acciones
+  // Si el contexto es pastOrders, manejar navegación y acciones
   if (interpretation.context === 'pastOrders') {
-    testCode += `\n  const pastOrdersPage = await ${pageVarName}.navigateToPastOrders();`;
-    // Actualizar la variable de página para usar pastOrdersPage en las acciones
-    const pastOrdersVarName = 'pastOrdersPage';
-    
     // Debug: Log interpretation data
     console.log('🔍 Debug - Interpretation data:', JSON.stringify(interpretation, null, 2));
     console.log('🔍 Debug - Behavior data:', JSON.stringify(behavior, null, 2));
     
     // Generar acciones específicas basadas en el acceptance criteria
     if (interpretation.actions && interpretation.actions.length > 0) {
-      testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
-      
       const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       
+      // Separar acciones que necesitan ordersHubPage (como click en tab) de las que necesitan pastOrdersPage
+      const tabActions: any[] = [];
+      const pastOrdersActions: any[] = [];
+      
+      for (const action of sortedActions) {
+        if (action.element?.toLowerCase().includes('tab') || action.element === 'pastOrdersTab') {
+          tabActions.push(action);
+        } else {
+          pastOrdersActions.push(action);
+        }
+      }
+      
+      testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
+      
+      // Si hay acciones de tab, hacerlas primero con ordersHubPage
+      if (tabActions.length > 0) {
+        for (const action of tabActions) {
+          const elementName = action.element;
+          const description = action.description || `Click on ${elementName}`;
+          
+          // 🎯 Usar locator generado por MCP si está disponible
+          if (action.locator) {
+            testCode += `\n  // ${description}`;
+            // Los locators MCP usan 'page' del fixture de Playwright directamente
+            testCode += `\n  await ${action.locator}.click();`;
+          } else {
+            // Fallback a método de page object
+            testCode += `\n  // ${description}`;
+            testCode += `\n  await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+          }
+        }
+      }
+      
+      // Ahora navegar a pastOrdersPage (o usarlo directamente si ya hicimos click en el tab)
+      if (tabActions.length > 0) {
+        // Si hicimos click en el tab, asumimos que ya estamos en past orders
+        testCode += `\n  const pastOrdersPage = ${pageVarName};`;
+      } else {
+        // Si no hay click en tab, usar navigateToPastOrders()
+        testCode += `\n  const pastOrdersPage = await ${pageVarName}.navigateToPastOrders();`;
+      }
+      
       // Verificación previa: verificar que hay órdenes iniciales antes de hacer Load More
-      const hasLoadMoreAction = sortedActions.some((a: any) => 
+      const hasLoadMoreAction = pastOrdersActions.some((a: any) => 
         a.element?.toLowerCase().includes('loadmore') || 
         a.element?.toLowerCase().includes('load-more') ||
         a.description?.toLowerCase().includes('load more')
@@ -972,28 +1543,55 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         testCode += `\n  expect(await pastOrdersPage.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
       }
       
-      for (const action of sortedActions) {
+      // Generar acciones que requieren pastOrdersPage
+      for (const action of pastOrdersActions) {
         const elementName = action.element;
         const description = action.description || `Click on ${elementName}`;
         
-        // Generar método específico basado en el tipo de acción
+        // 🎯 Buscar locator generado por MCP en behavior.interactions
+        const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
+        const locator = interaction?.locator || action.locator;
+        
         let methodCall = '';
-        switch (action.type) {
-          case 'click':
-          case 'tap':
-            methodCall = `await ${pastOrdersVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-            break;
-          case 'fill':
-            methodCall = `await ${pastOrdersVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
-            break;
-          case 'navigate':
-            methodCall = `await ${pastOrdersVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-            break;
-          case 'scroll':
-            methodCall = `await ${pastOrdersVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-            break;
-          default:
-            methodCall = `await ${pastOrdersVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+        if (locator) {
+          // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
+          const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
+          switch (action.type) {
+            case 'click':
+            case 'tap':
+              methodCall = `await ${locatorCode}.click();`;
+              break;
+            case 'fill':
+              methodCall = `await ${locatorCode}.fill('test-value');`;
+              break;
+            case 'navigate':
+              methodCall = `await ${locatorCode}.click();`; // Navigate usually means click
+              break;
+            case 'scroll':
+              methodCall = `await ${locatorCode}.scrollIntoViewIfNeeded();`;
+              break;
+            default:
+              methodCall = `await ${locatorCode}.click();`;
+          }
+        } else {
+          // Fallback: Generar método específico basado en el tipo de acción
+          switch (action.type) {
+            case 'click':
+            case 'tap':
+              methodCall = `await pastOrdersPage.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              break;
+            case 'fill':
+              methodCall = `await pastOrdersPage.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+              break;
+            case 'navigate':
+              methodCall = `await pastOrdersPage.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              break;
+            case 'scroll':
+              methodCall = `await pastOrdersPage.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              break;
+            default:
+              methodCall = `await pastOrdersPage.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+          }
         }
         
         testCode += `\n  // ${description}`;
@@ -1078,37 +1676,71 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       const elementName = action.element;
       const description = action.description || `Click on ${elementName}`;
       
-      // Generar método específico basado en el tipo de acción
+      // 🎯 Buscar locator generado por MCP en behavior.interactions
+      const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
+      const locator = interaction?.locator || action.locator;
+      
       let methodCall = '';
-      switch (action.type) {
-        case 'click':
-        case 'tap':
-          methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-          break;
-        case 'fill':
-          methodCall = `await ${pageVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
-          break;
-        case 'navigate':
-          methodCall = `await ${pageVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-          break;
-        case 'scroll':
-          methodCall = `await ${pageVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-          break;
-        default:
-          methodCall = `await ${pageVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+      if (locator) {
+        // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
+        const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
+        switch (action.type) {
+          case 'click':
+          case 'tap':
+            methodCall = `await ${locatorCode}.click();`;
+            break;
+          case 'fill':
+            methodCall = `await ${locatorCode}.fill('test-value');`;
+            break;
+          case 'navigate':
+            methodCall = `await ${locatorCode}.click();`;
+            break;
+          case 'scroll':
+            methodCall = `await ${locatorCode}.scrollIntoViewIfNeeded();`;
+            break;
+          default:
+            methodCall = `await ${locatorCode}.click();`;
+        }
+      } else {
+        // Fallback: Generar método específico basado en el tipo de acción
+        switch (action.type) {
+          case 'click':
+          case 'tap':
+            methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          case 'fill':
+            methodCall = `await ${pageVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+            break;
+          case 'navigate':
+            methodCall = `await ${pageVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          case 'scroll':
+            methodCall = `await ${pageVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            break;
+          default:
+            methodCall = `await ${pageVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+        }
       }
       
       testCode += `\n  // ${description}`;
       testCode += `\n  ${methodCall}`;
     }
   } else if (behavior.interactions && behavior.interactions.length > 0) {
-    // Fallback: usar interacciones observadas
-    testCode += `\n\n  //WHEN - Observed interactions`;
+    // Fallback: usar interacciones observadas con locators MCP
+    testCode += `\n\n  //WHEN - Observed interactions (using MCP-generated locators)`;
     
     for (const interaction of behavior.interactions) {
       const elementName = interaction.element;
-      const methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
-      testCode += `\n  ${methodCall}`;
+      
+      // 🎯 Usar locator MCP si está disponible
+      if (interaction.locator) {
+        // MCP locators usan 'page' directamente del test fixture
+        testCode += `\n  await ${interaction.locator}.click();`;
+      } else {
+        // Fallback a método genérico
+        const methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+        testCode += `\n  ${methodCall}`;
+      }
     }
   } else {
     // Fallback final: generar acciones genéricas basadas en el contexto
