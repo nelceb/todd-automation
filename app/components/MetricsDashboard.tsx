@@ -554,34 +554,77 @@ export default function MetricsDashboard() {
             <tbody className="divide-y divide-gray-300/30">
               {metrics.workflows
                 .filter((workflow) => {
-                  if (!selectedTriggerType) return true;
+                  if (!selectedTriggerType || selectedTriggerType === 'All') return true;
                   
                   const breakdown = workflow.trigger_breakdown;
-                  const codeTriggers = breakdown.push + breakdown.pull_request;
                   const manualTriggers = breakdown.workflow_dispatch;
                   const scheduledTriggers = breakdown.schedule;
                   const dispatchTriggers = breakdown.repository_dispatch;
-                  const workflowTriggers = breakdown.workflow_run;
                   const toddTriggers = breakdown.todd || 0;
                   
-                  // Determinar el tipo principal de trigger
+                  // Determinar el tipo principal de trigger (sin Code ni Workflow)
                   const triggers = [
-                    { count: codeTriggers, type: 'Code' },
                     { count: scheduledTriggers, type: 'Scheduled' },
                     { count: toddTriggers, type: 'TODD' },
                     { count: manualTriggers, type: 'Manual' },
                     { count: dispatchTriggers, type: 'Dispatch' },
-                    { count: workflowTriggers, type: 'Workflow' },
                     { count: breakdown.other, type: 'Other' }
-                  ].filter(t => t.count > 0).sort((a, b) => b.count - a.count);
+                  ].filter(t => t.count > 0);
                   
-                  if (triggers.length === 0) return selectedTriggerType === null;
+                  // Verificar si tiene el tipo seleccionado
+                  return triggers.some(t => t.type === selectedTriggerType && t.count > 0);
+                })
+                .sort((a, b) => {
+                  // Si no hay filtro seleccionado, mantener orden original
+                  if (!selectedTriggerType || selectedTriggerType === 'All') return 0;
                   
-                  // Filtrar por el tipo principal (más frecuente) o si tiene ese tipo
-                  const mainTrigger = triggers[0];
-                  const hasSelectedType = triggers.some(t => t.type === selectedTriggerType);
+                  const getTriggerInfo = (workflow: WorkflowMetrics) => {
+                    const breakdown = workflow.trigger_breakdown;
+                    const manualTriggers = breakdown.workflow_dispatch;
+                    const scheduledTriggers = breakdown.schedule;
+                    const dispatchTriggers = breakdown.repository_dispatch;
+                    const toddTriggers = breakdown.todd || 0;
+                    
+                    const triggers = [
+                      { count: scheduledTriggers, type: 'Scheduled' },
+                      { count: toddTriggers, type: 'TODD' },
+                      { count: manualTriggers, type: 'Manual' },
+                      { count: dispatchTriggers, type: 'Dispatch' },
+                      { count: breakdown.other, type: 'Other' }
+                    ].filter(t => t.count > 0);
+                    
+                    const selectedTrigger = triggers.find(t => t.type === selectedTriggerType);
+                    const selectedCount = selectedTrigger?.count || 0;
+                    const isOnlyType = triggers.length === 1 && triggers[0].type === selectedTriggerType;
+                    const otherTypesCount = triggers.filter(t => t.type !== selectedTriggerType && t.count > 0).length;
+                    
+                    return {
+                      selectedCount,
+                      isOnlyType,
+                      otherTypesCount,
+                      totalTypes: triggers.length
+                    };
+                  };
                   
-                  return mainTrigger.type === selectedTriggerType || hasSelectedType;
+                  const aInfo = getTriggerInfo(a);
+                  const bInfo = getTriggerInfo(b);
+                  
+                  // Prioridad 1: Workflows con SOLO el tipo seleccionado (isOnlyType = true)
+                  if (aInfo.isOnlyType && !bInfo.isOnlyType) return -1;
+                  if (!aInfo.isOnlyType && bInfo.isOnlyType) return 1;
+                  
+                  // Prioridad 2: Entre workflows del mismo grupo (solo tipo vs tipo + otros)
+                  // Ordenar por cantidad del trigger seleccionado (mayor primero)
+                  if (aInfo.selectedCount !== bInfo.selectedCount) {
+                    return bInfo.selectedCount - aInfo.selectedCount;
+                  }
+                  
+                  // Prioridad 3: Si tienen la misma cantidad, los que tienen menos tipos adicionales primero
+                  if (aInfo.otherTypesCount !== bInfo.otherTypesCount) {
+                    return aInfo.otherTypesCount - bInfo.otherTypesCount;
+                  }
+                  
+                  return 0;
                 })
                 .map((workflow) => (
                 <tr key={workflow.workflow_id} className="hover:bg-white/10 transition-colors">
