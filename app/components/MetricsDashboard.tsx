@@ -411,86 +411,6 @@ export default function MetricsDashboard() {
           </div>
         </div>
 
-        {/* Trigger Breakdown */}
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Trigger Breakdown</h3>
-          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
-            Tipos de triggers por workflow (últimos {timeRange === '24h' ? '24 horas' : timeRange === '7d' ? '7 días' : '30 días'})
-          </p>
-          <div className="h-96 max-h-96 overflow-y-auto">
-            {metrics.workflows
-              .filter(w => w.total_runs > 0)
-              .sort((a, b) => {
-                // Ordenar por código triggers primero (push + PR), luego por total runs
-                const aCodeTriggers = a.trigger_breakdown.push + a.trigger_breakdown.pull_request
-                const bCodeTriggers = b.trigger_breakdown.push + b.trigger_breakdown.pull_request
-                if (bCodeTriggers !== aCodeTriggers) return bCodeTriggers - aCodeTriggers
-                return b.total_runs - a.total_runs
-              })
-              .map((workflow) => {
-                const codeTriggers = workflow.trigger_breakdown.push + workflow.trigger_breakdown.pull_request
-                const manualTriggers = workflow.trigger_breakdown.workflow_dispatch
-                const scheduledTriggers = workflow.trigger_breakdown.schedule
-                
-                return (
-                  <div key={workflow.workflow_id} className="mb-4 pb-4 border-b border-gray-300/50 last:border-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-mono font-medium" style={{ color: '#1F2937' }}>
-                        {workflow.workflow_name.length > 45 
-                          ? workflow.workflow_name.substring(0, 42) + '...' 
-                          : workflow.workflow_name}
-                      </span>
-                      <span className="text-xs font-mono" style={{ color: '#6B7280' }}>
-                        {workflow.total_runs} total
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {codeTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 font-mono">
-                          📝 {codeTriggers} code
-                        </span>
-                      )}
-                      {manualTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-mono">
-                          🖐️ {manualTriggers} manual
-                        </span>
-                      )}
-                      {scheduledTriggers > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800 font-mono">
-                          ⏰ {scheduledTriggers} scheduled
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.workflow_run > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 font-mono">
-                          🔗 {workflow.trigger_breakdown.workflow_run} workflow
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.repository_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800 font-mono">
-                          📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.other > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800 font-mono">
-                          ❓ {workflow.trigger_breakdown.other} other
-                        </span>
-                      )}
-                    </div>
-                    {codeTriggers > 0 && (
-                      <div className="text-xs font-mono" style={{ color: '#9CA3AF' }}>
-                        {workflow.trigger_breakdown.push} push, {workflow.trigger_breakdown.pull_request} PR
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            {metrics.workflows.filter(w => w.total_runs > 0).length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>No hay workflows en este período</p>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Success Rate */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
@@ -519,7 +439,7 @@ export default function MetricsDashboard() {
                   Total Runs
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
-                  Manual
+                  Trigger Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-mono font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>
                   Success Rate
@@ -544,44 +464,40 @@ export default function MetricsDashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     {workflow.total_runs}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="flex flex-col space-y-1">
-                      {workflow.trigger_breakdown.push > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-green-100 text-green-800 w-fit font-mono">
-                          📝 {workflow.trigger_breakdown.push} push
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
+                    {(() => {
+                      const breakdown = workflow.trigger_breakdown;
+                      const codeTriggers = breakdown.push + breakdown.pull_request;
+                      const manualTriggers = breakdown.workflow_dispatch;
+                      const scheduledTriggers = breakdown.schedule;
+                      const dispatchTriggers = breakdown.repository_dispatch;
+                      const workflowTriggers = breakdown.workflow_run;
+                      
+                      // Determinar el tipo principal de trigger
+                      const triggers = [
+                        { count: codeTriggers, type: 'Code', icon: '📝', color: 'bg-green-100 text-green-800' },
+                        { count: scheduledTriggers, type: 'Scheduled', icon: '⏰', color: 'bg-yellow-100 text-yellow-800' },
+                        { count: manualTriggers, type: 'Manual', icon: '🖐️', color: 'bg-blue-100 text-blue-800' },
+                        { count: dispatchTriggers, type: 'Dispatch', icon: '📢', color: 'bg-indigo-100 text-indigo-800' },
+                        { count: workflowTriggers, type: 'Workflow', icon: '🔗', color: 'bg-gray-100 text-gray-800' },
+                        { count: breakdown.other, type: 'Other', icon: '❓', color: 'bg-gray-100 text-gray-800' }
+                      ].filter(t => t.count > 0).sort((a, b) => b.count - a.count);
+                      
+                      if (triggers.length === 0) {
+                        return <span className="text-xs" style={{ color: '#9CA3AF' }}>N/A</span>;
+                      }
+                      
+                      // Mostrar el tipo principal (el más frecuente)
+                      const mainTrigger = triggers[0];
+                      const isMultiple = triggers.length > 1;
+                      
+                      return (
+                        <span className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-mono font-semibold ${mainTrigger.color}`}>
+                          {mainTrigger.icon} {mainTrigger.type}
+                          {isMultiple && <span className="ml-1 text-xs opacity-75">+{triggers.length - 1}</span>}
                         </span>
-                      )}
-                      {workflow.trigger_breakdown.pull_request > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 w-fit font-mono">
-                          🔀 {workflow.trigger_breakdown.pull_request} PR
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.schedule > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-800 w-fit font-mono">
-                          ⏰ {workflow.trigger_breakdown.schedule} scheduled
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.workflow_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 w-fit font-mono">
-                          🖐️ {workflow.trigger_breakdown.workflow_dispatch} manual
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.workflow_run > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit font-mono">
-                          🔗 {workflow.trigger_breakdown.workflow_run} workflow
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.repository_dispatch > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-indigo-100 text-indigo-800 w-fit font-mono">
-                          📢 {workflow.trigger_breakdown.repository_dispatch} dispatch
-                        </span>
-                      )}
-                      {workflow.trigger_breakdown.other > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-800 w-fit font-mono">
-                          ❓ {workflow.trigger_breakdown.other} other
-                        </span>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono" style={{ color: '#6B7280' }}>
                     <span className={`inline-flex px-2 py-1 text-xs font-mono font-semibold rounded-full ${
