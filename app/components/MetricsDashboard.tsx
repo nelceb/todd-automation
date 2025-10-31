@@ -174,7 +174,7 @@ export default function MetricsDashboard() {
     const failureRate = 100 - successRate
 
     return {
-      labels: ['Successful', 'Failed'],
+      labels: [`Successful ${successRate.toFixed(1)}%`, `Failed ${failureRate.toFixed(1)}%`],
       datasets: [
         {
           data: [successRate, failureRate],
@@ -195,7 +195,28 @@ export default function MetricsDashboard() {
         labels: {
           padding: 20,
           font: {
-            size: 12
+            size: 12,
+            family: 'monospace'
+          },
+          generateLabels: function(chart: any) {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              const dataset = data.datasets[0];
+              const total = dataset.data.reduce((a: number, b: number) => a + b, 0);
+              return data.labels.map((label: string, i: number) => {
+                const value = dataset.data[i];
+                const percentage = ((value / total) * 100).toFixed(1);
+                return {
+                  text: `${label} (${percentage}%)`,
+                  fillStyle: dataset.backgroundColor[i],
+                  strokeStyle: dataset.borderColor[i],
+                  lineWidth: dataset.borderWidth,
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+            return [];
           }
         }
       },
@@ -206,8 +227,13 @@ export default function MetricsDashboard() {
             const value = context.parsed
             const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
             const percentage = ((value / total) * 100).toFixed(1)
-            return `${label}: ${value} runs (${percentage}%)`
+            // Extraer solo el nombre sin el porcentaje ya incluido
+            const cleanLabel = label.replace(/\s*\([\d.]+%\)$/, '')
+            return `${cleanLabel}: ${percentage}%`
           }
+        },
+        font: {
+          family: 'monospace'
         }
       }
     }
