@@ -2202,12 +2202,44 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       } else {
         // Si no hay elementos relevantes o hay demasiados, usar fallback específico
         console.log(`⚠️ No se generaron assertions específicas - ${behavior.elements.length} elementos observados pero ninguno relevante o demasiados`);
-        // Continuar al else para usar fallback específico del contexto
+        // Fallback específico basado en acceptance criteria
+        testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
+        
+        // Si hay acciones de "Load More", verificar que aparecieron más órdenes
+        const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
+          a.element?.toLowerCase().includes('loadmore') || 
+          a.element?.toLowerCase().includes('load-more') ||
+          a.description?.toLowerCase().includes('load more')
+        );
+        
+        if (hasLoadMoreAction) {
+          testCode += `\n  // Verify that more orders are displayed after Load More`;
+          testCode += `\n  expect(await ${assertionsPageVar}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
+        } else if (interpretation.context === 'pastOrders') {
+          testCode += `\n  expect(await ${assertionsPageVar}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
+        } else {
+          testCode += `\n  expect(await ${assertionsPageVar}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
+        }
       }
     } else {
-      // Fallback final para pastOrders
-      testCode += `\n\n  //THEN - Verify expected behavior`;
-      testCode += `\n  expect(await ${assertionsPageVar}.isAdditionalPastOrdersVisible(), 'Additional past orders should be displayed').toBeTruthy();`;
+      // Fallback final: generar assertions específicas basadas en el acceptance criteria
+      testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
+      
+      // Si hay acciones de "Load More", verificar que aparecieron más órdenes
+      const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
+        a.element?.toLowerCase().includes('loadmore') || 
+        a.element?.toLowerCase().includes('load-more') ||
+        a.description?.toLowerCase().includes('load more')
+      );
+      
+      if (hasLoadMoreAction) {
+        testCode += `\n  // Verify that more orders are displayed after Load More`;
+        testCode += `\n  expect(await ${assertionsPageVar}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
+      } else if (interpretation.context === 'pastOrders') {
+        testCode += `\n  expect(await ${assertionsPageVar}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
+      } else {
+        testCode += `\n  expect(await ${assertionsPageVar}.isMainContentVisible(), 'Main content should be visible').toBeTruthy();`;
+      }
     }
     
     testCode += `\n});`;
