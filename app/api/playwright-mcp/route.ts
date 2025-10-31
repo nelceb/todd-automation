@@ -954,17 +954,25 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       try {
         await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForLoadState('networkidle', { timeout: 15000 });
+        // Esperar de forma más flexible (no bloquear si networkidle falla)
+        try {
+          await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+        } catch (e) {
+          console.log('⚠️ waitForLoadState timeout, continuando...');
+        }
       } catch (gotoError) {
         console.log('⚠️ Error navegando a login, intentando con load...');
         await page.goto(loginURL, { waitUntil: 'load', timeout: 30000 });
-        await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
       }
       
       // Hacer login
+      console.log('🔐 Iniciando proceso de login automático...');
       const loginResult = await performLoginIfNeeded(page);
       
+      console.log(`🔐 Resultado del login:`, JSON.stringify(loginResult, null, 2));
+      
       if (!loginResult.success) {
+        console.error(`❌ Login automático falló: ${loginResult.error}`);
         return {
           success: false,
           error: `Login automático falló: ${loginResult.error}`,
@@ -972,10 +980,17 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         };
       }
       
+      console.log('✅ Login automático completado exitosamente');
+      
       // Después del login, esperar a que redirija al home autenticado
       console.log('⏳ Esperando redirección después del login...');
       await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      // Esperar de forma flexible (no bloquear si networkidle falla - páginas dinámicas tienen tráfico constante)
+      try {
+        await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+      } catch (e) {
+        console.log('⚠️ waitForLoadState timeout después del login, continuando...');
+      }
       console.log(`✅ Login exitoso, redirigido a: ${page.url()}`);
       
       // Ahora navegar a la sección específica según el contexto
@@ -983,7 +998,13 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         console.log(`🧭 Navegando a OrdersHub desde home autenticado...`);
         // Navegar a subscription.qa.cookunity.com/orders o usar navegación interna
         try {
-          await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'networkidle', timeout: 30000 });
+          await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          // Esperar de forma flexible
+          try {
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+          } catch (e) {
+            console.log('⚠️ waitForLoadState timeout en OrdersHub, continuando...');
+          }
           console.log(`✅ Navegado a OrdersHub: ${page.url()}`);
         } catch (ordersError) {
           console.log('⚠️ No se pudo navegar directamente a /orders, intentando buscar link...');
@@ -992,7 +1013,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           if (ordersLink) {
             await ordersLink.click();
             await page.waitForURL(/orders|subscription/, { timeout: 10000 });
-            await page.waitForLoadState('networkidle', { timeout: 15000 });
+            // Esperar de forma flexible
+            try {
+              await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+            } catch (e) {
+              console.log('⚠️ waitForLoadState timeout después de click en orders, continuando...');
+            }
             console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
           }
         }
@@ -1012,12 +1038,15 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
     // Intentar navegar con diferentes estrategias
     try {
       await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      // Esperar a que cargue o redirija (puede redirigir automáticamente al login)
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      // Esperar de forma flexible (no bloquear si networkidle falla)
+      try {
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      } catch (e) {
+        console.log('⚠️ waitForLoadState timeout, continuando...');
+      }
     } catch (gotoError) {
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
       await page.goto(targetURL, { waitUntil: 'load', timeout: 30000 });
-      await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
     }
     
     // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
@@ -1050,7 +1079,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       // Después del login, esperar a que redirija de vuelta a la página original o a qa.cookunity.com
       console.log('⏳ Esperando redirección después del login...');
       await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      // Esperar de forma flexible (no bloquear si networkidle falla)
+      try {
+        await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+      } catch (e) {
+        console.log('⚠️ waitForLoadState timeout después del login, continuando...');
+      }
       console.log(`✅ Login exitoso, redirigido a: ${page.url()}`);
     }
     
@@ -1067,7 +1101,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           console.log('✅ Encontrado link a menu, haciendo click...');
           await menuLink.click({ timeout: 5000 });
           await page.waitForURL(/\/menu/, { timeout: 10000 });
-          await page.waitForLoadState('networkidle', { timeout: 15000 });
+            // Esperar de forma flexible
+            try {
+              await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+            } catch (e) {
+              console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
+            }
           console.log(`✅ Navegado internamente a: ${page.url()}`);
         }
       } catch (menuError) {
@@ -1096,46 +1135,88 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
 // Hacer login solo si es necesario (cuando detectamos que estamos en página de login)
 async function performLoginIfNeeded(page: Page) {
   try {
+    const currentURL = page.url();
+    console.log(`🔍 performLoginIfNeeded: URL actual = ${currentURL}`);
+    
     // Verificar si tenemos credenciales
-    const hasCredentials = process.env.TEST_EMAIL && process.env.VALID_LOGIN_PASSWORD;
+    const hasEmail = !!process.env.TEST_EMAIL;
+    const hasPassword = !!process.env.VALID_LOGIN_PASSWORD;
+    const hasCredentials = hasEmail && hasPassword;
+    
+    console.log(`🔍 Credenciales disponibles: EMAIL=${hasEmail ? '✅' : '❌'}, PASSWORD=${hasPassword ? '✅' : '❌'}`);
     
     if (!hasCredentials) {
+      const missing = [];
+      if (!hasEmail) missing.push('TEST_EMAIL');
+      if (!hasPassword) missing.push('VALID_LOGIN_PASSWORD');
+      console.error(`❌ Credenciales faltantes: ${missing.join(', ')}`);
       return {
         success: false,
-        error: 'Credenciales no configuradas (TEST_EMAIL y VALID_LOGIN_PASSWORD requeridos)'
+        error: `Credenciales no configuradas: ${missing.join(', ')} requeridos`
       };
     }
     
     // Esperar a que los campos de login estén visibles
     console.log('🔍 Esperando campos de login...');
+    try {
     await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]', { timeout: 15000 });
+      console.log('✅ Campo de email encontrado');
+    } catch (selectorError) {
+      console.error('❌ No se encontró campo de email:', selectorError);
+      // Intentar capturar screenshot para debug
+      try {
+        await page.screenshot({ path: '/tmp/login-page-error.png' });
+        console.log('📸 Screenshot guardado en /tmp/login-page-error.png');
+      } catch (screenshotError) {
+        console.error('⚠️ No se pudo tomar screenshot');
+      }
+      return {
+        success: false,
+        error: `No se encontró campo de email en la página: ${selectorError instanceof Error ? selectorError.message : String(selectorError)}`
+      };
+    }
     
     // Llenar email
-    console.log('📧 Llenando email...');
+    console.log(`📧 Llenando email: ${process.env.TEST_EMAIL ? process.env.TEST_EMAIL.substring(0, 3) + '***' : 'NO HAY EMAIL'}`);
     const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]').first();
     await emailInput.click({ timeout: 5000 });
     await emailInput.fill(process.env.TEST_EMAIL || '', { timeout: 5000 });
+    console.log('✅ Email llenado');
     
     // Llenar password
     console.log('🔑 Llenando password...');
     const passwordInput = page.locator('input[name="password"], input[type="password"], input[id*="password"], input[id*="Password"]').first();
     await passwordInput.click({ timeout: 5000 });
     await passwordInput.fill(process.env.VALID_LOGIN_PASSWORD || '', { timeout: 5000 });
+    console.log('✅ Password llenado');
     
     // Click en submit
-    console.log('🚀 Haciendo click en submit...');
-    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in")').first();
+    console.log('🚀 Buscando botón de submit...');
+    const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Sign In")').first();
+    
+    const buttonText = await submitButton.textContent().catch(() => 'N/A');
+    console.log(`🚀 Botón encontrado con texto: "${buttonText}"`);
+    
     await submitButton.click({ timeout: 5000 });
+    console.log('✅ Click en submit realizado');
+    
+    // Esperar un momento para que el login procese
+    await page.waitForTimeout(2000);
+    
+    console.log('✅ Login automático completado, URL después del submit:', page.url());
     
     return {
       success: true,
-      message: 'Login realizado automáticamente'
+      message: 'Login realizado automáticamente',
+      url: page.url()
     };
   } catch (error) {
     console.error('❌ Error en login automático:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Stack trace:`, error instanceof Error ? error.stack : 'N/A');
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: errorMessage
     };
   }
 }
@@ -1336,8 +1417,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
   };
   
   try {
-    // Esperar a que la página cargue completamente
-    await page.waitForLoadState('networkidle');
+    // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
+    try {
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+    } catch (e) {
+      console.log('⚠️ waitForLoadState timeout en observeBehaviorWithMCP, continuando...');
+    }
     
     // 🎯 Usar snapshot de accesibilidad del MCP
     console.log('📸 MCP: Capturando snapshot de accesibilidad...');
@@ -1432,7 +1517,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           observed: false,
           exists: false,
           visible: false,
-          error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error)
         });
       }
     }
@@ -1480,8 +1565,12 @@ async function observeBehavior(page: Page, interpretation: any) {
   };
   
   try {
-    // Esperar a que la página cargue completamente
-    await page.waitForLoadState('networkidle');
+    // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
+    try {
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+    } catch (e) {
+      console.log('⚠️ waitForLoadState timeout en observeBehavior, continuando...');
+    }
     
     // 🎯 MCP INTELLIGENT DETECTION: Detectar si necesitamos navegar a una sección específica
     // Ejemplo: En OrdersHub, si el contexto es pastOrders pero estamos en Upcoming Orders
