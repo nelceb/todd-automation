@@ -939,8 +939,10 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
     const targetURL = interpretation.targetURL;
     const context = interpretation.context;
     
-    // 🎯 DETECTAR SI REQUIERE LOGIN: contextos como pastOrders, ordersHub, etc. siempre requieren autenticación
-    const requiresAuth = context === 'pastOrders' || context === 'ordersHub' || context === 'cart' || context === 'menu';
+    // 🎯 DETECTAR SI REQUIERE LOGIN: Por defecto TODO requiere login EXCEPTO signup/register (nuevos usuarios)
+    // Solo contextos de registro/signup no requieren autenticación porque son para nuevos usuarios
+    const noAuthContexts = ['signup', 'register', 'registration', 'sign-up', 'register-user'];
+    const requiresAuth = !noAuthContexts.includes(context?.toLowerCase() || '');
     
     // Si requiere autenticación, SIEMPRE hacer login primero (no esperar a que redirija)
     if (requiresAuth) {
