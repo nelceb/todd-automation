@@ -528,7 +528,7 @@ Responde SOLO con JSON válido en este formato:
         try {
           const parsed = JSON.parse(claudeText);
           console.log('✅ Claude interpretation successful:', JSON.stringify(parsed, null, 2));
-          return parsed;
+    return parsed;
         } catch (parseError) {
           console.log('❌ Claude JSON parse error:', parseError);
           console.log('❌ Raw response that failed to parse:', claudeText);
@@ -538,8 +538,8 @@ Responde SOLO con JSON válido en este formato:
       }
     } catch (e) {
       console.error('❌ Claude API failed:', e);
-      return null;
-    }
+    return null;
+  }
   }
 
   // ❌ OpenAI removed - Solo usamos Claude API ahora
@@ -1724,8 +1724,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
             testCode += `\n  await ${action.locator}.click();`;
           } else {
             // Fallback a método de page object
-            testCode += `\n  // ${description}`;
-            testCode += `\n  await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            if (elementName) {
+              testCode += `\n  // ${description}`;
+              const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+              testCode += `\n  await ${pageVarName}.clickOn${capitalizedName}();`;
+            }
           }
         }
       }
@@ -1754,6 +1757,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       // Generar acciones que requieren pastOrdersPage
       for (const action of pastOrdersActions) {
         const elementName = action.element;
+        if (!elementName) {
+          console.warn('⚠️ Action sin element name, saltando:', action);
+          continue;
+        }
+        
         const description = action.description || `Click on ${elementName}`;
         
         // 🎯 Buscar locator generado por MCP en behavior.interactions
@@ -1783,22 +1791,23 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           }
         } else {
           // Fallback: Generar método específico basado en el tipo de acción
+          const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await pastOrdersPage.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              methodCall = `await pastOrdersPage.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-              methodCall = `await pastOrdersPage.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+              methodCall = `await pastOrdersPage.fill${capitalizedName}('test-value');`;
               break;
             case 'navigate':
-              methodCall = `await pastOrdersPage.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              methodCall = `await pastOrdersPage.navigateTo${capitalizedName}();`;
               break;
             case 'scroll':
-              methodCall = `await pastOrdersPage.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              methodCall = `await pastOrdersPage.scrollTo${capitalizedName}();`;
               break;
             default:
-              methodCall = `await pastOrdersPage.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+              methodCall = `await pastOrdersPage.interactWith${capitalizedName}();`;
           }
         }
         
@@ -1819,25 +1828,31 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       for (const assertion of interpretation.assertions) {
         const elementName = assertion.element;
+        if (!elementName) {
+          console.warn('⚠️ Assertion sin element name, saltando:', assertion);
+          continue;
+        }
+        
         const description = assertion.description || `Verify ${elementName}`;
         const expected = assertion.expected || 'visible';
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
         
         let assertionCode = '';
         switch (assertion.type) {
           case 'visibility':
-            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
             break;
           case 'text':
-            assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
+            assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
             break;
           case 'state':
-            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Enabled(), '${description}').toBeTruthy();`;
+            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
             break;
           case 'value':
-            assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
+            assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
             break;
           default:
-            assertionCode = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
         }
         
         testCode += `\n  ${assertionCode}`;
@@ -1847,9 +1862,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       testCode += `\n\n  //THEN - Verify elements are present`;
       
       for (const element of behavior.elements) {
-        const elementName = element.name;
-        const methodCall = `expect(await ${assertionsPageVar}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${elementName} should be visible').toBeTruthy();`;
-        testCode += `\n  ${methodCall}`;
+        const elementName = element.name || element.testId || 'Element';
+        if (elementName) {
+          const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+          const methodCall = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
+          testCode += `\n  ${methodCall}`;
+        }
       }
     } else {
       // Fallback final para pastOrders
@@ -1882,6 +1900,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     
     for (const action of sortedActions) {
       const elementName = action.element;
+      if (!elementName) {
+        console.warn('⚠️ Action sin element name, saltando:', action);
+        continue;
+      }
+      
       const description = action.description || `Click on ${elementName}`;
       
       // 🎯 Buscar locator generado por MCP en behavior.interactions
@@ -1911,22 +1934,23 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         }
       } else {
         // Fallback: Generar método específico basado en el tipo de acción
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
         switch (action.type) {
           case 'click':
           case 'tap':
-            methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
             break;
           case 'fill':
-            methodCall = `await ${pageVarName}.fill${elementName.charAt(0).toUpperCase() + elementName.slice(1)}('test-value');`;
+            methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
             break;
           case 'navigate':
-            methodCall = `await ${pageVarName}.navigateTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
             break;
           case 'scroll':
-            methodCall = `await ${pageVarName}.scrollTo${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
             break;
           default:
-            methodCall = `await ${pageVarName}.interactWith${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+            methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
         }
       }
       
@@ -1944,9 +1968,10 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       if (interaction.locator) {
         // MCP locators usan 'page' directamente del test fixture
         testCode += `\n  await ${interaction.locator}.click();`;
-      } else {
+      } else if (elementName) {
         // Fallback a método genérico
-        const methodCall = `await ${pageVarName}.clickOn${elementName.charAt(0).toUpperCase() + elementName.slice(1)}();`;
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+        const methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
         testCode += `\n  ${methodCall}`;
       }
     }
@@ -1976,25 +2001,31 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     
     for (const assertion of interpretation.assertions) {
       const elementName = assertion.element;
+      if (!elementName) {
+        console.warn('⚠️ Assertion sin element name, saltando:', assertion);
+        continue;
+      }
+      
       const description = assertion.description || `Verify ${elementName}`;
       const expected = assertion.expected || 'visible';
+      const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
       
       let assertionCode = '';
       switch (assertion.type) {
         case 'visibility':
-          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
           break;
         case 'text':
-          assertionCode = `expect(await ${pageVarName}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
+          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
           break;
         case 'state':
-          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Enabled(), '${description}').toBeTruthy();`;
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
           break;
         case 'value':
-          assertionCode = `expect(await ${pageVarName}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
+          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
           break;
         default:
-          assertionCode = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${description}').toBeTruthy();`;
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
       }
       
       testCode += `\n  ${assertionCode}`;
@@ -2004,9 +2035,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     testCode += `\n\n  //THEN - Verify elements are present`;
     
     for (const element of behavior.elements) {
-      const elementName = element.name;
-      const methodCall = `expect(await ${pageVarName}.is${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Visible(), '${elementName} should be visible').toBeTruthy();`;
-      testCode += `\n  ${methodCall}`;
+      const elementName = element.name || element.testId || 'Element';
+      if (elementName) {
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+        const methodCall = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${elementName} should be visible').toBeTruthy();`;
+        testCode += `\n  ${methodCall}`;
+      }
     }
   } else {
     // Fallback final: generar assertions genéricas basadas en el contexto
@@ -2063,15 +2097,15 @@ async function validateGeneratedTest(page: Page, smartTest: any, interpretation:
     console.log(`✅ Test structure validation: isValid=${isValid}, hasGiven=${hasGiven}, hasActions=${hasActions}`);
     
     // Siempre devolver éxito si tiene estructura básica - las observaciones reales son más importantes
-    return {
+      return {
       success: isValid,
       message: isValid ? 'Test structure is valid' : 'Test has basic structure but may need improvements',
       testCode,
-      details: {
-        hasGiven,
-        hasWhen, 
-        hasThen,
-        hasActions,
+        details: {
+          hasGiven,
+          hasWhen, 
+          hasThen,
+          hasActions,
         hasAssertions,
         hasTestFunction,
         hasPageSetup
@@ -2167,7 +2201,9 @@ export class ${pageName} {
 
   // Agregar métodos basados en las acciones observadas
   for (const action of interpretation.actions) {
-    const methodName = `clickOn${action.element.charAt(0).toUpperCase() + action.element.slice(1)}`;
+    if (!action.element) continue;
+    const capitalizedName = action.element.charAt(0).toUpperCase() + action.element.slice(1);
+    const methodName = `clickOn${capitalizedName}`;
     code += `  async ${methodName}(): Promise<void> {
     // Implementación basada en observación MCP
     const element = this.page.locator('[data-testid="${action.element.toLowerCase()}-btn"]');
@@ -2179,7 +2215,9 @@ export class ${pageName} {
 
   // Agregar métodos de assertion basados en las assertions
   for (const assertion of interpretation.assertions) {
-    const methodName = `is${assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1)}Visible`;
+    if (!assertion.element) continue;
+    const capitalizedName = assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1);
+    const methodName = `is${capitalizedName}Visible`;
     code += `  async ${methodName}(): Promise<boolean> {
     // Implementación basada en observación MCP
     const element = this.page.locator('[data-testid="${assertion.element.toLowerCase()}"]');
@@ -2302,14 +2340,20 @@ function generateIndividualTest(interpretation: any, behavior: any, testId: stri
   const ${testName}Page = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
 
   //WHEN - Actions from acceptance criteria (observed with Playwright MCP)
-${interpretation.actions.map((action: any, index: number) => 
-  `  await ${testName}Page.clickOn${action.element.charAt(0).toUpperCase() + action.element.slice(1)}();`
-).join('\n')}
+${interpretation.actions
+  .filter((action: any) => action.element)
+  .map((action: any) => {
+    const capitalizedName = action.element.charAt(0).toUpperCase() + action.element.slice(1);
+    return `  await ${testName}Page.clickOn${capitalizedName}();`;
+  }).join('\n')}
 
   //THEN
-${interpretation.assertions.map((assertion: any) => 
-  `  expect(await ${testName}Page.is${assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1)}Visible(), '${assertion.description}').toBeTruthy();`
-).join('\n')}
+${interpretation.assertions
+  .filter((assertion: any) => assertion.element)
+  .map((assertion: any) => {
+    const capitalizedName = assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1);
+    return `  expect(await ${testName}Page.is${capitalizedName}Visible(), '${assertion.description || 'Assertion'}').toBeTruthy();`;
+  }).join('\n')}
 });`;
 }
 
