@@ -41,6 +41,7 @@ interface WorkflowMetrics {
     workflow_dispatch: number
     repository_dispatch: number
     workflow_run: number
+    todd: number
     other: number
   }
 }
@@ -505,6 +506,21 @@ export default function MetricsDashboard() {
                 📢 Dispatch
               </button>
               <button
+                onClick={() => setSelectedTriggerType('TODD')}
+                className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
+                  selectedTriggerType === 'TODD'
+                    ? 'border-purple-600 bg-purple-600 text-white'
+                    : 'border-purple-300 hover:border-purple-400 bg-purple-50/50'
+                }`}
+                style={{
+                  color: selectedTriggerType === 'TODD' ? 'white' : '#9333EA',
+                  backgroundColor: selectedTriggerType === 'TODD' ? '#9333EA' : 'transparent',
+                  borderColor: selectedTriggerType === 'TODD' ? '#9333EA' : '#C4B5FD'
+                }}
+              >
+                🤖 TODD
+              </button>
+              <button
                 onClick={() => setSelectedTriggerType('Workflow')}
                 className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
                   selectedTriggerType === 'Workflow'
@@ -560,11 +576,13 @@ export default function MetricsDashboard() {
                   const scheduledTriggers = breakdown.schedule;
                   const dispatchTriggers = breakdown.repository_dispatch;
                   const workflowTriggers = breakdown.workflow_run;
+                  const toddTriggers = breakdown.todd || 0;
                   
                   // Determinar el tipo principal de trigger
                   const triggers = [
                     { count: codeTriggers, type: 'Code' },
                     { count: scheduledTriggers, type: 'Scheduled' },
+                    { count: toddTriggers, type: 'TODD' },
                     { count: manualTriggers, type: 'Manual' },
                     { count: dispatchTriggers, type: 'Dispatch' },
                     { count: workflowTriggers, type: 'Workflow' },
@@ -597,9 +615,11 @@ export default function MetricsDashboard() {
                       const workflowTriggers = breakdown.workflow_run;
                       
                       // Determinar el tipo principal de trigger
+                      const toddTriggers = breakdown.todd || 0;
                       const triggers = [
                         { count: codeTriggers, type: 'Code', icon: '📝', color: 'bg-green-100 text-green-800' },
                         { count: scheduledTriggers, type: 'Scheduled', icon: '⏰', color: 'bg-yellow-100 text-yellow-800' },
+                        { count: toddTriggers, type: 'TODD', icon: '🤖', color: 'bg-purple-100 text-purple-800' },
                         { count: manualTriggers, type: 'Manual', icon: '🖐️', color: 'bg-blue-100 text-blue-800' },
                         { count: dispatchTriggers, type: 'Dispatch', icon: '📢', color: 'bg-indigo-100 text-indigo-800' },
                         { count: workflowTriggers, type: 'Workflow', icon: '🔗', color: 'bg-gray-100 text-gray-800' },

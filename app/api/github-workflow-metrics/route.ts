@@ -21,6 +21,12 @@ interface WorkflowRun {
   run_number: number
   event: string
   display_title: string
+  actor?: {
+    login: string
+    id: number
+    type: 'User' | 'Bot' | 'Organization'
+    avatar_url: string
+  }
   head_commit: {
     id: string
     message: string
@@ -65,6 +71,7 @@ interface WorkflowMetrics {
     workflow_dispatch: number
     repository_dispatch: number
     workflow_run: number
+    todd: number
     other: number
   }
 }
@@ -153,13 +160,37 @@ export async function GET(request: NextRequest) {
         const inProgressRuns = runs.filter(run => run.status === 'in_progress' || run.status === 'queued').length
         
         // Contar runs por tipo de trigger (informativo)
+        // Detectar runs triggerados por TODD bot (actor es Bot con login que contiene "todd")
+        const toddRuns = runs.filter(run => {
+          if (run.event !== 'workflow_dispatch' && run.event !== 'repository_dispatch') return false;
+          const actor = run.actor;
+          return actor && actor.type === 'Bot' && actor.login.toLowerCase().includes('todd');
+        }).length;
+        
         const triggerBreakdown = {
           push: runs.filter(run => run.event === 'push').length,
           pull_request: runs.filter(run => run.event === 'pull_request').length,
           schedule: runs.filter(run => run.event === 'schedule').length,
-          workflow_dispatch: runs.filter(run => run.event === 'workflow_dispatch').length,
-          repository_dispatch: runs.filter(run => run.event === 'repository_dispatch').length,
+          workflow_dispatch: runs.filter(run => {
+            // workflow_dispatch pero NO por TODD (ya contados en todd)
+            if (run.event !== 'workflow_dispatch') return false;
+            const actor = run.actor;
+            if (actor && actor.type === 'Bot' && actor.login.toLowerCase().includes('todd')) {
+              return false; // Es TODD, no contar aquí
+            }
+            return true; // Es manual real (no TODD)
+          }).length,
+          repository_dispatch: runs.filter(run => {
+            // repository_dispatch pero NO por TODD (ya contados en todd)
+            if (run.event !== 'repository_dispatch') return false;
+            const actor = run.actor;
+            if (actor && actor.type === 'Bot' && actor.login.toLowerCase().includes('todd')) {
+              return false; // Es TODD, no contar aquí
+            }
+            return true; // Es dispatch real (no TODD)
+          }).length,
           workflow_run: runs.filter(run => run.event === 'workflow_run').length,
+          todd: toddRuns,
           other: runs.filter(run => !['push', 'pull_request', 'schedule', 'workflow_dispatch', 'repository_dispatch', 'workflow_run'].includes(run.event)).length
         }
         
