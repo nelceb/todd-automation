@@ -57,8 +57,9 @@ interface MetricsData {
 export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMessage, setLoadingMessage] = useState('Loading metrics...')
   const [error, setError] = useState<string | null>(null)
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h')
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d')
 
   useEffect(() => {
     fetchMetrics()
@@ -67,26 +68,55 @@ export default function MetricsDashboard() {
   const fetchMetrics = async () => {
     try {
       setLoading(true)
+      setLoadingMessage('🔌 Connecting to GitHub API...')
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      setLoadingMessage('📋 Fetching workflow list...')
       const response = await fetch(`/api/github-workflow-metrics?range=${timeRange}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch metrics')
       }
       
+      setLoadingMessage('⚙️ Processing workflow runs...')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      setLoadingMessage('📊 Calculating success rates and averages...')
       const data = await response.json()
+      
+      setLoadingMessage('📈 Computing trends and statistics...')
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      setLoadingMessage('🎨 Preparing charts and visualizations...')
       setMetrics(data)
+      
+      // Pequeño delay para mostrar el último mensaje
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
+      setLoadingMessage('Loading metrics...')
     }
+  }
+
+  // Función para formatear tiempo de ms a formato legible
+  const formatDuration = (ms: number): string => {
+    if (ms < 1000) return `${Math.round(ms)}ms`
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+    if (ms < 3600000) return `${Math.round(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`
+    const hours = Math.floor(ms / 3600000)
+    const minutes = Math.floor((ms % 3600000) / 60000)
+    return `${hours}h ${minutes}m`
   }
 
   const getWorkflowChartData = () => {
     if (!metrics?.workflows) return null
 
+    // Usar workflow_name si está disponible, sino name, sino workflow_id como fallback
     const data = {
-      labels: metrics.workflows.map(w => w.name),
+      labels: metrics.workflows.map(w => w.workflow_name || w.name || w.workflow_id || 'Unknown'),
       datasets: [
         {
           label: 'Workflow Runs',
@@ -167,8 +197,12 @@ export default function MetricsDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <p className="text-lg font-medium text-gray-700">{loadingMessage}</p>
+          <p className="text-sm text-gray-500 mt-2">This may take a few moments...</p>
+        </div>
       </div>
     )
   }
@@ -202,7 +236,7 @@ export default function MetricsDashboard() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Workflow Metrics</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Historial de ejecución - Últimos 30 días + Today
+            Historial de ejecución - {timeRange === '24h' ? 'Últimas 24 horas' : timeRange === '7d' ? 'Últimos 7 días' : 'Últimos 30 días'} + Today
             {metrics?.period && (
               <span className="ml-2 text-blue-600">
                 ({metrics.period.start_date} → {metrics.period.end_date})
@@ -242,7 +276,9 @@ export default function MetricsDashboard() {
           <div className="text-sm text-gray-500">Success Rate</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-2xl font-bold text-orange-600">{metrics.summary.avg_response_time.toFixed(0)}ms</div>
+          <div className="text-2xl font-bold text-orange-600">
+            {formatDuration(metrics.summary.avg_response_time)}
+          </div>
           <div className="text-sm text-gray-500">Avg Response Time</div>
         </div>
       </div>
@@ -334,7 +370,7 @@ export default function MetricsDashboard() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {workflow.avg_duration_ms.toFixed(0)}ms
+                    {formatDuration(workflow.avg_duration_ms)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {workflow.last_run ? new Date(workflow.last_run).toLocaleString() : 'N/A'}
