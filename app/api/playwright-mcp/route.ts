@@ -2066,8 +2066,39 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         testCode += `\n  expect(await pastOrdersPage.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
       }
       
-      // Generar acciones que requieren pastOrdersPage
-      for (const action of pastOrdersActions) {
+      // 🎯 REORDENAR acciones inteligentemente: detectar dependencias lógicas
+      // Por ejemplo: invoiceIcon debe venir DESPUÉS de pastOrderItem
+      const reorderedPastOrdersActions = [...pastOrdersActions];
+      
+      // Detectar si hay invoiceIcon y pastOrderItem - invoiceIcon debe ir después
+      const invoiceIconIndex = reorderedPastOrdersActions.findIndex((a: any) => 
+        a.element?.toLowerCase().includes('invoice') || a.element === 'invoiceIcon'
+      );
+      const pastOrderItemIndex = reorderedPastOrdersActions.findIndex((a: any) => 
+        a.element?.toLowerCase().includes('pastorderitem') || a.element === 'pastOrderItem' || 
+        (a.element?.toLowerCase().includes('order') && a.element?.toLowerCase().includes('item'))
+      );
+      
+      if (invoiceIconIndex !== -1 && pastOrderItemIndex !== -1 && invoiceIconIndex < pastOrderItemIndex) {
+        console.log('🔄 Reordenando acciones: invoiceIcon debe venir después de pastOrderItem');
+        // Mover invoiceIcon después de pastOrderItem
+        const invoiceAction = reorderedPastOrdersActions.splice(invoiceIconIndex, 1)[0];
+        const newPosition = pastOrderItemIndex > invoiceIconIndex ? pastOrderItemIndex : pastOrderItemIndex + 1;
+        reorderedPastOrdersActions.splice(newPosition, 0, invoiceAction);
+      }
+      
+      // Detectar Load More - debe venir después de navegar a past orders pero antes de otros clicks
+      const loadMoreIndex = reorderedPastOrdersActions.findIndex((a: any) => 
+        a.element?.toLowerCase().includes('loadmore') || a.element?.toLowerCase().includes('load-more')
+      );
+      if (loadMoreIndex !== -1 && loadMoreIndex > 0) {
+        // Load More debería ser una de las primeras acciones (después de tabs)
+        const loadMoreAction = reorderedPastOrdersActions.splice(loadMoreIndex, 1)[0];
+        reorderedPastOrdersActions.unshift(loadMoreAction);
+      }
+      
+      // Generar acciones que requieren pastOrdersPage (ahora con orden correcto)
+      for (const action of reorderedPastOrdersActions) {
         const elementName = action.element;
         if (!elementName) {
           console.warn('⚠️ Action sin element name, saltando:', action);
