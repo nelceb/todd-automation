@@ -1590,11 +1590,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // 🎯 VALIDAR que la página tiene contenido AUTENTICADO antes de observar
     console.log('🔍 [PRE-OBSERVATION] Verificando que la página está autenticada...');
-    const currentURL = page.url();
-    console.log(`📍 [PRE-OBSERVATION] URL actual: ${currentURL}`);
+    const preObservationURL = page.url();
+    console.log(`📍 [PRE-OBSERVATION] URL actual: ${preObservationURL}`);
     
     // Verificar que NO estamos en página de login o error
-    if (currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login')) {
+    if (preObservationURL.includes('auth.qa.cookunity.com') || preObservationURL.includes('/login')) {
       console.error('❌ [PRE-OBSERVATION] Todavía estamos en página de login - el login no fue exitoso');
       return {
         observed: false,
