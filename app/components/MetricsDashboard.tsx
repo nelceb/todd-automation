@@ -305,7 +305,7 @@ export default function MetricsDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4" style={{ backgroundColor: '#AED4E6' }}>
         <div className="relative w-32 h-32 flex items-center justify-center">
-          <SmallCube />
+          <SmallCube speedMultiplier={2.5} />
         </div>
         <div className="text-center">
           <p className="text-lg font-mono font-medium" style={{ color: '#344055' }}>{loadingMessage}</p>

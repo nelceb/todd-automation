@@ -5,7 +5,11 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { MeshDistortMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 
-function AnimatedCube() {
+interface AnimatedCubeProps {
+  speedMultiplier?: number
+}
+
+function AnimatedCube({ speedMultiplier = 1 }: AnimatedCubeProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const materialRef = useRef<any>(null)
 
@@ -14,7 +18,9 @@ function AnimatedCube() {
     
     if (meshRef.current) {
       // Animate rotation with slow, lunar-like movement
-      const rotationSpeed = 0.05 + Math.sin(time * 0.2) * 0.02 // Much slower, more subtle variation
+      // speedMultiplier affects rotation speed (default 1, higher = faster)
+      const baseRotationSpeed = 0.05
+      const rotationSpeed = (baseRotationSpeed + Math.sin(time * 0.2) * 0.02) * speedMultiplier
       meshRef.current.rotation.x = time * rotationSpeed
       meshRef.current.rotation.y = time * (rotationSpeed + 0.01) // Minimal difference between axes
       meshRef.current.rotation.z = time * (rotationSpeed - 0.01)
@@ -22,7 +28,7 @@ function AnimatedCube() {
 
     // Animate the material colors with smooth transitions
     if (materialRef.current) {
-      const hue = (time * 0.05) % 1
+      const hue = (time * 0.05 * speedMultiplier) % 1
       const color = new THREE.Color().setHSL(hue, 0.8, 0.7)
       materialRef.current.color = color
     }
@@ -46,7 +52,11 @@ function AnimatedCube() {
   )
 }
 
-export default function SmallCube() {
+interface SmallCubeProps {
+  speedMultiplier?: number
+}
+
+export default function SmallCube({ speedMultiplier = 1 }: SmallCubeProps) {
   return (
     <div className="w-full h-full">
       <Canvas
@@ -61,7 +71,7 @@ export default function SmallCube() {
         <directionalLight position={[2, 2, 2]} intensity={0.8} />
         
         {/* Animated cube */}
-        <AnimatedCube />
+        <AnimatedCube speedMultiplier={speedMultiplier} />
       </Canvas>
     </div>
   )
