@@ -441,163 +441,166 @@ export default function MetricsDashboard() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <div className="text-2xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
-          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Workflows</div>
-        </div>
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
-          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
-        </div>
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
-          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Success Rate</div>
-        </div>
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
-            {formatDuration(metrics.summary.avg_response_time)}
-          </div>
-          <div className="text-sm font-mono" style={{ color: '#6B7280' }}>
-            Avg Execution Time
-          </div>
-          <div className="text-xs font-mono mt-1" style={{ color: '#9CA3AF' }}>
-            (Weighted average)
-          </div>
-        </div>
-      </div>
-
-      {/* Charts */}
+      {/* Charts and Summary Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Workflow Distribution */}
+        {/* Left Column: Workflow Distribution (Full Height) */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
           <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
             Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
           </p>
-          <div className="h-96">
+          <div className="h-[600px]">
             {getWorkflowChartData() && (
               <Bar data={getWorkflowChartData()!} options={barChartOptions} />
             )}
           </div>
         </div>
 
+        {/* Right Column: Summary Cards + Success Rate */}
+        <div className="space-y-6">
+          {/* Summary Cards (Top Right) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+              <div className="text-2xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
+              <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Workflows</div>
+            </div>
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+              <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
+              <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
+            </div>
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+              <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
+              <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Success Rate</div>
+            </div>
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+              <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
+                {formatDuration(metrics.summary.avg_response_time)}
+              </div>
+              <div className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                Avg Execution Time
+              </div>
+              <div className="text-xs font-mono mt-1" style={{ color: '#9CA3AF' }}>
+                (Weighted average)
+              </div>
+            </div>
+          </div>
 
-        {/* Success Rate with Flip Card */}
-        <div 
-          className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer relative"
-          style={{ 
-            minHeight: '400px',
-            height: '400px'
-          }}
-        >
+          {/* Success Rate with Flip Card (Below Summary Cards) */}
           <div 
-            className="relative w-full h-full"
-            style={{
-              perspective: '1000px',
-              height: '100%'
+            className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer relative"
+            style={{ 
+              minHeight: '400px',
+              height: '400px'
             }}
           >
-            <div
+            <div 
               className="relative w-full h-full"
               style={{
-                transformStyle: 'preserve-3d',
-                transition: 'transform 0.6s',
-                transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                perspective: '1000px',
                 height: '100%'
               }}
-              onClick={() => setPieChartFlipped(!pieChartFlipped)}
             >
-            {/* Front of card - Pie Chart */}
-            <div 
-              className="absolute w-full h-full flex flex-col justify-center items-center p-6"
-              style={{
-                backfaceVisibility: 'hidden',
-                transform: 'rotateY(0deg)'
-              }}
-            >
-              <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
-                Overall Success Rate
-                <span className="ml-2 text-xs opacity-50">(Click for details)</span>
-              </h3>
-              <div className="flex-1 flex items-center justify-center w-full">
-                {getSuccessRateChartData() && (
-                  <div className="w-full max-w-lg" style={{ 
-                    filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
-                    transform: 'perspective(1000px) rotateX(5deg) scale(1.1)',
-                    transformStyle: 'preserve-3d'
-                  }}>
-                    <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+              <div
+                className="relative w-full h-full"
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transition: 'transform 0.6s',
+                  transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                  height: '100%'
+                }}
+              >
+                {/* Front of card - Pie Chart */}
+                <div 
+                  className="absolute w-full h-full flex flex-col justify-center items-center p-6"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    transform: 'rotateY(0deg)'
+                  }}
+                  onClick={() => setPieChartFlipped(!pieChartFlipped)}
+                >
+                  <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
+                    Overall Success Rate
+                    <span className="ml-2 text-xs opacity-50">(Click for details)</span>
+                  </h3>
+                  <div className="flex-1 flex items-center justify-center w-full">
+                    {getSuccessRateChartData() && (
+                      <div className="w-full max-w-lg" style={{ 
+                        filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
+                        transform: 'perspective(1000px) rotateX(5deg) scale(1.1)',
+                        transformStyle: 'preserve-3d'
+                      }}>
+                        <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Back of card - Failed Workflows Details */}
-            <div 
-              className="absolute w-full h-full flex flex-col p-6"
-              style={{
-                backfaceVisibility: 'hidden',
-                transform: 'rotateY(180deg)'
-              }}
-            >
-              <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
-                Top Failed Workflows
-                <span className="ml-2 text-xs opacity-50">(Click to return)</span>
-              </h3>
-              <div className="flex-1 space-y-3 overflow-y-auto">
-                {getFailedWorkflowsDetails().length > 0 ? (
-                  getFailedWorkflowsDetails().map((workflow, index) => (
-                    <div 
-                      key={workflow.workflow_id} 
-                      className="bg-white/30 border border-red-200/50 rounded-lg p-4"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
-                          #{index + 1} {workflow.workflow_name}
-                        </span>
-                        <span className={`text-xs font-mono px-2 py-1 rounded ${
-                          workflow.success_rate >= 80 
-                            ? 'bg-green-100 text-green-800' 
-                            : workflow.success_rate >= 60 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {workflow.success_rate.toFixed(1)}%
-                        </span>
+                {/* Back of card - Failed Workflows Details (Only this content should flip) */}
+                <div 
+                  className="absolute w-full h-full flex flex-col p-6 bg-white/20 rounded-xl"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)'
+                  }}
+                  onClick={() => setPieChartFlipped(!pieChartFlipped)}
+                >
+                  <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
+                    Top Failed Workflows
+                    <span className="ml-2 text-xs opacity-50">(Click to return)</span>
+                  </h3>
+                  <div className="flex-1 space-y-3 overflow-y-auto">
+                    {getFailedWorkflowsDetails().length > 0 ? (
+                      getFailedWorkflowsDetails().map((workflow, index) => (
+                        <div 
+                          key={workflow.workflow_id} 
+                          className="bg-white/30 border border-red-200/50 rounded-lg p-4"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
+                              #{index + 1} {workflow.workflow_name}
+                            </span>
+                            <span className={`text-xs font-mono px-2 py-1 rounded ${
+                              workflow.success_rate >= 80 
+                                ? 'bg-green-100 text-green-800' 
+                                : workflow.success_rate >= 60 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {workflow.success_rate.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs font-mono" style={{ color: '#6B7280' }}>
+                            <div>
+                              <span className="font-semibold">Failed:</span> {workflow.failed_runs}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Total Runs:</span> {workflow.total_runs}
+                            </div>
+                            <div>
+                              <span className="font-semibold">Cancelled:</span> {workflow.cancelled_runs || 0}
+                            </div>
+                          </div>
+                          {workflow.last_run && (
+                            <div className="text-xs font-mono mt-2" style={{ color: '#9CA3AF' }}>
+                              Last run: {new Date(workflow.last_run).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center font-mono flex items-center justify-center h-full" style={{ color: '#6B7280' }}>
+                        🎉 No workflows with recent failures
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs font-mono" style={{ color: '#6B7280' }}>
-                        <div>
-                          <span className="font-semibold">Failed:</span> {workflow.failed_runs}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Total Runs:</span> {workflow.total_runs}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Cancelled:</span> {workflow.cancelled_runs || 0}
-                        </div>
-                      </div>
-                      {workflow.last_run && (
-                        <div className="text-xs font-mono mt-2" style={{ color: '#9CA3AF' }}>
-                          Last run: {new Date(workflow.last_run).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center font-mono flex items-center justify-center h-full" style={{ color: '#6B7280' }}>
-                    🎉 No workflows with recent failures
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
             </div>
           </div>
         </div>
@@ -606,9 +609,9 @@ export default function MetricsDashboard() {
       {/* Workflow Details Table */}
       <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-300/50">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <h3 className="text-lg font-mono font-semibold" style={{ color: '#344055' }}>Workflow Details</h3>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-mono font-semibold text-center" style={{ color: '#344055' }}>Workflow Details</h3>
+            <div className="flex justify-center">
               <div className="relative">
                 <input
                   type="text"
@@ -628,9 +631,7 @@ export default function MetricsDashboard() {
                 </span>
               </div>
             </div>
-          </div>
-          <div className="px-6 pb-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center">
               <button
                 onClick={() => setSelectedTriggerType(null)}
                 className={`px-3 py-1 rounded-lg border font-mono text-xs transition-colors ${
