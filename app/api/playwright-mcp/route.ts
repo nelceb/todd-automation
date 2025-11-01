@@ -224,7 +224,7 @@ async function anthropicJSON(systemPrompt: string, userMessage: string) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }]

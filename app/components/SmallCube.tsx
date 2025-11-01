@@ -10,7 +10,6 @@ interface AnimatedCubeProps {
 
 function AnimatedCube({ speedMultiplier = 1 }: AnimatedCubeProps) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const materialRef = useRef<THREE.MeshBasicMaterial>(null)
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime()
@@ -24,21 +23,14 @@ function AnimatedCube({ speedMultiplier = 1 }: AnimatedCubeProps) {
       meshRef.current.rotation.y = time * (rotationSpeed + 0.02)
       meshRef.current.rotation.z = time * (rotationSpeed - 0.02)
     }
-
-    // Animate the wireframe color with smooth transitions
-    if (materialRef.current) {
-      const hue = (time * 0.1 * speedMultiplier) % 1
-      const color = new THREE.Color().setHSL(hue, 0.8, 0.6)
-      materialRef.current.color = color
-    }
   })
 
   return (
     <mesh ref={meshRef}>
-      <boxGeometry args={[0.8, 0.8, 0.8]} />
+      {/* Square mesh - all dimensions equal */}
+      <boxGeometry args={[1, 1, 1]} />
       <meshBasicMaterial
-        ref={materialRef}
-        color="#8B5CF6"
+        color="#000000"
         wireframe={true}
         transparent
         opacity={0.9}
