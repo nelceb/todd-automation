@@ -46,7 +46,7 @@ Always provide clear, actionable responses and use the appropriate tools when ne
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest',
+        model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
         max_tokens: 2000,
         system: systemPrompt,
         messages: [
