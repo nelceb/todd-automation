@@ -53,9 +53,12 @@ interface ProgressLog {
 }
 
 export default function TestGenerator() {
+  const [mode, setMode] = useState<'jira' | 'natural'>('jira') // New: natural language mode
   const [jiraConfig, setJiraConfig] = useState({
     issueKey: ''
   })
+  const [naturalLanguageInput, setNaturalLanguageInput] = useState('') // New: natural language input
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]) // New: chat history
   
   const [acceptanceCriteria, setAcceptanceCriteria] = useState<AcceptanceCriteria | null>(null)
   const [generatedTest, setGeneratedTest] = useState<GeneratedTest | null>(null)
@@ -270,6 +273,85 @@ export default function TestGenerator() {
     await generateTestFromCriteria(acceptanceCriteria)
   }
 
+  // New: Generate test from natural language using Claude API + Playwright MCP
+  const generateTestFromNaturalLanguage = async () => {
+    if (!naturalLanguageInput.trim()) return
+    
+    setLoading(true)
+    setProgressLog([])
+    setShowProgress(true)
+    setChatMessages(prev => [...prev, { role: 'user', content: naturalLanguageInput }])
+
+    try {
+      setProgressLog(prev => [...prev, { 
+        step: 'interpret', 
+        message: 'Interpreting natural language with Claude API...', 
+        status: 'info', 
+        timestamp: Date.now() 
+      }])
+
+      // Call new endpoint that uses Claude to interpret and generate test
+      const response = await fetch('/api/generate-test-from-natural-language', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userRequest: naturalLanguageInput,
+          chatHistory: chatMessages
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Generation failed: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      // Add assistant response to chat
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.claudeResponse || 'Test generation initiated...' 
+      }])
+
+      // Update progress logs
+      setProgressLog(prev => [
+        ...prev,
+        { step: 'claude', message: 'Claude interpreted request successfully', status: 'success', timestamp: Date.now() },
+        { step: 'browser', message: 'Launching browser for observation...', status: 'info', timestamp: Date.now() },
+        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now() },
+        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'info', timestamp: Date.now() },
+        { step: 'generate', message: 'Generating test code...', status: 'info', timestamp: Date.now() },
+        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now() },
+        { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() }
+      ])
+
+      if (data.success && data.smartTest?.code) {
+        setGeneratedTest({
+          framework: 'playwright',
+          fileName: `test-${data.ticketId || 'generated'}.spec.ts`,
+          content: data.smartTest.code || data.smartTest,
+          testPath: `tests/specs/test-${data.ticketId || 'generated'}.spec.ts`,
+          branchName: `feature/${data.ticketId || 'generated'}-test`,
+          mcpData: data,
+          interpretation: data.interpretation,
+          navigation: data.navigation,
+          behavior: data.behavior
+        })
+        setStep('result')
+      } else {
+        throw new Error(data.error || 'Test generation failed')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setShowProgress(false)
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `Error: ${err instanceof Error ? err.message : 'Unknown error occurred'}` 
+      }])
+    } finally {
+      setLoading(false)
+      setNaturalLanguageInput('') // Clear input after submission
+    }
+  }
 
   // Show error if there's one
   if (error) {
@@ -381,8 +463,47 @@ export default function TestGenerator() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Step 1: Jira Configuration */}
+          {/* Mode Selector */}
           {step === 'jira' && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-6"
+            >
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Choose Generation Mode</h3>
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                  Generate tests from Jira tickets or use natural language with Claude AI
+                </p>
+              </div>
+              
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => setMode('jira')}
+                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                    mode === 'jira'
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
+                  }`}
+                >
+                  📋 Jira Issue
+                </button>
+                <button
+                  onClick={() => setMode('natural')}
+                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                    mode === 'natural'
+                      ? 'bg-purple-500 text-white shadow-md'
+                      : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
+                  }`}
+                >
+                  💬 Natural Language (Claude AI)
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 1: Jira Configuration */}
+          {step === 'jira' && mode === 'jira' && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -435,6 +556,85 @@ export default function TestGenerator() {
                         <>
                           <BoltIcon className="w-4 h-4 mr-2" />
                           Generate Test
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 1: Natural Language Input */}
+          {step === 'jira' && mode === 'natural' && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg"
+            >
+              <div className="p-6">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Natural Language Test Generation</h3>
+                  <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                    Describe what you want to test in plain language. Claude AI will interpret it and generate the test using Playwright MCP.
+                  </p>
+                </div>
+
+                {/* Chat History */}
+                {chatMessages.length > 0 && (
+                  <div className="mb-6 max-h-64 overflow-y-auto space-y-3 bg-white/30 rounded-lg p-4">
+                    {chatMessages.map((msg, idx) => (
+                      <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                          msg.role === 'user' 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-gray-200 text-gray-800'
+                        }`}>
+                          <p className="text-sm font-mono">{msg.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="max-w-2xl mx-auto">
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      Describe Your Test
+                    </label>
+                    <textarea
+                      value={naturalLanguageInput}
+                      onChange={(e) => setNaturalLanguageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.metaKey && !loading && naturalLanguageInput.trim()) {
+                          generateTestFromNaturalLanguage()
+                        }
+                      }}
+                      placeholder="E.g., 'Test the checkout flow: add item to cart, proceed to payment, verify order confirmation', or 'Verify that users can load more past orders by clicking the Load More button'"
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white font-mono resize-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-2 font-mono">
+                      Describe what you want to test • Press Cmd+Enter to generate
+                    </p>
+                  </div>
+                  
+                  {/* Action Button */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={generateTestFromNaturalLanguage}
+                      disabled={loading || !naturalLanguageInput.trim()}
+                      className="bg-purple-500 text-white px-8 py-3 rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Generating with Claude AI...
+                        </>
+                      ) : (
+                        <>
+                          <SparklesIcon className="w-4 h-4 mr-2" />
+                          Generate Test with Claude AI
                         </>
                       )}
                     </button>
