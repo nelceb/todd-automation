@@ -22,6 +22,19 @@ export async function POST(request: NextRequest) {
 
     console.log('🧠 Natural Language Test Generation:', { userRequest, chatHistoryLength: chatHistory.length })
 
+    // Get model from environment variable - required, no fallback
+    const claudeModel = process.env.CLAUDE_MODEL
+    if (!claudeModel) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'CLAUDE_MODEL environment variable is not set. Please configure it in Vercel.',
+          mode: 'natural-language-claude-mcp'
+        },
+        { status: 500 }
+      )
+    }
+
     // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -31,7 +44,7 @@ export async function POST(request: NextRequest) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620',
+        model: claudeModel,
         max_tokens: 2000,
         system: `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
 
