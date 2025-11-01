@@ -487,12 +487,13 @@ export default function MetricsDashboard() {
 
           {/* Success Rate with Flip Card (Below Summary Cards) */}
           <div 
-            className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg cursor-pointer relative"
+            className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg relative"
             style={{ 
               minHeight: '400px',
               height: '400px'
             }}
           >
+            {/* Outer container - does NOT flip */}
             <div 
               className="relative w-full h-full"
               style={{
@@ -500,23 +501,24 @@ export default function MetricsDashboard() {
                 height: '100%'
               }}
             >
+              {/* Inner content that flips - this is the green card */}
               <div
-                className="relative w-full h-full"
+                className="relative w-full h-full cursor-pointer"
                 style={{
                   transformStyle: 'preserve-3d',
                   transition: 'transform 0.6s',
                   transform: pieChartFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
                   height: '100%'
                 }}
+                onClick={() => setPieChartFlipped(!pieChartFlipped)}
               >
                 {/* Front of card - Pie Chart */}
                 <div 
-                  className="absolute w-full h-full flex flex-col justify-center items-center p-6"
+                  className="absolute w-full h-full flex flex-col justify-center items-center p-6 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(0deg)'
                   }}
-                  onClick={() => setPieChartFlipped(!pieChartFlipped)}
                 >
                   <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
@@ -535,14 +537,13 @@ export default function MetricsDashboard() {
                   </div>
                 </div>
 
-                {/* Back of card - Failed Workflows Details (Only this content should flip) */}
+                {/* Back of card - Failed Workflows Details */}
                 <div 
                   className="absolute w-full h-full flex flex-col p-6 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)'
                   }}
-                  onClick={() => setPieChartFlipped(!pieChartFlipped)}
                 >
                   <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
                     Top Failed Workflows
