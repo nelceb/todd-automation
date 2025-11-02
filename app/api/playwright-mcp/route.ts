@@ -2540,6 +2540,68 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   console.log('🔍 Debug - Interpretation data:', JSON.stringify(interpretation, null, 2));
   console.log('🔍 Debug - Behavior data:', JSON.stringify(behavior, null, 2));
   
+  // 🎯 REUTILIZAR MÉTODOS EXISTENTES: Buscar métodos disponibles del codebase
+  const codebasePatterns = interpretation.codebasePatterns;
+  const availableMethods = codebasePatterns?.methods || {};
+  
+  // Función helper para buscar método existente que coincida
+  function findExistingMethod(elementName: string, actionType: string, context: string): string | null {
+    if (!codebasePatterns) return null;
+    
+    // Determinar qué page object buscar según el contexto
+    let pageObjectName = 'HomePage';
+    if (context === 'pastOrders' || context === 'ordersHub') {
+      pageObjectName = 'OrdersHubPage';
+    } else if (context === 'homepage' || context === 'home') {
+      pageObjectName = 'HomePage';
+    }
+    
+    const methods = availableMethods[pageObjectName] || [];
+    const elementLower = elementName.toLowerCase();
+    
+    // Buscar métodos que coincidan con el elemento o acción
+    for (const method of methods) {
+      const methodLower = method.toLowerCase();
+      
+      // Buscar coincidencias:
+      // 1. Nombre exacto o parcial del elemento en el método
+      // 2. Tipo de acción (click, navigate, etc.) en el método
+      
+      // Patrones comunes:
+      // - "clickOnMenuItem" -> elemento "menuItem"
+      // - "addToCart" -> elemento "cart" o "addToCart"
+      // - "navigateToCartIcon" -> elemento "cartIcon"
+      // - "clickOnAddToCartButton" -> elemento "addToCartButton"
+      
+      if (methodLower.includes(elementLower) || elementLower.includes(methodLower)) {
+        console.log(`✅ Encontrado método existente: ${method} para elemento ${elementName}`);
+        return method;
+      }
+      
+      // Buscar por sinónimos comunes
+      const synonyms: { [key: string]: string[] } = {
+        'menu': ['menu', 'item', 'meal'],
+        'cart': ['cart', 'basket', 'shopping'],
+        'add': ['add', 'addToCart', 'addTo'],
+        'click': ['click', 'tap', 'select'],
+        'icon': ['icon', 'button', 'btn']
+      };
+      
+      for (const [key, values] of Object.entries(synonyms)) {
+        if (elementLower.includes(key)) {
+          for (const synonym of values) {
+            if (methodLower.includes(synonym)) {
+              console.log(`✅ Encontrado método existente por sinónimo: ${method} para elemento ${elementName}`);
+              return method;
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
   // Generar acciones específicas basadas en el acceptance criteria
   if (interpretation.actions && interpretation.actions.length > 0) {
     testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
@@ -2555,12 +2617,20 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       const description = action.description || `Click on ${elementName}`;
       
+      // 🎯 Buscar método existente primero
+      const existingMethod = findExistingMethod(elementName, action.type, interpretation.context);
+      
       // 🎯 Buscar locator generado por MCP en behavior.interactions
       const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
       const locator = interaction?.locator || action.locator;
       
       let methodCall = '';
-      if (locator) {
+      
+      if (existingMethod) {
+        // 🎯 REUTILIZAR MÉTODO EXISTENTE
+        methodCall = `await ${pageVarName}.${existingMethod}();`;
+        console.log(`✅ Reutilizando método existente: ${existingMethod}`);
+      } else if (locator) {
         // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
         const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
         switch (action.type) {
@@ -2600,6 +2670,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           default:
             methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
         }
+        console.log(`⚠️ Generando método nuevo: ${methodCall.split('(')[0]}`);
       }
       
       testCode += `\n  // ${description}`;
@@ -2643,6 +2714,59 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     }
   }
   
+  // Función helper para buscar método de assertion existente
+  function findExistingAssertionMethod(elementName: string, assertionType: string, context: string): string | null {
+    if (!codebasePatterns) return null;
+    
+    // Determinar qué page object buscar según el contexto
+    let pageObjectName = 'HomePage';
+    if (context === 'pastOrders' || context === 'ordersHub') {
+      pageObjectName = 'OrdersHubPage';
+    } else if (context === 'homepage' || context === 'home') {
+      pageObjectName = 'HomePage';
+    }
+    
+    const methods = availableMethods[pageObjectName] || [];
+    const elementLower = elementName.toLowerCase();
+    
+    // Buscar métodos de assertion (isXxx, getXxx, etc.)
+    for (const method of methods) {
+      const methodLower = method.toLowerCase();
+      
+      // Buscar métodos que coincidan con el elemento
+      if (methodLower.includes(elementLower) || elementLower.includes(methodLower)) {
+        // Verificar que sea un método de assertion (is, get, has, etc.)
+        if (methodLower.startsWith('is') || methodLower.startsWith('get') || 
+            methodLower.startsWith('has') || methodLower.startsWith('are')) {
+          console.log(`✅ Encontrado método de assertion existente: ${method} para elemento ${elementName}`);
+          return method;
+        }
+      }
+      
+      // Buscar por sinónimos
+      const synonyms: { [key: string]: string[] } = {
+        'cart': ['cart', 'item'],
+        'list': ['list', 'items'],
+        'quantity': ['quantity', 'count', 'qty'],
+        'name': ['name', 'title', 'text']
+      };
+      
+      for (const [key, values] of Object.entries(synonyms)) {
+        if (elementLower.includes(key)) {
+          for (const synonym of values) {
+            if (methodLower.includes(synonym) && 
+                (methodLower.startsWith('is') || methodLower.startsWith('get'))) {
+              console.log(`✅ Encontrado método de assertion por sinónimo: ${method} para elemento ${elementName}`);
+              return method;
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
   // Generar assertions específicas basadas en el acceptance criteria
   if (interpretation.assertions && interpretation.assertions.length > 0) {
     testCode += `\n\n  //THEN - Verify expected behavior`;
@@ -2656,24 +2780,46 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       const description = assertion.description || `Verify ${elementName}`;
       const expected = assertion.expected || 'visible';
-      const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+      
+      // 🎯 Buscar método de assertion existente primero
+      const existingMethod = findExistingAssertionMethod(elementName, assertion.type, interpretation.context);
       
       let assertionCode = '';
-      switch (assertion.type) {
-        case 'visibility':
-          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
-          break;
-        case 'text':
-          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
-          break;
-        case 'state':
-          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
-          break;
-        case 'value':
-          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
-          break;
-        default:
-          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+      
+      if (existingMethod) {
+        // 🎯 REUTILIZAR MÉTODO DE ASSERTION EXISTENTE
+        if (existingMethod.toLowerCase().startsWith('is') || existingMethod.toLowerCase().startsWith('has')) {
+          assertionCode = `expect(await ${pageVarName}.${existingMethod}(), '${description}').toBeTruthy();`;
+        } else if (existingMethod.toLowerCase().startsWith('get')) {
+          if (assertion.type === 'text') {
+            assertionCode = `expect(await ${pageVarName}.${existingMethod}(), '${description}').toContain('${expected}');`;
+          } else {
+            assertionCode = `expect(await ${pageVarName}.${existingMethod}(), '${description}').toBeTruthy();`;
+          }
+        } else {
+          assertionCode = `expect(await ${pageVarName}.${existingMethod}(), '${description}').toBeTruthy();`;
+        }
+        console.log(`✅ Reutilizando método de assertion existente: ${existingMethod}`);
+      } else {
+        // Fallback: Generar método de assertion genérico
+        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+        switch (assertion.type) {
+          case 'visibility':
+            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+            break;
+          case 'text':
+            assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
+            break;
+          case 'state':
+            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
+            break;
+          case 'value':
+            assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
+            break;
+          default:
+            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+        }
+        console.log(`⚠️ Generando método de assertion nuevo para: ${elementName}`);
       }
       
       testCode += `\n  ${assertionCode}`;
