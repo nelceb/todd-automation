@@ -2544,47 +2544,92 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const codebasePatterns = interpretation.codebasePatterns;
   const availableMethods = codebasePatterns?.methods || {};
   
-  // Función helper para buscar método existente que coincida
-  function findExistingMethod(elementName: string, actionType: string, context: string): string | null {
+  // Función helper para buscar método existente que coincida por intención y nombre
+  function findExistingMethod(elementName: string, actionType: string, context: string, intent?: string): string | null {
     if (!codebasePatterns) return null;
     
     // Determinar qué page object buscar según el contexto
     let pageObjectName = 'HomePage';
     if (context === 'pastOrders' || context === 'ordersHub') {
       pageObjectName = 'OrdersHubPage';
-    } else if (context === 'homepage' || context === 'home') {
+    } else if (context === 'homepage' || context === 'home' || context === 'menu') {
       pageObjectName = 'HomePage';
+    } else if (context === 'cart') {
+      pageObjectName = 'HomePage'; // Cart navigation usually from HomePage
     }
     
     const methods = availableMethods[pageObjectName] || [];
     const elementLower = elementName.toLowerCase();
+    const intentLower = (intent || '').toLowerCase();
+    
+    // 🎯 Mapeo de intenciones a métodos existentes
+    const intentMappings: { [key: string]: string[] } = {
+      'add to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'add first item to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'add second item to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'go to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
+      'navigate to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
+      'open cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
+      'view cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart']
+    };
+    
+    // Primero buscar por intención (más preciso)
+    if (intentLower) {
+      for (const [intentKey, methodPatterns] of Object.entries(intentMappings)) {
+        if (intentLower.includes(intentKey)) {
+          for (const method of methods) {
+            const methodLower = method.toLowerCase();
+            for (const pattern of methodPatterns) {
+              if (methodLower.includes(pattern.toLowerCase())) {
+                console.log(`✅ Encontrado método existente por intención "${intentKey}": ${method} para elemento ${elementName}`);
+                return method;
+              }
+            }
+          }
+        }
+      }
+    }
     
     // Buscar métodos que coincidan con el elemento o acción
     for (const method of methods) {
       const methodLower = method.toLowerCase();
       
-      // Buscar coincidencias:
-      // 1. Nombre exacto o parcial del elemento en el método
-      // 2. Tipo de acción (click, navigate, etc.) en el método
-      
-      // Patrones comunes:
-      // - "clickOnMenuItem" -> elemento "menuItem"
-      // - "addToCart" -> elemento "cart" o "addToCart"
-      // - "navigateToCartIcon" -> elemento "cartIcon"
-      // - "clickOnAddToCartButton" -> elemento "addToCartButton"
-      
+      // Coincidencia directa (nombre del elemento en el método)
       if (methodLower.includes(elementLower) || elementLower.includes(methodLower)) {
         console.log(`✅ Encontrado método existente: ${method} para elemento ${elementName}`);
         return method;
       }
       
-      // Buscar por sinónimos comunes
+      // Mapeo específico de elementos a métodos conocidos
+      const elementMappings: { [key: string]: string[] } = {
+        'menuitem': ['addMeal', 'addMealButton', 'add'],
+        'menuitem1': ['addMeal', 'addMealButton', 'add'],
+        'menuitem2': ['addMeal', 'addMealButton', 'add'],
+        'cartpage': ['cartButton', 'cart', 'viewCart'],
+        'cart': ['cartButton', 'cart', 'viewCart'],
+        'carticon': ['cartButton', 'cart', 'viewCart']
+      };
+      
+      for (const [elemKey, methodPatterns] of Object.entries(elementMappings)) {
+        if (elementLower.includes(elemKey)) {
+          for (const pattern of methodPatterns) {
+            if (methodLower.includes(pattern.toLowerCase())) {
+              console.log(`✅ Encontrado método existente por mapeo de elemento: ${method} para elemento ${elementName}`);
+              return method;
+            }
+          }
+        }
+      }
+      
+      // Buscar por sinónimos comunes mejorados
       const synonyms: { [key: string]: string[] } = {
-        'menu': ['menu', 'item', 'meal'],
-        'cart': ['cart', 'basket', 'shopping'],
-        'add': ['add', 'addToCart', 'addTo'],
+        'menu': ['menu', 'item', 'meal', 'addMeal', 'addMealButton'],
+        'item': ['item', 'meal', 'addMeal', 'addMealButton', 'add'],
+        'cart': ['cart', 'basket', 'shopping', 'cartButton', 'viewCart'],
+        'add': ['add', 'addToCart', 'addTo', 'addMeal', 'addMealButton'],
         'click': ['click', 'tap', 'select'],
-        'icon': ['icon', 'button', 'btn']
+        'icon': ['icon', 'button', 'btn'],
+        'navigate': ['navigate', 'go', 'open', 'view']
       };
       
       for (const [key, values] of Object.entries(synonyms)) {
@@ -2616,9 +2661,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       }
       
       const description = action.description || `Click on ${elementName}`;
+      const intent = action.intent || description;
       
-      // 🎯 Buscar método existente primero
-      const existingMethod = findExistingMethod(elementName, action.type, interpretation.context);
+      // 🎯 Buscar método existente primero (usando intención para mejor matching)
+      console.log(`🔍 Buscando método existente para: elemento="${elementName}", intent="${intent}", contexto="${interpretation.context}"`);
+      const existingMethod = findExistingMethod(elementName, action.type, interpretation.context, intent);
       
       // 🎯 Buscar locator generado por MCP en behavior.interactions
       const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
@@ -2629,7 +2676,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       if (existingMethod) {
         // 🎯 REUTILIZAR MÉTODO EXISTENTE
         methodCall = `await ${pageVarName}.${existingMethod}();`;
-        console.log(`✅ Reutilizando método existente: ${existingMethod}`);
+        console.log(`✅ REUTILIZANDO método existente: ${existingMethod} (en lugar de generar nuevo método para ${elementName})`);
       } else if (locator) {
         // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
         const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
