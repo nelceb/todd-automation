@@ -358,51 +358,72 @@ async function generateSmartMethods(missingMethods: any[], synapse: any) {
   return generatedMethods;
 }
 
-// Generar método con AI (simplificado)
+// Generar método con AI usando Claude
 async function generateMethodWithAI(missingMethod: any, context: any) {
-  // Simular generación de método sin OpenAI por ahora
-  return `async ${missingMethod.name}(): Promise<boolean> {
+  const apiKey = process.env.CLAUDE_API_KEY
+  if (!apiKey) {
+    // Fallback sin AI si no hay API key
+    return `async ${missingMethod.name}(): Promise<boolean> {
   const element = this.page.locator('[data-testid="${missingMethod.name}"]');
   return await element.isVisible();
-}`;
+}`
+  }
+
+  try {
+    const { callClaudeAPI } = await import('../utils/claude')
+    
+    const systemPrompt = `You are a Playwright test automation expert. Generate page object methods based on the context provided.
+
+The method should:
+1. Use proper TypeScript/Playwright syntax
+2. Follow existing patterns from the codebase
+3. Use appropriate selectors (prefer data-testid when available)
+4. Return proper types (Promise<boolean>, Promise<void>, etc.)
+5. Include proper error handling
+
+Generate ONLY the method code, no comments or explanations.`
+
+    const userMessage = `Generate a Playwright page object method for:
+- Method name: ${missingMethod.name}
+- Context: ${missingMethod.context}
+- Type: ${missingMethod.type}
+- Page Object: ${missingMethod.pageObject}
+
+Existing methods pattern: ${JSON.stringify(context.existingMethods, null, 2)}`
+
+    const { response } = await callClaudeAPI(apiKey, systemPrompt, userMessage)
+    const methodCode = response.content?.[0]?.text || ''
+    
+    // Extraer solo el código del método si está en markdown
+    let cleaned = methodCode.trim()
+    if (cleaned.includes('```')) {
+      const match = cleaned.match(/```(?:typescript|ts)?\s*([\s\S]*?)\s*```/)
+      if (match) cleaned = match[1].trim()
+    }
+    
+    return cleaned || `async ${missingMethod.name}(): Promise<boolean> {
+  const element = this.page.locator('[data-testid="${missingMethod.name}"]');
+  return await element.isVisible();
+}`
+  } catch (error) {
+    console.error('Error generating method with AI:', error)
+    // Fallback
+    return `async ${missingMethod.name}(): Promise<boolean> {
+  const element = this.page.locator('[data-testid="${missingMethod.name}"]');
+  return await element.isVisible();
+}`
+  }
 }
 
-// Generar test inteligente desde sinapsis - GAME CHANGER!
+// Generar test inteligente desde sinapsis usando Claude - GAME CHANGER!
 async function generateSmartTestFromSynapse(synapse: any, generatedMethods: any[]) {
-  try {
-    // Simular generación de test sin OpenAI por ahora
-    const keywords = synapse.keywords || [];
-    const usersHelperMethod = synapse.usersHelper?.method || 'getActiveUserEmailWithHomeOnboardingViewed';
-    
-    // Generar título único (sin duplicar QA number)
-    const testTitle = `QA-2333 - Date Selector Filter Reset`;
-    
-    // Test con Self-Healing Locators - GAME CHANGER!
-    const testCode = `test('${testTitle}', { tag: ['@qa', '@e2e', '@subscription'] }, async ({ page }) => {
-  //GIVEN
-  const userEmail = await usersHelper.${usersHelperMethod}();
-  const loginPage = await siteMap.loginPage(page);
-  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
-  
-  // Apply a filter first using self-healing locator
-  await homePage.clickWithLLM('.plant-powered-filter', 'Plant Powered filter button');
-  
-  //WHEN
-  // Change date using self-healing locator
-  await homePage.clickWithLLM('.date-selector', 'Date selector dropdown');
-  await homePage.clickWithLLM('[data-date="Tue 11 Nov"]', 'Tuesday November 11th date option');
-  
-  //THEN
-  expect.soft(await homePage.isFilterReset(), 'Filter is reset when date changes').toBeTruthy();
-  expect.soft(await homePage.areAllMealsVisible(), 'All meals are visible after filter reset').toBeTruthy();
-});`;
-    
-    return testCode;
-  } catch (error) {
-    console.error('Error generating smart test:', error);
+  const apiKey = process.env.CLAUDE_API_KEY
+  if (!apiKey) {
+    // Fallback sin AI si no hay API key
+    const usersHelperMethod = synapse.usersHelper?.method || 'getActiveUserEmailWithHomeOnboardingViewed'
     return `test('QA-2333 - Date Selector Filter Reset', { tag: ['@qa', '@e2e', '@subscription'] }, async ({ page }) => {
   //GIVEN
-  const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+  const userEmail = await usersHelper.${usersHelperMethod}();
   const loginPage = await siteMap.loginPage(page);
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
   
@@ -411,6 +432,63 @@ async function generateSmartTestFromSynapse(synapse: any, generatedMethods: any[
   
   //THEN
   expect.soft(await ordersHubPage.isOrdersHubPageLoaded(), 'Orders Hub page is loaded').toBeTruthy();
-});`;
+});`
   }
+
+  try {
+    const { callClaudeAPI } = await import('../utils/claude')
+    
+    const systemPrompt = `You are a Playwright test automation expert for CookUnity ecommerce. Generate a complete Playwright test based on the synapse information provided.
+
+Requirements:
+1. Use proper Playwright/TypeScript syntax
+2. Follow the GIVEN/WHEN/THEN structure
+3. Use usersHelper methods for user setup
+4. Use page object methods (HomePage, OrdersHubPage) - NO hardcoded selectors
+5. Include proper tags (@qa, @e2e, @subscription, etc.)
+6. Use expect.soft() for assertions
+7. Follow existing test patterns from the codebase
+
+Generate ONLY the test code, no explanations or markdown.`
+
+    const userMessage = `Generate a Playwright test based on this synapse:
+- Keywords: ${JSON.stringify(synapse.keywords, null, 2)}
+- Users Helper Method: ${synapse.usersHelper?.method || 'getActiveUserEmailWithHomeOnboardingViewed'}
+- Available Methods: ${JSON.stringify(synapse.methods, null, 2)}
+- Selectors: ${JSON.stringify(synapse.selectors, null, 2)}
+- Generated Methods: ${JSON.stringify(generatedMethods, null, 2)}
+
+Generate a complete test that uses the page object methods and follows the patterns shown above.`
+
+    const { response } = await callClaudeAPI(apiKey, systemPrompt, userMessage)
+    const testCode = response.content?.[0]?.text || ''
+    
+    // Extraer solo el código del test si está en markdown
+    let cleaned = testCode.trim()
+    if (cleaned.includes('```')) {
+      const match = cleaned.match(/```(?:typescript|ts)?\s*([\s\S]*?)\s*```/)
+      if (match) cleaned = match[1].trim()
+    }
+    
+    return cleaned || generateFallbackTest(synapse)
+  } catch (error) {
+    console.error('Error generating smart test with AI:', error)
+    return generateFallbackTest(synapse)
+  }
+}
+
+function generateFallbackTest(synapse: any): string {
+  const usersHelperMethod = synapse.usersHelper?.method || 'getActiveUserEmailWithHomeOnboardingViewed'
+  return `test('QA-2333 - Date Selector Filter Reset', { tag: ['@qa', '@e2e', '@subscription'] }, async ({ page }) => {
+  //GIVEN
+  const userEmail = await usersHelper.${usersHelperMethod}();
+  const loginPage = await siteMap.loginPage(page);
+  const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);
+  
+  //WHEN
+  const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
+  
+  //THEN
+  expect.soft(await ordersHubPage.isOrdersHubPageLoaded(), 'Orders Hub page is loaded').toBeTruthy();
+});`
 }

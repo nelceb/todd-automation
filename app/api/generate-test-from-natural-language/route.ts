@@ -106,34 +106,20 @@ IMPORTANT:
 
     console.log('✅ Claude Interpretation:', claudeInterpretation)
 
-    // Step 2: Call Playwright MCP with the interpreted acceptance criteria
+    // Step 2: Call Playwright MCP directly (no HTTP fetch to avoid 401 errors in Vercel)
     let playwrightMCPData: any
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+      // Importar y llamar directamente la función (sin fetch HTTP)
+      const { executePlaywrightMCP } = await import('../playwright-mcp/route')
       
-      const playwrightMCPResponse = await fetch(
-        `${baseUrl}/api/playwright-mcp`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            acceptanceCriteria: claudeInterpretation.acceptanceCriteria || userRequest,
-            ticketId: `NL-${Date.now()}` // Natural Language ticket ID
-          })
-        }
+      playwrightMCPData = await executePlaywrightMCP(
+        claudeInterpretation.acceptanceCriteria || userRequest,
+        `NL-${Date.now()}` // Natural Language ticket ID
       )
-
-      if (!playwrightMCPResponse.ok) {
-        const errorData = await playwrightMCPResponse.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(`Playwright MCP error: ${playwrightMCPResponse.status} - ${errorData.error || 'Unknown error'}`)
-      }
-
-      playwrightMCPData = await playwrightMCPResponse.json()
     } catch (mcpError) {
       console.error('❌ Error calling Playwright MCP:', mcpError)
       throw new Error(
-        `Failed to call Playwright MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`
+        `Failed to execute Playwright MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`
       )
     }
 

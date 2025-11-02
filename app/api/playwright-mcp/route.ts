@@ -229,21 +229,16 @@ async function anthropicJSON(systemPrompt: string, userMessage: string) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// Función principal extraída que puede ser llamada directamente (sin HTTP fetch)
+export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?: string) {
   let browser: Browser | null = null;
-  let acceptanceCriteria: string = '';
-  let ticketId: string | undefined;
   
   try {
-    const requestData = await request.json();
-    acceptanceCriteria = requestData.acceptanceCriteria;
-    ticketId = requestData.ticketId;
-    
     if (!acceptanceCriteria) {
-      return NextResponse.json({ 
+      return {
         success: false,
-        error: 'Acceptance criteria is required' 
-      }, { status: 400 });
+        error: 'Acceptance criteria is required'
+      }
     }
 
     // Detectar si estamos en Vercel serverless
@@ -300,11 +295,11 @@ export async function POST(request: NextRequest) {
     if (!navigation.success) {
       console.log('❌ Playwright MCP: Navegación falló');
       await browser.close();
-      return NextResponse.json({ 
-        success: false, 
+      return {
+        success: false,
         error: `Navigation failed: ${navigation.error}`,
         fallback: true
-      }, { status: 200 });
+      }
     }
     
     console.log('👀 Playwright MCP: Observando comportamiento...');
@@ -338,7 +333,7 @@ export async function POST(request: NextRequest) {
       console.log('🌿 Playwright MCP: Creando branch y preparando PR...');
       const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration);
       
-      return NextResponse.json({
+      return {
         success: true,
         interpretation,
         navigation,
@@ -351,17 +346,17 @@ export async function POST(request: NextRequest) {
         message: testValidation.success 
           ? 'Test generado y validado exitosamente' 
           : 'Test generado con observaciones reales (validación menor pendiente)'
-      });
+      }
     } else {
       // Solo fallar si realmente no pudimos observar nada
       console.log('⚠️ Playwright MCP: No se pudieron observar elementos');
-      return NextResponse.json({
+      return {
         success: false,
         error: 'No se pudieron observar elementos en la página',
         smartTest,
         behavior,
         fallback: true
-      }, { status: 200 });
+      }
     }
   } catch (error) {
     console.error('❌ Playwright MCP Error:', error);
@@ -380,27 +375,52 @@ export async function POST(request: NextRequest) {
         // Generar test básico sin observaciones si hay error
         const basicTest = generateTestFromObservations(interpretation, { success: false }, { observed: false, elements: [], interactions: [] }, ticketId);
         
-        return NextResponse.json({ 
+        return {
           success: true, // Aún así devolver éxito con test básico
           error: `Partial error: ${error instanceof Error ? error.message : String(error)}`,
           smartTest: basicTest,
           interpretation,
           mode: 'basic-fallback',
           message: 'Test generado con información básica debido a error parcial'
-        }, { status: 200 });
+        }
       }
     } catch (fallbackError) {
       // Si todo falla, entonces sí devolver error
-      return NextResponse.json({ 
-        success: false, 
+      return {
+        success: false,
         error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
         fallback: true
-      }, { status: 200 });
+      }
     }
     
-    return NextResponse.json({ 
-      success: false, 
+    return {
+      success: false,
       error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
+      fallback: true
+    }
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const requestData = await request.json();
+    const acceptanceCriteria = requestData.acceptanceCriteria;
+    const ticketId = requestData.ticketId;
+    
+    if (!acceptanceCriteria) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Acceptance criteria is required' 
+      }, { status: 400 });
+    }
+
+    const result = await executePlaywrightMCP(acceptanceCriteria, ticketId);
+    return NextResponse.json(result, { status: result.success ? 200 : 200 });
+  } catch (error) {
+    console.error('❌ Error in POST handler:', error);
+    return NextResponse.json({
+      success: false,
+      error: `Error: ${error instanceof Error ? error.message : String(error)}`,
       fallback: true
     }, { status: 200 });
   }
