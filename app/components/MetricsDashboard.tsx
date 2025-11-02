@@ -249,7 +249,8 @@ export default function MetricsDashboard() {
         labels: {
           padding: 20,
           font: {
-            size: 12,
+            size: 15,
+            weight: '600',
             family: 'monospace'
           },
           generateLabels: function(chart: any) {
@@ -285,6 +286,8 @@ export default function MetricsDashboard() {
           }
         },
         font: {
+          size: 13,
+          weight: '500',
           family: 'monospace'
         }
       }
@@ -316,7 +319,8 @@ export default function MetricsDashboard() {
         labels: {
           padding: 15,
           font: {
-            size: 12
+            size: 14,
+            weight: '600'
           },
           usePointStyle: true
         }
@@ -351,7 +355,11 @@ export default function MetricsDashboard() {
           color: '#f3f4f6'
         },
         ticks: {
-          stepSize: 1
+          stepSize: 1,
+          font: {
+            size: 12,
+            weight: '500'
+          }
         }
       },
       y: {
@@ -360,7 +368,8 @@ export default function MetricsDashboard() {
         },
         ticks: {
           font: {
-            size: 11
+            size: 13,
+            weight: '500'
           }
         }
       }
@@ -442,22 +451,24 @@ export default function MetricsDashboard() {
       </div>
 
       {/* Charts and Summary Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Left Column: Workflow Distribution (Full Height) */}
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
-          <p className="text-sm font-mono mb-4" style={{ color: '#6B7280' }}>
+        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg flex flex-col" style={{ height: '900px' }}>
+          <h3 className="text-xl font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
+          <p className="text-base font-mono mb-4" style={{ color: '#6B7280' }}>
             Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
           </p>
-          <div className="h-[600px]">
-            {getWorkflowChartData() && (
-              <Bar data={getWorkflowChartData()!} options={barChartOptions} />
-            )}
+          <div className="flex-1 overflow-y-auto">
+            <div className="h-[800px]">
+              {getWorkflowChartData() && (
+                <Bar data={getWorkflowChartData()!} options={barChartOptions} />
+              )}
+            </div>
           </div>
         </div>
 
         {/* Right Column: Summary Cards + Success Rate */}
-        <div className="space-y-6">
+        <div className="flex flex-col space-y-6" style={{ height: '900px' }}>
           {/* Summary Cards (Top Right) */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
@@ -487,15 +498,15 @@ export default function MetricsDashboard() {
 
           {/* Success Rate with Flip Card (Below Summary Cards) */}
           <div 
-            className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg relative"
+            className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1"
             style={{ 
-              minHeight: '400px',
-              height: '400px'
+              minHeight: '600px',
+              backgroundColor: '#AED4E6'
             }}
           >
             {/* Outer container - does NOT flip */}
             <div 
-              className="relative w-full h-full"
+              className="relative w-full h-full overflow-hidden"
               style={{
                 perspective: '1000px',
                 height: '100%'
@@ -517,18 +528,19 @@ export default function MetricsDashboard() {
                   className="absolute w-full h-full flex flex-col justify-center items-center p-6 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
-                    transform: 'rotateY(0deg)'
+                    transform: 'rotateY(0deg)',
+                    WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-lg font-mono font-semibold mb-4 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-xl font-mono font-semibold mb-6 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
-                    <span className="ml-2 text-xs opacity-50">(Click for details)</span>
+                    <span className="ml-2 text-sm opacity-50">(Click for details)</span>
                   </h3>
-                  <div className="flex-1 flex items-center justify-center w-full">
+                  <div className="flex-1 flex items-center justify-center w-full px-4">
                     {getSuccessRateChartData() && (
-                      <div className="w-full max-w-lg" style={{ 
+                      <div className="w-full max-w-2xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
-                        transform: 'perspective(1000px) rotateX(5deg) scale(1.1)',
+                        transform: 'perspective(1000px) rotateX(5deg) scale(1.15)',
                         transformStyle: 'preserve-3d'
                       }}>
                         <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
@@ -542,6 +554,7 @@ export default function MetricsDashboard() {
                   className="absolute w-full h-full flex flex-col p-6 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)'
                   }}
                 >
@@ -609,7 +622,7 @@ export default function MetricsDashboard() {
 
       {/* Workflow Details Table */}
       <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-300/50">
+        <div className="px-6 py-4 border-b border-gray-300/50 sticky top-0 bg-white/20 backdrop-blur-sm z-10">
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-mono font-semibold text-center" style={{ color: '#344055' }}>Workflow Details</h3>
             <div className="flex justify-center">

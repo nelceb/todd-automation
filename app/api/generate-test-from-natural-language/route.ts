@@ -22,16 +22,29 @@ export async function POST(request: NextRequest) {
 
     console.log('🧠 Natural Language Test Generation:', { userRequest, chatHistoryLength: chatHistory.length })
 
-    // Use CLAUDE_MODEL from env or fallback to alias (which resolves to latest version)
-    // The alias 'claude-3-5-sonnet' automatically resolves to the latest available version
-    const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet'
+    // Validate API key
+    const apiKey = process.env.CLAUDE_API_KEY
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'CLAUDE_API_KEY is not configured. Please set it in your Vercel environment variables.',
+          mode: 'natural-language-claude-mcp'
+        },
+        { status: 500 }
+      )
+    }
+
+    // Use CLAUDE_MODEL from env or fallback to latest stable version
+    // Using the dated model name for reliability
+    const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022'
 
     // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': process.env.CLAUDE_API_KEY || '',
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
