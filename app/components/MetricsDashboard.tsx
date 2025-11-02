@@ -250,7 +250,7 @@ export default function MetricsDashboard() {
           padding: 20,
           font: {
             size: 15,
-            weight: '600',
+            weight: 'bold',
             family: 'monospace'
           },
           generateLabels: function(chart: any) {
@@ -287,7 +287,6 @@ export default function MetricsDashboard() {
         },
         font: {
           size: 13,
-          weight: '500',
           family: 'monospace'
         }
       }
@@ -320,7 +319,7 @@ export default function MetricsDashboard() {
           padding: 15,
           font: {
             size: 14,
-            weight: '600'
+            weight: 'bold'
           },
           usePointStyle: true
         }
@@ -357,8 +356,7 @@ export default function MetricsDashboard() {
         ticks: {
           stepSize: 1,
           font: {
-            size: 12,
-            weight: '500'
+            size: 12
           }
         }
       },
@@ -368,8 +366,7 @@ export default function MetricsDashboard() {
         },
         ticks: {
           font: {
-            size: 13,
-            weight: '500'
+            size: 13
           }
         }
       }
