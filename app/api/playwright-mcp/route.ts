@@ -247,14 +247,27 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 1. Interpretar acceptance criteria (con LLM si está disponible)
     const interpretation = await interpretAcceptanceCriteria(acceptanceCriteria);
     
-    // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos
+    // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
     console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
-    const codebaseAnalysis = await analyzeCodebaseForPatterns();
-    if (codebaseAnalysis) {
-      const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
-      console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
-      // Combinar interpretación con conocimiento del codebase
-      interpretation.codebasePatterns = codebaseAnalysis;
+    try {
+      // Usar Promise.race con timeout de 2 segundos (más rápido)
+      const codebaseAnalysis = await Promise.race([
+        analyzeCodebaseForPatterns(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 2000) // Reducido de 5s a 2s
+        )
+      ]) as any;
+      
+      if (codebaseAnalysis) {
+        const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
+        console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
+        // Combinar interpretación con conocimiento del codebase
+        interpretation.codebasePatterns = codebaseAnalysis;
+      }
+    } catch (timeoutError) {
+      console.log('⏱️ Análisis de codebase tardó mucho, usando patrones estáticos rápidos');
+      // Usar patrones estáticos (rápidos) en lugar de fallar
+      interpretation.codebasePatterns = getStaticPatterns();
     }
     
     console.log('🚀 Playwright MCP: Iniciando navegación real...');
@@ -695,45 +708,58 @@ async function analyzeCodebaseForPatterns() {
     
     const files = await dirResponse.json();
     
-    const methods: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
-    const selectors: any[] = [];
-    const testPatterns: any[] = [];
+    // 🚀 OPTIMIZACIÓN: Limitar análisis SOLO a page objects (más rápido, solo 2-3 archivos)
+    // Priorizar: HomePage, OrdersHubPage (son los más usados)
+    const pageObjectFiles = files
+      .filter((file: any) => file.type === 'file')
+      .filter((file: any) => file.name.endsWith('.ts') && !file.name.endsWith('.spec.ts'))
+      .filter((file: any) => {
+        const nameLower = file.name.toLowerCase();
+        return nameLower.includes('home') || nameLower.includes('order') || nameLower.includes('cart');
+      })
+      .slice(0, 3); // Solo 3 page objects más importantes (más rápido)
     
-    // 2. Analizar cada archivo
-    for (const file of files) {
-      if (file.type !== 'file') continue;
-      
-      const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
-      if (!fileContent) continue;
-      
-      // Analizar page objects
-      if (file.name.endsWith('.ts') && !file.name.endsWith('.spec.ts')) {
+    console.log(`📁 Analizando ${pageObjectFiles.length} page objects (optimizado para velocidad)...`);
+    
+    // 2. Analizar SOLO page objects en paralelo (más rápido)
+    const fileResults = await Promise.all(
+      pageObjectFiles.map(async (file: any) => {
+        const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
+        if (!fileContent) return null;
+        
+        // Solo analizar page objects (no tests, más rápido)
         const pageObjectName = extractPageObjectName(file.name);
         const extractedMethods = extractMethodsFromContent(fileContent);
-        methods[pageObjectName] = extractedMethods;
-        
-        // Extraer selectors de los page objects
         const extractedSelectors = extractSelectorsFromContent(fileContent);
-        selectors.push(...extractedSelectors);
         
         console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
-      }
+        return { 
+          type: 'pageObject', 
+          name: pageObjectName, 
+          methods: extractedMethods,
+          selectors: extractedSelectors
+        };
+      })
+    );
+    
+    // Acumular resultados de forma segura (solo page objects, más rápido)
+    const methods: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
+    const selectors: any[] = [];
+    
+    for (const result of fileResults) {
+      if (!result || result.type !== 'pageObject') continue;
       
-      // Analizar tests para aprender patrones
-      if (file.name.endsWith('.spec.ts')) {
-        const patterns = extractTestPatterns(fileContent);
-        testPatterns.push(...patterns);
-        console.log(`✅ Test ${file.name}: ${patterns.length} patrones aprendidos`);
-      }
+      methods[result.name] = result.methods;
+      selectors.push(...result.selectors);
     }
     
-    console.log(`📊 Análisis completo: ${Object.values(methods).flat().length} métodos, ${selectors.length} selectors, ${testPatterns.length} patrones`);
+    console.log(`📊 Análisis rápido completo: ${Object.values(methods).flat().length} métodos, ${selectors.length} selectors`);
     
     return {
       methods,
       selectors,
-      testPatterns,
-      source: 'github-repository',
+      testPatterns: [], // No analizar tests para velocidad
+      source: 'github-repository-fast',
       repository: REPOSITORY,
       analyzedAt: new Date().toISOString()
     };
