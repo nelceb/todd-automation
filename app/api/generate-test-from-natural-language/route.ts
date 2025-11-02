@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use CLAUDE_MODEL from env or fallback to latest stable version
-    // Using the dated model name for reliability
-    const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022'
+    // Use CLAUDE_MODEL from env or fallback to stable version
+    // Note: Configure CLAUDE_MODEL in Vercel with the correct model name for your API key
+    const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620'
 
     // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
     const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
