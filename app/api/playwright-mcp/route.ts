@@ -216,27 +216,17 @@ class PlaywrightMCPWrapper {
 async function anthropicJSON(systemPrompt: string, userMessage: string) {
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return null;
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620',
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }]
-    })
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Anthropic API error: ${text}`);
+  
+  const { callClaudeAPI } = await import('../utils/claude');
+  
+  try {
+    const { response: data } = await callClaudeAPI(apiKey, systemPrompt, userMessage);
+    const content = data?.content?.[0]?.text;
+    return content || null;
+  } catch (error) {
+    console.error('❌ [Claude] Error calling API:', error);
+    throw error;
   }
-  const data: any = await res.json();
-  const content = data?.content?.[0]?.text;
-  return content || null;
 }
 
 export async function POST(request: NextRequest) {

@@ -37,37 +37,31 @@ When a user asks you to:
 
 Always provide clear, actionable responses and use the appropriate tools when needed.`
 
-    // Llamar a Claude con herramientas
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': process.env.CLAUDE_API_KEY || '',
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620',
-        max_tokens: 2000,
-        system: systemPrompt,
-        messages: [
-          { role: 'user', content: message }
-        ],
-        ...(tools && {
-          tools: toolsData.tools.map((tool: any) => ({
-            name: tool.name,
-            description: tool.description,
-            input_schema: tool.input_schema
-          }))
-        })
-      })
-    })
-
-    if (!claudeResponse.ok) {
-      const errorText = await claudeResponse.text()
-      throw new Error(`Claude API error: ${errorText}`)
+    // Llamar a Claude con herramientas - usa helper con fallback automático de modelos
+    const { callClaudeAPI } = await import('../utils/claude')
+    
+    const apiKey = process.env.CLAUDE_API_KEY || ''
+    if (!apiKey) {
+      throw new Error('CLAUDE_API_KEY is not configured')
     }
+    
+    const toolsOptions = tools ? {
+      tools: toolsData.tools.map((tool: any) => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema: tool.input_schema
+      }))
+    } : undefined
 
-    const claudeData = await claudeResponse.json()
+    const { response: claudeData } = await callClaudeAPI(
+      apiKey,
+      systemPrompt,
+      message,
+      {
+        messages: [{ role: 'user', content: message }],
+        tools: toolsOptions?.tools
+      }
+    )
     
     // Registrar uso de LLM
     recordMetric('llm_usage', 'claude_request', {

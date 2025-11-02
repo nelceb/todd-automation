@@ -35,22 +35,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use CLAUDE_MODEL from env or fallback to stable version
-    // Note: Configure CLAUDE_MODEL in Vercel with the correct model name for your API key
-    const claudeModel = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620'
-
     // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: claudeModel,
-        max_tokens: 2000,
-        system: `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
+    // The helper function will automatically try multiple models until one works
+    const { callClaudeAPI } = await import('../utils/claude')
+    
+    const systemPrompt = `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
 
 You should extract:
 1. **Context**: What part of the application (e.g., "pastOrders", "cart", "checkout", "ordersHub", "home")
@@ -71,26 +60,23 @@ IMPORTANT:
   "assertions": ["assertion1", "assertion2"],
   "usersHelper": "getActiveUserEmailWithHomeOnboardingViewed|getNewUserEmail|...",
   "tags": ["@qa", "@e2e", "@subscription"]
-}`,
-        messages: [
-          ...(chatHistory.map((msg: { role: string, content: string }) => ({
-            role: msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content
-          }))),
-          {
-            role: 'user',
-            content: `Please convert this test request into structured acceptance criteria:\n\n"${userRequest}"`
-          }
-        ]
-      })
+}`
+
+    const messages = [
+      ...(chatHistory.map((msg: { role: string, content: string }) => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content
+      }))),
+      {
+        role: 'user',
+        content: `Please convert this test request into structured acceptance criteria:\n\n"${userRequest}"`
+      }
+    ]
+
+    const { response: claudeData } = await callClaudeAPI(apiKey, systemPrompt, '', {
+      messages
     })
-
-    if (!claudeResponse.ok) {
-      const errorText = await claudeResponse.text()
-      throw new Error(`Claude API error: ${claudeResponse.status} - ${errorText}`)
-    }
-
-    const claudeData = await claudeResponse.json()
+    
     const claudeText = claudeData.content?.[0]?.text || ''
 
     // Extract JSON from Claude response (may be wrapped in markdown code blocks)

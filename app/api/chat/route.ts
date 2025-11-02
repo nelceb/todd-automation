@@ -10,29 +10,16 @@ const openai = new OpenAI({
 async function chatWithClaude(systemPrompt: string, userMessage: string) {
   const apiKey = process.env.CLAUDE_API_KEY
   if (!apiKey) return null
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20240620',
-      max_tokens: 2000,
-      system: systemPrompt,
-      messages: [
-        { role: 'user', content: userMessage }
-      ]
-    })
-  })
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Anthropic API error: ${text}`)
+  
+  try {
+    const { callClaudeAPI } = await import('../utils/claude')
+    const { response: data } = await callClaudeAPI(apiKey, systemPrompt, userMessage)
+    const content = data?.content?.[0]?.text
+    return content || null
+  } catch (error) {
+    console.error('❌ [Claude] Error in chatWithClaude:', error)
+    throw error
   }
-  const data: any = await response.json()
-  const content = data?.content?.[0]?.text
-  return content || null
 }
 
 // Mapeo de comandos a workflows
