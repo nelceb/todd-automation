@@ -50,6 +50,8 @@ export async function callClaudeAPI(
 
   for (const model of modelsToTry) {
     try {
+      console.log(`🔄 [Claude] Trying model: ${model}`)
+      
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -70,30 +72,45 @@ export async function callClaudeAPI(
 
       if (response.ok) {
         const data = await response.json()
+        console.log(`✅ [Claude] Success with model: ${model}`)
         return { response: data, model }
       }
 
       // If 404 (model not found), try next model
       if (response.status === 404) {
         const errorText = await response.text()
+        console.log(`⚠️ [Claude] Model ${model} not found, trying next...`)
         lastError = new Error(`Model ${model} not found: ${errorText}`)
         continue // Try next model
       }
 
-      // For other errors, throw immediately
-      const errorText = await response.text()
-      throw new Error(`Claude API error (${response.status}): ${errorText}`)
+      // For other HTTP errors, try to get error text but throw
+      const errorText = await response.text().catch(() => `HTTP ${response.status}`)
+      const errorMessage = `Claude API error (${response.status}): ${errorText}`
+      console.error(`❌ [Claude] ${errorMessage}`)
+      throw new Error(errorMessage)
     } catch (error) {
-      // If it's a 404 error, continue to next model
-      if (error instanceof Error && error.message.includes('not found')) {
+      // Check if it's a fetch network error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error(`❌ [Claude] Network error with model ${model}:`, error.message)
+        // For network errors, throw immediately (likely API key or connectivity issue)
+        throw new Error(`Network error calling Claude API: ${error.message}. Please check your API key and network connection.`)
+      }
+      
+      // If it's a 404 error (model not found), continue to next model
+      if (error instanceof Error && (error.message.includes('not found') || error.message.includes('404'))) {
         lastError = error
         continue
       }
+      
       // For other errors, throw immediately
+      console.error(`❌ [Claude] Error with model ${model}:`, error)
       throw error
     }
   }
 
-  // If all models failed, throw the last error
-  throw lastError || new Error('All Claude models failed. Please check your API key and available models.')
+  // If all models failed, throw the last error or a generic message
+  const finalError = lastError || new Error('All Claude models failed. Please check your API key and available models.')
+  console.error(`❌ [Claude] All models failed:`, finalError.message)
+  throw finalError
 }
