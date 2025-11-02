@@ -37,9 +37,11 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
     // The helper function will automatically try multiple models until one works
-    const { callClaudeAPI } = await import('../utils/claude')
-    
-    const systemPrompt = `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
+    let claudeText: string
+    try {
+      const { callClaudeAPI } = await import('../utils/claude')
+      
+      const systemPrompt = `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
 
 You should extract:
 1. **Context**: What part of the application (e.g., "pastOrders", "cart", "checkout", "ordersHub", "home")
@@ -62,22 +64,29 @@ IMPORTANT:
   "tags": ["@qa", "@e2e", "@subscription"]
 }`
 
-    const messages = [
-      ...(chatHistory.map((msg: { role: string, content: string }) => ({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: msg.content
-      }))),
-      {
-        role: 'user',
-        content: `Please convert this test request into structured acceptance criteria:\n\n"${userRequest}"`
-      }
-    ]
+      const messages = [
+        ...(chatHistory.map((msg: { role: string, content: string }) => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content
+        }))),
+        {
+          role: 'user',
+          content: `Please convert this test request into structured acceptance criteria:\n\n"${userRequest}"`
+        }
+      ]
 
-    const { response: claudeData } = await callClaudeAPI(apiKey, systemPrompt, '', {
-      messages
-    })
-    
-    const claudeText = claudeData.content?.[0]?.text || ''
+      const { response: claudeData } = await callClaudeAPI(apiKey, systemPrompt, '', {
+        messages
+      })
+      
+      claudeText = claudeData.content?.[0]?.text || ''
+    } catch (claudeError) {
+      console.error('❌ Error calling Claude API:', claudeError)
+      throw new Error(
+        `Failed to call Claude API: ${claudeError instanceof Error ? claudeError.message : String(claudeError)}. ` +
+        `Please check your CLAUDE_API_KEY in Vercel environment variables.`
+      )
+    }
 
     // Extract JSON from Claude response (may be wrapped in markdown code blocks)
     let claudeInterpretation
@@ -98,24 +107,35 @@ IMPORTANT:
     console.log('✅ Claude Interpretation:', claudeInterpretation)
 
     // Step 2: Call Playwright MCP with the interpreted acceptance criteria
-    const playwrightMCPResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/playwright-mcp`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          acceptanceCriteria: claudeInterpretation.acceptanceCriteria || userRequest,
-          ticketId: `NL-${Date.now()}` // Natural Language ticket ID
-        })
+    let playwrightMCPData: any
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+      
+      const playwrightMCPResponse = await fetch(
+        `${baseUrl}/api/playwright-mcp`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            acceptanceCriteria: claudeInterpretation.acceptanceCriteria || userRequest,
+            ticketId: `NL-${Date.now()}` // Natural Language ticket ID
+          })
+        }
+      )
+
+      if (!playwrightMCPResponse.ok) {
+        const errorData = await playwrightMCPResponse.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(`Playwright MCP error: ${playwrightMCPResponse.status} - ${errorData.error || 'Unknown error'}`)
       }
-    )
 
-    if (!playwrightMCPResponse.ok) {
-      const errorData = await playwrightMCPResponse.json()
-      throw new Error(`Playwright MCP error: ${playwrightMCPResponse.status} - ${errorData.error || 'Unknown error'}`)
+      playwrightMCPData = await playwrightMCPResponse.json()
+    } catch (mcpError) {
+      console.error('❌ Error calling Playwright MCP:', mcpError)
+      throw new Error(
+        `Failed to call Playwright MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`
+      )
     }
-
-    const playwrightMCPData = await playwrightMCPResponse.json()
 
     // Step 3: Combine results and return
     return NextResponse.json({
