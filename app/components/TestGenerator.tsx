@@ -232,43 +232,8 @@ export default function TestGenerator() {
         timestamp: Date.now()
       }])
 
-      // 🚀 NEW: Try Playwright MCP first (GAME CHANGER!)
-      const mcpResponse = await fetch('/api/playwright-mcp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          acceptanceCriteria: criteria.description
-        })
-      })
-      
-      let mcpData
-      try {
-        const responseText = await mcpResponse.text()
-        mcpData = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' }
-      } catch (parseError) {
-        console.error('❌ Failed to parse MCP response:', parseError)
-        mcpData = { success: false, error: `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}` }
-      }
-      
-      if (mcpData.success) {
-        // Use Playwright MCP result (observed behavior!)
-        setGeneratedTest({
-          framework: criteria.framework,
-          fileName: `${criteria.id.toLowerCase()}.spec.ts`,
-          content: mcpData.smartTest,
-          testPath: `tests/frontend/desktop/subscription/coreUx/${criteria.id.toLowerCase()}.spec.ts`,
-          branchName: `feature/${criteria.id}-${criteria.title.toLowerCase().replace(/\s+/g, '-')}`,
-          mcpData: {
-            interpretation: mcpData.interpretation,
-            loginResult: mcpData.loginResult,
-            behavior: mcpData.behavior
-          }
-        })
-        setStep('result')
-        return
-      }
-      
-      // 2. Fallback to Smart Synapse
+      // Skip Playwright MCP retry - it already failed, go directly to Smart Synapse
+      // Fallback to Smart Synapse
       const smartResponse = await fetch('/api/smart-synapse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

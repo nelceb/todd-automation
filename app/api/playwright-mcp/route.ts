@@ -1215,43 +1215,25 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       // 🎯 VALIDAR que estamos realmente autenticados: buscar elementos que solo aparecen cuando hay login
       console.log('🔍 [AUTH VALIDATION] Validando autenticación: buscando elementos de página autenticada...');
       
-      // Esperar un poco para que la página cargue después del redirect (más flexible)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
-      } catch (e) {
-        console.log('⚠️ waitForLoadState timeout, continuando con validación...');
-      }
-      
-      // Validación flexible: no fallar si no encuentra selectores específicos inmediatamente
-      let authValidated = false;
-      try {
-        // Intentar esperar por elementos más específicos primero (más rápido)
-        await page.waitForSelector('button, nav, [data-testid]', { timeout: 5000 }); // Reducido de 10s a 5s
-        authValidated = true;
-      } catch (selectorTimeout) {
-        console.log('⚠️ [AUTH VALIDATION] Selector genérico timeout, verificando elementos directamente...');
-        // Continuar y verificar elementos directamente (más flexible)
-        authValidated = true; // Asumir que está bien y verificar después
-      }
-      
-      try {
-        // Esperar a que aparezcan elementos típicos de una página autenticada (ahora más flexible)
+        // Esperar más tiempo para que la página cargue completamente después del redirect
+        try {
+          await page.waitForLoadState('networkidle', { timeout: 10000 }); // Esperar hasta 10s a que termine el tráfico de red
+        } catch (e) {
+          console.log('⚠️ waitForLoadState networkidle timeout, intentando domcontentloaded...');
+          try {
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+          } catch (e2) {
+            console.log('⚠️ waitForLoadState domcontentloaded timeout, continuando con validación...');
+          }
+        }
         
-        // Verificar elementos disponibles (sin esperar, más eficiente)
-        const testIdCount = await page.locator('[data-testid]').count().catch(() => 0);
-        const buttonCount = await page.locator('button').count().catch(() => 0);
-        const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count().catch(() => 0);
-        const bodyText = await page.locator('body').textContent().catch(() => null) || '';
+        // Dar tiempo adicional para que los elementos dinámicos se carguen
+        await page.waitForTimeout(2000);
         
-        console.log(`🔍 [AUTH VALIDATION] Elementos encontrados:`);
-        console.log(`  - data-testid: ${testIdCount}`);
-        console.log(`  - buttons: ${buttonCount}`);
-        console.log(`  - nav/links: ${navCount}`);
-        
-        // Verificar que NO estamos en página de login o error
+        // Verificar que NO estamos en página de login primero (más importante)
         const currentURL = page.url();
         const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
-        const isErrorPage = (bodyText || '').toLowerCase().includes('error') || (bodyText || '').toLowerCase().includes('not found');
         
         if (isLoginPage) {
           console.error('❌ [AUTH VALIDATION] Todavía en página de login - autenticación no exitosa');
@@ -1262,7 +1244,24 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           };
         }
         
-        if (isErrorPage && testIdCount === 0 && buttonCount === 0) {
+        // Verificar elementos disponibles (más flexible - solo necesita encontrar ALGUNOS elementos)
+        const testIdCount = await page.locator('[data-testid]').count().catch(() => 0);
+        const buttonCount = await page.locator('button').count().catch(() => 0);
+        const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count().catch(() => 0);
+        const linkCount = await page.locator('a').count().catch(() => 0);
+        const bodyText = await page.locator('body').textContent().catch(() => null) || '';
+        
+        console.log(`🔍 [AUTH VALIDATION] Elementos encontrados:`);
+        console.log(`  - data-testid: ${testIdCount}`);
+        console.log(`  - buttons: ${buttonCount}`);
+        console.log(`  - nav/links: ${navCount}`);
+        console.log(`  - total links: ${linkCount}`);
+        console.log(`  - URL: ${currentURL}`);
+        
+        // Verificar si es página de error (solo si realmente no hay nada)
+        const isErrorPage = (bodyText || '').toLowerCase().includes('error') || (bodyText || '').toLowerCase().includes('not found');
+        
+        if (isErrorPage && testIdCount === 0 && buttonCount === 0 && linkCount === 0) {
           console.error('❌ [AUTH VALIDATION] Parece ser una página de error sin contenido');
           return {
             success: false,
@@ -1271,41 +1270,86 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           };
         }
         
-        if (testIdCount === 0 && buttonCount === 0 && navCount === 0) {
-          console.error('❌ [AUTH VALIDATION] No se encontraron elementos de página autenticada');
-          console.error(`❌ [AUTH VALIDATION] URL actual: ${page.url()}`);
+        // Validación más flexible: si encontramos CUALQUIER elemento interactivo o la URL es correcta, asumir éxito
+        const hasAnyInteractiveElement = testIdCount > 0 || buttonCount > 0 || navCount > 0 || linkCount > 5;
+        const isCorrectDomain = currentURL.includes('qa.cookunity.com') || currentURL.includes('subscription.qa.cookunity.com');
+        
+        if (!hasAnyInteractiveElement && !isCorrectDomain) {
+          console.warn('⚠️ [AUTH VALIDATION] No se encontraron elementos inicialmente, intentando estrategias adicionales...');
           
-          // Verificar el título de la página
-          const pageTitle = await page.title().catch(() => 'Unknown');
-          console.error(`❌ [AUTH VALIDATION] Título de página: ${pageTitle}`);
+          // ESTRATEGIA DE RECUPERACIÓN: Esperar un poco más y verificar de nuevo
+          console.log('⏳ [AUTH VALIDATION] Esperando 3 segundos adicionales para carga dinámica...');
+          await page.waitForTimeout(3000);
           
-          // Capturar snapshot para ver qué hay
-          const snapshot = await page.accessibility.snapshot().catch(() => null);
-          if (snapshot) {
-            const snapshotStr = JSON.stringify(snapshot).substring(0, 500);
-            console.error(`❌ [AUTH VALIDATION] Contenido detectado: ${snapshotStr}`);
-          }
+          // Verificar de nuevo después de esperar
+          const retryTestIdCount = await page.locator('[data-testid]').count().catch(() => 0);
+          const retryButtonCount = await page.locator('button').count().catch(() => 0);
+          const retryLinkCount = await page.locator('a').count().catch(() => 0);
           
-          // Tomar screenshot para debug
-          try {
-            await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
-            console.log('📸 [AUTH VALIDATION] Screenshot guardado en /tmp/post-login-page.png');
-          } catch (screenshotError) {
-            console.error('⚠️ No se pudo tomar screenshot');
-          }
+          console.log(`🔍 [AUTH VALIDATION] Reintento - Elementos encontrados:`);
+          console.log(`  - data-testid: ${retryTestIdCount}`);
+          console.log(`  - buttons: ${retryButtonCount}`);
+          console.log(`  - total links: ${retryLinkCount}`);
           
-          // Retornar error - el login no fue exitoso
-          return {
-            success: false,
-            error: 'Autenticación fallida - no se encontraron elementos de página autenticada después del login',
-            url: page.url(),
-            details: {
-              testIdCount,
-              buttonCount,
-              navCount,
-              pageTitle
+          const retryHasElements = retryTestIdCount > 0 || retryButtonCount > 0 || retryLinkCount > 5;
+          
+          if (!retryHasElements && !isCorrectDomain) {
+            // Última verificación: buscar elementos más básicos (inputs, divs con contenido)
+            const inputCount = await page.locator('input').count().catch(() => 0);
+            const divCount = await page.locator('div').count().catch(() => 0);
+            const bodyLength = bodyText.length;
+            
+            console.log(`🔍 [AUTH VALIDATION] Verificación final - Elementos básicos:`);
+            console.log(`  - inputs: ${inputCount}`);
+            console.log(`  - divs: ${divCount}`);
+            console.log(`  - body text length: ${bodyLength}`);
+            
+            // Si hay contenido sustancial en la página (más de 100 caracteres) y estamos en el dominio correcto, asumir éxito
+            const hasSubstantialContent = bodyLength > 100 && (inputCount > 0 || divCount > 5);
+            
+            if (!hasSubstantialContent && !isCorrectDomain) {
+              console.error('❌ [AUTH VALIDATION] No se encontraron elementos de página autenticada después de todos los intentos');
+              console.error(`❌ [AUTH VALIDATION] URL actual: ${page.url()}`);
+              
+              // Verificar el título de la página
+              const pageTitle = await page.title().catch(() => 'Unknown');
+              console.error(`❌ [AUTH VALIDATION] Título de página: ${pageTitle}`);
+              
+              // Capturar snapshot para ver qué hay
+              const snapshot = await page.accessibility.snapshot().catch(() => null);
+              if (snapshot) {
+                const snapshotStr = JSON.stringify(snapshot).substring(0, 500);
+                console.error(`❌ [AUTH VALIDATION] Contenido detectado: ${snapshotStr}`);
+              }
+              
+              // Tomar screenshot para debug
+              try {
+                await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
+                console.log('📸 [AUTH VALIDATION] Screenshot guardado en /tmp/post-login-page.png');
+              } catch (screenshotError) {
+                console.error('⚠️ No se pudo tomar screenshot');
+              }
+              
+              // Retornar error - el login no fue exitoso
+              return {
+                success: false,
+                error: 'Autenticación fallida - no se encontraron elementos de página autenticada después del login',
+                url: page.url(),
+                details: {
+                  testIdCount,
+                  buttonCount,
+                  navCount,
+                  linkCount,
+                  pageTitle,
+                  url: currentURL
+                }
+              };
+            } else {
+              console.log('✅ [AUTH VALIDATION] Validación exitosa en reintento - hay contenido sustancial en la página');
             }
-          };
+          } else {
+            console.log('✅ [AUTH VALIDATION] Validación exitosa en reintento - elementos encontrados');
+          }
         } else {
           // Listar algunos testIds para verificar
           const testIds = await Promise.all(
@@ -1324,12 +1368,24 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
         
         if (isLoginPage) {
-          // Si estamos en login page, definitivamente falló
-          return {
-            success: false,
-            error: `Error validando autenticación: todavía en página de login`,
-            url: currentURL
-          };
+          // Si estamos en login page, intentar una última vez esperando más tiempo
+          console.warn('⚠️ [AUTH VALIDATION] Todavía en login page, esperando 5 segundos más antes de fallar...');
+          await page.waitForTimeout(5000);
+          
+          // Verificar una última vez
+          const finalURL = page.url();
+          const stillInLogin = finalURL.includes('auth.qa.cookunity.com') || finalURL.includes('/login');
+          
+          if (stillInLogin) {
+            // Definitivamente falló
+            return {
+              success: false,
+              error: `Error validando autenticación: todavía en página de login después de esperar`,
+              url: finalURL
+            };
+          } else {
+            console.log('✅ [AUTH VALIDATION] Redirigido después de esperar, continuando...');
+          }
         } else {
           // Si no estamos en login, continuar (puede ser que la página esté cargando)
           console.warn('⚠️ [AUTH VALIDATION] Error en validación pero no estamos en login, continuando...');
