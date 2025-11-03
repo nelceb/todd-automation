@@ -2760,15 +2760,20 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       }
     }
     
-    // 🎯 Mapeo de intenciones a métodos existentes
+    // 🎯 Mapeo de intenciones a métodos existentes (mejorado para detectar más variantes)
     const intentMappings: { [key: string]: string[] } = {
       'add to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
       'add first item to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
       'add second item to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
-      'go to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
-      'navigate to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
-      'open cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart'],
-      'view cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart']
+      'add the first item': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'add the second item': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'click on add to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
+      'go to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
+      'navigate to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
+      'open cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
+      'view cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
+      'click on the cart icon': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
+      'click cart icon': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon']
     };
     
     // Primero buscar por intención (más preciso)
@@ -2798,14 +2803,22 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         return method;
       }
       
-      // Mapeo específico de elementos a métodos conocidos
+      // Mapeo específico de elementos a métodos conocidos (mejorado para reutilizar métodos)
       const elementMappings: { [key: string]: string[] } = {
         'menuitem': ['addMeal', 'addMealButton', 'add'],
         'menuitem1': ['addMeal', 'addMealButton', 'add'],
         'menuitem2': ['addMeal', 'addMealButton', 'add'],
-        'cartpage': ['cartButton', 'cart', 'viewCart'],
-        'cart': ['cartButton', 'cart', 'viewCart'],
-        'carticon': ['cartButton', 'cart', 'viewCart']
+        'addtocartbutton': ['addMeal', 'addMealButton', 'add'], // addToCartButton → clickOnAddMealButton
+        'addtocartbutton1': ['addMeal', 'addMealButton', 'add'], // addToCartButton1 → clickOnAddMealButton (primer elemento)
+        'addtocartbutton2': ['addMeal', 'addMealButton', 'add'], // addToCartButton2 → clickOnAddMealButton (segundo elemento)
+        'addtocart': ['addMeal', 'addMealButton', 'add'],
+        'cartpage': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
+        'cart': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
+        'carticon': ['cartButton', 'cart', 'viewCart', 'navigateToCart', 'navigateToCartIcon'], // cartIcon → clickOnCartButton o navigateToCartIcon
+        'cartitem': ['cartItem', 'cartItem1', 'cartItem2'], // Para assertions
+        'cartitem1': ['cartItem1', 'cartItem'], // Para assertions
+        'cartitem2': ['cartItem2', 'cartItem'], // Para assertions
+        'cartitemcount': ['cartItemCount', 'cartCount'] // Para assertions
       };
       
       for (const [elemKey, methodPatterns] of Object.entries(elementMappings)) {
