@@ -431,177 +431,34 @@ export default function TestGenerator() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-6"
             >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                  Generating Test...
-                </h3>
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Choose Generation Mode</h3>
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                  Generate tests from Jira tickets or use natural language with Claude AI
+                </p>
+              </div>
+              
+              <div className="flex gap-4 justify-center">
                 <button
-                  onClick={() => setShowProgress(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setMode('jira')}
+                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                    mode === 'jira'
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
+                  }`}
                 >
-                  <XCircleIcon className="w-5 h-5" />
+                  📋 Jira Issue
                 </button>
-              </div>
-              <div 
-                ref={progressContainerRef}
-                className="space-y-2 max-h-96 overflow-y-auto"
-              >
-                {/* Todos los pasos en orden cronológico (de arriba hacia abajo) */}
-                {progressLog.length > 0 ? (
-                  progressLog
-                    .sort((a, b) => a.timestamp - b.timestamp) // Orden cronológico
-                    .map((log, index) => {
-                      const isLastInfo = log.status === 'info' && 
-                        progressLog.filter(l => l.status === 'info').slice(-1)[0]?.timestamp === log.timestamp;
-                      const isActive = isLastInfo;
-                      
-                      return (
-                        <div
-                          key={`log-${index}-${log.timestamp}`}
-                          className={`flex items-start space-x-3 p-3 rounded-lg transition-all ${
-                            log.status === 'success' 
-                              ? 'bg-green-50 border-l-4 border-green-400' 
-                              : log.status === 'warning' 
-                              ? 'bg-yellow-50 border-l-4 border-yellow-400' 
-                              : log.status === 'error' 
-                              ? 'bg-red-50 border-l-4 border-red-400' 
-                              : isActive
-                              ? 'bg-blue-50 border-l-4 border-blue-400 shadow-sm' // Paso activo destacado
-                              : 'bg-blue-50 border-l-4 border-blue-400'
-                          }`}
-                        >
-                          <div className="flex-shrink-0 pt-0.5">
-                            {log.status === 'success' && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
-                            {log.status === 'warning' && <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />}
-                            {log.status === 'error' && <XCircleIcon className="w-5 h-5 text-red-500" />}
-                            {log.status === 'info' && (
-                              <ClockIcon 
-                                className={`w-5 h-5 text-blue-500 ${isActive ? 'animate-pulse' : ''}`} 
-                              />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm capitalize mb-1 ${
-                              isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'
-                            }`}>
-                              {log.step}
-                            </p>
-                            <p className={`text-sm ${
-                              isActive ? 'text-gray-700' : 'text-gray-600'
-                            }`}>
-                              {log.message}
-                            </p>
-                            {log.details && (
-                              <pre className="text-xs text-gray-500 mt-1 bg-gray-100 p-2 rounded overflow-x-auto">
-                                {JSON.stringify(log.details, null, 2)}
-                              </pre>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400 whitespace-nowrap pt-1">
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </div>
-                        </div>
-                      );
-                    })
-                ) : (
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    Waiting for progress updates...
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-          )}
-
-          {/* Progress Log - Aparece DESPUÉS del formulario cuando se está generando */}
-          {showProgress && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 bg-white/20 border border-gray-300/50 rounded-xl shadow-lg relative z-10"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                    Generating Test...
-                  </h3>
-                  <button
-                    onClick={() => setShowProgress(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XCircleIcon className="w-5 h-5" />
-                  </button>
-                </div>
-                <div 
-                  ref={progressContainerRef}
-                  className="space-y-2 max-h-96 overflow-y-auto"
+                <button
+                  onClick={() => setMode('natural')}
+                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                    mode === 'natural'
+                      ? 'bg-purple-500 text-white shadow-md'
+                      : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
+                  }`}
                 >
-                  {/* Todos los pasos en orden cronológico (de arriba hacia abajo) */}
-                  {progressLog.length > 0 ? (
-                    progressLog
-                      .sort((a, b) => a.timestamp - b.timestamp) // Orden cronológico
-                      .map((log, index) => {
-                        const isLastInfo = log.status === 'info' && 
-                          progressLog.filter(l => l.status === 'info').slice(-1)[0]?.timestamp === log.timestamp;
-                        const isActive = isLastInfo;
-                        
-                        return (
-                          <div
-                            key={`log-${index}-${log.timestamp}`}
-                            className={`flex items-start space-x-3 p-3 rounded-lg transition-all ${
-                              log.status === 'success' 
-                                ? 'bg-green-50 border-l-4 border-green-400' 
-                                : log.status === 'warning' 
-                                ? 'bg-yellow-50 border-l-4 border-yellow-400' 
-                                : log.status === 'error' 
-                                ? 'bg-red-50 border-l-4 border-red-400' 
-                                : isActive
-                                ? 'bg-blue-50 border-l-4 border-blue-400 shadow-sm' // Paso activo destacado
-                                : 'bg-blue-50 border-l-4 border-blue-400'
-                            }`}
-                          >
-                            <div className="flex-shrink-0 pt-0.5">
-                              {log.status === 'success' && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
-                              {log.status === 'warning' && <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />}
-                              {log.status === 'error' && <XCircleIcon className="w-5 h-5 text-red-500" />}
-                              {log.status === 'info' && (
-                                <ClockIcon 
-                                  className={`w-5 h-5 text-blue-500 ${isActive ? 'animate-pulse' : ''}`} 
-                                />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm capitalize mb-1 ${
-                                isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-900'
-                              }`}>
-                                {log.step}
-                              </p>
-                              <p className={`text-sm ${
-                                isActive ? 'text-gray-700' : 'text-gray-600'
-                              }`}>
-                                {log.message}
-                              </p>
-                              {log.details && (
-                                <pre className="text-xs text-gray-500 mt-1 bg-gray-100 p-2 rounded overflow-x-auto">
-                                  {JSON.stringify(log.details, null, 2)}
-                                </pre>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-400 whitespace-nowrap pt-1">
-                              {new Date(log.timestamp).toLocaleTimeString()}
-                            </div>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      Waiting for progress updates...
-                    </div>
-                  )}
-                </div>
+                  💬 Natural Language (Claude AI)
+                </button>
               </div>
             </motion.div>
           )}
