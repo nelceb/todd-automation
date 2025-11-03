@@ -58,9 +58,18 @@ export async function POST(request: NextRequest) {
     })
 
     if (!jiraUrl || !username || !apiToken) {
-      console.log('Missing Jira configuration')
+      const missing = []
+      if (!jiraUrl) missing.push('JIRA_URL')
+      if (!username) missing.push('JIRA_USERNAME')
+      if (!apiToken) missing.push('JIRA_API_TOKEN')
+      
+      console.error('❌ Missing Jira configuration:', missing.join(', '))
       return NextResponse.json(
-        { error: 'Jira configuration not found in environment variables' },
+        { 
+          success: false,
+          error: `Jira configuration incomplete. Missing environment variables: ${missing.join(', ')}. Please configure them in Vercel.`,
+          missingVariables: missing
+        },
         { status: 500 }
       )
     }
@@ -102,10 +111,14 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in Jira API:', error)
+    console.error('❌ Error in Jira API:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
-      { error: 'Failed to fetch Jira issue: ' + (error instanceof Error ? error.message : 'Unknown error') },
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch Jira issue: Unknown error',
+        details: 'Check JIRA_URL, JIRA_USERNAME, and JIRA_API_TOKEN in Vercel environment variables'
+      },
       { status: 500 }
     )
   }
@@ -143,9 +156,31 @@ async function fetchJiraIssue(
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Jira API error response:', errorText)
-      throw new Error(`Jira API error: ${response.status} - ${errorText}`)
+      let errorText = ''
+      try {
+        errorText = await response.text()
+      } catch {
+        errorText = response.statusText || 'Unknown error'
+      }
+      
+      console.error('❌ Jira API error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText: errorText.substring(0, 500)
+      })
+      
+      let errorMessage = `Jira API error: ${response.status}`
+      if (response.status === 401) {
+        errorMessage = 'Authentication failed. Please verify JIRA_USERNAME and JIRA_API_TOKEN are correct in Vercel environment variables.'
+      } else if (response.status === 403) {
+        errorMessage = 'Access forbidden. Please verify the API token has permission to read issues.'
+      } else if (response.status === 404) {
+        errorMessage = `Issue ${issueKey} not found. Please verify the issue key is correct.`
+      } else {
+        errorMessage = `Jira API error (${response.status}): ${errorText.substring(0, 200)}`
+      }
+      
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()

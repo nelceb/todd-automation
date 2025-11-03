@@ -348,7 +348,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       
       // 9. 🎯 GIT MANAGEMENT: Crear branch y preparar PR
       console.log('🌿 Playwright MCP: Creando branch y preparando PR...');
-      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration);
+      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle);
       
       return {
         success: true,
@@ -420,7 +420,18 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
 
 export async function POST(request: NextRequest) {
   try {
-    const requestData = await request.json();
+    let requestData
+    try {
+      requestData = await request.json()
+    } catch (jsonError) {
+      console.error('❌ Error parsing request JSON:', jsonError)
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid JSON in request body',
+        fallback: true
+      }, { status: 400 })
+    }
+    
     const acceptanceCriteria = requestData.acceptanceCriteria;
     const ticketId = requestData.ticketId;
     const ticketTitle = requestData.ticketTitle || requestData.acceptanceCriteria?.title; // Aceptar ticketTitle o title del acceptanceCriteria
@@ -687,12 +698,18 @@ Responde SOLO con JSON válido en este formato:
 // 🎯 ANALIZAR CODEBASE REAL - Consulta GitHub API para obtener tests y page objects de pw-cookunity-automation
 async function analyzeCodebaseForPatterns() {
   try {
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN_NELCEB || process.env.GITHUB_TOKEN;
-    const REPOSITORY = 'Cook-Unity/pw-cookunity-automation';
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
     const BASE_PATH = 'tests/frontend/desktop/subscription/coreUx';
     
-    if (!GITHUB_TOKEN) {
-      console.log('⚠️ GITHUB_TOKEN no configurado, usando patrones estáticos');
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      const missing = []
+      if (!GITHUB_TOKEN) missing.push('GITHUB_TOKEN')
+      if (!GITHUB_OWNER) missing.push('GITHUB_OWNER')
+      if (!GITHUB_REPO) missing.push('GITHUB_REPO')
+      console.log(`⚠️ GitHub configuration incomplete. Missing: ${missing.join(', ')}. Using static patterns.`);
       return getStaticPatterns();
     }
     
@@ -3628,23 +3645,43 @@ ${interpretation.assertions
 }
 
 // 🎯 GIT MANAGEMENT: Crear branch y PR real usando GitHub API
-async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any) {
+async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string) {
+  // Declarar variables fuera del try para que estén disponibles en el catch
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  const GITHUB_OWNER = process.env.GITHUB_OWNER;
+  const GITHUB_REPO = process.env.GITHUB_REPO;
+  const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+  
   try {
     console.log('🌿 Creando feature branch y PR...');
     
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN_NELCEB || process.env.GITHUB_TOKEN;
-    const REPOSITORY = 'Cook-Unity/pw-cookunity-automation'; // Repo donde se crean los tests
+    console.log('🔑 Verificando GitHub configuración:', {
+      hasToken: !!GITHUB_TOKEN,
+      owner: GITHUB_OWNER,
+      repo: GITHUB_REPO,
+      repository: REPOSITORY
+    });
     
-    if (!GITHUB_TOKEN) {
-      console.warn('⚠️ GITHUB_TOKEN no configurado, solo preparando comandos Git');
-      return createFeatureBranchAndPRSimulated(interpretation, codeGeneration);
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      const missing = []
+      if (!GITHUB_TOKEN) missing.push('GITHUB_TOKEN')
+      if (!GITHUB_OWNER) missing.push('GITHUB_OWNER')
+      if (!GITHUB_REPO) missing.push('GITHUB_REPO')
+      
+      console.warn(`⚠️ GitHub configuration incomplete. Missing: ${missing.join(', ')}. Only preparing Git commands.`);
+      const simulatedResult = createFeatureBranchAndPRSimulated(interpretation, codeGeneration, ticketId, ticketTitle);
+      return {
+        ...simulatedResult,
+        warning: `GitHub API not configured. Missing environment variables: ${missing.join(', ')}. Please configure them in Vercel to enable automatic PR creation.`,
+        missingVariables: missing
+      };
     }
     
-    // 1. Extraer ticket ID
-    const ticketId = extractTicketId(interpretation);
+    // 1. Usar ticketId pasado como parámetro o extraerlo
+    const finalTicketId = ticketId || extractTicketId(interpretation);
     
-    // 2. Generar nombre de branch
-    const branchName = generateBranchName(ticketId, interpretation);
+    // 2. Generar nombre de branch (mejorado con ticketId y título)
+    const branchName = generateBranchName(finalTicketId, interpretation, ticketTitle);
     
     // 3. Obtener SHA del branch base (main o develop)
     const baseBranch = 'main';
@@ -3656,7 +3693,29 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     });
     
     if (!baseResponse.ok) {
-      throw new Error(`Failed to get base branch: ${baseResponse.statusText}`);
+      const errorText = await baseResponse.text();
+      let errorMessage = `Failed to get base branch: ${baseResponse.statusText}`;
+      
+      if (baseResponse.status === 401) {
+        errorMessage += ` (Unauthorized - Please verify GITHUB_TOKEN has correct permissions for repository ${REPOSITORY})`;
+        console.error('❌ GitHub Authentication Error:', {
+          status: baseResponse.status,
+          statusText: baseResponse.statusText,
+          repository: REPOSITORY,
+          tokenLength: GITHUB_TOKEN?.length,
+          tokenPrefix: GITHUB_TOKEN?.substring(0, 10),
+          errorBody: errorText
+        });
+      } else {
+        console.error('❌ GitHub API Error:', {
+          status: baseResponse.status,
+          statusText: baseResponse.statusText,
+          repository: REPOSITORY,
+          errorBody: errorText
+        });
+      }
+      
+      throw new Error(errorMessage);
     }
     
     const baseData = await baseResponse.json();
@@ -3684,7 +3743,7 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     console.log(`✅ Branch creado: ${branchName}`);
     
     // 5. Preparar archivos para commit
-    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId);
+    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null);
     const huskyConfig = {
       file: '.husky/pre-commit',
       content: `#!/usr/bin/env sh
@@ -3757,8 +3816,16 @@ npm run test:playwright || exit 1
       console.log(`✅ Archivo creado/actualizado: ${file.file}`);
     }
     
-    // 7. Crear Pull Request
-    const prTitle = `QA-${ticketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`;
+    // 7. Crear Pull Request (usar título del ticket si está disponible)
+    const prTitle = ticketTitle 
+      ? ticketTitle.replace(/^QA-\d+\s*-\s*/, '') // Remover prefijo si ya está incluido
+      : `QA-${finalTicketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`;
+    
+    // Asegurar que el PR title tenga el ticket ID
+    const finalPRTitle = prTitle.startsWith(`QA-${finalTicketId || 'AUTO'}`)
+      ? prTitle
+      : `QA-${finalTicketId || 'AUTO'} - ${prTitle}`;
+    
     const prDescription = generatePRDescription(interpretation, codeGeneration);
     
     const prResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/pulls`, {
@@ -3769,7 +3836,7 @@ npm run test:playwright || exit 1
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        title: prTitle,
+        title: finalPRTitle,
         body: prDescription,
         head: branchName,
         base: baseBranch,
@@ -3803,20 +3870,38 @@ npm run test:playwright || exit 1
     
   } catch (error) {
     console.error('❌ Error en createFeatureBranchAndPR:', error);
-    // Fallback a modo simulado
+    // Fallback a modo simulado con información del error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Error detallado en createFeatureBranchAndPR:`, errorMessage);
+    
     return {
-      ...createFeatureBranchAndPRSimulated(interpretation, codeGeneration),
-      error: error instanceof Error ? error.message : String(error),
-      warning: 'PR creation failed, returning simulated commands'
+      ...createFeatureBranchAndPRSimulated(interpretation, codeGeneration, ticketId, ticketTitle),
+      error: errorMessage,
+      warning: `PR creation failed: ${errorMessage}`,
+      debug: {
+        hasToken: !!GITHUB_TOKEN,
+        tokenLength: GITHUB_TOKEN?.length || 0,
+        hasOwner: !!process.env.GITHUB_OWNER,
+        hasRepo: !!process.env.GITHUB_REPO,
+        owner: GITHUB_OWNER,
+        repo: GITHUB_REPO,
+        repository: REPOSITORY,
+        errorType: errorMessage.includes('Unauthorized') ? 'AUTH_ERROR' : 'UNKNOWN_ERROR'
+      },
+      suggestion: errorMessage.includes('Unauthorized') 
+        ? 'GitHub authentication failed. Please verify: 1) GITHUB_TOKEN is valid and has "repo" scope, 2) GITHUB_OWNER is correct (e.g., "Cook-Unity"), 3) GITHUB_REPO is correct (e.g., "pw-cookunity-automation"). Token format should be: ghp_xxx or github_pat_xxx'
+        : errorMessage.includes('404') || errorMessage.includes('not found')
+        ? `Repository not found. Please verify GITHUB_OWNER="${GITHUB_OWNER}" and GITHUB_REPO="${GITHUB_REPO}" are correct. The repository should be accessible at: https://github.com/${REPOSITORY}`
+        : 'Check GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO in Vercel environment variables. Ensure the token has repository access permissions.'
     };
   }
 }
 
 // Función de respaldo para cuando no hay GITHUB_TOKEN
-function createFeatureBranchAndPRSimulated(interpretation: any, codeGeneration: any) {
-  const ticketId = extractTicketId(interpretation);
-  const branchName = generateBranchName(ticketId, interpretation);
-  const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId);
+function createFeatureBranchAndPRSimulated(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string) {
+  const finalTicketId = ticketId || extractTicketId(interpretation);
+  const branchName = generateBranchName(finalTicketId, interpretation, ticketTitle);
+  const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null);
   const huskyConfig = {
     file: '.husky/pre-commit',
     content: `#!/usr/bin/env sh
@@ -3860,17 +3945,37 @@ function extractTicketId(interpretation: any) {
   return match ? match[1] : null;
 }
 
-// Generar nombre de branch
-function generateBranchName(ticketId: string | null, interpretation: any) {
-  const baseName = interpretation.context.toLowerCase();
-  const cleanName = baseName.replace(/[^a-z0-9]/g, '-');
+// Generar nombre de branch (mejorado con ticketId y título descriptivo)
+function generateBranchName(ticketId: string | null, interpretation: any, ticketTitle?: string) {
+  // Si tenemos ticketId, usarlo; sino usar timestamp
+  const ticketPart = ticketId ? `QA-${ticketId}` : `QA-AUTO-${Date.now().toString().slice(-6)}`;
   
-  if (ticketId) {
-    return `feature/QA-${ticketId}-${cleanName}-test`;
-  } else {
-    const timestamp = Date.now().toString().slice(-6);
-    return `feature/QA-AUTO-${cleanName}-test-${timestamp}`;
+  // Si tenemos título del ticket, extraer parte descriptiva (sin el QA-XXXX)
+  let descriptivePart = '';
+  if (ticketTitle) {
+    // Remover prefijo "QA-XXXX - " si existe
+    const cleanTitle = ticketTitle.replace(/^QA-\d+\s*-\s*/i, '').trim();
+    // Tomar primeras palabras y limpiar para branch name
+    const words = cleanTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remover caracteres especiales excepto guiones y espacios
+      .split(/\s+/)
+      .slice(0, 5) // Máximo 5 palabras para no hacer el branch name muy largo
+      .join('-')
+      .substring(0, 50); // Limitar a 50 caracteres
+    
+    if (words.length > 0) {
+      descriptivePart = `-${words}`;
+    }
   }
+  
+  // Si no hay título descriptivo, usar context como fallback
+  if (!descriptivePart) {
+    const baseName = interpretation.context.toLowerCase();
+    descriptivePart = `-${baseName.replace(/[^a-z0-9]/g, '-')}`;
+  }
+  
+  return `feature/${ticketPart}${descriptivePart}`;
 }
 
 // Generar descripción del PR

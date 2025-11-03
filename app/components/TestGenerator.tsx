@@ -151,10 +151,41 @@ export default function TestGenerator() {
       })
 
       if (!response.ok) {
-        throw new Error(`Playwright MCP failed: ${response.status} ${response.statusText}`)
+        // Intentar obtener el mensaje de error como texto primero
+        let errorMessage = `Playwright MCP failed: ${response.status} ${response.statusText}`
+        try {
+          const errorText = await response.text()
+          // Intentar parsear como JSON
+          try {
+            const errorJson = JSON.parse(errorText)
+            errorMessage = errorJson.error || errorMessage
+          } catch {
+            // Si no es JSON, usar el texto directamente
+            errorMessage = errorText || errorMessage
+          }
+        } catch {
+          // Si falla obtener el texto, usar el mensaje por defecto
+        }
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
+      // Intentar parsear JSON, con manejo de errores si la respuesta no es JSON válido
+      let data
+      try {
+        const responseText = await response.text()
+        if (!responseText) {
+          throw new Error('Empty response from server')
+        }
+        try {
+          data = JSON.parse(responseText)
+        } catch (jsonError) {
+          // Si no es JSON válido, crear un objeto de error estructurado
+          console.error('❌ Response is not valid JSON:', responseText.substring(0, 200))
+          throw new Error(`Invalid JSON response from server: ${responseText.substring(0, 100)}...`)
+        }
+      } catch (parseError) {
+        throw new Error(`Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+      }
 
       // Logs de progreso derivados de la respuesta real
       setProgressLog(prev => [
@@ -210,7 +241,14 @@ export default function TestGenerator() {
         })
       })
       
-      const mcpData = await mcpResponse.json()
+      let mcpData
+      try {
+        const responseText = await mcpResponse.text()
+        mcpData = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' }
+      } catch (parseError) {
+        console.error('❌ Failed to parse MCP response:', parseError)
+        mcpData = { success: false, error: `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}` }
+      }
       
       if (mcpData.success) {
         // Use Playwright MCP result (observed behavior!)
@@ -239,7 +277,14 @@ export default function TestGenerator() {
         })
       })
       
-      const smartData = await smartResponse.json()
+      let smartData
+      try {
+        const responseText = await smartResponse.text()
+        smartData = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' }
+      } catch (parseError) {
+        console.error('❌ Failed to parse Smart Synapse response:', parseError)
+        smartData = { success: false, error: `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}` }
+      }
       
       if (smartData.success) {
         setGeneratedTest({
@@ -264,7 +309,14 @@ export default function TestGenerator() {
           })
         })
         
-        const data = await response.json()
+        let data
+        try {
+          const responseText = await response.text()
+          data = responseText ? JSON.parse(responseText) : { success: false, error: 'Empty response' }
+        } catch (parseError) {
+          console.error('❌ Failed to parse generate-test response:', parseError)
+          data = { success: false, error: `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}` }
+        }
         
         if (data.success) {
           setGeneratedTest(data.generatedTest)
