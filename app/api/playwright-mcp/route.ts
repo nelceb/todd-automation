@@ -234,7 +234,7 @@ async function anthropicJSON(systemPrompt: string, userMessage: string) {
 }
 
 // Función principal extraída que puede ser llamada directamente (sin HTTP fetch)
-export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?: string) {
+export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?: string, ticketTitle?: string) {
   let browser: Browser | null = null;
   
   try {
@@ -330,7 +330,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     console.log(`✅ Playwright MCP: Observados ${behavior.elements.length} elementos`);
     
     // 6. Generar test con datos reales observados
-    const smartTest = generateTestFromObservations(interpretation, navigation, behavior, ticketId);
+    const smartTest = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
     
     // 7. 🎯 VALIDACIÓN: Verificar estructura del test (no bloquear si es menor)
     console.log('🧪 Playwright MCP: Verificando estructura del test...');
@@ -390,7 +390,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       const interpretation = await interpretAcceptanceCriteria(acceptanceCriteria);
       if (interpretation) {
         // Generar test básico sin observaciones si hay error
-        const basicTest = generateTestFromObservations(interpretation, { success: false }, { observed: false, elements: [], interactions: [] }, ticketId);
+        const basicTest = generateTestFromObservations(interpretation, { success: false }, { observed: false, elements: [], interactions: [] }, ticketId, ticketTitle);
         
         return {
           success: true, // Aún así devolver éxito con test básico
@@ -423,6 +423,7 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json();
     const acceptanceCriteria = requestData.acceptanceCriteria;
     const ticketId = requestData.ticketId;
+    const ticketTitle = requestData.ticketTitle || requestData.acceptanceCriteria?.title; // Aceptar ticketTitle o title del acceptanceCriteria
     
     if (!acceptanceCriteria) {
       return NextResponse.json({ 
@@ -431,7 +432,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const result = await executePlaywrightMCP(acceptanceCriteria, ticketId);
+    const result = await executePlaywrightMCP(acceptanceCriteria, ticketId, ticketTitle);
     return NextResponse.json(result, { status: result.success ? 200 : 200 });
   } catch (error) {
     console.error('❌ Error in POST handler:', error);
@@ -2429,10 +2430,24 @@ async function simulateBehavior(interpretation: any) {
 }
 
 // Generar test desde observaciones reales
-function generateTestFromObservations(interpretation: any, navigation: any, behavior: any, ticketId?: string) {
+function generateTestFromObservations(interpretation: any, navigation: any, behavior: any, ticketId?: string, ticketTitle?: string) {
   // Normalizar ticketId (evitar duplicar "QA-")
   const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : `QA-${Date.now()}`;
-  const testTitle = `${normalizedTicketId} - ${interpretation.context} Test`;
+  
+  // 🎯 Usar título del ticket de Jira si está disponible, sino usar formato por defecto
+  let testTitle: string;
+  if (ticketTitle) {
+    // Limpiar el título: remover prefijo de ticket si ya está incluido (ej: "QA-2315 - Automate Orders HUB..." → "QA-2315 - Automate Orders HUB...")
+    const cleanTitle = ticketTitle.startsWith(`${normalizedTicketId} - `) 
+      ? ticketTitle 
+      : `${normalizedTicketId} - ${ticketTitle}`;
+    testTitle = cleanTitle;
+    console.log(`✅ Usando título del ticket de Jira: ${testTitle}`);
+  } else {
+    // Fallback al formato anterior si no hay título
+    testTitle = `${normalizedTicketId} - ${interpretation.context} Test`;
+    console.log(`⚠️ No hay título de ticket disponible, usando formato por defecto: ${testTitle}`);
+  }
   const tags = ['@qa', '@e2e'];
   
   if (interpretation.context === 'homepage') tags.push('@home');

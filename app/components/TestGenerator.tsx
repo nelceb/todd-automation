@@ -145,7 +145,8 @@ export default function TestGenerator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           acceptanceCriteria: criteria.description,
-          ticketId: jiraConfig.issueKey
+          ticketId: jiraConfig.issueKey,
+          ticketTitle: criteria.title // Pasar el título completo del ticket de Jira
         })
       })
 
