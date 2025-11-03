@@ -1152,16 +1152,16 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       console.log(`🧭 Navegando a página de login: ${loginURL}`);
       
       try {
-        await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 15000 }); // Reducido de 30s a 15s
         // Esperar de forma más flexible (no bloquear si networkidle falla)
         try {
-          await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+          await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido de 5s a 3s
         } catch (e) {
           console.log('⚠️ waitForLoadState timeout, continuando...');
         }
       } catch (gotoError) {
         console.log('⚠️ Error navegando a login, intentando con load...');
-        await page.goto(loginURL, { waitUntil: 'load', timeout: 30000 });
+        await page.goto(loginURL, { waitUntil: 'load', timeout: 15000 }); // Reducido de 30s a 15s
       }
       
       // Hacer login
@@ -1183,10 +1183,10 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       // Después del login, esperar a que redirija al home autenticado
       console.log('⏳ Esperando redirección después del login...');
-      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
+      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 12000 }); // Reducido de 20s a 12s
       // Esperar de forma flexible (no bloquear si networkidle falla - páginas dinámicas tienen tráfico constante)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Reducido de 10s a 5s
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout después del login, continuando...');
       }
@@ -1289,16 +1289,16 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
     
     // Intentar navegar con diferentes estrategias
     try {
-      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 15000 }); // Reducido de 30s a 15s
       // Esperar de forma flexible (no bloquear si networkidle falla)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido de 5s a 3s
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout, continuando...');
       }
     } catch (gotoError) {
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
-      await page.goto(targetURL, { waitUntil: 'load', timeout: 30000 });
+      await page.goto(targetURL, { waitUntil: 'load', timeout: 15000 }); // Reducido de 30s a 15s
     }
     
     // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
@@ -1352,10 +1352,10 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         if (menuLink) {
           console.log('✅ Encontrado link a menu, haciendo click...');
           await menuLink.click({ timeout: 5000 });
-          await page.waitForURL(/\/menu/, { timeout: 10000 });
+          await page.waitForURL(/\/menu/, { timeout: 8000 }); // Reducido de 10s a 8s
             // Esperar de forma flexible
             try {
-              await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+              await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido de 5s a 3s
             } catch (e) {
               console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
             }
@@ -1674,7 +1674,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
     try {
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Reducido de 10s a 5s
     } catch (e) {
       console.log('⚠️ waitForLoadState timeout en observeBehaviorWithMCP, continuando...');
     }
@@ -1800,7 +1800,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       try {
         // Intentar navegar directamente a OrdersHub
-        await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 15000 }); // Reducido de 30s a 15s
         
         try {
           await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
@@ -1836,7 +1836,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         if (ordersLink) {
           await ordersLink.click();
-          await page.waitForURL(/orders|subscription/, { timeout: 10000 });
+          await page.waitForURL(/orders|subscription/, { timeout: 8000 }); // Reducido de 10s a 8s
           try {
             await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
           } catch (e) {}
@@ -2122,7 +2122,7 @@ async function observeBehavior(page: Page, interpretation: any) {
   try {
     // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
     try {
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Reducido de 10s a 5s
     } catch (e) {
       console.log('⚠️ waitForLoadState timeout en observeBehavior, continuando...');
     }
