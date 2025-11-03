@@ -2521,7 +2521,25 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     testTitle = `${normalizedTicketId} - ${interpretation.context} Test`;
     console.log(`⚠️ No hay título de ticket disponible, usando formato por defecto: ${testTitle}`);
   }
-  const tags = ['@qa', '@e2e'];
+  // Determinar si es ambiente de producción basándose en ticketTitle, ticketId o acceptance criteria
+  const isProduction = ticketTitle?.toLowerCase().includes('prod') || 
+                       ticketTitle?.toLowerCase().includes('production') ||
+                       ticketId?.toLowerCase().includes('prod') ||
+                       interpretation.originalCriteria?.toLowerCase().includes('prod') ||
+                       interpretation.originalCriteria?.toLowerCase().includes('production');
+  
+  const tags = [];
+  
+  // Agregar tag de ambiente (@qa o @prod)
+  if (isProduction) {
+    tags.push('@prod');
+    console.log('🏭 Ambiente detectado: PRODUCTION - agregando tag @prod');
+  } else {
+    tags.push('@qa');
+    console.log('🧪 Ambiente detectado: QA - agregando tag @qa');
+  }
+  
+  tags.push('@e2e');
   
   if (interpretation.context === 'homepage') tags.push('@home');
   if (interpretation.context === 'ordersHub' || interpretation.context === 'pastOrders') tags.push('@subscription');
@@ -4188,7 +4206,9 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     console.log(`✅ Branch creado: ${branchName}`);
     
     // 5. Preparar archivos para commit
-    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null);
+    // Obtener información del spec file generado para el workflow
+    const specFileInfo = codeGeneration.files.find((f: any) => f.type === 'test');
+    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
     const huskyConfig = {
       file: '.husky/pre-commit',
       content: `#!/usr/bin/env sh
@@ -4346,7 +4366,9 @@ npm run test:playwright || exit 1
 function createFeatureBranchAndPRSimulated(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string) {
   const finalTicketId = ticketId || extractTicketId(interpretation);
   const branchName = generateBranchName(finalTicketId, interpretation, ticketTitle);
-  const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null);
+  // Obtener información del spec file generado para el workflow
+  const specFileInfo = codeGeneration.files.find((f: any) => f.type === 'test');
+  const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
   const huskyConfig = {
     file: '.husky/pre-commit',
     content: `#!/usr/bin/env sh
@@ -4463,9 +4485,13 @@ This PR includes:
 - **Status**: Auto-promotion to review on success`;
 }
 
-// 🎯 GENERAR GITHUB ACTIONS WORKFLOW (GENÉRICO)
-function generateGitHubActionsWorkflow(interpretation: any, ticketId: string | null) {
-  // Usar workflow genérico que detecta automáticamente qué tests correr
+// 🎯 GENERAR GITHUB ACTIONS WORKFLOW (EJECUTA SOLO EL TEST GENERADO)
+function generateGitHubActionsWorkflow(interpretation: any, ticketId: string | null, specFileInfo?: any) {
+  // Extraer información del test generado
+  const specFilePath = specFileInfo?.file || `tests/specs/${interpretation.context}.spec.ts`;
+  // Normalizar ticketId para el nombre del test
+  const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : null;
+  
   return {
     file: `.github/workflows/auto-test-pr.yml`,
     content: `name: Auto Test PR
@@ -4476,7 +4502,7 @@ on:
     types: [opened, synchronize]
 
 jobs:
-  detect-and-run-tests:
+  run-generated-test:
     runs-on: ubuntu-latest
     
     steps:
@@ -4497,37 +4523,81 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
       
-    - name: Detect modified test files
-      id: detect-tests
+    - name: Extract test name from PR
+      id: extract-test
       run: |
-        # Detectar archivos de test modificados en el PR
-        CHANGED_FILES=\$(git diff --name-only \${{ github.event.pull_request.base.sha }} \${{ github.sha }} | grep -E '\\.spec\\.ts$' || true)
-        echo "changed_files=\$CHANGED_FILES" >> \$GITHUB_OUTPUT
+        # Intentar extraer el ticketId del título del PR o del branch
+        PR_TITLE="\${{ github.event.pull_request.title }}"
+        BRANCH_NAME="\${{ github.head_ref }}"
+        SPEC_FILE="${specFilePath}"
         
-        # Detectar archivos de page objects modificados
-        CHANGED_PAGES=\$(git diff --name-only \${{ github.event.pull_request.base.sha }} \${{ github.sha }} | grep -E 'Page\\.ts$' || true)
-        echo "changed_pages=\$CHANGED_PAGES" >> \$GITHUB_OUTPUT
-        
-        # Si hay cambios en tests, ejecutar todos los tests relacionados
-        if [ -n "\$CHANGED_FILES" ]; then
-          echo "Tests to run: \$CHANGED_FILES"
-          echo "test_files=\$CHANGED_FILES" >> \$GITHUB_OUTPUT
+        # Buscar ticketId en el título del PR (ej: "QA-2315 - Automate Orders HUB...")
+        if echo "\$PR_TITLE" | grep -qE "QA-[0-9]+"; then
+          TICKET_ID=\$(echo "\$PR_TITLE" | grep -oE "QA-[0-9]+" | head -1)
+          echo "test_filter=--grep \\"\$TICKET_ID\\"" >> \$GITHUB_OUTPUT
+          echo "test_name=\$TICKET_ID" >> \$GITHUB_OUTPUT
+          echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
+        elif echo "\$BRANCH_NAME" | grep -qE "QA-[0-9]+"; then
+          TICKET_ID=\$(echo "\$BRANCH_NAME" | grep -oE "QA-[0-9]+" | head -1)
+          echo "test_filter=--grep \\"\$TICKET_ID\\"" >> \$GITHUB_OUTPUT
+          echo "test_name=\$TICKET_ID" >> \$GITHUB_OUTPUT
+          echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
         else
-          echo "No test files changed"
-          echo "test_files=" >> \$GITHUB_OUTPUT
+          # Fallback: ejecutar solo el archivo spec modificado
+          echo "test_filter=\$SPEC_FILE" >> \$GITHUB_OUTPUT
+          echo "test_name=\$SPEC_FILE" >> \$GITHUB_OUTPUT
+          echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
         fi
+        
+        echo "Spec file: \$SPEC_FILE"
+        echo "Test filter: \${{ steps.extract-test.outputs.test_filter }}"
       
-    - name: Run detected tests
-      if: steps.detect-tests.outputs.test_files != ''
+    - name: Run generated test only
       run: |
-        echo "Running tests: \${{ steps.detect-tests.outputs.test_files }}"
-        npx playwright test \${{ steps.detect-tests.outputs.test_files }} --reporter=github
+        SPEC_FILE="\${{ steps.extract-test.outputs.spec_file }}"
+        TEST_FILTER="\${{ steps.extract-test.outputs.test_filter }}"
+        
+        # Determinar ambiente del PR o branch (QA por defecto)
+        PR_TITLE="\${{ github.event.pull_request.title }}"
+        BRANCH_NAME="\${{ github.head_ref }}"
+        ENVIRONMENT="qa"
+        
+        if echo "\$PR_TITLE" | grep -qiE "prod|production"; then
+          ENVIRONMENT="prod"
+        elif echo "\$BRANCH_NAME" | grep -qiE "prod|production"; then
+          ENVIRONMENT="prod"
+        fi
+        
+        # Configurar BASE_URL según el ambiente
+        if [ "\$ENVIRONMENT" = "prod" ]; then
+          BASE_URL="https://www.cookunity.com"
+        else
+          BASE_URL="https://qa.cookunity.com"
+        fi
+        
+        # Mostrar información del ambiente en consola
+        echo "=========================================="
+        echo "🚀 ENVIRONMENT: \$(echo \$ENVIRONMENT | tr '[:lower:]' '[:upper:]')"
+        echo "🌐 BASE_URL: \$BASE_URL"
+        echo "📁 Test file: \$SPEC_FILE"
+        echo "🔍 Test filter: \$TEST_FILTER"
+        echo "=========================================="
+        
+        if echo "\$TEST_FILTER" | grep -q "^--grep"; then
+          # Ejecutar solo el test que coincide con el ticketId
+          echo "Running test with filter: \$TEST_FILTER in file: \$SPEC_FILE"
+          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE" \$TEST_FILTER
+        else
+          # Fallback: ejecutar solo el archivo spec
+          echo "Running all tests in file: \$TEST_FILTER"
+          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$TEST_FILTER"
+        fi
       env:
         TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
         VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
         
     - name: Update PR status on success
-      if: success() && steps.detect-tests.outputs.test_files != ''
+      if: success()
       uses: actions/github-script@v7
       with:
         script: |
@@ -4549,12 +4619,12 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: "✅ **Tests passed!** PR moved from draft to ready for review.\\n\\n**Tests executed:**\\nCheck the workflow logs for details."
+              body: "✅ **Test passed!** PR moved from draft to ready for review.\\n\\n**Test executed:** \${{ steps.extract-test.outputs.test_name }}\\nCheck the workflow logs for details."
             });
           }
           
     - name: Comment on failure
-      if: failure() && steps.detect-tests.outputs.test_files != ''
+      if: failure()
       uses: actions/github-script@v7
       with:
         script: |
@@ -4562,7 +4632,7 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number,
-            body: "❌ **Tests failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\n**Failed tests:**\\nCheck the workflow logs for details."
+              body: "❌ **Test failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\n**Failed test:** \${{ steps.extract-test.outputs.test_name }}\\nCheck the workflow logs for details."
           });
 `
   };
