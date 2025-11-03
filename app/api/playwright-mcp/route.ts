@@ -1894,20 +1894,94 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           foundBy = 'mcp-snapshot';
           generatedLocator = await mcpWrapper.generateLocator(foundElement);
         } else {
-          // Fallback: usar estrategias anteriores
+          // Fallback: usar estrategias mejoradas para encontrar elementos reales
           const searchTerms = action.intent || action.description || action.element;
+          const searchLower = searchTerms?.toLowerCase() || '';
           
-          // Intentar con getByRole
-          try {
-            foundElement = page.getByRole('button', { name: new RegExp(searchTerms, 'i') }).first();
-            if (await foundElement.isVisible({ timeout: 2000 })) {
-              foundBy = 'mcp-role';
-              generatedLocator = await mcpWrapper.generateLocator(foundElement);
-            } else {
-              foundElement = null;
+          // Estrategia 1: Buscar por testid común (más confiable)
+          if (searchLower.includes('add') && (searchLower.includes('meal') || searchLower.includes('item') || searchLower.includes('cart'))) {
+            try {
+              // Buscar botones "Add meal" que realmente existen en la página
+              const addMealButtons = page.locator('[data-testid*="add-to-cart"]')
+                .or(page.locator('[data-testid*="add-meal"]'))
+                .or(page.locator('button:has-text("Add meal")'))
+                .or(page.getByRole('button', { name: /add meal/i }));
+              const count = await addMealButtons.count();
+              if (count > 0) {
+                foundElement = addMealButtons.first();
+                if (await foundElement.isVisible({ timeout: 2000 })) {
+                  foundBy = 'mcp-testid-add-meal';
+                  generatedLocator = await mcpWrapper.generateLocator(foundElement);
+                  console.log(`✅ Encontrado botón "Add meal" real en la página`);
+                } else {
+                  foundElement = null;
+                }
+              }
+            } catch (e) {
+              console.log(`⚠️ Error buscando add-meal button:`, e);
             }
-          } catch (e) {
-            // Continuar
+          }
+          
+          // Estrategia 2: Buscar por testid "cart" o "view cart"
+          if (!foundElement && (searchLower.includes('cart') || searchLower.includes('view cart'))) {
+            try {
+              foundElement = page.getByTestId('text').filter({ hasText: 'View Cart' }).or(page.locator('button:has-text("View Cart")')).or(page.locator('[data-testid*="cart"]').filter({ hasText: 'Cart' })).first();
+              if (await foundElement.isVisible({ timeout: 2000 })) {
+                foundBy = 'mcp-testid-cart';
+                generatedLocator = await mcpWrapper.generateLocator(foundElement);
+                console.log(`✅ Encontrado botón "Cart" real en la página`);
+              } else {
+                foundElement = null;
+              }
+            } catch (e) {
+              console.log(`⚠️ Error buscando cart button:`, e);
+            }
+          }
+          
+          // Estrategia 3: Buscar en elementos visibles ya observados por testId
+          if (!foundElement && behavior.elements && behavior.elements.length > 0) {
+            // Buscar elementos que coincidan con la intención
+            for (const visibleElement of behavior.elements) {
+              const elementText = (visibleElement.text || '').toLowerCase();
+              const elementTestId = (visibleElement.testId || '').toLowerCase();
+              
+              if (searchLower && (
+                elementText.includes(searchLower) || 
+                elementTestId.includes(searchLower) ||
+                (searchLower.includes('add') && (elementText.includes('add meal') || elementTestId.includes('add-to-cart') || elementTestId.includes('add-meal'))) ||
+                (searchLower.includes('cart') && (elementText.includes('cart') || elementText.includes('view') || elementTestId.includes('cart')))
+              )) {
+                try {
+                  // Buscar el elemento por testId
+                  if (visibleElement.testId) {
+                    foundElement = page.getByTestId(visibleElement.testId).first();
+                    if (await foundElement.isVisible({ timeout: 2000 })) {
+                      foundBy = 'mcp-from-observed-elements';
+                      generatedLocator = visibleElement.locator || await mcpWrapper.generateLocator(foundElement);
+                      console.log(`✅ Encontrado elemento desde elementos observados: ${elementText || elementTestId}`);
+                      break;
+                    }
+                  }
+                } catch (e) {
+                  // Continuar con siguiente elemento
+                }
+              }
+            }
+          }
+          
+          // Estrategia 4: Intentar con getByRole (última opción)
+          if (!foundElement) {
+            try {
+              foundElement = page.getByRole('button', { name: new RegExp(searchTerms, 'i') }).first();
+              if (await foundElement.isVisible({ timeout: 2000 })) {
+                foundBy = 'mcp-role';
+                generatedLocator = await mcpWrapper.generateLocator(foundElement);
+              } else {
+                foundElement = null;
+              }
+            } catch (e) {
+              // Continuar
+            }
           }
         }
         
@@ -2693,8 +2767,45 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       console.log(`🔍 Buscando método existente para: elemento="${elementName}", intent="${intent}", contexto="${interpretation.context}"`);
       const existingMethod = findExistingMethod(elementName, action.type, interpretation.context, intent);
       
-      // 🎯 Buscar locator generado por MCP en behavior.interactions
-      const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
+      // 🎯 Buscar locator generado por MCP en behavior.interactions (mejor matching)
+      // Buscar por element name primero, luego por intent/description
+      let interaction = behavior.interactions?.find((i: any) => 
+        i.element === action.element || 
+        i.element?.toLowerCase() === action.element?.toLowerCase()
+      );
+      
+      // Si no se encuentra, buscar por intent o description
+      if (!interaction && action.intent) {
+        interaction = behavior.interactions?.find((i: any) => {
+          const intentLower = action.intent?.toLowerCase() || '';
+          return intentLower.includes('add') && i.note?.toLowerCase().includes('found');
+        });
+      }
+      
+      // Buscar elementos observados que coincidan
+      if (!interaction?.locator && behavior.elements && behavior.elements.length > 0) {
+        const intentLower = (action.intent || action.description || '').toLowerCase();
+        const elementNameLower = action.element?.toLowerCase() || '';
+        
+        for (const visibleElement of behavior.elements) {
+          const elementText = (visibleElement.text || '').toLowerCase();
+          const elementTestId = (visibleElement.testId || '').toLowerCase();
+          
+          // Coincidencia por intención o elemento
+          if (
+            (intentLower.includes('add') && (elementText.includes('add meal') || elementTestId.includes('add'))) ||
+            (intentLower.includes('cart') && (elementText.includes('cart') || elementTestId.includes('cart'))) ||
+            elementNameLower && (elementText.includes(elementNameLower) || elementTestId.includes(elementNameLower))
+          ) {
+            if (visibleElement.locator) {
+              interaction = { locator: visibleElement.locator, observed: true };
+              console.log(`✅ Usando elemento observado real: ${elementText || elementTestId}`);
+              break;
+            }
+          }
+        }
+      }
+      
       const locator = interaction?.locator || action.locator;
       
       let methodCall = '';

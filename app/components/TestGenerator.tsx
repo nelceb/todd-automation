@@ -325,14 +325,14 @@ export default function TestGenerator() {
 
       // Update progress logs progresivamente (uno tras otro con delays pequeños)
       const baseTime = Date.now()
-      const steps = [
-        { step: 'claude', message: 'Claude interpreted request successfully', status: 'success' as const },
-        { step: 'browser', message: 'Launching browser for observation...', status: 'info' as const },
-        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: (data.navigation?.success ? 'success' : 'info') as const },
-        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'success' as const },
-        { step: 'generate', message: 'Generating test code...', status: 'success' as const },
-        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: (data.testValidation?.success ? 'success' : 'info') as const },
-        { step: 'complete', message: 'Test generation completed successfully!', status: (data.success ? 'success' : 'error') as const }
+      const steps: Array<{ step: string; message: string; status: 'info' | 'success' | 'warning' | 'error' }> = [
+        { step: 'claude', message: 'Claude interpreted request successfully', status: 'success' },
+        { step: 'browser', message: 'Launching browser for observation...', status: 'info' },
+        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info' },
+        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'success' },
+        { step: 'generate', message: 'Generating test code...', status: 'success' },
+        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info' },
+        { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error' }
       ]
       
       // Agregar cada paso progresivamente con timestamp único
