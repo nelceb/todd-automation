@@ -1196,18 +1196,62 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       // 🎯 VALIDAR que estamos realmente autenticados: buscar elementos que solo aparecen cuando hay login
       console.log('🔍 [AUTH VALIDATION] Validando autenticación: buscando elementos de página autenticada...');
+      
+      // Esperar un poco para que la página cargue después del redirect (más flexible)
       try {
-        // Esperar a que aparezcan elementos típicos de una página autenticada
-        await page.waitForSelector('[data-testid], a[href*="orders"], a[href*="subscription"], button, nav', { timeout: 10000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
+      } catch (e) {
+        console.log('⚠️ waitForLoadState timeout, continuando con validación...');
+      }
+      
+      // Validación flexible: no fallar si no encuentra selectores específicos inmediatamente
+      let authValidated = false;
+      try {
+        // Intentar esperar por elementos más específicos primero (más rápido)
+        await page.waitForSelector('button, nav, [data-testid]', { timeout: 5000 }); // Reducido de 10s a 5s
+        authValidated = true;
+      } catch (selectorTimeout) {
+        console.log('⚠️ [AUTH VALIDATION] Selector genérico timeout, verificando elementos directamente...');
+        // Continuar y verificar elementos directamente (más flexible)
+        authValidated = true; // Asumir que está bien y verificar después
+      }
+      
+      try {
+        // Esperar a que aparezcan elementos típicos de una página autenticada (ahora más flexible)
         
-        const testIdCount = await page.locator('[data-testid]').count();
-        const buttonCount = await page.locator('button').count();
-        const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count();
+        // Verificar elementos disponibles (sin esperar, más eficiente)
+        const testIdCount = await page.locator('[data-testid]').count().catch(() => 0);
+        const buttonCount = await page.locator('button').count().catch(() => 0);
+        const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count().catch(() => 0);
+        const bodyText = await page.locator('body').textContent().catch(() => '');
         
         console.log(`🔍 [AUTH VALIDATION] Elementos encontrados:`);
         console.log(`  - data-testid: ${testIdCount}`);
         console.log(`  - buttons: ${buttonCount}`);
         console.log(`  - nav/links: ${navCount}`);
+        
+        // Verificar que NO estamos en página de login o error
+        const currentURL = page.url();
+        const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
+        const isErrorPage = bodyText.toLowerCase().includes('error') || bodyText.toLowerCase().includes('not found');
+        
+        if (isLoginPage) {
+          console.error('❌ [AUTH VALIDATION] Todavía en página de login - autenticación no exitosa');
+          return {
+            success: false,
+            error: 'Autenticación fallida - todavía en página de login después del redirect',
+            url: currentURL
+          };
+        }
+        
+        if (isErrorPage && testIdCount === 0 && buttonCount === 0) {
+          console.error('❌ [AUTH VALIDATION] Parece ser una página de error sin contenido');
+          return {
+            success: false,
+            error: 'Autenticación fallida - página parece ser de error',
+            url: currentURL
+          };
+        }
         
         if (testIdCount === 0 && buttonCount === 0 && navCount === 0) {
           console.error('❌ [AUTH VALIDATION] No se encontraron elementos de página autenticada');
