@@ -2797,10 +2797,40 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     for (const method of methods) {
       const methodLower = method.toLowerCase();
       
+      // 🎯 MEJORADO: Buscar variantes numéricas (addToCartButton1 → addMealButton)
+      // Si el elemento tiene un número al final, buscar métodos sin número
+      const elementWithoutNumber = elementLower.replace(/[0-9]+$/, '').replace(/button$|btn$/, '');
+      if (elementWithoutNumber && elementWithoutNumber !== elementLower) {
+        // Buscar métodos que coincidan con la parte sin número
+        const elementStem = elementWithoutNumber.replace(/to$|on$/, '');
+        if (elementStem.includes('add') && (methodLower.includes('addmeal') || methodLower.includes('addmealbutton'))) {
+          console.log(`✅ Encontrado método existente por variante numérica: ${method} para elemento ${elementName} (${elementWithoutNumber})`);
+          return method;
+        }
+        if (elementStem.includes('cart') && (methodLower.includes('cartbutton') || methodLower.includes('navigatetocart'))) {
+          console.log(`✅ Encontrado método existente por variante numérica cart: ${method} para elemento ${elementName} (${elementWithoutNumber})`);
+          return method;
+        }
+      }
+      
       // Coincidencia directa (nombre del elemento en el método)
       if (methodLower.includes(elementLower) || elementLower.includes(methodLower)) {
         console.log(`✅ Encontrado método existente: ${method} para elemento ${elementName}`);
         return method;
+      }
+      
+      // 🎯 MEJORADO: Coincidencia por stem (raíz común)
+      // addToCartButton1 → addMeal, addToCartButton → addMeal, etc.
+      const elementStem = elementLower.replace(/button[0-9]*$/i, '').replace(/[0-9]+$/, '').replace(/to$|on$|icon$/, '');
+      if (elementStem && (elementStem.includes('add') || elementStem.includes('cart'))) {
+        if (elementStem.includes('add') && (methodLower.includes('addmeal') || methodLower.includes('addmealbutton'))) {
+          console.log(`✅ Encontrado método existente por stem: ${method} para elemento ${elementName} (stem: ${elementStem})`);
+          return method;
+        }
+        if (elementStem.includes('cart') && (methodLower.includes('cartbutton') || methodLower.includes('navigatetocart'))) {
+          console.log(`✅ Encontrado método existente por stem cart: ${method} para elemento ${elementName} (stem: ${elementStem})`);
+          return method;
+        }
       }
       
       // Mapeo específico de elementos a métodos conocidos (mejorado para reutilizar métodos)
