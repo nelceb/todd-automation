@@ -250,11 +250,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
     console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
     try {
-      // Usar Promise.race con timeout de 2 segundos (más rápido)
+      // Usar Promise.race con timeout de 4 segundos (balance entre velocidad y completitud)
       const codebaseAnalysis = await Promise.race([
         analyzeCodebaseForPatterns(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 2000) // Reducido de 5s a 2s
+          setTimeout(() => reject(new Error('Timeout')), 4000) // 4 segundos - balanceado
         )
       ]) as any;
       
