@@ -1223,7 +1223,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         const testIdCount = await page.locator('[data-testid]').count().catch(() => 0);
         const buttonCount = await page.locator('button').count().catch(() => 0);
         const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count().catch(() => 0);
-        const bodyText = await page.locator('body').textContent().catch(() => '');
+        const bodyText = await page.locator('body').textContent().catch(() => null) || '';
         
         console.log(`🔍 [AUTH VALIDATION] Elementos encontrados:`);
         console.log(`  - data-testid: ${testIdCount}`);
@@ -1233,7 +1233,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         // Verificar que NO estamos en página de login o error
         const currentURL = page.url();
         const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
-        const isErrorPage = bodyText.toLowerCase().includes('error') || bodyText.toLowerCase().includes('not found');
+        const isErrorPage = (bodyText || '').toLowerCase().includes('error') || (bodyText || '').toLowerCase().includes('not found');
         
         if (isLoginPage) {
           console.error('❌ [AUTH VALIDATION] Todavía en página de login - autenticación no exitosa');
