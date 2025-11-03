@@ -225,8 +225,8 @@ async function anthropicJSON(systemPrompt: string, userMessage: string) {
   
   try {
     const { response: data } = await callClaudeAPI(apiKey, systemPrompt, userMessage);
-    const content = data?.content?.[0]?.text;
-    return content || null;
+  const content = data?.content?.[0]?.text;
+  return content || null;
   } catch (error) {
     console.error('❌ [Claude] Error calling API:', error);
     throw error;
@@ -241,7 +241,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     if (!acceptanceCriteria) {
       return {
         success: false,
-        error: 'Acceptance criteria is required'
+        error: 'Acceptance criteria is required' 
       }
     }
 
@@ -262,11 +262,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         )
       ]) as any;
       
-      if (codebaseAnalysis) {
-        const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
-        console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
-        // Combinar interpretación con conocimiento del codebase
-        interpretation.codebasePatterns = codebaseAnalysis;
+    if (codebaseAnalysis) {
+      const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
+      console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
+      // Combinar interpretación con conocimiento del codebase
+      interpretation.codebasePatterns = codebaseAnalysis;
       }
     } catch (timeoutError) {
       console.log('⏱️ Análisis de codebase tardó mucho, usando patrones estáticos rápidos');
@@ -313,7 +313,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       console.log('❌ Playwright MCP: Navegación falló');
       await browser.close();
       return {
-        success: false,
+        success: false, 
         error: `Navigation failed: ${navigation.error}`,
         fallback: true
       }
@@ -344,7 +344,8 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       
       // 8. 🎯 GENERACIÓN DE CÓDIGO: Crear/actualizar page objects, helpers, etc.
       console.log('📝 Playwright MCP: Generando código completo...');
-      const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation);
+      const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
+      const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle);
       
       // 9. 🎯 GIT MANAGEMENT: Crear branch y preparar PR
       console.log('🌿 Playwright MCP: Creando branch y preparando PR...');
@@ -404,14 +405,14 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     } catch (fallbackError) {
       // Si todo falla, entonces sí devolver error
       return {
-        success: false,
+        success: false, 
         error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
         fallback: true
       }
     }
     
     return {
-      success: false,
+      success: false, 
       error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
       fallback: true
     }
@@ -746,9 +747,9 @@ async function analyzeCodebaseForPatterns() {
     // 2. Analizar SOLO page objects en paralelo (más rápido)
     const fileResults = await Promise.all(
       pageObjectFiles.map(async (file: any) => {
-        const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
+      const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
         if (!fileContent) return null;
-        
+      
         // Solo analizar page objects (no tests, más rápido)
         const pageObjectName = extractPageObjectName(file.name);
         const extractedMethods = extractMethodsFromContent(fileContent);
@@ -1308,36 +1309,36 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
             
             if (!hasSubstantialContent && !isCorrectDomain) {
               console.error('❌ [AUTH VALIDATION] No se encontraron elementos de página autenticada después de todos los intentos');
-              console.error(`❌ [AUTH VALIDATION] URL actual: ${page.url()}`);
-              
-              // Verificar el título de la página
-              const pageTitle = await page.title().catch(() => 'Unknown');
-              console.error(`❌ [AUTH VALIDATION] Título de página: ${pageTitle}`);
-              
-              // Capturar snapshot para ver qué hay
-              const snapshot = await page.accessibility.snapshot().catch(() => null);
-              if (snapshot) {
-                const snapshotStr = JSON.stringify(snapshot).substring(0, 500);
-                console.error(`❌ [AUTH VALIDATION] Contenido detectado: ${snapshotStr}`);
-              }
-              
-              // Tomar screenshot para debug
-              try {
-                await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
-                console.log('📸 [AUTH VALIDATION] Screenshot guardado en /tmp/post-login-page.png');
-              } catch (screenshotError) {
-                console.error('⚠️ No se pudo tomar screenshot');
-              }
-              
-              // Retornar error - el login no fue exitoso
-              return {
-                success: false,
-                error: 'Autenticación fallida - no se encontraron elementos de página autenticada después del login',
-                url: page.url(),
-                details: {
-                  testIdCount,
-                  buttonCount,
-                  navCount,
+          console.error(`❌ [AUTH VALIDATION] URL actual: ${page.url()}`);
+          
+          // Verificar el título de la página
+          const pageTitle = await page.title().catch(() => 'Unknown');
+          console.error(`❌ [AUTH VALIDATION] Título de página: ${pageTitle}`);
+          
+          // Capturar snapshot para ver qué hay
+          const snapshot = await page.accessibility.snapshot().catch(() => null);
+          if (snapshot) {
+            const snapshotStr = JSON.stringify(snapshot).substring(0, 500);
+            console.error(`❌ [AUTH VALIDATION] Contenido detectado: ${snapshotStr}`);
+          }
+          
+          // Tomar screenshot para debug
+          try {
+            await page.screenshot({ path: '/tmp/post-login-page.png', fullPage: true });
+            console.log('📸 [AUTH VALIDATION] Screenshot guardado en /tmp/post-login-page.png');
+          } catch (screenshotError) {
+            console.error('⚠️ No se pudo tomar screenshot');
+          }
+          
+          // Retornar error - el login no fue exitoso
+          return {
+            success: false,
+            error: 'Autenticación fallida - no se encontraron elementos de página autenticada después del login',
+            url: page.url(),
+            details: {
+              testIdCount,
+              buttonCount,
+              navCount,
                   linkCount,
                   pageTitle,
                   url: currentURL
@@ -1377,8 +1378,8 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           
           if (stillInLogin) {
             // Definitivamente falló
-            return {
-              success: false,
+        return {
+          success: false,
               error: `Error validando autenticación: todavía en página de login después de esperar`,
               url: finalURL
             };
@@ -2154,16 +2155,16 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           
           // Estrategia 4: Intentar con getByRole (última opción)
           if (!foundElement) {
-            try {
-              foundElement = page.getByRole('button', { name: new RegExp(searchTerms, 'i') }).first();
-              if (await foundElement.isVisible({ timeout: 2000 })) {
-                foundBy = 'mcp-role';
-                generatedLocator = await mcpWrapper.generateLocator(foundElement);
-              } else {
-                foundElement = null;
-              }
-            } catch (e) {
-              // Continuar
+          try {
+            foundElement = page.getByRole('button', { name: new RegExp(searchTerms, 'i') }).first();
+            if (await foundElement.isVisible({ timeout: 2000 })) {
+              foundBy = 'mcp-role';
+              generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            } else {
+              foundElement = null;
+            }
+          } catch (e) {
+            // Continuar
             }
           }
         }
@@ -2829,12 +2830,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         let assertionCode = '';
         if (existingMethod) {
           // Usar método existente
-          switch (assertion.type) {
-            case 'visibility':
+        switch (assertion.type) {
+          case 'visibility':
             case 'state':
               assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
-              break;
-            case 'text':
+            break;
+          case 'text':
               assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
               break;
             case 'value':
@@ -2876,15 +2877,15 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
               break;
             case 'text':
               assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
-              break;
-            case 'state':
+            break;
+          case 'state':
               // Para state, usar el mismo método que visibility (es más común)
               assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
-              break;
-            case 'value':
+            break;
+          case 'value':
               assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
-              break;
-            default:
+            break;
+          default:
               assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
           }
         }
@@ -3430,21 +3431,21 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       } else {
         // Fallback: Generar método de assertion genérico
         const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-        switch (assertion.type) {
-          case 'visibility':
-            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
-            break;
-          case 'text':
-            assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
-            break;
-          case 'state':
-            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
-            break;
-          case 'value':
-            assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
-            break;
-          default:
-            assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+      switch (assertion.type) {
+        case 'visibility':
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+          break;
+        case 'text':
+          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
+          break;
+        case 'state':
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
+          break;
+        case 'value':
+          assertionCode = `expect(await ${pageVarName}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
+          break;
+        default:
+          assertionCode = `expect(await ${pageVarName}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
         }
         console.log(`⚠️ Generando método de assertion nuevo para: ${elementName}`);
       }
@@ -3618,7 +3619,7 @@ async function validateGeneratedTest(page: Page, smartTest: any, interpretation:
 }
 
 // 🎯 GENERAR CÓDIGO COMPLETO: Crear page objects, helpers, etc.
-async function generateCompleteCode(interpretation: any, behavior: any, testValidation: any) {
+async function generateCompleteCode(interpretation: any, behavior: any, testValidation: any, testCode: string, ticketId?: string, ticketTitle?: string) {
   try {
     console.log('📝 Generando código completo...');
     
@@ -3654,8 +3655,8 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
       });
     }
     
-    // 4. Detectar spec file existente y generar test con inserción inteligente
-    const specFileInfo = await detectAndGenerateSpecFile(interpretation, behavior);
+    // 4. Detectar spec file existente y generar test con inserción inteligente (evitando duplicados)
+    const specFileInfo = await detectAndGenerateSpecFile(interpretation, behavior, testCode, ticketId, ticketTitle);
     if (specFileInfo) {
       codeFiles.push(specFileInfo);
     }
@@ -3739,30 +3740,47 @@ export const commonUtils = {
 }
 
 // 🎯 DETECTAR Y GENERAR SPEC FILE CON INSERCIÓN INTELIGENTE
-async function detectAndGenerateSpecFile(interpretation: any, behavior: any) {
+async function detectAndGenerateSpecFile(interpretation: any, behavior: any, generatedTestCode: string, ticketId?: string, ticketTitle?: string) {
   try {
-    console.log('🔍 Detectando spec file existente...');
+    console.log('🔍 Detectando spec file existente y verificando duplicados...');
     
-    // 1. Detectar spec files existentes basado en el contexto
-    const possibleSpecFiles = [
-      `tests/specs/${interpretation.context}.spec.ts`,
-      `tests/specs/${interpretation.context}Page.spec.ts`,
-      `tests/specs/${interpretation.context}Tests.spec.ts`
-    ];
+    // 1. Mapeo de contextos a spec files (SIEMPRE usar estos archivos, incluso si no existen)
+    const contextToSpecMap: Record<string, string> = {
+      'pastOrders': 'tests/specs/ordersHub.spec.ts',  // SIEMPRE usar ordersHub.spec.ts para pastOrders
+      'ordersHub': 'tests/specs/ordersHub.spec.ts',   // SIEMPRE usar ordersHub.spec.ts
+      'homepage': 'tests/specs/home.spec.ts',
+      'cart': 'tests/specs/cart.spec.ts'
+    };
     
-    // 2. Buscar spec files existentes en el codebase
-    const existingSpecFiles = await findExistingSpecFiles(interpretation.context);
+    // 2. Determinar archivo target basado en el contexto (SIEMPRE usar el mapeo)
+    const targetSpecFile = contextToSpecMap[interpretation.context] || `tests/specs/${interpretation.context}.spec.ts`;
     
-    let targetSpecFile = existingSpecFiles.length > 0 ? existingSpecFiles[0] : possibleSpecFiles[0];
+    // 3. Verificar si el archivo existe en GitHub
+    const fileExists = await checkIfSpecFileExists(targetSpecFile);
+    let isExistingFile = false;
     
-    // 3. Generar test con inserción inteligente
-    const testCode = generateTestWithSmartInsertion(interpretation, behavior, targetSpecFile);
+    if (fileExists) {
+      isExistingFile = true;
+      console.log(`✅ Archivo spec existente encontrado: ${targetSpecFile}`);
+      
+      // 4. Analizar archivo existente para detectar duplicados
+      const isDuplicate = await checkForDuplicateTest(targetSpecFile, ticketId, ticketTitle, generatedTestCode);
+      if (isDuplicate) {
+        console.warn('⚠️ Test duplicado detectado - no se agregará el nuevo test');
+        return null; // No crear archivo si es duplicado
+      }
+    } else {
+      console.log(`📝 Archivo spec no existe, se creará nuevo: ${targetSpecFile}`);
+    }
+    
+    // 5. Generar contenido completo del archivo con inserción inteligente
+    const finalContent = await generateTestWithSmartInsertion(interpretation, targetSpecFile, generatedTestCode, isExistingFile);
     
     return {
       file: targetSpecFile,
-      content: testCode,
+      content: finalContent,
       type: 'test',
-      insertionMethod: existingSpecFiles.length > 0 ? 'append' : 'create'
+      insertionMethod: isExistingFile ? 'append' : 'create'
     };
   } catch (error) {
     console.error('Error detecting spec file:', error);
@@ -3770,49 +3788,218 @@ async function detectAndGenerateSpecFile(interpretation: any, behavior: any) {
   }
 }
 
-// Buscar spec files existentes
-async function findExistingSpecFiles(context: string) {
-  // En un entorno real, esto buscaría en el filesystem
-  // Por ahora simulamos la búsqueda
-  const commonPatterns = [
-    `tests/specs/${context}.spec.ts`,
-    `tests/specs/${context}Page.spec.ts`,
-    `tests/specs/${context}Tests.spec.ts`,
-    `tests/specs/${context}-tests.spec.ts`
-  ];
-  
-  // Simular que encontramos archivos existentes
-  return commonPatterns.slice(0, 1); // Retornar el primero como existente
+// Verificar si un spec file existe en GitHub
+async function checkIfSpecFileExists(specFilePath: string): Promise<boolean> {
+  try {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub no configurado, asumiendo que el archivo no existe');
+      return false;
+    }
+    
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${specFilePath}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('❌ Error verificando si el archivo existe:', error);
+    return false; // En caso de error, asumir que no existe
+  }
 }
 
-// Generar test con inserción inteligente
-function generateTestWithSmartInsertion(interpretation: any, behavior: any, specFile: string) {
-  const pageName = `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
-  const testId = `QA-${Date.now()}`;
-  
-  // Generar el test individual
-  const individualTest = generateIndividualTest(interpretation, behavior, testId, pageName);
-  
-  // Si es un archivo existente, agregar al final
-  // Si es nuevo, crear estructura completa
-  const isExistingFile = specFile.includes('existing');
-  
-  if (isExistingFile) {
-    return `// Test agregado por Playwright MCP - ${new Date().toISOString()}
-${individualTest}
+// Buscar spec files existentes en GitHub
+async function findExistingSpecFiles(context: string): Promise<string[]> {
+  try {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub no configurado, no se pueden buscar spec files existentes');
+      return [];
+    }
+    
+    // 🎯 Mapeo de contextos a spec files relacionados
+    // Si el contexto es pastOrders, buscar ordersHub.spec.ts (ya que pastOrders es un tab dentro de ordersHub)
+    const contextToSpecMap: Record<string, string[]> = {
+      'pastOrders': ['ordersHub.spec.ts', 'ordersHubPage.spec.ts', 'ordersHubTests.spec.ts'],
+      'ordersHub': ['ordersHub.spec.ts', 'ordersHubPage.spec.ts', 'ordersHubTests.spec.ts'],
+      'homepage': ['home.spec.ts', 'homePage.spec.ts', 'homeTests.spec.ts'],
+      'cart': ['cart.spec.ts', 'cartPage.spec.ts', 'cartTests.spec.ts']
+    };
+    
+    // Determinar qué archivos buscar
+    const specFilesToCheck = contextToSpecMap[context] || [
+      `${context}.spec.ts`,
+      `${context}Page.spec.ts`,
+      `${context}Tests.spec.ts`
+    ];
+    
+    const existingFiles: string[] = [];
+    
+    // Buscar cada archivo en GitHub
+    for (const specFile of specFilesToCheck) {
+      const filePath = `tests/specs/${specFile}`;
+      try {
+        const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${filePath}`, {
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (response.ok) {
+          existingFiles.push(filePath);
+          console.log(`✅ Encontrado spec file existente: ${filePath}`);
+        }
+      } catch (error) {
+        // Archivo no existe, continuar
+        console.log(`ℹ️ Archivo no encontrado: ${filePath}`);
+      }
+    }
+    
+    return existingFiles;
+  } catch (error) {
+    console.error('❌ Error buscando spec files existentes:', error);
+    return [];
+  }
+}
 
-`;
+// Verificar si ya existe un test duplicado
+async function checkForDuplicateTest(specFilePath: string, ticketId?: string, ticketTitle?: string, newTestCode?: string): Promise<boolean> {
+  try {
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub no configurado, no se puede verificar duplicados');
+      return false;
+    }
+    
+    // Leer contenido del archivo existente desde GitHub
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${specFilePath}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.log(`ℹ️ No se pudo leer el archivo ${specFilePath} para verificar duplicados`);
+      return false;
+    }
+    
+    const fileData = await response.json();
+    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    
+    // Extraer ticketId normalizado del nuevo test
+    const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : null;
+    
+    // Buscar tests existentes que coincidan con el ticketId
+    if (normalizedTicketId) {
+      // Buscar patrones como "test('QA-2315..." o "test('QA-2315 - ..."
+      const ticketIdPattern = new RegExp(`test\\s*\\(\\s*['"\`]${normalizedTicketId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      if (ticketIdPattern.test(existingContent)) {
+        console.warn(`⚠️ Duplicado detectado: Ya existe un test con ticketId ${normalizedTicketId} en ${specFilePath}`);
+        return true;
+      }
+    }
+    
+    // Si hay ticketTitle, buscar también por título
+    if (ticketTitle) {
+      // Extraer palabras clave del título (sin el prefijo QA-XXXX)
+      const cleanTitle = ticketTitle.replace(/^QA-\d+\s*-\s*/i, '').trim();
+      const titleWords = cleanTitle.toLowerCase().split(/\s+/).slice(0, 3); // Primeras 3 palabras
+      
+      // Buscar si alguna de estas palabras aparece en los títulos de tests existentes
+      const titlePattern = new RegExp(`test\\s*\\([^)]*${titleWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}`, 'i');
+      if (titlePattern.test(existingContent)) {
+        console.warn(`⚠️ Posible duplicado detectado: Ya existe un test con título similar en ${specFilePath}`);
+        // Solo retornar true si el título es muy específico (más de 2 palabras)
+        if (titleWords.length >= 2) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('❌ Error verificando duplicados:', error);
+    return false; // En caso de error, permitir crear el test
+  }
+}
+
+// Generar contenido completo del spec file con inserción inteligente
+async function generateTestWithSmartInsertion(interpretation: any, specFile: string, generatedTestCode: string, isExistingFile: boolean): Promise<string> {
+  try {
+  if (isExistingFile) {
+      // Leer contenido existente desde GitHub
+      const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+      const GITHUB_OWNER = process.env.GITHUB_OWNER;
+      const GITHUB_REPO = process.env.GITHUB_REPO;
+      const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+      
+      if (!GITHUB_TOKEN || !REPOSITORY) {
+        console.warn('⚠️ GitHub no configurado, usando formato de test simplificado');
+        return `// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n\n`;
+      }
+      
+      const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${specFile}`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (response.ok) {
+        const fileData = await response.json();
+        const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        
+        // Agregar el nuevo test al final del archivo
+        return `${existingContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n`;
   } else {
+        console.warn(`⚠️ No se pudo leer el archivo existente ${specFile}, creando nuevo`);
+        // Fallback: crear nuevo archivo
+        return generateNewSpecFile(interpretation, generatedTestCode);
+      }
+    } else {
+      // Crear nuevo archivo
+      return generateNewSpecFile(interpretation, generatedTestCode);
+    }
+  } catch (error) {
+    console.error('❌ Error generando spec file:', error);
+    // Fallback: crear nuevo archivo
+    return generateNewSpecFile(interpretation, generatedTestCode);
+  }
+}
+
+// Generar contenido de un nuevo spec file
+function generateNewSpecFile(interpretation: any, generatedTestCode: string): string {
+  const pageName = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub' 
+    ? 'OrdersHubPage' 
+    : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
+  
     return `import { test, expect } from '@playwright/test';
-import { ${pageName} } from '../pageObjects/${pageName}';
+import { siteMap } from '../utils/siteMap';
+import { usersHelper } from '../helpers/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
 // Generated: ${new Date().toISOString()}
 
-${individualTest}
+${generatedTestCode}
 `;
-  }
 }
 
 // Generar test individual
@@ -4205,8 +4392,16 @@ function extractTicketId(interpretation: any) {
 
 // Generar nombre de branch (mejorado con ticketId y título descriptivo)
 function generateBranchName(ticketId: string | null, interpretation: any, ticketTitle?: string) {
-  // Si tenemos ticketId, usarlo; sino usar timestamp
-  const ticketPart = ticketId ? `QA-${ticketId}` : `QA-AUTO-${Date.now().toString().slice(-6)}`;
+  // Normalizar ticketId: remover prefijos duplicados (QA-, qa-)
+  let normalizedTicketId: string;
+  if (ticketId) {
+    // Remover cualquier prefijo QA- o qa- existente
+    normalizedTicketId = ticketId.replace(/^(QA-|qa-)/i, '').trim();
+    // Agregar prefijo QA- normalizado
+    normalizedTicketId = `QA-${normalizedTicketId}`;
+  } else {
+    normalizedTicketId = `QA-AUTO-${Date.now().toString().slice(-6)}`;
+  }
   
   // Si tenemos título del ticket, extraer parte descriptiva (sin el QA-XXXX)
   let descriptivePart = '';
@@ -4233,7 +4428,7 @@ function generateBranchName(ticketId: string | null, interpretation: any, ticket
     descriptivePart = `-${baseName.replace(/[^a-z0-9]/g, '-')}`;
   }
   
-  return `feature/${ticketPart}${descriptivePart}`;
+  return `feature/${normalizedTicketId}${descriptivePart}`;
 }
 
 // Generar descripción del PR
