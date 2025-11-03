@@ -938,8 +938,7 @@ function getStaticPatterns() {
           'clickOnOrdersHubNavItem',
           'clickOnCartButton',
           'scrollToOrderAgainSection',
-          'isOrderAgainSectionVisible',
-          'navigateToOrdersHub'
+          'isOrderAgainSectionVisible'
         ],
         ordersHubPage: [
           'clickOnPastOrdersTab',
@@ -959,7 +958,7 @@ function getStaticPatterns() {
         homePage: [
           { name: 'clickOnAddMealButton', testIds: ['add-to-cart-button-container', 'add-meal-btn'] },
           { name: 'clickOnCartButton', testIds: ['cart-button', 'view-cart'] },
-          { name: 'navigateToOrdersHub', testIds: ['orders-hub-nav'] }
+          { name: 'clickOnOrdersHubNavItem', testIds: ['orders-hub-nav'] }
         ],
         ordersHubPage: [
           { name: 'clickOnPastOrdersTab', testIds: ['past-orders-tab'] },
@@ -2533,7 +2532,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   
   // Inicialización básica de página - solo agregar si no es homepage (porque ya tenemos homePage arriba)
   const pageInitialization = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub'
-    ? `const ${pageVarName} = await homePage.navigateToOrdersHub();`
+    ? `const ${pageVarName} = await homePage.clickOnOrdersHubNavItem();`
     : ''; // Para homepage, no agregar nada porque ya tenemos homePage definido arriba
   
   let testCode = `test('${testTitle}', { tag: [${tags.map(t => `'${t}'`).join(', ')}] }, async ({ page }) => {
@@ -2557,7 +2556,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     if (interpretation.actions && interpretation.actions.length > 0) {
       const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       
-      // Separar acciones que necesitan ordersHubPage (como click en tab) de las que necesitan pastOrdersPage
+      // Separar acciones: click en tab (usar ordersHubPage) vs otras acciones (también usar ordersHubPage - pastOrders es una tab)
       const tabActions: any[] = [];
       const pastOrdersActions: any[] = [];
       
@@ -2593,14 +2592,8 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         }
       }
       
-      // Ahora navegar a pastOrdersPage (o usarlo directamente si ya hicimos click en el tab)
-      if (tabActions.length > 0) {
-        // Si hicimos click en el tab, asumimos que ya estamos en past orders
-        testCode += `\n  const pastOrdersPage = ${pageVarName};`;
-      } else {
-        // Si no hay click en tab, usar navigateToPastOrders()
-        testCode += `\n  const pastOrdersPage = await ${pageVarName}.navigateToPastOrders();`;
-      }
+      // pastOrders es una TAB dentro de ordersHubPage, no una página separada
+      // No crear variable pastOrdersPage - usar ordersHubPage directamente
       
       // Verificación previa: verificar que hay órdenes iniciales antes de hacer Load More
       const hasLoadMoreAction = pastOrdersActions.some((a: any) => 
@@ -2611,7 +2604,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       if (hasLoadMoreAction) {
         testCode += `\n  // Verify initial past orders are visible`;
-        testCode += `\n  expect(await pastOrdersPage.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
+        testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
       }
       
       // 🎯 REORDENAR acciones inteligentemente: detectar dependencias lógicas
@@ -2645,7 +2638,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         reorderedPastOrdersActions.unshift(loadMoreAction);
       }
       
-      // Generar acciones que requieren pastOrdersPage (ahora con orden correcto)
+      // Generar acciones en ordersHubPage después de hacer click en Past Orders tab
       for (const action of reorderedPastOrdersActions) {
         const elementName = action.element;
         if (!elementName) {
@@ -2682,23 +2675,24 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           }
         } else {
           // Fallback: Generar método específico basado en el tipo de acción
+          // Usar ordersHubPage directamente (pastOrders es una tab dentro de ordersHubPage)
           const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await pastOrdersPage.clickOn${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-              methodCall = `await pastOrdersPage.fill${capitalizedName}('test-value');`;
+              methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
               break;
             case 'navigate':
-              methodCall = `await pastOrdersPage.navigateTo${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
               break;
             case 'scroll':
-              methodCall = `await pastOrdersPage.scrollTo${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
               break;
             default:
-              methodCall = `await pastOrdersPage.interactWith${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
           }
         }
         
@@ -2711,11 +2705,113 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     }
     
     // Actualizar la referencia de página para las assertions
-    const assertionsPageVar = 'pastOrdersPage';
+    // pastOrders es una TAB dentro de ordersHubPage, usar ordersHubPage directamente
+    const assertionsPageVar = pageVarName; // Usar ordersHubPage en lugar de pastOrdersPage
     
     // Generar assertions específicas
     if (interpretation.assertions && interpretation.assertions.length > 0) {
       testCode += `\n\n  //THEN - Verify expected behavior`;
+      
+      // Función helper para buscar método de assertion existente
+      const codebasePatterns = interpretation.codebasePatterns;
+      const availableMethods = codebasePatterns?.methods || {};
+      
+      const findExistingAssertionMethod = (elementName: string, assertionType: string, context: string): string | null => {
+        if (!codebasePatterns) return null;
+        
+        // Mapear context a nombre de página en codebasePatterns
+        const pageKey = context === 'pastOrders' || context === 'ordersHub' ? 'ordersHubPage' : 'homePage';
+        const methods = availableMethods[pageKey] || [];
+        const elementLower = elementName.toLowerCase();
+        
+        // Buscar métodos de assertion que coincidan
+        for (const method of methods) {
+          const methodLower = method.toLowerCase();
+          
+          // Buscar por nombre del elemento
+          if (methodLower.includes(elementLower) || elementLower.includes(methodLower.replace(/^is|^get|^has|^are/, ''))) {
+            // Verificar que sea un método de assertion
+            if (methodLower.startsWith('is') || methodLower.startsWith('get') || 
+                methodLower.startsWith('has') || methodLower.startsWith('are')) {
+              console.log(`✅ Reutilizando método de assertion existente: ${method} para elemento ${elementName}`);
+              return method;
+            }
+          }
+        }
+        
+        // Patrones específicos para métodos conocidos de OrdersHubPage (buscar PRIMERO por patrón)
+        const methodPatterns: { [key: string]: string } = {
+          'emptystatemessage': 'isEmptyPastOrdersStateVisible',
+          'emptyStateMessage': 'isEmptyPastOrdersStateVisible',
+          'emptystate': 'isEmptyPastOrdersStateVisible',
+          'empty': 'isEmptyPastOrdersStateVisible',
+          'pastorderslist': 'isPastOrdersListVisible',
+          'pastOrdersList': 'isPastOrdersListVisible',
+          'list': 'isPastOrdersListVisible',
+          'pastorderssection': 'isPastOrdersSectionVisible',
+          'pastOrdersSection': 'isPastOrdersSectionVisible',
+          'section': 'isPastOrdersSectionVisible'
+        };
+        
+        // Buscar por sinónimos comunes para elementos relacionados
+        const synonyms: { [key: string]: string[] } = {
+          'emptystatemessage': ['empty', 'state', 'emptystate', 'emptyState', 'emptyPastOrders', 'pastorders'],
+          'pastorderslist': ['pastorders', 'pastorderslist', 'list', 'pastorders'],
+          'pastorderssection': ['pastorders', 'section', 'pastorderssection'],
+          'empty': ['empty', 'emptyState', 'emptypastorders'],
+          'list': ['list', 'items', 'pastorderslist']
+        };
+        
+        // Verificar primero si hay un patrón directo (case-insensitive)
+        for (const [patternKey, methodName] of Object.entries(methodPatterns)) {
+          if (elementLower === patternKey.toLowerCase() || elementName.toLowerCase().includes(patternKey.toLowerCase())) {
+            // Buscar el método (puede tener variaciones)
+            const foundMethod = methods.find((m: string) => {
+              const mLower = m.toLowerCase();
+              const methodLower = methodName.toLowerCase();
+              return mLower === methodLower || mLower.includes(methodLower.replace(/^is|^get|^has/, ''));
+            });
+            if (foundMethod) {
+              console.log(`✅ Reutilizando método de assertion por patrón directo: ${foundMethod} para elemento ${elementName}`);
+              return foundMethod;
+            }
+          }
+        }
+        
+        // Buscar método que coincida directamente con el nombre del elemento
+        for (const method of methods) {
+          const methodLower = method.toLowerCase();
+          // Remover prefijos comunes (is, get, has, are) y comparar
+          const methodStem = methodLower.replace(/^(is|get|has|are)/, '');
+          const elementStem = elementLower.replace(/^(is|get|has|are)/, '');
+          
+          // Comparar stems
+          if (methodStem.includes(elementStem) || elementStem.includes(methodStem)) {
+            if (methodLower.startsWith('is') || methodLower.startsWith('get') || 
+                methodLower.startsWith('has') || methodLower.startsWith('are')) {
+              console.log(`✅ Reutilizando método de assertion por coincidencia directa: ${method} para elemento ${elementName}`);
+              return method;
+            }
+          }
+        }
+        
+        // Buscar por sinónimos comunes
+        for (const [key, patterns] of Object.entries(synonyms)) {
+          if (elementLower.includes(key) || key.includes(elementLower)) {
+            for (const pattern of patterns) {
+              for (const method of methods) {
+                const methodLower = method.toLowerCase();
+                if (methodLower.includes(pattern) && (methodLower.startsWith('is') || methodLower.startsWith('get'))) {
+                  console.log(`✅ Reutilizando método de assertion por sinónimo: ${method} para elemento ${elementName}`);
+                  return method;
+                }
+              }
+            }
+          }
+        }
+        
+        return null;
+      };
       
       for (const assertion of interpretation.assertions) {
         const elementName = assertion.element;
@@ -2726,24 +2822,71 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         
         const description = assertion.description || `Verify ${elementName}`;
         const expected = assertion.expected || 'visible';
-        const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+        
+        // 🎯 Intentar reutilizar método existente primero
+        const existingMethod = findExistingAssertionMethod(elementName, assertion.type, interpretation.context);
         
         let assertionCode = '';
-        switch (assertion.type) {
-          case 'visibility':
-            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
-            break;
-          case 'text':
-            assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
-            break;
-          case 'state':
-            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Enabled(), '${description}').toBeTruthy();`;
-            break;
-          case 'value':
-            assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Value(), '${description}').toBe('${expected}');`;
-            break;
-          default:
-            assertionCode = `expect(await ${assertionsPageVar}.is${capitalizedName}Visible(), '${description}').toBeTruthy();`;
+        if (existingMethod) {
+          // Usar método existente
+          switch (assertion.type) {
+            case 'visibility':
+            case 'state':
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              break;
+            case 'text':
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
+              break;
+            case 'value':
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe('${expected}');`;
+              break;
+            default:
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+          }
+        } else {
+          // Fallback: generar método nuevo
+          // Para pastOrders, intentar usar nombres más específicos
+          let methodName = '';
+          const elementLower = elementName.toLowerCase();
+          
+          // Mapeos específicos para pastOrders (fallback inteligente)
+          if (interpretation.context === 'pastOrders') {
+            if (elementLower.includes('empty') && elementLower.includes('state')) {
+              methodName = 'isEmptyPastOrdersStateVisible'; // Usar método existente conocido
+            } else if (elementLower.includes('empty')) {
+              methodName = 'isEmptyPastOrdersStateVisible';
+            } else if (elementLower.includes('list')) {
+              methodName = 'isPastOrdersListVisible';
+            } else if (elementLower.includes('section')) {
+              methodName = 'isPastOrdersSectionVisible';
+            } else {
+              // Generar nombre capitalizado estándar
+              const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+              methodName = `is${capitalizedName}Visible`;
+            }
+          } else {
+            // Para otros contextos, usar capitalización estándar
+            const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+            methodName = `is${capitalizedName}Visible`;
+          }
+          
+          switch (assertion.type) {
+            case 'visibility':
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              break;
+            case 'text':
+              assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
+              break;
+            case 'state':
+              // Para state, usar el mismo método que visibility (es más común)
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              break;
+            case 'value':
+              assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
+              break;
+            default:
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+          }
         }
         
         testCode += `\n  ${assertionCode}`;
@@ -3189,7 +3332,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       testCode += `\n  await ${pageVarName}.clickOnInvoiceIcon();`;
     } else if (interpretation.context === 'ordersHub') {
       testCode += `\n  // Navigate to orders hub`;
-      testCode += `\n  await ${pageVarName}.navigateToOrdersHub();`;
+      testCode += `\n  const ${pageVarName} = await homePage.clickOnOrdersHubNavItem();`;
       testCode += `\n  // Click on order item`;
       testCode += `\n  await ${pageVarName}.clickOnOrderItem();`;
     } else {
@@ -3733,13 +3876,71 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       };
     }
     
-    // 1. Usar ticketId pasado como parámetro o extraerlo
+    // 1. Validar token primero con una llamada simple a la API
+    console.log('🔍 Validando token de GitHub...');
+    try {
+      const tokenValidationResponse = await fetch('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!tokenValidationResponse.ok) {
+        const validationError = await tokenValidationResponse.text();
+        console.error('❌ Token validation failed:', {
+          status: tokenValidationResponse.status,
+          error: validationError
+        });
+        
+        if (tokenValidationResponse.status === 401) {
+          throw new Error(`GitHub token is invalid or expired. Please verify GITHUB_TOKEN in Vercel environment variables. Status: ${tokenValidationResponse.status}`);
+        }
+      } else {
+        const userInfo = await tokenValidationResponse.json();
+        console.log(`✅ Token válido - Autenticado como: ${userInfo.login || 'unknown'}`);
+      }
+    } catch (tokenError) {
+      console.error('❌ Error validando token:', tokenError);
+      // Continuar de todos modos, puede ser un error de red
+    }
+    
+    // 2. Verificar acceso al repositorio específico
+    console.log(`🔍 Verificando acceso al repositorio ${REPOSITORY}...`);
+    const repoAccessResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!repoAccessResponse.ok) {
+      const repoError = await repoAccessResponse.text();
+      console.error('❌ Repository access check failed:', {
+        status: repoAccessResponse.status,
+        error: repoError,
+        repository: REPOSITORY
+      });
+      
+      if (repoAccessResponse.status === 404) {
+        throw new Error(`Repository ${REPOSITORY} not found. Please verify GITHUB_OWNER="${GITHUB_OWNER}" and GITHUB_REPO="${GITHUB_REPO}" are correct.`);
+      } else if (repoAccessResponse.status === 403) {
+        throw new Error(`Access forbidden to repository ${REPOSITORY}. The token may not have permission to access this repository. Please verify the token has "repo" scope.`);
+      } else if (repoAccessResponse.status === 401) {
+        throw new Error(`Unauthorized access to repository ${REPOSITORY}. Please verify GITHUB_TOKEN has "repo" scope and access to this repository.`);
+      }
+    } else {
+      const repoInfo = await repoAccessResponse.json();
+      console.log(`✅ Acceso al repositorio confirmado: ${repoInfo.full_name} (${repoInfo.private ? 'private' : 'public'})`);
+    }
+    
+    // 3. Usar ticketId pasado como parámetro o extraerlo
     const finalTicketId = ticketId || extractTicketId(interpretation);
     
-    // 2. Generar nombre de branch (mejorado con ticketId y título)
+    // 4. Generar nombre de branch (mejorado con ticketId y título)
     const branchName = generateBranchName(finalTicketId, interpretation, ticketTitle);
     
-    // 3. Obtener SHA del branch base (main o develop)
+    // 5. Obtener SHA del branch base (main o develop)
     const baseBranch = 'main';
     const baseResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/ref/heads/${baseBranch}`, {
       headers: {
@@ -3776,8 +3977,9 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     
     const baseData = await baseResponse.json();
     const baseSha = baseData.object.sha;
+    console.log(`✅ Base branch SHA obtenido: ${baseSha.substring(0, 7)}...`);
     
-    // 4. Crear nuevo branch desde base
+    // 6. Crear nuevo branch desde base
     const branchResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/refs`, {
       method: 'POST',
       headers: {
