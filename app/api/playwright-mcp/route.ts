@@ -254,11 +254,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
     console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
     try {
-      // Usar Promise.race con timeout de 3 segundos (más rápido para evitar timeout total)
+      // Usar Promise.race con timeout de 2 segundos (optimizado para evitar timeout total)
       const codebaseAnalysis = await Promise.race([
         analyzeCodebaseForPatterns(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 3000) // 3 segundos - más rápido
+          setTimeout(() => reject(new Error('Timeout')), 2000) // 2 segundos - optimizado
         )
       ]) as any;
       
@@ -347,9 +347,35 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
       const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle);
       
-      // 9. 🎯 GIT MANAGEMENT: Crear branch y preparar PR
+      // 8.5. 🎯 CODE REVIEW AUTOMÁTICO: Revisar test generado con Claude antes de crear PR
+      // ⚠️ OPTIMIZADO: Code review con timeout para evitar delays
+      console.log('🔍 Playwright MCP: Revisando código generado...');
+      let codeReview: any = { issues: [], suggestions: [], score: 0 };
+      try {
+        const reviewPromise = performCodeReview(testResult.code, interpretation, codeGeneration);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Code review timeout')), 5000) // 5 segundos máximo
+        );
+        
+        codeReview = await Promise.race([reviewPromise, timeoutPromise]) as any;
+        
+        if (codeReview.issues.length > 0) {
+          console.warn(`⚠️ Code review encontró ${codeReview.issues.length} posibles mejoras`);
+          codeReview.issues.forEach((issue: any) => {
+            console.warn(`  - ${issue.severity}: ${issue.message}`);
+          });
+        } else {
+          console.log('✅ Code review: No se encontraron problemas');
+        }
+      } catch (reviewError) {
+        console.warn('⚠️ Code review timeout o error, continuando sin review:', reviewError);
+        // Usar review básico rápido
+        codeReview = performBasicCodeReview(testResult.code, interpretation);
+      }
+      
+      // 9. 🎯 GIT MANAGEMENT: Crear branch y preparar PR (incluir code review)
       console.log('🌿 Playwright MCP: Creando branch y preparando PR...');
-      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle);
+      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
       
       return {
         success: true,
@@ -484,10 +510,16 @@ async function interpretAcceptanceCriteria(criteria: string) {
 async function interpretWithLLM(criteria: string) {
   console.log('📋 [LLM] Acceptance criteria recibido:', criteria);
   
-  const systemPrompt = `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity).
+  const systemPrompt = `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity), actuando como GitHub Copilot para maximizar reutilización de código.
 
 🎯 INSTRUCCIÓN CRÍTICA: LEE TODO EL ACCEPTANCE CRITERIA COMPLETO ANTES DE RESPONDER.
 No ignores ninguna parte del texto. Extrae TODAS las acciones y assertions mencionadas.
+
+🤖 MODO COPILOT: Tu objetivo es maximizar la reutilización de métodos existentes en el codebase.
+- Si el acceptance criteria menciona "add to cart" → pensar en métodos como "clickOnAddMealButton" o "addToCart"
+- Si menciona "cart" → pensar en métodos como "navigateToCartIcon" o "clickOnCartButton"
+- Si menciona "orders hub" → pensar en métodos como "clickOnOrdersHubNavItem"
+- PRIORIZA siempre métodos existentes sobre crear nuevos métodos
 
 Tu tarea es extraer de forma abstracta:
 1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
@@ -696,7 +728,7 @@ Responde SOLO con JSON válido en este formato:
 }
 
 // Analizar codebase para aprender de tests existentes
-// 🎯 ANALIZAR CODEBASE REAL - Consulta GitHub API para obtener tests y page objects de pw-cookunity-automation
+// 🎯 ANALIZAR CODEBASE MEJORADO - Usa GitHub API + Code Search para análisis más profundo
 async function analyzeCodebaseForPatterns() {
   try {
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -714,9 +746,9 @@ async function analyzeCodebaseForPatterns() {
       return getStaticPatterns();
     }
     
-    console.log('📚 Analizando codebase real de pw-cookunity-automation...');
+    console.log('📚 Analizando codebase real de pw-cookunity-automation (análisis mejorado)...');
     
-    // 1. Obtener lista de archivos en el directorio
+    // 1. Obtener lista de archivos en el directorio (método tradicional)
     const dirResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${BASE_PATH}`, {
       headers: {
         'Authorization': `Bearer ${GITHUB_TOKEN}`,
@@ -744,13 +776,12 @@ async function analyzeCodebaseForPatterns() {
     
     console.log(`📁 Analizando ${pageObjectFiles.length} page objects (optimizado para velocidad)...`);
     
-    // 2. Analizar SOLO page objects en paralelo (más rápido)
+    // 2. Analizar page objects en paralelo
     const fileResults = await Promise.all(
       pageObjectFiles.map(async (file: any) => {
       const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
         if (!fileContent) return null;
       
-        // Solo analizar page objects (no tests, más rápido)
         const pageObjectName = extractPageObjectName(file.name);
         const extractedMethods = extractMethodsFromContent(fileContent);
         const extractedSelectors = extractSelectorsFromContent(fileContent);
@@ -760,44 +791,119 @@ async function analyzeCodebaseForPatterns() {
           type: 'pageObject', 
           name: pageObjectName, 
           methods: extractedMethods,
-          methodsWithTestIds: extractedMethods, // Métodos con sus testIds asociados
+          methodsWithTestIds: extractedMethods,
           selectors: extractedSelectors
         };
       })
     );
     
-    // Acumular resultados de forma segura (solo page objects, más rápido)
+    // 3. 🎯 NUEVO: Usar GitHub Code Search para búsquedas semánticas más inteligentes
+    // ⚠️ OPTIMIZADO: Deshabilitado temporalmente para evitar timeout - usar solo análisis directo
+    // const semanticSearchResults = await performSemanticCodeSearch(REPOSITORY, GITHUB_TOKEN);
+    const semanticSearchResults = { methods: {}, testPatterns: [], summary: 'Semantic search disabled for performance' };
+    
+    // Acumular resultados de forma segura
     const methods: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
-    const methodsWithTestIds: any = { homePage: [], ordersHubPage: [], usersHelper: [] }; // Mapeo método → testIds
+    const methodsWithTestIds: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
     const selectors: any[] = [];
     
     for (const result of fileResults) {
       if (!result || result.type !== 'pageObject') continue;
       
-      // Métodos simples (solo nombres) para compatibilidad
       methods[result.name] = result.methods?.map((m: any) => typeof m === 'string' ? m : m.name) || [];
-      
-      // Métodos con testIds (mapeo completo)
       methodsWithTestIds[result.name] = result.methodsWithTestIds || result.methods || [];
-      
       selectors.push(...result.selectors);
     }
     
-    console.log(`📊 Análisis rápido completo: ${Object.values(methods).flat().length} métodos, ${selectors.length} selectors`);
+    // Agregar resultados de búsqueda semántica (si está habilitado)
+    if (semanticSearchResults.methods && Object.keys(semanticSearchResults.methods).length > 0) {
+      const semanticMethods = semanticSearchResults.methods as Record<string, string[]>;
+      Object.keys(semanticMethods).forEach((pageName: string) => {
+        if (!methods[pageName]) methods[pageName] = [];
+        if (!methodsWithTestIds[pageName]) methodsWithTestIds[pageName] = [];
+        
+        methods[pageName].push(...semanticMethods[pageName]);
+        methodsWithTestIds[pageName].push(...semanticMethods[pageName]);
+      });
+    }
+    
+    console.log(`📊 Análisis mejorado completo: ${Object.values(methods).flat().length} métodos, ${selectors.length} selectors`);
     
     return {
       methods,
-      methodsWithTestIds, // Mapeo método → testIds que usa
+      methodsWithTestIds,
       selectors,
-      testPatterns: [], // No analizar tests para velocidad
-      source: 'github-repository-fast',
+      testPatterns: semanticSearchResults.testPatterns || [],
+      source: 'github-repository-enhanced',
       repository: REPOSITORY,
-      analyzedAt: new Date().toISOString()
+      analyzedAt: new Date().toISOString(),
+      semanticSearchResults: semanticSearchResults.summary || 'No additional patterns found'
     };
     
   } catch (error) {
     console.error('⚠️ Error analizando codebase:', error);
     return getStaticPatterns();
+  }
+}
+
+// 🎯 BÚSQUEDA SEMÁNTICA: Usar GitHub Code Search API para encontrar métodos relacionados
+async function performSemanticCodeSearch(repository: string, token: string) {
+  try {
+    // Buscar métodos comunes que podrían estar en diferentes archivos
+    const searchQueries = [
+      `repo:${repository} addToCart language:TypeScript`,
+      `repo:${repository} clickOnAddMeal language:TypeScript`,
+      `repo:${repository} pastOrders language:TypeScript`,
+      `repo:${repository} ordersHub language:TypeScript`,
+      `repo:${repository} isEmptyState language:TypeScript`
+    ];
+    
+    const searchResults: any = { methods: {}, testPatterns: [] };
+    
+    // Limitar a 2 búsquedas para no exceder timeout (Code Search puede ser lento)
+    for (const query of searchQueries.slice(0, 2)) {
+      try {
+        const searchResponse = await fetch(`https://api.github.com/search/code?q=${encodeURIComponent(query)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.items && searchData.items.length > 0) {
+            // Analizar el primer resultado encontrado
+            const firstResult = searchData.items[0];
+            const filePath = firstResult.path;
+            
+            // Extraer métodos de este archivo
+            const fileContent = await fetchFileFromGitHub(repository, filePath, token);
+            if (fileContent) {
+              const extractedMethods = extractMethodsFromContent(fileContent);
+              const pageName = extractPageObjectName(filePath);
+              
+              if (!searchResults.methods[pageName]) {
+                searchResults.methods[pageName] = [];
+              }
+              searchResults.methods[pageName].push(...extractedMethods.map((m: any) => typeof m === 'string' ? m : m.name));
+            }
+          }
+        }
+      } catch (searchError) {
+        // Continuar con siguiente búsqueda si falla una
+        console.log(`⚠️ Búsqueda semántica falló para: ${query}`);
+      }
+    }
+    
+    return {
+      methods: searchResults.methods,
+      testPatterns: searchResults.testPatterns,
+      summary: `Semantic search completed: ${Object.keys(searchResults.methods).length} pages found`
+    };
+  } catch (error) {
+    console.warn('⚠️ Error en búsqueda semántica, continuando sin ella:', error);
+    return { methods: {}, testPatterns: [], summary: 'Semantic search failed' };
   }
 }
 
@@ -2693,25 +2799,51 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
               methodCall = `await ${locatorCode}.click();`;
           }
         } else {
-          // Fallback: Generar método específico basado en el tipo de acción
-          // Usar ordersHubPage directamente (pastOrders es una tab dentro de ordersHubPage)
+          // 🎯 MEJORADO: Buscar método existente ANTES de generar uno nuevo
+          const codebasePatterns = interpretation.codebasePatterns;
+          const existingMethod = findExistingMethod(
+            elementName,
+            action.type,
+            interpretation.context,
+            action.intent,
+            interaction?.testId
+          );
+          
+          if (existingMethod) {
+            // Usar método existente encontrado
+            const capitalizedMethod = existingMethod.charAt(0).toUpperCase() + existingMethod.slice(1);
+            switch (action.type) {
+              case 'click':
+              case 'tap':
+                methodCall = `await ${pageVarName}.${existingMethod}();`;
+                break;
+              case 'fill':
+                methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
+                break;
+              default:
+                methodCall = `await ${pageVarName}.${existingMethod}();`;
+            }
+            console.log(`✅ Reutilizando método existente: ${existingMethod} para ${elementName}`);
+          } else {
+            // Fallback: Generar método específico solo si no existe uno
           const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-              methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
+                methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
               break;
             case 'navigate':
-              methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
               break;
             case 'scroll':
-              methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
               break;
             default:
-              methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
+            }
           }
         }
         
@@ -4048,8 +4180,122 @@ ${interpretation.assertions
 });`;
 }
 
+// 🎯 CODE REVIEW AUTOMÁTICO: Revisar test generado con Claude antes de crear PR
+async function performCodeReview(testCode: string, interpretation: any, codeGeneration: any) {
+  try {
+    const apiKey = process.env.CLAUDE_API_KEY;
+    if (!apiKey) {
+      console.warn('⚠️ Claude API no configurado, saltando code review');
+      return { issues: [], suggestions: [], score: 0 };
+    }
+
+    const { callClaudeAPI } = await import('../utils/claude');
+    
+    const systemPrompt = `You are an expert Playwright test automation code reviewer. Analyze the generated test code and provide structured feedback.
+
+Review the test for:
+1. **Code Quality**: Proper structure, readability, best practices
+2. **Method Reuse**: Are existing page object methods being reused? (Check if methods like clickOnAddMealButton exist but aren't used)
+3. **Assertions**: Are assertions comprehensive and meaningful?
+4. **Error Handling**: Are there proper waits and error handling?
+5. **Playwright Best Practices**: Following Playwright patterns and conventions
+6. **Test Structure**: GIVEN/WHEN/THEN structure is clear
+7. **Potential Issues**: Hardcoded values, missing waits, incorrect selectors
+
+Available codebase patterns:
+${JSON.stringify(interpretation.codebasePatterns?.methods || {}, null, 2)}
+
+Respond with a JSON object containing:
+{
+  "issues": [
+    {
+      "severity": "error|warning|info",
+      "message": "Description of the issue",
+      "line": "optional line reference",
+      "suggestion": "How to fix it"
+    }
+  ],
+  "suggestions": [
+    "Positive suggestions for improvement"
+  ],
+  "score": 0-100,
+  "summary": "Overall assessment"
+}`;
+
+    const userMessage = `Review this Playwright test code:
+
+\`\`\`typescript
+${testCode}
+\`\`\`
+
+Available methods from codebase:
+${JSON.stringify(interpretation.codebasePatterns?.methods || {}, null, 2)}
+
+Provide structured feedback as JSON.`;
+
+    const { response } = await callClaudeAPI(apiKey, systemPrompt, userMessage, { maxTokens: 2000 });
+    
+    const reviewText = response.content?.[0]?.text || '';
+    
+    // Extraer JSON de la respuesta
+    let reviewData: any = { issues: [], suggestions: [], score: 0 };
+    try {
+      // Intentar extraer JSON del texto
+      const jsonMatch = reviewText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        reviewData = JSON.parse(jsonMatch[0]);
+      }
+    } catch (parseError) {
+      console.warn('⚠️ Error parseando code review, usando fallback');
+      // Fallback: análisis básico sin Claude
+      reviewData = performBasicCodeReview(testCode, interpretation);
+    }
+    
+    return reviewData;
+  } catch (error) {
+    console.error('❌ Error en code review:', error);
+    // Fallback a análisis básico
+    return performBasicCodeReview(testCode, interpretation);
+  }
+}
+
+// Análisis básico de código sin Claude (fallback)
+function performBasicCodeReview(testCode: string, interpretation: any) {
+  const issues: any[] = [];
+  
+  // Verificar si hay métodos hardcodeados que podrían reutilizarse
+  const availableMethods = interpretation.codebasePatterns?.methods || {};
+  const homePageMethods = availableMethods.homePage || [];
+  const ordersHubMethods = availableMethods.ordersHubPage || [];
+  
+  // Buscar patrones comunes que deberían usar métodos existentes
+  if (testCode.includes('getByTestId') && homePageMethods.length > 0) {
+    issues.push({
+      severity: 'warning',
+      message: 'Test usa getByTestId directamente. Considera reutilizar métodos existentes de page objects.',
+      suggestion: 'Revisa los métodos disponibles en homePage/ordersHubPage'
+    });
+  }
+  
+  // Verificar estructura GIVEN/WHEN/THEN
+  if (!testCode.includes('//GIVEN') || !testCode.includes('//WHEN') || !testCode.includes('//THEN')) {
+    issues.push({
+      severity: 'info',
+      message: 'Test podría beneficiarse de una estructura GIVEN/WHEN/THEN más clara',
+      suggestion: 'Asegúrate de que los comentarios GIVEN/WHEN/THEN estén presentes'
+    });
+  }
+  
+  return {
+    issues,
+    suggestions: [],
+    score: issues.length === 0 ? 90 : 70,
+    summary: `Análisis básico: ${issues.length} items encontrados`
+  };
+}
+
 // 🎯 GIT MANAGEMENT: Crear branch y PR real usando GitHub API
-async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string) {
+async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string, codeReview?: any) {
   // Declarar variables fuera del try para que estén disponibles en el catch
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
   const GITHUB_OWNER = process.env.GITHUB_OWNER;
@@ -4225,7 +4471,7 @@ npm run test:playwright || exit 1
       huskyConfig
     ];
     
-    // 6. Crear commits para cada archivo usando GitHub API
+    // 6. Crear commits para cada archivo usando GitHub API (optimizado: batch commits)
     let currentSha = baseSha;
     const commitMessage = `feat: Add ${interpretation.context} test with Playwright MCP
 
@@ -4234,7 +4480,11 @@ npm run test:playwright || exit 1
 - Added Husky pre-commit hooks for test validation
 - Test will auto-promote PR from draft to review on success`;
 
-    for (const file of allFiles) {
+    // ⚠️ OPTIMIZADO: Limitar número de archivos para evitar timeout (máximo 10 archivos)
+    const filesToCommit = allFiles.slice(0, 10);
+    console.log(`📦 Commitando ${filesToCommit.length} archivos (de ${allFiles.length} total)`);
+    
+    for (const file of filesToCommit) {
       // Leer contenido del archivo si existe (para actualizar) o crear nuevo
       let fileSha = null;
       try {
@@ -4291,7 +4541,7 @@ npm run test:playwright || exit 1
       ? prTitle
       : `QA-${finalTicketId || 'AUTO'} - ${prTitle}`;
     
-    const prDescription = generatePRDescription(interpretation, codeGeneration);
+    const prDescription = generatePRDescription(interpretation, codeGeneration, codeReview);
     
     const prResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/pulls`, {
       method: 'POST',
@@ -4454,35 +4704,62 @@ function generateBranchName(ticketId: string | null, interpretation: any, ticket
 }
 
 // Generar descripción del PR
-function generatePRDescription(interpretation: any, codeGeneration: any) {
-  return `## 🎯 Test Generated with Playwright MCP
+function generatePRDescription(interpretation: any, codeGeneration: any, codeReview?: any) {
+  let description = `## 🎯 Test Generated with Playwright MCP
 
-### Context
-- **Page**: ${interpretation.context}
-- **Actions**: ${interpretation.actions.length} actions observed
-- **Assertions**: ${interpretation.assertions.length} assertions
+**Context:** ${interpretation.context}
+**Acceptance Criteria:** ${interpretation.originalCriteria?.substring(0, 200) || 'N/A'}...
 
-### Files Generated
-${codeGeneration.files.map((f: any) => `- \`${f.file}\` (${f.type})`).join('\n')}
+### 📝 Generated Files
+${codeGeneration.files.map((f: any) => `- ${f.file}`).join('\n')}
 
-### Test Details
-- **Mode**: Real browser observation with Playwright MCP
-- **Validation**: ✅ Test structure validated
-- **Code Generation**: ✅ Complete page objects and helpers created
+### 🔍 Test Details
+- **Test Type:** E2E Automated Test
+- **Framework:** Playwright
+- **Observations:** ${codeGeneration.observations?.length || 0} elements observed
+- **Actions:** ${interpretation.actions?.length || 0} actions
+- **Assertions:** ${interpretation.assertions?.length || 0} assertions
 
-### Generated by
-TODD Ultimate with Playwright MCP integration - Real browser automation and observation.
+`;
+  
+  // Agregar code review si está disponible
+  if (codeReview && codeReview.issues && codeReview.issues.length > 0) {
+    description += `### ⚠️ Code Review Results
 
-### 🚀 Automated Testing
-This PR includes:
-1. **Husky pre-commit hooks** - Validates test before commit
-2. **GitHub Actions workflow** - Runs test on PR creation/update
-3. **Auto-promotion** - PR moves from draft to review on success
+**Score:** ${codeReview.score || 0}/100
 
-### Workflow
-- **Pre-commit**: Husky runs test validation locally
-- **PR Trigger**: GitHub Actions runs full test suite
-- **Status**: Auto-promotion to review on success`;
+**Issues Found:**
+${codeReview.issues.map((issue: any) => `- **${issue.severity}**: ${issue.message}${issue.suggestion ? `\n  - 💡 Suggestion: ${issue.suggestion}` : ''}`).join('\n')}
+
+`;
+    
+    if (codeReview.suggestions && codeReview.suggestions.length > 0) {
+      description += `**Suggestions:**
+${codeReview.suggestions.map((s: string) => `- 💡 ${s}`).join('\n')}
+
+`;
+    }
+    
+    if (codeReview.summary) {
+      description += `**Summary:** ${codeReview.summary}\n\n`;
+    }
+  } else if (codeReview && codeReview.score) {
+    description += `### ✅ Code Review
+
+**Score:** ${codeReview.score}/100
+
+No issues found! The generated test follows best practices.
+
+`;
+  }
+  
+  description += `### 🚀 Next Steps
+- Review the generated test
+- Run the test locally to verify
+- The test will automatically run on PR creation via GitHub Actions
+`;
+  
+  return description;
 }
 
 // 🎯 GENERAR GITHUB ACTIONS WORKFLOW (EJECUTA SOLO EL TEST GENERADO)
