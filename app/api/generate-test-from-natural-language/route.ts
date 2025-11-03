@@ -9,6 +9,11 @@ import { NextRequest, NextResponse } from 'next/server'
  * 3. Playwright MCP observes the actual website behavior
  * 4. Generate test code based on observations
  */
+
+// Configurar timeout extendido para Vercel
+export const maxDuration = 60; // 60 segundos (máximo en plan Pro)
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { userRequest, chatHistory = [] } = await request.json()
