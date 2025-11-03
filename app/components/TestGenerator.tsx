@@ -418,14 +418,19 @@ export default function TestGenerator() {
           </p>
         </motion.div>
 
-
-        {/* Progress Log */}
-        {showProgress && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-white/20 border border-gray-300/50 rounded-xl shadow-lg"
-          >
+        {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          {/* Progress Log - Dentro del contenido principal */}
+          {showProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-white/20 border border-gray-300/50 rounded-xl shadow-lg relative z-10"
+            >
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -508,14 +513,7 @@ export default function TestGenerator() {
               </div>
             </div>
           </motion.div>
-        )}
-
-        {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
+          )}
           {/* Mode Selector */}
           {step === 'jira' && (
             <motion.div
