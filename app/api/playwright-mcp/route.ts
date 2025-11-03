@@ -1330,10 +1330,10 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       // Después del login, esperar a que redirija de vuelta a la página original o a qa.cookunity.com
       console.log('⏳ Esperando redirección después del login...');
-      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 20000 });
+      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 12000 }); // Reducido de 20s a 12s
       // Esperar de forma flexible (no bloquear si networkidle falla)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Reducido de 10s a 5s
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout después del login, continuando...');
       }
