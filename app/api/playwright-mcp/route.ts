@@ -737,6 +737,7 @@ async function analyzeCodebaseForPatterns() {
           type: 'pageObject', 
           name: pageObjectName, 
           methods: extractedMethods,
+          methodsWithTestIds: extractedMethods, // Métodos con sus testIds asociados
           selectors: extractedSelectors
         };
       })
@@ -744,12 +745,18 @@ async function analyzeCodebaseForPatterns() {
     
     // Acumular resultados de forma segura (solo page objects, más rápido)
     const methods: any = { homePage: [], ordersHubPage: [], usersHelper: [] };
+    const methodsWithTestIds: any = { homePage: [], ordersHubPage: [], usersHelper: [] }; // Mapeo método → testIds
     const selectors: any[] = [];
     
     for (const result of fileResults) {
       if (!result || result.type !== 'pageObject') continue;
       
-      methods[result.name] = result.methods;
+      // Métodos simples (solo nombres) para compatibilidad
+      methods[result.name] = result.methods?.map((m: any) => typeof m === 'string' ? m : m.name) || [];
+      
+      // Métodos con testIds (mapeo completo)
+      methodsWithTestIds[result.name] = result.methodsWithTestIds || result.methods || [];
+      
       selectors.push(...result.selectors);
     }
     
@@ -757,6 +764,7 @@ async function analyzeCodebaseForPatterns() {
     
     return {
       methods,
+      methodsWithTestIds, // Mapeo método → testIds que usa
       selectors,
       testPatterns: [], // No analizar tests para velocidad
       source: 'github-repository-fast',
@@ -806,30 +814,61 @@ function extractPageObjectName(fileName: string): string {
   return 'unknown';
 }
 
-// Extraer métodos de un page object
-function extractMethodsFromContent(content: string): string[] {
-  const methods: string[] = [];
-  // Buscar métodos async
-  const methodRegex = /async\s+(\w+)\s*\([^)]*\)/g;
+// Extraer métodos de un page object con sus selectors asociados
+function extractMethodsFromContent(content: string): Array<{ name: string; testIds: string[] }> {
+  const methods: Array<{ name: string; testIds: string[] }> = [];
+  
+  // Buscar métodos async y extraer los testIds que usan
+  const methodRegex = /async\s+(\w+)\s*\([^)]*\)[\s\S]*?\{([\s\S]*?)(?=\n\s*async|\n\s*\}|\n\})/g;
   let match;
   
   while ((match = methodRegex.exec(content)) !== null) {
-    methods.push(match[1]);
+    const methodName = match[1];
+    const methodBody = match[2] || '';
+    
+    // Extraer todos los testIds usados en este método
+    const testIdRegex = /(?:getByTestId|locator)\s*\(\s*["']([^"']+)["']\s*\)/g;
+    const testIds: string[] = [];
+    let testIdMatch;
+    
+    while ((testIdMatch = testIdRegex.exec(methodBody)) !== null) {
+      testIds.push(testIdMatch[1]);
+    }
+    
+    // También buscar en selectors CSS
+    const cssTestIdRegex = /\[data-testid=["']([^"']+)["']\]/g;
+    while ((testIdMatch = cssTestIdRegex.exec(methodBody)) !== null) {
+      testIds.push(testIdMatch[1]);
+    }
+    
+    methods.push({
+      name: methodName,
+      testIds: Array.from(new Set(testIds)) // Eliminar duplicados
+    });
+  }
+  
+  // Fallback: si no encontramos métodos con testIds, al menos devolver nombres
+  if (methods.length === 0) {
+    const simpleMethodRegex = /async\s+(\w+)\s*\([^)]*\)/g;
+    let simpleMatch;
+    while ((simpleMatch = simpleMethodRegex.exec(content)) !== null) {
+      methods.push({ name: simpleMatch[1], testIds: [] });
+    }
   }
   
   return methods;
 }
 
-// Extraer selectors de un page object
+// Extraer selectors de un page object (mantener compatibilidad)
 function extractSelectorsFromContent(content: string): any[] {
   const selectors: any[] = [];
   
   // Buscar data-testid selectors
-  const testIdRegex = /\[data-testid=["']([^"']+)["']\]/g;
+  const testIdRegex = /\[data-testid=["']([^"']+)["']\]|getByTestId\s*\(\s*["']([^"']+)["']\s*\)/g;
   let match;
   
   while ((match = testIdRegex.exec(content)) !== null) {
-    const testId = match[1];
+    const testId = match[1] || match[2];
     // Buscar el nombre del método o variable que usa este selector
     const contextBefore = content.substring(Math.max(0, content.indexOf(match[0]) - 200), content.indexOf(match[0]));
     const varNameMatch = contextBefore.match(/(\w+)\s*[:=]/);
@@ -893,6 +932,18 @@ function getStaticPatterns() {
         'getActiveUserEmailWithOrdersHubOnboardingViewed',
         'getActiveUserEmailWithPastOrders'
         ]
+      },
+      methodsWithTestIds: {
+        homePage: [
+          { name: 'clickOnAddMealButton', testIds: ['add-to-cart-button-container', 'add-meal-btn'] },
+          { name: 'clickOnCartButton', testIds: ['cart-button', 'view-cart'] },
+          { name: 'navigateToOrdersHub', testIds: ['orders-hub-nav'] }
+        ],
+        ordersHubPage: [
+          { name: 'clickOnPastOrdersTab', testIds: ['past-orders-tab'] },
+          { name: 'clickOnInvoiceIcon', testIds: ['invoice-icon'] }
+        ],
+        usersHelper: []
       },
       selectors: [
       { name: 'invoiceIcon', patterns: ['invoice', 'invoice-icon'], dataTestId: ['invoice-icon'] },
@@ -2644,8 +2695,8 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   const codebasePatterns = interpretation.codebasePatterns;
   const availableMethods = codebasePatterns?.methods || {};
   
-  // Función helper para buscar método existente que coincida por intención y nombre
-  function findExistingMethod(elementName: string, actionType: string, context: string, intent?: string): string | null {
+  // Función helper para buscar método existente que coincida por intención, nombre o testId observado
+  function findExistingMethod(elementName: string, actionType: string, context: string, intent?: string, observedTestId?: string): string | null {
     if (!codebasePatterns) return null;
     
     // Determinar qué page object buscar según el contexto
@@ -2659,8 +2710,51 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     }
     
     const methods = availableMethods[pageObjectName] || [];
+    const methodsWithTestIds = codebasePatterns.methodsWithTestIds?.[pageObjectName] || [];
     const elementLower = elementName.toLowerCase();
     const intentLower = (intent || '').toLowerCase();
+    
+    // 🎯 PRIORIDAD 1: Buscar por testId observado (más preciso)
+    // Si observamos un elemento con testId, buscar qué método usa ese mismo testId
+    if (observedTestId) {
+      const testIdLower = observedTestId.toLowerCase();
+      for (const methodInfo of methodsWithTestIds) {
+        const methodName = typeof methodInfo === 'string' ? methodInfo : methodInfo.name;
+        const methodTestIds = typeof methodInfo === 'object' ? (methodInfo.testIds || []) : [];
+        
+        // Buscar si algún testId del método coincide con el observado
+        for (const methodTestId of methodTestIds) {
+          if (methodTestId.toLowerCase() === testIdLower || 
+              methodTestId.toLowerCase().includes(testIdLower) ||
+              testIdLower.includes(methodTestId.toLowerCase())) {
+            console.log(`✅ Encontrado método por testId observado: ${methodName} usa el mismo testId "${observedTestId}"`);
+            return methodName;
+          }
+        }
+      }
+      
+      // También buscar en selectors
+      if (codebasePatterns.selectors) {
+        for (const selector of codebasePatterns.selectors) {
+          const selectorTestIds = selector.dataTestId || [];
+          for (const selectorTestId of selectorTestIds) {
+            if (selectorTestId.toLowerCase() === testIdLower || 
+                selectorTestId.toLowerCase().includes(testIdLower) ||
+                testIdLower.includes(selectorTestId.toLowerCase())) {
+              // Si el selector tiene un método asociado, usarlo
+              const methodMatch = methods.find((m: string) => 
+                m.toLowerCase().includes(selector.name?.toLowerCase() || '') ||
+                m.toLowerCase().includes(selectorTestId.toLowerCase().replace(/-/g, ''))
+              );
+              if (methodMatch) {
+                console.log(`✅ Encontrado método por selector: ${methodMatch} usa testId "${observedTestId}"`);
+                return methodMatch;
+              }
+            }
+          }
+        }
+      }
+    }
     
     // 🎯 Mapeo de intenciones a métodos existentes
     const intentMappings: { [key: string]: string[] } = {
@@ -2763,9 +2857,25 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       const description = action.description || `Click on ${elementName}`;
       const intent = action.intent || description;
       
-      // 🎯 Buscar método existente primero (usando intención para mejor matching)
-      console.log(`🔍 Buscando método existente para: elemento="${elementName}", intent="${intent}", contexto="${interpretation.context}"`);
-      const existingMethod = findExistingMethod(elementName, action.type, interpretation.context, intent);
+      // 🎯 Obtener testId observado del elemento (si está disponible)
+      const observedElement = behavior.elements?.find((e: any) => {
+        const elementText = (e.text || '').toLowerCase();
+        const elementTestId = (e.testId || '').toLowerCase();
+        const elementNameLower = elementName?.toLowerCase() || '';
+        const intentLower = (intent || '').toLowerCase();
+        
+        return (
+          elementText.includes(elementNameLower) ||
+          elementTestId.includes(elementNameLower) ||
+          (intentLower.includes('add') && (elementText.includes('add meal') || elementTestId.includes('add-to-cart'))) ||
+          (intentLower.includes('cart') && (elementText.includes('cart') || elementTestId.includes('cart')))
+        );
+      });
+      const observedTestId = observedElement?.testId;
+      
+      // 🎯 Buscar método existente (usando intención Y testId observado)
+      console.log(`🔍 Buscando método existente para: elemento="${elementName}", intent="${intent}", testId="${observedTestId}", contexto="${interpretation.context}"`);
+      const existingMethod = findExistingMethod(elementName, action.type, interpretation.context, intent, observedTestId);
       
       // 🎯 Buscar locator generado por MCP en behavior.interactions (mejor matching)
       // Buscar por element name primero, luego por intent/description
