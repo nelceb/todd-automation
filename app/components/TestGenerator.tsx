@@ -68,6 +68,7 @@ export default function TestGenerator() {
   const [copyButtonState, setCopyButtonState] = useState<'idle' | 'copied'>('idle')
   const [progressLog, setProgressLog] = useState<ProgressLog[]>([])
   const [showProgress, setShowProgress] = useState(false)
+  const progressContainerRef = React.useRef<HTMLDivElement>(null)
 
   // Add error boundary effect
   React.useEffect(() => {
@@ -79,6 +80,16 @@ export default function TestGenerator() {
     window.addEventListener('error', handleError)
     return () => window.removeEventListener('error', handleError)
   }, [])
+
+  // Auto-scroll progress container cuando se agregan nuevos pasos
+  React.useEffect(() => {
+    if (progressContainerRef.current && progressLog.length > 0) {
+      progressContainerRef.current.scrollTo({
+        top: progressContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
+  }, [progressLog])
 
   const fetchJiraIssue = async () => {
     setLoading(true)
@@ -312,17 +323,24 @@ export default function TestGenerator() {
         content: data.claudeResponse || 'Test generation initiated...' 
       }])
 
-      // Update progress logs
-      setProgressLog(prev => [
-        ...prev,
-        { step: 'claude', message: 'Claude interpreted request successfully', status: 'success', timestamp: Date.now() },
-        { step: 'browser', message: 'Launching browser for observation...', status: 'info', timestamp: Date.now() },
-        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now() },
-        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'info', timestamp: Date.now() },
-        { step: 'generate', message: 'Generating test code...', status: 'info', timestamp: Date.now() },
-        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now() },
-        { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() }
-      ])
+      // Update progress logs progresivamente (uno tras otro con delays pequeños)
+      const baseTime = Date.now()
+      const steps = [
+        { step: 'claude', message: 'Claude interpreted request successfully', status: 'success' as const },
+        { step: 'browser', message: 'Launching browser for observation...', status: 'info' as const },
+        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: (data.navigation?.success ? 'success' : 'info') as const },
+        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'success' as const },
+        { step: 'generate', message: 'Generating test code...', status: 'success' as const },
+        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: (data.testValidation?.success ? 'success' : 'info') as const },
+        { step: 'complete', message: 'Test generation completed successfully!', status: (data.success ? 'success' : 'error') as const }
+      ]
+      
+      // Agregar cada paso progresivamente con timestamp único
+      steps.forEach((stepData, index) => {
+        setTimeout(() => {
+          setProgressLog(prev => [...prev, { ...stepData, timestamp: baseTime + index * 10 }])
+        }, index * 50) // Delay de 50ms entre cada paso para efecto progresivo
+      })
 
       if (data.success && data.smartTest?.code) {
         setGeneratedTest({
@@ -421,7 +439,10 @@ export default function TestGenerator() {
                   <XCircleIcon className="w-5 h-5" />
                 </button>
               </div>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div 
+                ref={progressContainerRef}
+                className="space-y-2 max-h-96 overflow-y-auto"
+              >
                 {/* Todos los pasos en orden cronológico (de arriba hacia abajo) */}
                 {progressLog.length > 0 ? (
                   progressLog
