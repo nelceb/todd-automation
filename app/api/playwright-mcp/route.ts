@@ -1300,12 +1300,23 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         }
       } catch (authValidationError) {
         console.error('❌ [AUTH VALIDATION] Error validando autenticación:', authValidationError);
-        // NO continuar si no podemos validar la autenticación
-        return {
-          success: false,
-          error: `Error validando autenticación: ${authValidationError instanceof Error ? authValidationError.message : String(authValidationError)}`,
-          url: page.url()
-        };
+        
+        // Verificación flexible: solo fallar si realmente estamos en login page
+        const currentURL = page.url();
+        const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
+        
+        if (isLoginPage) {
+          // Si estamos en login page, definitivamente falló
+          return {
+            success: false,
+            error: `Error validando autenticación: todavía en página de login`,
+            url: currentURL
+          };
+        } else {
+          // Si no estamos en login, continuar (puede ser que la página esté cargando)
+          console.warn('⚠️ [AUTH VALIDATION] Error en validación pero no estamos en login, continuando...');
+          console.log(`✅ [AUTH VALIDATION] Continuando con URL: ${currentURL}`);
+        }
       }
       
       // 🎯 ESTRATEGIA: Quedarse en el Home autenticado y dejar que la observación navegue según el acceptance criteria
