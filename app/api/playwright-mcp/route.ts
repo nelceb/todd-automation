@@ -4,6 +4,10 @@ import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
 import { createConnection } from '@playwright/mcp';
 
+// Configurar timeout extendido para Vercel
+export const maxDuration = 60; // 60 segundos (máximo en plan Pro)
+export const dynamic = 'force-dynamic';
+
 // 🎯 MCP INTEGRATION: Wrapper que usa las mismas estrategias que el servidor MCP oficial
 // NOTA: El servidor MCP oficial (@playwright/mcp) está diseñado para ejecutarse como proceso separado
 // con protocolo MCP. En Next.js API routes usamos las funciones internas de Playwright que el MCP usa.
@@ -250,11 +254,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
     console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
     try {
-      // Usar Promise.race con timeout de 4 segundos (balance entre velocidad y completitud)
+      // Usar Promise.race con timeout de 3 segundos (más rápido para evitar timeout total)
       const codebaseAnalysis = await Promise.race([
         analyzeCodebaseForPatterns(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 4000) // 4 segundos - balanceado
+          setTimeout(() => reject(new Error('Timeout')), 3000) // 3 segundos - más rápido
         )
       ]) as any;
       
