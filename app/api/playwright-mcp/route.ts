@@ -4457,7 +4457,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     // Find missing methods that are used in the test but don't exist in page object
     const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
     
-    for (const methodUsed of methodsUsedInTest) {
+    for (const methodUsed of Array.from(methodsUsedInTest)) {
       const methodExists = methodNames.some((method: string) => 
         method.toLowerCase() === methodUsed.toLowerCase()
       );
