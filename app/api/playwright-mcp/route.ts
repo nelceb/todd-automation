@@ -4316,6 +4316,82 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
   }
 }
 
+// Verificar si se necesitan generar métodos de page object (solo si no existen en el código base)
+async function checkIfPageObjectMethodsNeeded(interpretation: any, behavior: any): Promise<boolean> {
+  // Obtener los métodos disponibles del código base
+  const codebasePatterns = await analyzeCodebaseForPatterns();
+  if (!codebasePatterns || !codebasePatterns.methodsWithTestIds) {
+    return true; // Si no hay código base analizado, generar page object
+  }
+  
+  // Determinar qué page object buscar según el contexto
+  let pageObjectName = 'HomePage';
+  if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
+    pageObjectName = 'OrdersHubPage';
+  } else if (interpretation.context === 'homepage' || interpretation.context === 'home' || interpretation.context === 'menu') {
+    pageObjectName = 'HomePage';
+  } else if (interpretation.context === 'cart') {
+    pageObjectName = 'HomePage';
+  }
+  
+  const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+  const methodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+  
+  // Verificar si TODAS las acciones y assertions tienen métodos existentes
+  let missingMethods = 0;
+  
+  // Verificar acciones
+  for (const action of interpretation.actions || []) {
+    if (!action.element) continue;
+    
+    const elementName = action.element.toLowerCase();
+    const capitalizedName = action.element.charAt(0).toUpperCase() + action.element.slice(1);
+    const expectedMethodName = `clickOn${capitalizedName}`;
+    
+    // Buscar si el método existe
+    const methodExists = methodNames.some((method: string) => 
+      method.toLowerCase() === expectedMethodName.toLowerCase() ||
+      method.toLowerCase().includes(elementName) ||
+      elementName.includes(method.toLowerCase().replace('clickon', '').replace('click', ''))
+    );
+    
+    if (!methodExists) {
+      missingMethods++;
+      console.log(`⚠️ Método faltante para acción: ${expectedMethodName} (elemento: ${elementName})`);
+    }
+  }
+  
+  // Verificar assertions
+  for (const assertion of interpretation.assertions || []) {
+    if (!assertion.element) continue;
+    
+    const elementName = assertion.element.toLowerCase();
+    const capitalizedName = assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1);
+    const expectedMethodName = `is${capitalizedName}Visible`;
+    
+    // Buscar si el método existe
+    const methodExists = methodNames.some((method: string) => 
+      method.toLowerCase() === expectedMethodName.toLowerCase() ||
+      method.toLowerCase().includes(elementName) ||
+      method.toLowerCase().includes(`is${capitalizedName.toLowerCase()}`)
+    );
+    
+    if (!methodExists) {
+      missingMethods++;
+      console.log(`⚠️ Método faltante para assertion: ${expectedMethodName} (elemento: ${elementName})`);
+    }
+  }
+  
+  // Si hay métodos faltantes, generar page object
+  if (missingMethods > 0) {
+    console.log(`📝 Generando page object: ${missingMethods} métodos faltantes`);
+    return true;
+  }
+  
+  console.log(`✅ Todos los métodos existen en ${pageObjectName}, no se generará page object`);
+  return false;
+}
+
 // Generar código de Page Object usando observaciones reales de MCP
 function generatePageObjectCode(interpretation: any, behavior: any) {
   const pageName = `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
