@@ -4625,8 +4625,8 @@ function generateNewSpecFile(interpretation: any, generatedTestCode: string): st
     : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
     return `import { test, expect } from '@playwright/test';
-import { siteMap } from 'lib/siteMap';
-import { usersHelper } from 'lib/usersHelper';
+import { siteMap } from '../../lib/siteMap';
+import { usersHelper } from '../../lib/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
