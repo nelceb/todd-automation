@@ -4300,7 +4300,18 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     const specFileInfo = await detectAndGenerateSpecFile(interpretation, behavior, testCode, ticketId, ticketTitle);
     if (specFileInfo) {
       codeFiles.push(specFileInfo);
+      console.log(`✅ Spec file generado/actualizado: ${specFileInfo.file} (tipo: ${specFileInfo.type}, método: ${specFileInfo.insertionMethod})`);
+    } else {
+      console.error('❌ ERROR: detectAndGenerateSpecFile retornó null - no se generó spec file!');
+      console.error('❌ Esto puede deberse a:');
+      console.error('  - Test duplicado detectado');
+      console.error('  - Error en detectAndGenerateSpecFile');
+      console.error('  - Context:', interpretation.context);
+      console.error('  - TicketId:', ticketId);
     }
+    
+    console.log(`📦 Total archivos generados: ${codeFiles.length}`);
+    console.log(`📦 Archivos:`, codeFiles.map(f => ({ file: f.file, type: f.type })));
     
     return {
       success: true,
