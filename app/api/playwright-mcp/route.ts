@@ -4430,10 +4430,55 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       return null;
     }
     
-    const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
-    const methodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+    // Read existing page object from GitHub FIRST to check what methods actually exist
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
     
-    console.log(`🔍 Checking ${pageObjectName} for missing methods. Available methods: ${methodNames.length}`);
+    let existingPageObjectContent = '';
+    let existingMethodNames: string[] = [];
+    
+    if (GITHUB_TOKEN && REPOSITORY) {
+      try {
+        const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (response.ok) {
+          const fileData = await response.json();
+          existingPageObjectContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+          
+          // Extract all method names from the existing page object
+          const methodRegex = /async\s+(\w+)\s*\(/g;
+          let methodMatch;
+          while ((methodMatch = methodRegex.exec(existingPageObjectContent)) !== null) {
+            existingMethodNames.push(methodMatch[1]);
+          }
+          
+          console.log(`📖 Found ${existingMethodNames.length} existing methods in ${pageObjectName}: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
+        } else {
+          console.warn(`⚠️ Could not read existing page object from GitHub (${response.status}), will use codebase patterns`);
+          // Fallback to codebase patterns
+          const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+          existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error reading page object from GitHub:`, error);
+        // Fallback to codebase patterns
+        const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+        existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+      }
+    } else {
+      // Fallback to codebase patterns if GitHub not configured
+      const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+      existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+    }
+    
+    console.log(`🔍 Checking ${pageObjectName} for missing methods. Existing methods: ${existingMethodNames.length}`);
     
     // Extract all methods used in the generated test code
     const methodsUsedInTest = new Set<string>();
@@ -4458,7 +4503,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
     
     for (const methodUsed of Array.from(methodsUsedInTest)) {
-      const methodExists = methodNames.some((method: string) => 
+      // Check if method exists in the page object (case-insensitive)
+      const methodExists = existingMethodNames.some((method: string) => 
         method.toLowerCase() === methodUsed.toLowerCase()
       );
       
@@ -4529,31 +4575,30 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
     
-    // Read existing page object from GitHub
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const GITHUB_OWNER = process.env.GITHUB_OWNER;
-    const GITHUB_REPO = process.env.GITHUB_REPO;
-    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
-    
-    if (!GITHUB_TOKEN || !REPOSITORY) {
-      console.warn('⚠️ GitHub not configured, cannot read existing page object');
-      return null;
-    }
-    
-    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json'
+    // If we already read the page object content above, use it; otherwise read it now
+    if (!existingPageObjectContent) {
+      if (!GITHUB_TOKEN || !REPOSITORY) {
+        console.warn('⚠️ GitHub not configured, cannot read existing page object');
+        return null;
       }
-    });
-    
-    if (!response.ok) {
-      console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
-      return null;
+      
+      const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
+        return null;
+      }
+      
+      const fileData = await response.json();
+      existingPageObjectContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     }
     
-    const fileData = await response.json();
-    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    const existingContent = existingPageObjectContent;
     
     // Find the last closing brace of the class (before the final closing brace)
     const classRegex = new RegExp(`(export class ${pageObjectName}[\\s\\S]*?)(\\n})`, 'm');
