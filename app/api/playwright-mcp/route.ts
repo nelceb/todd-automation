@@ -1723,12 +1723,12 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
             console.log('⚠️ waitForURL timeout después de click en menu, pero continuando...');
             console.log(`📍 URL actual: ${page.url()}`);
           }
-          // Esperar de forma flexible
-          try {
+            // Esperar de forma flexible
+            try {
             await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
-          } catch (e) {
-            console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
-          }
+            } catch (e) {
+              console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
+            }
           console.log(`✅ Navegado internamente a: ${page.url()}`);
         }
       } catch (menuError) {
@@ -2922,7 +2922,21 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           if (action.locator) {
             testCode += `\n  // ${description}`;
             // Los locators MCP usan 'page' del fixture de Playwright directamente
-            testCode += `\n  await ${action.locator}.click();`;
+            // Validar que el locator esté bien formado (debe empezar con 'page.')
+            const locatorCode = action.locator.trim();
+            if (locatorCode.startsWith('page.') || locatorCode.startsWith('p.')) {
+              // Si empieza con 'p.' en lugar de 'page.', corregirlo
+              const correctedLocator = locatorCode.startsWith('p.') ? locatorCode.replace(/^p\./, 'page.') : locatorCode;
+              testCode += `\n  await ${correctedLocator}.click();`;
+            } else {
+              // Si no empieza con 'page.', agregarlo o usar fallback
+              console.warn(`⚠️ Locator mal formado: ${locatorCode}, usando fallback a método de page object`);
+              // Usar fallback a método de page object
+              if (elementName) {
+                const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+                testCode += `\n  await ${pageVarName}.clickOn${capitalizedName}();`;
+              }
+            }
           } else {
             // Fallback a método de page object
             if (elementName) {
@@ -2997,23 +3011,36 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         let methodCall = '';
         if (locator) {
           // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
-          const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
+          // Validar que el locator esté bien formado (debe empezar con 'page.')
+          const locatorCode = locator.trim();
+          let correctedLocator = locatorCode;
+          
+          // Corregir si empieza con 'p.' en lugar de 'page.'
+          if (locatorCode.startsWith('p.')) {
+            correctedLocator = locatorCode.replace(/^p\./, 'page.');
+            console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
+          } else if (!locatorCode.startsWith('page.')) {
+            // Si no empieza con 'page.', agregarlo
+            correctedLocator = `page.${locatorCode}`;
+            console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
+          }
+          
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await ${locatorCode}.click();`;
+              methodCall = `await ${correctedLocator}.click();`;
               break;
             case 'fill':
-              methodCall = `await ${locatorCode}.fill('test-value');`;
+              methodCall = `await ${correctedLocator}.fill('test-value');`;
               break;
             case 'navigate':
-              methodCall = `await ${locatorCode}.click();`; // Navigate usually means click
+              methodCall = `await ${correctedLocator}.click();`; // Navigate usually means click
               break;
             case 'scroll':
-              methodCall = `await ${locatorCode}.scrollIntoViewIfNeeded();`;
+              methodCall = `await ${correctedLocator}.scrollIntoViewIfNeeded();`;
               break;
             default:
-              methodCall = `await ${locatorCode}.click();`;
+              methodCall = `await ${correctedLocator}.click();`;
           }
         } else {
           // 🎯 MEJORADO: Buscar método existente ANTES de generar uno nuevo
@@ -3627,23 +3654,36 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         console.log(`✅ REUTILIZANDO método existente: ${existingMethod} (en lugar de generar nuevo método para ${elementName})`);
       } else if (locator) {
         // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
-        const locatorCode = locator; // MCP locators usan 'page' directamente del test fixture
+        // Validar y corregir el locator si es necesario
+        const locatorCode = locator.trim();
+        let correctedLocator = locatorCode;
+        
+        // Corregir si empieza con 'p.' en lugar de 'page.'
+        if (locatorCode.startsWith('p.')) {
+          correctedLocator = locatorCode.replace(/^p\./, 'page.');
+          console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
+        } else if (!locatorCode.startsWith('page.')) {
+          // Si no empieza con 'page.', agregarlo
+          correctedLocator = `page.${locatorCode}`;
+          console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
+        }
+        
         switch (action.type) {
           case 'click':
           case 'tap':
-            methodCall = `await ${locatorCode}.click();`;
+            methodCall = `await ${correctedLocator}.click();`;
             break;
           case 'fill':
-            methodCall = `await ${locatorCode}.fill('test-value');`;
+            methodCall = `await ${correctedLocator}.fill('test-value');`;
             break;
           case 'navigate':
-            methodCall = `await ${locatorCode}.click();`;
+            methodCall = `await ${correctedLocator}.click();`;
             break;
           case 'scroll':
-            methodCall = `await ${locatorCode}.scrollIntoViewIfNeeded();`;
+            methodCall = `await ${correctedLocator}.scrollIntoViewIfNeeded();`;
             break;
           default:
-            methodCall = `await ${locatorCode}.click();`;
+            methodCall = `await ${correctedLocator}.click();`;
         }
       } else {
         // Fallback: Generar método específico basado en el tipo de acción
@@ -3681,7 +3721,21 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       // 🎯 Usar locator MCP si está disponible
       if (interaction.locator) {
         // MCP locators usan 'page' directamente del test fixture
-        testCode += `\n  await ${interaction.locator}.click();`;
+        // Validar y corregir el locator si es necesario
+        const locatorCode = interaction.locator.trim();
+        let correctedLocator = locatorCode;
+        
+        // Corregir si empieza con 'p.' en lugar de 'page.'
+        if (locatorCode.startsWith('p.')) {
+          correctedLocator = locatorCode.replace(/^p\./, 'page.');
+          console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
+        } else if (!locatorCode.startsWith('page.')) {
+          // Si no empieza con 'page.', agregarlo
+          correctedLocator = `page.${locatorCode}`;
+          console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
+        }
+        
+        testCode += `\n  await ${correctedLocator}.click();`;
       } else if (elementName) {
         // Fallback a método genérico
         const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
