@@ -5652,11 +5652,14 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     const specFileInfo = codeGeneration.files?.find((f: any) => f.type === 'test');
     
     // Filtrar archivos: solo incluir el spec file (test), no page objects, helpers, utils
-    const filesToCommit = codeGeneration.files?.filter((f: any) => f.type === 'test') || [];
+    // Include both test files and page object updates
+    const filesToCommit = codeGeneration.files?.filter((f: any) => 
+      f.type === 'test' || f.type === 'page-object'
+    ) || [];
     
-    console.log(`📦 Archivos de test a commitear: ${filesToCommit.length}`);
+    console.log(`📦 Archivos a commitear: ${filesToCommit.length} (tests: ${filesToCommit.filter((f: any) => f.type === 'test').length}, page objects: ${filesToCommit.filter((f: any) => f.type === 'page-object').length})`);
     if (filesToCommit.length === 0) {
-      console.error('❌ ERROR: No se encontraron archivos de test para commitear!');
+      console.error('❌ ERROR: No se encontraron archivos para commitear!');
       console.error('❌ codeGeneration.files:', JSON.stringify(codeGeneration.files, null, 2));
     }
     
