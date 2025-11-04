@@ -5316,10 +5316,10 @@ npm run test:playwright || exit 1
 - Test will auto-promote PR from draft to review on success`;
 
     // ⚠️ OPTIMIZADO: Limitar número de archivos para evitar timeout (máximo 10 archivos)
-    const filesToCommit = allFiles.slice(0, 10);
-    console.log(`📦 Commitando ${filesToCommit.length} archivos (de ${allFiles.length} total)`);
+    const filesToCommitBatch = allFiles.slice(0, 10);
+    console.log(`📦 Commitando ${filesToCommitBatch.length} archivos (de ${allFiles.length} total)`);
     
-    for (const file of filesToCommit) {
+    for (const file of filesToCommitBatch) {
       // Leer contenido del archivo si existe (para actualizar) o crear nuevo
       let fileSha = null;
       try {
