@@ -5404,8 +5404,8 @@ jobs:
         echo "=========================================="
         
         # Validate TEST_FILTER before execution
-        # Check if TEST_FILTER contains --grep pattern
-        if echo "\$TEST_FILTER_SAFE" | grep -qE '--grep.*QA-[0-9]+'; then
+        # Check if TEST_FILTER contains --grep pattern (using -- to prevent grep from interpreting pattern as option)
+        if echo "\$TEST_FILTER_SAFE" | grep -qE -- '--grep'; then
           # Extract ticketId safely (remove quotes and --grep prefix)
           TICKET_ID=\$(echo "\$TEST_FILTER_SAFE" | grep -oE "QA-[0-9]+" | head -1)
           # Validate ticketId format
@@ -5416,7 +5416,7 @@ jobs:
             echo "Error: Invalid ticket ID format"
             exit 1
           fi
-        elif echo "\$TEST_FILTER_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts$'; then
+        elif echo "\$TEST_FILTER_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
           # Fallback: run only the spec file (validated)
           echo "Running all tests in file: \$TEST_FILTER_SAFE"
           ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$TEST_FILTER_SAFE"
