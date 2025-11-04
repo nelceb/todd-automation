@@ -4276,7 +4276,8 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     
     if (pageObjectContext) {
       // Check if methods are missing and add them to existing page object
-      const pageObjectUpdate = await addMissingMethodsToPageObject(pageObjectContext, interpretation, behavior);
+      // Pass the generated test code to extract all methods used
+      const pageObjectUpdate = await addMissingMethodsToPageObject(pageObjectContext, interpretation, behavior, testCode);
       if (pageObjectUpdate) {
         codeFiles.push(pageObjectUpdate);
         console.log(`✅ Added missing methods to page object: ${pageObjectUpdate.file}`);
@@ -4398,7 +4399,210 @@ async function checkIfPageObjectMethodsNeeded(interpretation: any, behavior: any
   return false;
 }
 
-// Generar código de Page Object usando observaciones reales de MCP
+// Add missing methods to existing page object file
+async function addMissingMethodsToPageObject(context: string, interpretation: any, behavior: any, generatedTestCode?: string): Promise<any | null> {
+  try {
+    // Determine page object name and file path based on actual project structure
+    let pageObjectName = 'HomePage';
+    let pageObjectPath = '';
+    
+    if (context === 'pastOrders' || context === 'ordersHub') {
+      pageObjectName = 'OrdersHubPage';
+      // Use actual path from project structure
+      pageObjectPath = 'pages/OrdersHubPage.ts';
+    } else if (context === 'homepage' || context === 'home' || context === 'menu') {
+      pageObjectName = 'HomePage';
+      pageObjectPath = 'pages/HomePage.ts';
+    } else if (context === 'cart') {
+      pageObjectName = 'HomePage';
+      pageObjectPath = 'pages/HomePage.ts';
+    }
+    
+    if (!pageObjectPath) {
+      console.log('⚠️ No page object path determined for context:', context);
+      return null;
+    }
+    
+    // Get codebase patterns to check existing methods
+    const codebasePatterns = await analyzeCodebaseForPatterns();
+    if (!codebasePatterns || !codebasePatterns.methodsWithTestIds) {
+      console.log('⚠️ No codebase patterns available, skipping page object update');
+      return null;
+    }
+    
+    const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+    const methodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
+    
+    console.log(`🔍 Checking ${pageObjectName} for missing methods. Available methods: ${methodNames.length}`);
+    
+    // Extract all methods used in the generated test code
+    const methodsUsedInTest = new Set<string>();
+    if (generatedTestCode) {
+      // Extract method calls like ordersHubPage.isEmptyPastOrdersStateVisible() or ordersHubPage.getEmptyStatePastOrdersMessageText()
+      const methodCallRegex = /(?:ordersHubPage|homePage|pageVar|pageObject)\.(\w+)\s*\(/g;
+      let match;
+      while ((match = methodCallRegex.exec(generatedTestCode)) !== null) {
+        methodsUsedInTest.add(match[1]);
+      }
+      
+      // Also extract from expect statements: expect(await ordersHubPage.method())
+      const expectMethodRegex = /expect\([^)]*\.(\w+)\s*\(\)/g;
+      while ((match = expectMethodRegex.exec(generatedTestCode)) !== null) {
+        methodsUsedInTest.add(match[1]);
+      }
+      
+      console.log(`📋 Methods used in test: ${Array.from(methodsUsedInTest).join(', ')}`);
+    }
+    
+    // Find missing methods that are used in the test but don't exist in page object
+    const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
+    
+    for (const methodUsed of methodsUsedInTest) {
+      const methodExists = methodNames.some((method: string) => 
+        method.toLowerCase() === methodUsed.toLowerCase()
+      );
+      
+      if (!methodExists) {
+        console.log(`⚠️ Missing method used in test: ${methodUsed}`);
+        
+        // Determine method type and generate code
+        let methodCode = '';
+        let selector = '';
+        
+        // Try to find observation for this method
+        const observed = behavior.elements?.find((e: any) => 
+          e.testId?.toLowerCase().includes(methodUsed.toLowerCase().replace(/^(is|get|clickOn)/, '').replace(/visible|text$/i, '')) ||
+          methodUsed.toLowerCase().includes(e.testId?.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))
+        ) || behavior.interactions?.find((i: any) => 
+          i.element?.toLowerCase().includes(methodUsed.toLowerCase().replace(/^(clickOn)/, ''))
+        );
+        
+        if (observed?.locator) {
+          const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
+          selector = locatorCode;
+        } else if (observed?.testId) {
+          selector = `this.page.getByTestId('${observed.testId}')`;
+        } else {
+          // Fallback: generate selector from method name
+          const testIdPart = methodUsed
+            .replace(/^(is|get|clickOn)/, '')
+            .replace(/Visible|Text$/i, '')
+            .replace(/([A-Z])/g, '-$1')
+            .toLowerCase()
+            .replace(/^-/, '');
+          selector = `this.page.locator('[data-testid="${testIdPart}"]')`;
+        }
+        
+        // Generate method based on name pattern
+        if (methodUsed.startsWith('get') && methodUsed.endsWith('Text')) {
+          methodCode = `  async ${methodUsed}(): Promise<string> {
+    const element = ${selector};
+    return await element.textContent() || '';
+  }`;
+        } else if (methodUsed.startsWith('is') && methodUsed.endsWith('Visible')) {
+          methodCode = `  async ${methodUsed}(): Promise<boolean> {
+    const element = ${selector};
+    return await element.isVisible();
+  }`;
+        } else if (methodUsed.startsWith('clickOn')) {
+          methodCode = `  async ${methodUsed}(): Promise<void> {
+    const element = ${selector};
+    await element.click();
+  }`;
+        } else {
+          // Generic method
+          methodCode = `  async ${methodUsed}(): Promise<boolean> {
+    const element = ${selector};
+    return await element.isVisible();
+  }`;
+        }
+        
+        const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
+        missingMethods.push({ name: methodUsed, code: methodCode, type: methodType });
+      }
+    }
+    
+    if (missingMethods.length === 0) {
+      console.log(`✅ All methods exist in ${pageObjectName}, no update needed`);
+      return null; // No missing methods
+    }
+    
+    console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
+    
+    // Read existing page object from GitHub
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub not configured, cannot read existing page object');
+      return null;
+    }
+    
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
+      return null;
+    }
+    
+    const fileData = await response.json();
+    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    
+    // Find the last closing brace of the class (before the final closing brace)
+    const classRegex = new RegExp(`(export class ${pageObjectName}[\\s\\S]*?)(\\n})`, 'm');
+    const classMatch = existingContent.match(classRegex);
+    
+    if (!classMatch) {
+      // Fallback: find last closing brace
+      const lastBraceIndex = existingContent.lastIndexOf('\n}');
+      if (lastBraceIndex === -1) {
+        console.warn(`⚠️ Could not find closing brace in ${pageObjectPath}`);
+        return null;
+      }
+      
+      // Insert missing methods before the closing brace
+      const methodsToAdd = missingMethods.map(m => m.code).join('\n\n');
+      const updatedContent = existingContent.slice(0, lastBraceIndex) + 
+        `\n${methodsToAdd}\n` + 
+        existingContent.slice(lastBraceIndex);
+      
+      return {
+        file: pageObjectPath,
+        content: updatedContent,
+        type: 'page-object',
+        insertionMethod: 'append'
+      };
+    }
+    
+    // Insert methods before the last closing brace of the class
+    const beforeLastBrace = classMatch[1];
+    const lastBrace = classMatch[2];
+    const methodsToAdd = missingMethods.map(m => m.code).join('\n\n');
+    const updatedContent = existingContent.replace(
+      classRegex,
+      `$1\n${methodsToAdd}\n$2`
+    );
+    
+    return {
+      file: pageObjectPath,
+      content: updatedContent,
+      type: 'page-object',
+      insertionMethod: 'append'
+    };
+  } catch (error) {
+    console.error('❌ Error adding methods to page object:', error);
+    return null;
+  }
+}
+
+// Generate new Page Object code using real MCP observations (legacy - for new files)
 function generatePageObjectCode(interpretation: any, behavior: any) {
   const pageName = `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
