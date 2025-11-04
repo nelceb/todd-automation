@@ -4256,16 +4256,23 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     
     const codeFiles = [];
     
-    // 1. Generar/actualizar Page Objects
+    // 1. Generar/actualizar Page Objects SOLO si los métodos no existen en el código base
     // Skip generating page objects for pastOrders since it's a tab within OrdersHubPage
     if (interpretation.context !== 'pastOrders') {
-    const pageObjectCode = generatePageObjectCode(interpretation, behavior);
-    if (pageObjectCode) {
-      codeFiles.push({
-        file: `tests/pageObjects/${interpretation.context}Page.ts`,
-        content: pageObjectCode,
-        type: 'page-object'
-      });
+      // Verificar si los métodos necesarios ya existen en el código base
+      const needsPageObject = await checkIfPageObjectMethodsNeeded(interpretation, behavior);
+      
+      if (needsPageObject) {
+        const pageObjectCode = generatePageObjectCode(interpretation, behavior);
+        if (pageObjectCode) {
+          codeFiles.push({
+            file: `tests/pageObjects/${interpretation.context}Page.ts`,
+            content: pageObjectCode,
+            type: 'page-object'
+          });
+        }
+      } else {
+        console.log(`✅ No se generará page object: todos los métodos ya existen en el código base`);
       }
     }
     
