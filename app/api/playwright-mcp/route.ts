@@ -5252,11 +5252,20 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     console.log(`✅ Branch creado: ${branchName}`);
     
     // 5. Preparar archivos para commit
+    console.log(`📦 Total archivos en codeGeneration: ${codeGeneration.files?.length || 0}`);
+    console.log(`📦 Archivos disponibles:`, codeGeneration.files?.map((f: any) => ({ file: f.file, type: f.type })) || []);
+    
     // Obtener información del spec file generado para el workflow
-    const specFileInfo = codeGeneration.files.find((f: any) => f.type === 'test');
+    const specFileInfo = codeGeneration.files?.find((f: any) => f.type === 'test');
     
     // Filtrar archivos: solo incluir el spec file (test), no page objects, helpers, utils
-    const filesToCommit = codeGeneration.files.filter((f: any) => f.type === 'test');
+    const filesToCommit = codeGeneration.files?.filter((f: any) => f.type === 'test') || [];
+    
+    console.log(`📦 Archivos de test a commitear: ${filesToCommit.length}`);
+    if (filesToCommit.length === 0) {
+      console.error('❌ ERROR: No se encontraron archivos de test para commitear!');
+      console.error('❌ codeGeneration.files:', JSON.stringify(codeGeneration.files, null, 2));
+    }
     
     // Verificar si workflow ya existe antes de agregarlo
     let workflowFile = null;
