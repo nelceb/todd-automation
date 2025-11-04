@@ -3428,6 +3428,9 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         return null;
       };
       
+      // Deduplicar assertions para evitar métodos duplicados
+      const usedMethods = new Set<string>();
+      
       for (const assertion of interpretation.assertions) {
         const elementName = assertion.element;
         if (!elementName) {
@@ -3440,6 +3443,17 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         
         // 🎯 Intentar reutilizar método existente primero
         const existingMethod = findExistingAssertionMethod(elementName, assertion.type, interpretation.context);
+        
+        // Si ya usamos este método para otra assertion, saltar esta (evitar duplicados)
+        if (existingMethod && usedMethods.has(existingMethod)) {
+          console.log(`⚠️ Saltando assertion duplicada: ${elementName} ya usa el método ${existingMethod}`);
+          continue;
+        }
+        
+        // Marcar método como usado
+        if (existingMethod) {
+          usedMethods.add(existingMethod);
+        }
         
         let assertionCode = '';
         if (existingMethod) {
@@ -4270,7 +4284,7 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
         content: pageObjectCode,
         type: 'page-object'
       });
-        }
+    }
       } else {
         console.log(`✅ No se generará page object: todos los métodos ya existen en el código base`);
       }
@@ -5276,14 +5290,14 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       if (!huskyResponse.ok) {
         // Husky no existe, generarlo
         huskyConfig = {
-          file: '.husky/pre-commit',
-          content: `#!/usr/bin/env sh
+      file: '.husky/pre-commit',
+      content: `#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
 # Run Playwright tests before commit
 npm run test:playwright || exit 1
 `
-        };
+    };
       } else {
         console.log('✅ Husky pre-commit ya existe, no se generará');
       }
