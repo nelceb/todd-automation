@@ -4600,8 +4600,55 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         const fileData = await response.json();
         const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
         
-        // El archivo ya tiene imports correctos, solo agregar el test al final
-        return `${existingContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n`;
+        // Analizar qué imports necesita el test generado
+        const requiredImports = extractRequiredImports(generatedTestCode);
+        
+        // Verificar qué imports ya existen en el archivo
+        const existingImports = extractExistingImports(existingContent);
+        
+        // Agregar solo los imports faltantes
+        let importsToAdd = '';
+        for (const requiredImport of requiredImports) {
+          // Verificar si el import ya existe (más preciso: verificar módulo y path)
+          const importExists = existingImports.some((existing: string) => {
+            // Verificar si contiene el módulo (siteMap, usersHelper) y el path
+            const hasModule = existing.includes(requiredImport.module);
+            const hasPath = existing.includes(requiredImport.from) || 
+                           existing.includes('siteMap') || 
+                           existing.includes('usersHelper');
+            return hasModule && hasPath;
+          });
+          
+          if (!importExists) {
+            importsToAdd += `${requiredImport.import}\n`;
+          }
+        }
+        
+        // Si hay imports para agregar, agregarlos después de los imports existentes
+        let finalContent = existingContent;
+        if (importsToAdd) {
+          // Encontrar la última línea de import y agregar los nuevos después
+          const importLines = existingContent.split('\n');
+          let lastImportIndex = -1;
+          for (let i = 0; i < importLines.length; i++) {
+            if (importLines[i].trim().startsWith('import ')) {
+              lastImportIndex = i;
+            }
+          }
+          
+          if (lastImportIndex >= 0) {
+            // Insertar nuevos imports después del último import
+            const newLines = [...importLines];
+            newLines.splice(lastImportIndex + 1, 0, importsToAdd.trim());
+            finalContent = newLines.join('\n');
+  } else {
+            // Si no hay imports, agregar al principio
+            finalContent = importsToAdd + '\n' + existingContent;
+          }
+        }
+        
+        // Agregar el test al final
+        return `${finalContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n`;
   } else {
         console.warn(`⚠️ No se pudo leer el archivo existente ${specFile}, creando nuevo`);
         // Fallback: crear nuevo archivo
@@ -4616,6 +4663,51 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
     // Fallback: crear nuevo archivo
     return generateNewSpecFile(interpretation, generatedTestCode);
   }
+}
+
+// Extraer imports necesarios del código del test generado
+function extractRequiredImports(testCode: string): Array<{ import: string; module: string; from: string }> {
+  const imports: Array<{ import: string; module: string; from: string }> = [];
+  
+  // Detectar uso de siteMap
+  if (testCode.includes('siteMap.') || testCode.includes('siteMap[')) {
+    // Intentar detectar el path usado en el código existente o usar el default
+    const siteMapMatch = testCode.match(/from\s+['"]([^'"]*siteMap[^'"]*)['"]/);
+    const siteMapPath = siteMapMatch ? siteMapMatch[1] : '../../lib/siteMap';
+    imports.push({
+      import: `import { siteMap } from '${siteMapPath}';`,
+      module: 'siteMap',
+      from: siteMapPath
+    });
+  }
+  
+  // Detectar uso de usersHelper
+  if (testCode.includes('usersHelper.') || testCode.includes('usersHelper[')) {
+    const usersHelperMatch = testCode.match(/from\s+['"]([^'"]*usersHelper[^'"]*)['"]/);
+    const usersHelperPath = usersHelperMatch ? usersHelperMatch[1] : '../../lib/usersHelper';
+    imports.push({
+      import: `import { usersHelper } from '${usersHelperPath}';`,
+      module: 'usersHelper',
+      from: usersHelperPath
+    });
+  }
+  
+  return imports;
+}
+
+// Extraer imports existentes del contenido del archivo
+function extractExistingImports(fileContent: string): string[] {
+  const imports: string[] = [];
+  const lines = fileContent.split('\n');
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('import ')) {
+      imports.push(trimmed);
+    }
+  }
+  
+  return imports;
 }
 
 // Generar contenido de un nuevo spec file
