@@ -4550,29 +4550,50 @@ async function detectAndGenerateSpecFile(interpretation: any, behavior: any, gen
     
     if (fileExists) {
       isExistingFile = true;
-      console.log(`✅ Archivo spec existente encontrado: ${targetSpecFile}`);
+      console.log(`✅ Existing spec file found: ${targetSpecFile}`);
       
-      // 4. Analizar archivo existente para detectar duplicados
+      // 4. Check for duplicates (but don't block if duplicate - allow updating/adding)
       const isDuplicate = await checkForDuplicateTest(targetSpecFile, ticketId, ticketTitle, generatedTestCode);
       if (isDuplicate) {
-        console.warn('⚠️ Test duplicado detectado - no se agregará el nuevo test');
-        return null; // No crear archivo si es duplicado
+        console.warn(`⚠️ Duplicate test detected for ticket ${ticketId}, but will still add/update the file`);
+        // Continue anyway - don't return null. The test might be an update or a different version.
       }
     } else {
-      console.log(`📝 Archivo spec no existe, se creará nuevo: ${targetSpecFile}`);
+      console.log(`📝 Spec file doesn't exist, will create new: ${targetSpecFile}`);
     }
     
-    // 5. Generar contenido completo del archivo con inserción inteligente
+    // 5. Generate complete file content with smart insertion
+    console.log(`📝 Generating spec file content for: ${targetSpecFile}`);
+    console.log(`📝 Is existing file: ${isExistingFile}`);
+    console.log(`📝 Generated test code length: ${generatedTestCode.length} characters`);
+    
     const finalContent = await generateTestWithSmartInsertion(interpretation, targetSpecFile, generatedTestCode, isExistingFile);
     
-    return {
+    if (!finalContent) {
+      console.error('❌ ERROR: generateTestWithSmartInsertion returned null or empty content');
+      return null;
+    }
+    
+    console.log(`✅ Generated spec file content (${finalContent.length} characters)`);
+    
+    const specFileInfo = {
       file: targetSpecFile,
       content: finalContent,
       type: 'test',
       insertionMethod: isExistingFile ? 'append' : 'create'
     };
+    
+    console.log(`✅ Spec file info created:`, {
+      file: specFileInfo.file,
+      type: specFileInfo.type,
+      insertionMethod: specFileInfo.insertionMethod,
+      contentLength: specFileInfo.content.length
+    });
+    
+    return specFileInfo;
   } catch (error) {
-    console.error('Error detecting spec file:', error);
+    console.error('❌ Error detecting/generating spec file:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'N/A');
     return null;
   }
 }
@@ -5413,7 +5434,7 @@ npm run test:playwright || exit 1
         body: JSON.stringify({
           message: commitMessage,
           content: content,
-          branch: branchName,
+      branch: branchName,
           ...(fileSha && { sha: fileSha }) // Include SHA only if file exists (for update)
         })
       });
