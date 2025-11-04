@@ -4412,8 +4412,8 @@ function generateNewSpecFile(interpretation: any, generatedTestCode: string): st
     : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
     return `import { test, expect } from '@playwright/test';
-import { siteMap } from '../utils/siteMap';
-import { usersHelper } from '../helpers/usersHelper';
+import { siteMap } from 'lib/siteMap';
+import { usersHelper } from 'lib/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
@@ -4803,14 +4803,28 @@ npm run test:playwright || exit 1
     }
     
     // 7. Crear Pull Request (usar título del ticket si está disponible)
-    const prTitle = ticketTitle 
-      ? ticketTitle.replace(/^QA-\d+\s*-\s*/, '') // Remover prefijo si ya está incluido
-      : `QA-${finalTicketId || 'AUTO'}: Add ${interpretation.context} test with Playwright MCP`;
+    // Normalizar finalTicketId para evitar duplicación (remover QA- o qa- si ya existe)
+    const normalizedPRTicketId = finalTicketId 
+      ? (finalTicketId.startsWith('QA-') || finalTicketId.startsWith('qa-') 
+          ? finalTicketId.replace(/^(QA-|qa-)/i, '').toUpperCase() 
+          : finalTicketId.toUpperCase())
+      : 'AUTO';
+    const finalPRTicketId = `QA-${normalizedPRTicketId}`;
     
-    // Asegurar que el PR title tenga el ticket ID
-    const finalPRTitle = prTitle.startsWith(`QA-${finalTicketId || 'AUTO'}`)
+    // Si ticketTitle ya tiene el prefijo correcto, usarlo; sino limpiarlo y agregarlo
+    let prTitle: string;
+    if (ticketTitle) {
+      // Remover cualquier prefijo QA-XXXX existente
+      const cleanTitle = ticketTitle.replace(/^QA-\d+\s*-\s*/i, '').trim();
+      prTitle = cleanTitle;
+    } else {
+      prTitle = `Add ${interpretation.context} test with Playwright MCP`;
+    }
+    
+    // Asegurar que el PR title tenga el ticket ID normalizado (sin duplicar)
+    const finalPRTitle = prTitle.startsWith(finalPRTicketId)
       ? prTitle
-      : `QA-${finalTicketId || 'AUTO'} - ${prTitle}`;
+      : `${finalPRTicketId} - ${prTitle}`;
     
     const prDescription = generatePRDescription(interpretation, codeGeneration, codeReview);
     
@@ -4938,10 +4952,10 @@ function generateBranchName(ticketId: string | null, interpretation: any, ticket
   // Normalizar ticketId: remover prefijos duplicados (QA-, qa-)
   let normalizedTicketId: string;
   if (ticketId) {
-    // Remover cualquier prefijo QA- o qa- existente
+    // Remover cualquier prefijo QA- o qa- existente (case-insensitive)
     normalizedTicketId = ticketId.replace(/^(QA-|qa-)/i, '').trim();
-    // Agregar prefijo QA- normalizado
-    normalizedTicketId = `QA-${normalizedTicketId}`;
+    // Agregar prefijo QA- normalizado (siempre mayúsculas)
+    normalizedTicketId = `QA-${normalizedTicketId.toUpperCase()}`;
   } else {
     normalizedTicketId = `QA-AUTO-${Date.now().toString().slice(-6)}`;
   }
@@ -5048,6 +5062,11 @@ on:
   pull_request:
     branches: [ main, develop ]
     types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   run-generated-test:
