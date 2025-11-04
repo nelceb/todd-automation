@@ -4423,60 +4423,18 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       return null;
     }
     
-    // Get codebase patterns to check existing methods
+    // Use codebase patterns to check existing methods (already analyzed by analyzeCodebaseForPatterns)
     const codebasePatterns = await analyzeCodebaseForPatterns();
     if (!codebasePatterns || !codebasePatterns.methodsWithTestIds) {
       console.log('⚠️ No codebase patterns available, skipping page object update');
       return null;
     }
     
-    // Read existing page object from GitHub FIRST to check what methods actually exist
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const GITHUB_OWNER = process.env.GITHUB_OWNER;
-    const GITHUB_REPO = process.env.GITHUB_REPO;
-    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    // Get existing method names from codebase patterns (already analyzed)
+    const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+    const existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
     
-    let existingPageObjectContent = '';
-    let existingMethodNames: string[] = [];
-    
-    if (GITHUB_TOKEN && REPOSITORY) {
-      try {
-        const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
-          headers: {
-            'Authorization': `Bearer ${GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        });
-        
-        if (response.ok) {
-          const fileData = await response.json();
-          existingPageObjectContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
-          
-          // Extract all method names from the existing page object
-          const methodRegex = /async\s+(\w+)\s*\(/g;
-          let methodMatch;
-          while ((methodMatch = methodRegex.exec(existingPageObjectContent)) !== null) {
-            existingMethodNames.push(methodMatch[1]);
-          }
-          
-          console.log(`📖 Found ${existingMethodNames.length} existing methods in ${pageObjectName}: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
-        } else {
-          console.warn(`⚠️ Could not read existing page object from GitHub (${response.status}), will use codebase patterns`);
-          // Fallback to codebase patterns
-          const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
-          existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
-        }
-      } catch (error) {
-        console.warn(`⚠️ Error reading page object from GitHub:`, error);
-        // Fallback to codebase patterns
-        const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
-        existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
-      }
-    } else {
-      // Fallback to codebase patterns if GitHub not configured
-      const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
-      existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
-    }
+    console.log(`📖 Found ${existingMethodNames.length} existing methods in ${pageObjectName} from codebase patterns: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
     
     console.log(`🔍 Checking ${pageObjectName} for missing methods. Existing methods: ${existingMethodNames.length}`);
     
