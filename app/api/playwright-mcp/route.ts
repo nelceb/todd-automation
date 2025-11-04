@@ -4378,16 +4378,16 @@ async function detectAndGenerateSpecFile(interpretation: any, behavior: any, gen
   try {
     console.log('🔍 Detectando spec file existente y verificando duplicados...');
     
-    // 1. Mapeo de contextos a spec files (SIEMPRE usar estos archivos, incluso si no existen)
+    // 1. Mapeo de contextos a spec files usando la estructura real del proyecto
     const contextToSpecMap: Record<string, string> = {
-      'pastOrders': 'tests/specs/ordersHub.spec.ts',  // SIEMPRE usar ordersHub.spec.ts para pastOrders
-      'ordersHub': 'tests/specs/ordersHub.spec.ts',   // SIEMPRE usar ordersHub.spec.ts
-      'homepage': 'tests/specs/home.spec.ts',
-      'cart': 'tests/specs/cart.spec.ts'
+      'pastOrders': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',  // Usar ruta real del proyecto
+      'ordersHub': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',   // Usar ruta real del proyecto
+      'homepage': 'tests/frontend/desktop/subscription/coreUx/homePage.spec.ts',
+      'cart': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts' // Reusar ordersHub para cart si es parte de subscription
     };
     
     // 2. Determinar archivo target basado en el contexto (SIEMPRE usar el mapeo)
-    const targetSpecFile = contextToSpecMap[interpretation.context] || `tests/specs/${interpretation.context}.spec.ts`;
+    const targetSpecFile = contextToSpecMap[interpretation.context] || `tests/frontend/desktop/subscription/coreUx/${interpretation.context}.spec.ts`;
     
     // 3. Verificar si el archivo existe en GitHub
     const fileExists = await checkIfSpecFileExists(targetSpecFile);
@@ -4601,8 +4601,8 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
         
         // Analizar qué imports necesita el test generado
-        // IMPORTANTE: Pasar existingContent para usar los mismos paths que ya están en el archivo
-        const requiredImports = extractRequiredImports(generatedTestCode, existingContent);
+        // IMPORTANTE: Pasar existingContent y specFile para usar los mismos paths que ya están en el archivo
+        const requiredImports = extractRequiredImports(generatedTestCode, existingContent, specFile);
         
         // Verificar qué imports ya existen en el archivo
         const existingImports = extractExistingImports(existingContent);
@@ -4648,64 +4648,107 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
           }
         }
         
+        // Verificar si el archivo necesita instanciación de siteMap y usersHelper
+        // Si el archivo existente instancia las clases, asegurarse de que las instancias estén disponibles
+        const needsInstances = existingContent.includes('new SiteMap()') || existingContent.includes('new UsersHelper()');
+        const hasInstances = existingContent.includes('const siteMap =') || existingContent.includes('const usersHelper =');
+        
+        let testCodeToAdd = generatedTestCode;
+        
+        // Si el archivo usa instancias pero el test generado no las tiene, el código debería funcionar
+        // porque las instancias ya están definidas en el archivo existente
+        
         // Agregar el test al final
-        return `${finalContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n`;
+        return `${finalContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${testCodeToAdd}\n`;
   } else {
         console.warn(`⚠️ No se pudo leer el archivo existente ${specFile}, creando nuevo`);
         // Fallback: crear nuevo archivo
-        return generateNewSpecFile(interpretation, generatedTestCode);
+        return generateNewSpecFile(interpretation, generatedTestCode, specFile);
       }
     } else {
       // Crear nuevo archivo
-      return generateNewSpecFile(interpretation, generatedTestCode);
+      return generateNewSpecFile(interpretation, generatedTestCode, specFile);
     }
   } catch (error) {
     console.error('❌ Error generando spec file:', error);
     // Fallback: crear nuevo archivo
-    return generateNewSpecFile(interpretation, generatedTestCode);
+    return generateNewSpecFile(interpretation, generatedTestCode, specFile);
   }
 }
 
 // Extraer imports necesarios del código del test generado
 // IMPORTANTE: Usa los paths del archivo existente para mantener consistencia
-function extractRequiredImports(testCode: string, existingContent?: string): Array<{ import: string; module: string; from: string }> {
+function extractRequiredImports(testCode: string, existingContent?: string, specFilePath?: string): Array<{ import: string; module: string; from: string }> {
   const imports: Array<{ import: string; module: string; from: string }> = [];
   
   // PRIMERO: Intentar extraer paths del archivo existente
-  // Si el archivo existente tiene un path, usarlo; sino usar path alias (lib/siteMap) como default
-  let siteMapPath = 'lib/siteMap'; // default: usar path alias (más común en proyectos TypeScript)
-  let usersHelperPath = 'lib/usersHelper'; // default: usar path alias
+  let siteMapPath = '../../../../../pages/siteMap'; // default para tests/frontend/desktop/subscription/coreUx/
+  let usersHelperPath = '../../../../../helpers/UsersHelper'; // default
+  let testConfigPath = '../../../../commonTestConfig'; // default
+  let siteMapImport = 'import SiteMap'; // default: default export
+  let usersHelperImport = 'import { UsersHelper }'; // default: named export
   
   if (existingContent) {
-    // Buscar imports existentes de siteMap
-    const existingSiteMapMatch = existingContent.match(/import\s+.*from\s+['"]([^'"]*siteMap[^'"]*)['"]/);
+    // Buscar imports existentes de siteMap (puede ser default export: import SiteMap from ...)
+    const existingSiteMapMatch = existingContent.match(/import\s+(\w+)\s+from\s+['"]([^'"]*siteMap[^'"]*)['"]/);
     if (existingSiteMapMatch) {
-      siteMapPath = existingSiteMapMatch[1];
+      siteMapImport = `import ${existingSiteMapMatch[1]}`;
+      siteMapPath = existingSiteMapMatch[2];
     }
     
-    // Buscar imports existentes de usersHelper
-    const existingUsersHelperMatch = existingContent.match(/import\s+.*from\s+['"]([^'"]*usersHelper[^'"]*)['"]/);
+    // Buscar imports existentes de usersHelper (puede ser named export: import { UsersHelper } from ...)
+    const existingUsersHelperMatch = existingContent.match(/import\s+{?\s*(\w+)\s*}?\s+from\s+['"]([^'"]*UsersHelper[^'"]*|usersHelper[^'"]*)['"]/);
     if (existingUsersHelperMatch) {
-      usersHelperPath = existingUsersHelperMatch[1];
+      usersHelperImport = `import { ${existingUsersHelperMatch[1]} }`;
+      usersHelperPath = existingUsersHelperMatch[2];
+    }
+    
+    // Buscar import de test config
+    const existingTestConfigMatch = existingContent.match(/import\s+.*from\s+['"]([^'"]*commonTestConfig[^'"]*)['"]/);
+    if (existingTestConfigMatch) {
+      testConfigPath = existingTestConfigMatch[1];
+    }
+  } else if (specFilePath) {
+    // Si no hay contenido existente, calcular paths basados en la ubicación del spec file
+    const depth = (specFilePath.match(/\//g) || []).length - 1;
+    const relativePath = '../'.repeat(depth);
+    siteMapPath = `${relativePath}pages/siteMap`;
+    usersHelperPath = `${relativePath}helpers/UsersHelper`;
+    const specParts = specFilePath.split('/');
+    const testsIndex = specParts.indexOf('tests');
+    if (testsIndex >= 0) {
+      const levelsFromTests = specParts.length - testsIndex - 2;
+      testConfigPath = '../'.repeat(levelsFromTests) + 'commonTestConfig';
     }
   }
   
-  // Detectar uso de siteMap
+  // Detectar uso de siteMap o usersHelper en el código del test
   if (testCode.includes('siteMap.') || testCode.includes('siteMap[')) {
     imports.push({
-      import: `import { siteMap } from '${siteMapPath}';`,
+      import: `${siteMapImport} from '${siteMapPath}';`,
       module: 'siteMap',
       from: siteMapPath
     });
   }
   
-  // Detectar uso de usersHelper
   if (testCode.includes('usersHelper.') || testCode.includes('usersHelper[')) {
     imports.push({
-      import: `import { usersHelper } from '${usersHelperPath}';`,
+      import: `${usersHelperImport} from '${usersHelperPath}';`,
       module: 'usersHelper',
       from: usersHelperPath
     });
+  }
+  
+  // Siempre agregar test config si no está en el contenido existente
+  if (testCode.includes('test(') || testCode.includes('expect(')) {
+    const hasTestConfig = existingContent?.includes('commonTestConfig') || existingContent?.includes('@playwright/test');
+    if (!hasTestConfig) {
+      imports.push({
+        import: `import { expect, test } from '${testConfigPath}';`,
+        module: 'test',
+        from: testConfigPath
+      });
+    }
   }
   
   return imports;
@@ -4726,17 +4769,36 @@ function extractExistingImports(fileContent: string): string[] {
   return imports;
 }
 
-// Generar contenido de un nuevo spec file
-function generateNewSpecFile(interpretation: any, generatedTestCode: string): string {
-  const pageName = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub' 
-    ? 'OrdersHubPage' 
-    : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
+// Generar contenido de un nuevo spec file usando la estructura real del proyecto
+function generateNewSpecFile(interpretation: any, generatedTestCode: string, specFilePath?: string): string {
+  // Determinar paths relativos basados en la ubicación del spec file
+  // Para tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts
+  // Necesitamos subir 6 niveles para llegar a la raíz, luego helpers/ y pages/
+  let usersHelperPath = '../../../../../helpers/UsersHelper';
+  let siteMapPath = '../../../../../pages/siteMap';
+  let testConfigPath = '../../../../commonTestConfig';
   
-    // Intentar usar path alias si existe (lib/siteMap), sino usar path relativo
-    // La mayoría de proyectos con TypeScript tienen path aliases configurados
-    return `import { test, expect } from '@playwright/test';
-import { siteMap } from 'lib/siteMap';
-import { usersHelper } from 'lib/usersHelper';
+  // Si el spec file está en otra ubicación, ajustar los paths
+  if (specFilePath) {
+    const depth = (specFilePath.match(/\//g) || []).length - 1; // Contar niveles de profundidad
+    const relativePath = '../'.repeat(depth);
+    usersHelperPath = `${relativePath}helpers/UsersHelper`;
+    siteMapPath = `${relativePath}pages/siteMap`;
+    // Para commonTestConfig, está en tests/, calcular desde la ubicación del spec
+    const specParts = specFilePath.split('/');
+    const testsIndex = specParts.indexOf('tests');
+    if (testsIndex >= 0) {
+      const levelsFromTests = specParts.length - testsIndex - 2; // -2 porque tests/ y el archivo
+      testConfigPath = '../'.repeat(levelsFromTests) + 'commonTestConfig';
+    }
+  }
+  
+  return `import { UsersHelper } from '${usersHelperPath}';
+import { expect, test } from '${testConfigPath}';
+import SiteMap from '${siteMapPath}';
+
+const siteMap = new SiteMap();
+const usersHelper = new UsersHelper();
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
@@ -5448,8 +5510,8 @@ jobs:
         BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
         SPEC_FILE="${specFilePath}"
         
-        # Validate that SPEC_FILE is a valid path
-        if ! echo "\$SPEC_FILE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
+        # Validate that SPEC_FILE is a valid path (aceptar estructura real del proyecto)
+        if ! echo "\$SPEC_FILE" | grep -qE '^tests/[a-zA-Z0-9_/.-]+\.spec\.ts\$'; then
           echo "Error: Invalid spec file path"
           exit 1
         fi
