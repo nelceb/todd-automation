@@ -4601,7 +4601,8 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
         
         // Analizar qué imports necesita el test generado
-        const requiredImports = extractRequiredImports(generatedTestCode);
+        // IMPORTANTE: Pasar existingContent para usar los mismos paths que ya están en el archivo
+        const requiredImports = extractRequiredImports(generatedTestCode, existingContent);
         
         // Verificar qué imports ya existen en el archivo
         const existingImports = extractExistingImports(existingContent);
@@ -4666,14 +4667,30 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
 }
 
 // Extraer imports necesarios del código del test generado
-function extractRequiredImports(testCode: string): Array<{ import: string; module: string; from: string }> {
+// IMPORTANTE: Usa los paths del archivo existente para mantener consistencia
+function extractRequiredImports(testCode: string, existingContent?: string): Array<{ import: string; module: string; from: string }> {
   const imports: Array<{ import: string; module: string; from: string }> = [];
+  
+  // PRIMERO: Intentar extraer paths del archivo existente
+  let siteMapPath = '../../lib/siteMap'; // default
+  let usersHelperPath = '../../lib/usersHelper'; // default
+  
+  if (existingContent) {
+    // Buscar imports existentes de siteMap
+    const existingSiteMapMatch = existingContent.match(/import\s+.*from\s+['"]([^'"]*siteMap[^'"]*)['"]/);
+    if (existingSiteMapMatch) {
+      siteMapPath = existingSiteMapMatch[1];
+    }
+    
+    // Buscar imports existentes de usersHelper
+    const existingUsersHelperMatch = existingContent.match(/import\s+.*from\s+['"]([^'"]*usersHelper[^'"]*)['"]/);
+    if (existingUsersHelperMatch) {
+      usersHelperPath = existingUsersHelperMatch[1];
+    }
+  }
   
   // Detectar uso de siteMap
   if (testCode.includes('siteMap.') || testCode.includes('siteMap[')) {
-    // Intentar detectar el path usado en el código existente o usar el default
-    const siteMapMatch = testCode.match(/from\s+['"]([^'"]*siteMap[^'"]*)['"]/);
-    const siteMapPath = siteMapMatch ? siteMapMatch[1] : '../../lib/siteMap';
     imports.push({
       import: `import { siteMap } from '${siteMapPath}';`,
       module: 'siteMap',
@@ -4683,8 +4700,6 @@ function extractRequiredImports(testCode: string): Array<{ import: string; modul
   
   // Detectar uso de usersHelper
   if (testCode.includes('usersHelper.') || testCode.includes('usersHelper[')) {
-    const usersHelperMatch = testCode.match(/from\s+['"]([^'"]*usersHelper[^'"]*)['"]/);
-    const usersHelperPath = usersHelperMatch ? usersHelperMatch[1] : '../../lib/usersHelper';
     imports.push({
       import: `import { usersHelper } from '${usersHelperPath}';`,
       module: 'usersHelper',
