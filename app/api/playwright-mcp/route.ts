@@ -6072,6 +6072,19 @@ jobs:
         BRANCH_NAME: \${{ github.head_ref }}
         TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
         VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
+        DB_HOST: \${{ secrets.DB_HOST }}
+        DB_PORT: \${{ secrets.DB_PORT }}
+        DB_USER: \${{ secrets.DB_USER }}
+        DB_PASSWORD: \${{ secrets.DB_PASSWORD }}
+        DB_NAME: \${{ secrets.DB_NAME }}
+        DB_DATABASE: \${{ secrets.DB_DATABASE }}
+        MYSQL_HOST: \${{ secrets.MYSQL_HOST }}
+        MYSQL_PORT: \${{ secrets.MYSQL_PORT }}
+        MYSQL_USER: \${{ secrets.MYSQL_USER }}
+        MYSQL_PASSWORD: \${{ secrets.MYSQL_PASSWORD }}
+        MYSQL_DATABASE: \${{ secrets.MYSQL_DATABASE }}
+        DATABASE_URL: \${{ secrets.DATABASE_URL }}
+        DB_CONNECTION_STRING: \${{ secrets.DB_CONNECTION_STRING }}
       run: |
         # Sanitize inputs
         PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
