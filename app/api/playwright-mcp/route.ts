@@ -3134,7 +3134,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         }
       }
       
-      testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
+      testCode += `\n  //WHEN`;
       
       // Si hay acciones de tab, hacerlas primero con ordersHubPage
       if (tabActions.length > 0) {
@@ -3144,7 +3144,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           
           // 🎯 Usar locator generado por MCP si está disponible
           if (action.locator) {
-            testCode += `\n  // ${description}`;
             // Los locators MCP usan 'page' del fixture de Playwright directamente
             // Validar que el locator esté bien formado (debe empezar con 'page.')
             const locatorCode = action.locator.trim();
@@ -3164,7 +3163,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           } else {
             // Fallback a método de page object
             if (elementName) {
-              testCode += `\n  // ${description}`;
               const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
               testCode += `\n  await ${pageVarName}.clickOn${capitalizedName}();`;
             }
@@ -3183,7 +3181,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       );
       
       if (hasLoadMoreAction) {
-        testCode += `\n  // Verify initial past orders are visible`;
         testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'Initial past orders should be visible').toBeGreaterThan(0);`;
       }
       
@@ -3315,12 +3312,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           }
         }
         
-        testCode += `\n  // ${description}`;
         testCode += `\n  ${methodCall}`;
       }
     } else {
       // Fallback sin acciones específicas
-      testCode += `\n\n  //WHEN - No specific actions detected from acceptance criteria`;
+      testCode += `\n  //WHEN`;
     }
     
     // Actualizar la referencia de página para las assertions
@@ -3329,7 +3325,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     
     // Generar assertions específicas
     if (interpretation.assertions && interpretation.assertions.length > 0) {
-      testCode += `\n\n  //THEN - Verify expected behavior`;
+      testCode += `\n  //THEN`;
       
       // Función helper para buscar método de assertion existente
       const codebasePatterns = interpretation.codebasePatterns;
@@ -3530,7 +3526,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       // Solo usar elementos relevantes si hay menos de 5 (evitar assertions masivas)
       if (relevantElements.length > 0 && relevantElements.length <= 5) {
-        testCode += `\n\n  //THEN - Verify relevant elements from acceptance criteria`;
+        testCode += `\n  //THEN`;
         
         for (const element of relevantElements) {
           const elementName = element.name || element.testId || 'Element';
@@ -3544,7 +3540,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         // Si no hay elementos relevantes o hay demasiados, usar fallback específico
         console.log(`⚠️ No se generaron assertions específicas - ${behavior.elements.length} elementos observados pero ninguno relevante o demasiados`);
         // Fallback específico basado en acceptance criteria
-        testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
+        testCode += `\n  //THEN`;
         
         // Si hay acciones de "Load More", verificar que aparecieron más órdenes
         const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
@@ -3554,7 +3550,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         );
         
         if (hasLoadMoreAction) {
-          testCode += `\n  // Verify that more orders are displayed after Load More`;
           testCode += `\n  expect(await ${assertionsPageVar}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
         } else if (interpretation.context === 'pastOrders') {
           testCode += `\n  expect(await ${assertionsPageVar}.isPastOrdersListVisible(), 'Past orders list should be visible').toBeTruthy();`;
@@ -3564,7 +3559,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       }
     } else {
       // Fallback final: generar assertions específicas basadas en el acceptance criteria
-      testCode += `\n\n  //THEN - Verify expected behavior based on acceptance criteria`;
+      testCode += `\n  //THEN`;
       
       // Si hay acciones de "Load More", verificar que aparecieron más órdenes
       const hasLoadMoreAction = interpretation.actions?.some((a: any) => 
@@ -3795,7 +3790,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   
   // Generar acciones específicas basadas en el acceptance criteria
   if (interpretation.actions && interpretation.actions.length > 0) {
-    testCode += `\n\n  //WHEN - Actions from acceptance criteria`;
+    testCode += `\n  //WHEN`;
     
     const sortedActions = interpretation.actions.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
     
@@ -3932,12 +3927,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         console.log(`⚠️ Generando método nuevo: ${methodCall.split('(')[0]}`);
       }
       
-      testCode += `\n  // ${description}`;
       testCode += `\n  ${methodCall}`;
     }
   } else if (behavior.interactions && behavior.interactions.length > 0) {
     // Fallback: usar interacciones observadas con locators MCP
-    testCode += `\n\n  //WHEN - Observed interactions (using MCP-generated locators)`;
+    testCode += `\n  //WHEN`;
     
     for (const interaction of behavior.interactions) {
       const elementName = interaction.element;
@@ -3969,20 +3963,15 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     }
   } else {
     // Fallback final: generar acciones genéricas basadas en el contexto
-    testCode += `\n\n  //WHEN - Generic actions based on context`;
+    testCode += `\n  //WHEN`;
     
     if (interpretation.context === 'pastOrders') {
-      testCode += `\n  // Navigate to past orders`;
       testCode += `\n  await ${pageVarName}.navigateToPastOrders();`;
-      testCode += `\n  // Click on invoice icon`;
       testCode += `\n  await ${pageVarName}.clickOnInvoiceIcon();`;
     } else if (interpretation.context === 'ordersHub') {
-      testCode += `\n  // Navigate to orders hub`;
       testCode += `\n  const ${pageVarName} = await homePage.clickOnOrdersHubNavItem();`;
-      testCode += `\n  // Click on order item`;
       testCode += `\n  await ${pageVarName}.clickOnOrderItem();`;
     } else {
-      testCode += `\n  // Perform main action`;
       testCode += `\n  await ${pageVarName}.performMainAction();`;
     }
   }
@@ -4042,7 +4031,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   
   // Generar assertions específicas basadas en el acceptance criteria
   if (interpretation.assertions && interpretation.assertions.length > 0) {
-    testCode += `\n\n  //THEN - Verify expected behavior`;
+    testCode += `\n  //THEN`;
     
     for (const assertion of interpretation.assertions) {
       const elementName = assertion.element;
@@ -4114,7 +4103,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     
     // Solo usar si hay elementos relevantes y son pocos (máximo 5)
     if (relevantElements.length > 0 && relevantElements.length <= 5) {
-      testCode += `\n\n  //THEN - Verify relevant elements from acceptance criteria`;
+      testCode += `\n  //THEN`;
       
       for (const element of relevantElements) {
         const elementName = element.name || element.testId || 'Element';
@@ -4161,17 +4150,14 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       if (lastAction) {
         // Si la última acción es cartButton, verificar que se navegó al cart
         if (lastAction.element?.toLowerCase().includes('cart')) {
-          testCode += `\n  // Verify navigation to cart after clicking cart button`;
           testCode += `\n  expect(await page.url(), 'Should navigate to cart').toContain('cart');`;
         } else if (lastAction.element?.toLowerCase().includes('loadmore')) {
-          testCode += `\n  // Verify that more orders are displayed after Load More`;
           testCode += `\n  expect(await ${pageVarName}.getPastOrdersCount(), 'More past orders should be displayed after Load More').toBeGreaterThan(0);`;
         } else {
           // Assertion genérica basada en la acción realizada
           const actionElement = lastAction.element;
           if (actionElement) {
             const capitalizedElement = actionElement.charAt(0).toUpperCase() + actionElement.slice(1);
-            testCode += `\n  // Verify action completed successfully`;
             testCode += `\n  expect(await ${pageVarName}.is${capitalizedElement}Visible(), '${actionElement} interaction should be successful').toBeTruthy();`;
           }
         }
@@ -5375,20 +5361,22 @@ jobs:
         TEST_FILTER: \${{ steps.extract-test.outputs.test_filter }}
         PR_TITLE: \${{ github.event.pull_request.title }}
         BRANCH_NAME: \${{ github.head_ref }}
+        TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
+        VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
       run: |
-        # Sanitizar y validar entradas
+        # Sanitize and validate inputs
         SPEC_FILE_SAFE=\$(echo "\$SPEC_FILE" | tr -d '\\n\\r')
         TEST_FILTER_SAFE=\$(echo "\$TEST_FILTER" | tr -d '\\n\\r')
         PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
         BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
         
-        # Validar que SPEC_FILE sea un path válido
+        # Validate that SPEC_FILE is a valid path
         if ! echo "\$SPEC_FILE_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
           echo "Error: Invalid spec file path"
           exit 1
         fi
         
-        # Determinar ambiente del PR o branch (QA por defecto)
+        # Determine environment from PR or branch (QA by default)
         ENVIRONMENT="qa"
         
         if echo "\$PR_TITLE_SAFE" | grep -qiE "prod|production"; then
@@ -5397,14 +5385,14 @@ jobs:
           ENVIRONMENT="prod"
         fi
         
-        # Configurar BASE_URL según el ambiente
+        # Configure BASE_URL based on environment
         if [ "\$ENVIRONMENT" = "prod" ]; then
           BASE_URL="https://www.cookunity.com"
         else
           BASE_URL="https://qa.cookunity.com"
         fi
         
-        # Mostrar información del ambiente en consola
+        # Display environment information in console
         echo "=========================================="
         echo "🚀 ENVIRONMENT: \$(echo \$ENVIRONMENT | tr '[:lower:]' '[:upper:]')"
         echo "🌐 BASE_URL: \$BASE_URL"
@@ -5412,11 +5400,11 @@ jobs:
         echo "🔍 Test filter: \$TEST_FILTER_SAFE"
         echo "=========================================="
         
-        # Validar TEST_FILTER antes de ejecutar
+        # Validate TEST_FILTER before execution
         if echo "\$TEST_FILTER_SAFE" | grep -qE "^--grep \"QA-[0-9]+\"$"; then
-          # Extraer ticketId de forma segura
+          # Extract ticketId safely
           TICKET_ID=\$(echo "\$TEST_FILTER_SAFE" | grep -oE "QA-[0-9]+")
-          # Validar formato del ticketId
+          # Validate ticketId format
           if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
             echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE_SAFE"
             ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE_SAFE" --grep "\$TICKET_ID"
@@ -5425,16 +5413,13 @@ jobs:
             exit 1
           fi
         elif echo "\$TEST_FILTER_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts$'; then
-          # Fallback: ejecutar solo el archivo spec (validado)
+          # Fallback: run only the spec file (validated)
           echo "Running all tests in file: \$TEST_FILTER_SAFE"
           ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$TEST_FILTER_SAFE"
         else
           echo "Error: Invalid test filter format"
           exit 1
         fi
-      env:
-        TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
-        VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
         
     - name: Update PR status on success
       if: success()
