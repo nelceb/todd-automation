@@ -465,7 +465,7 @@ export default function TestGenerator() {
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <button
                   onClick={() => setMode('jira')}
-                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 font-semibold text-sm sm:text-base ${
                     mode === 'jira'
                       ? 'bg-blue-500 text-white shadow-md'
                       : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
@@ -475,7 +475,7 @@ export default function TestGenerator() {
                 </button>
                 <button
                   onClick={() => setMode('natural')}
-                  className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
+                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 font-semibold text-sm sm:text-base ${
                     mode === 'natural'
                       ? 'bg-purple-500 text-white shadow-md'
                       : 'bg-white/50 border border-gray-300 text-gray-700 hover:bg-white/70'
@@ -690,7 +690,7 @@ export default function TestGenerator() {
 
                   {/* Generated Code */}
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-2">Generated Test Code</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2 text-sm sm:text-base">Generated Test Code</h4>
                     <div className="bg-gray-900 rounded-lg overflow-hidden">
                       <div className="bg-gray-800 px-3 py-2 border-b border-gray-700 flex items-center justify-between">
                         <div className="flex items-center space-x-2">
