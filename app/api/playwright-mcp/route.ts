@@ -1403,10 +1403,16 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       // Después del login, esperar a que redirija al home autenticado
       console.log('⏳ Esperando redirección después del login...');
-      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 6000 }); // Reducido a 6s
+      // Esperar redirección después del login (más flexible, no fallar si tarda)
+      try {
+        await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 15000 }); // Aumentado a 15s
+      } catch (urlTimeout) {
+        console.log('⚠️ waitForURL timeout después del login, pero continuando con la URL actual...');
+        console.log(`📍 URL actual: ${page.url()}`);
+      }
       // Esperar de forma flexible (no bloquear si networkidle falla - páginas dinámicas tienen tráfico constante)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido a 3s
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout después del login, continuando...');
       }
@@ -1625,11 +1631,11 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         throw new Error('Page was closed before navigation');
       }
       
-      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 8000 }); // Reducido a 8s
+      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 12000 }); // Aumentado a 12s
       // Esperar de forma flexible (no bloquear si networkidle falla)
       try {
         if (!page.isClosed()) {
-          await page.waitForLoadState('domcontentloaded', { timeout: 2000 }); // Reducido a 2s
+          await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
         }
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout, continuando...');
@@ -1646,7 +1652,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       }
       
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
-      await page.goto(targetURL, { waitUntil: 'load', timeout: 8000 }); // Reducido a 8s
+      await page.goto(targetURL, { waitUntil: 'load', timeout: 12000 }); // Aumentado a 12s
     }
     
     // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
@@ -1678,10 +1684,21 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       // Después del login, esperar a que redirija de vuelta a la página original o a qa.cookunity.com
       console.log('⏳ Esperando redirección después del login...');
-      await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 12000 }); // Reducido de 20s a 12s
+      try {
+        await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 15000 }); // Aumentado a 15s
+        console.log(`✅ Redirección detectada: ${page.url()}`);
+      } catch (urlTimeout) {
+        console.log('⚠️ waitForURL timeout después del login, pero continuando con la URL actual...');
+        console.log(`📍 URL actual: ${page.url()}`);
+        // Verificar si estamos en una URL válida aunque no haya coincidido el patrón
+        const currentURL = page.url();
+        if (currentURL.includes('qa.cookunity.com') || currentURL.includes('subscription.qa.cookunity.com')) {
+          console.log('✅ URL válida detectada aunque no coincidió el patrón exacto');
+        }
+      }
       // Esperar de forma flexible (no bloquear si networkidle falla)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido a 3s
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
       } catch (e) {
         console.log('⚠️ waitForLoadState timeout después del login, continuando...');
       }
@@ -1699,14 +1716,19 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         const menuLink = await findElementWithAccessibility(page, 'menu meals');
         if (menuLink) {
           console.log('✅ Encontrado link a menu, haciendo click...');
-          await menuLink.click({ timeout: 3000 }); // Reducido a 3s
-          await page.waitForURL(/\/menu/, { timeout: 5000 }); // Reducido a 5s
-            // Esperar de forma flexible
-            try {
-              await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido de 5s a 3s
-            } catch (e) {
-              console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
-            }
+          await menuLink.click({ timeout: 5000 }); // Aumentado a 5s
+          try {
+            await page.waitForURL(/\/menu/, { timeout: 10000 }); // Aumentado a 10s
+          } catch (urlTimeout) {
+            console.log('⚠️ waitForURL timeout después de click en menu, pero continuando...');
+            console.log(`📍 URL actual: ${page.url()}`);
+          }
+          // Esperar de forma flexible
+          try {
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
+          } catch (e) {
+            console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
+          }
           console.log(`✅ Navegado internamente a: ${page.url()}`);
         }
       } catch (menuError) {
@@ -2242,10 +2264,18 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         if (ordersLink) {
           await ordersLink.click();
-          await page.waitForURL(/orders|subscription/, { timeout: 8000 }); // Reducido de 10s a 8s
           try {
-            await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido a 3s
-          } catch (e) {}
+            await page.waitForURL(/orders|subscription/, { timeout: 12000 }); // Aumentado a 12s
+            console.log(`✅ Redirección detectada: ${page.url()}`);
+          } catch (urlTimeout) {
+            console.log('⚠️ waitForURL timeout después de navegar a OrdersHub, pero continuando...');
+            console.log(`📍 URL actual: ${page.url()}`);
+          }
+          try {
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
+          } catch (e) {
+            console.log('⚠️ waitForLoadState timeout, continuando...');
+          }
           console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
         } else {
           console.warn('⚠️ No se encontró link a OrdersHub - continuando con observación en Home');
