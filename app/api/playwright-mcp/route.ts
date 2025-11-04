@@ -4276,25 +4276,11 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
       }
     }
     
-    // 2. Generar/actualizar Helpers si es necesario
-    const helperCode = generateHelperCode(interpretation);
-    if (helperCode) {
-      codeFiles.push({
-        file: 'tests/helpers/usersHelper.ts',
-        content: helperCode,
-        type: 'helper'
-      });
-    }
+    // 2. NO generar helpers - ya existen en el código base
+    // Los helpers como UsersHelper ya existen y se reutilizan
     
-    // 3. Generar/actualizar Common utilities si es necesario
-    const commonCode = generateCommonCode(interpretation);
-    if (commonCode) {
-      codeFiles.push({
-        file: 'tests/utils/common.ts',
-        content: commonCode,
-        type: 'utility'
-      });
-    }
+    // 3. NO generar common utilities - ya existen en el código base
+    // Las utilidades comunes ya existen y se reutilizan
     
     // 4. Detectar spec file existente y generar test con inserción inteligente (evitando duplicados)
     const specFileInfo = await detectAndGenerateSpecFile(interpretation, behavior, testCode, ticketId, ticketTitle);
@@ -4503,24 +4489,18 @@ export class ${pageName} {
 }
 
 // Generar código de Helper
+// NO GENERAR HELPERS - ya existen en el código base y se reutilizan
 function generateHelperCode(interpretation: any) {
-  // Si el contexto requiere helpers específicos
-  if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
-    return `// Helper methods for ${interpretation.context}
-export const ${interpretation.context}Helper = {
-  // Métodos específicos para ${interpretation.context}
-};`;
-  }
+  // Los helpers como UsersHelper ya existen en el código base
+  // No generar nuevos helpers
   return null;
 }
 
-// Generar código Common
+// NO GENERAR COMMON UTILITIES - ya existen en el código base y se reutilizan
 function generateCommonCode(interpretation: any) {
-  // Si se necesitan utilidades comunes
-  return `// Common utilities for ${interpretation.context}
-export const commonUtils = {
-  // Utilidades comunes
-};`;
+  // Las utilidades comunes ya existen en el código base
+  // No generar nuevas utilidades
+  return null;
 }
 
 // 🎯 DETECTAR Y GENERAR SPEC FILE CON INSERCIÓN INTELIGENTE
@@ -5260,21 +5240,70 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     // 5. Preparar archivos para commit
     // Obtener información del spec file generado para el workflow
     const specFileInfo = codeGeneration.files.find((f: any) => f.type === 'test');
-    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
-    const huskyConfig = {
-      file: '.husky/pre-commit',
-      content: `#!/usr/bin/env sh
+    
+    // Filtrar archivos: solo incluir el spec file (test), no page objects, helpers, utils
+    const filesToCommit = codeGeneration.files.filter((f: any) => f.type === 'test');
+    
+    // Verificar si workflow ya existe antes de agregarlo
+    let workflowFile = null;
+    try {
+      const workflowResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/.github/workflows/auto-test-pr.yml?ref=${baseBranch}`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      if (!workflowResponse.ok) {
+        // Workflow no existe, generarlo
+        workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
+      } else {
+        console.log('✅ Workflow ya existe, no se generará');
+      }
+    } catch (e) {
+      // Si hay error, asumir que no existe y generarlo
+      workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
+    }
+    
+    // Verificar si husky pre-commit ya existe antes de agregarlo
+    let huskyConfig = null;
+    try {
+      const huskyResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/.husky/pre-commit?ref=${baseBranch}`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      if (!huskyResponse.ok) {
+        // Husky no existe, generarlo
+        huskyConfig = {
+          file: '.husky/pre-commit',
+          content: `#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
 # Run Playwright tests before commit
 npm run test:playwright || exit 1
 `
-    };
+        };
+      } else {
+        console.log('✅ Husky pre-commit ya existe, no se generará');
+      }
+    } catch (e) {
+      // Si hay error, asumir que no existe y generarlo
+      huskyConfig = {
+        file: '.husky/pre-commit',
+        content: `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run Playwright tests before commit
+npm run test:playwright || exit 1
+`
+      };
+    }
     
     const allFiles = [
-      ...codeGeneration.files,
-      workflowFile,
-      huskyConfig
+      ...filesToCommit,
+      ...(workflowFile ? [workflowFile] : []),
+      ...(huskyConfig ? [huskyConfig] : [])
     ];
     
     // 6. Crear commits para cada archivo usando GitHub API (optimizado: batch commits)
