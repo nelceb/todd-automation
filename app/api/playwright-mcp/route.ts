@@ -4558,9 +4558,9 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             .replace(/^-/, '');
           
           // Special handling for common patterns
-          if (methodUsed.toLowerCase().includes('pastorderstab')) {
+          if (methodUsed.toLowerCase().includes('pastorderstab') || methodUsed.toLowerCase() === 'clickonpastorderstab') {
             testIdPart = 'pastorderstab-btn';
-          } else if (methodUsed.toLowerCase().includes('pastorder')) {
+          } else if (methodUsed.toLowerCase().includes('pastorder') && methodUsed.toLowerCase().includes('tab')) {
             testIdPart = 'pastorderstab-btn';
           } else if (methodUsed.toLowerCase().includes('tab') && !testIdPart.includes('-')) {
             testIdPart = testIdPart + '-tab-btn';
