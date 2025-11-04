@@ -5433,85 +5433,40 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
       
-    - name: Extract test name from PR
-      id: extract-test
-      env:
-        PR_TITLE: \${{ github.event.pull_request.title }}
-        BRANCH_NAME: \${{ github.head_ref }}
-      run: |
-        # Sanitize inputs: remove dangerous characters and validate format
-        PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
-        BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
-        SPEC_FILE="${specFilePath}"
-        
-        # Validate that SPEC_FILE is a valid path (only safe characters)
-        if ! echo "\$SPEC_FILE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
-          echo "Error: Invalid spec file path"
-          exit 1
-        fi
-        
-        # Search for ticketId in PR title (e.g., "QA-2315 - Automate Orders HUB...")
-        # Validate that ticketId only contains alphanumeric characters and hyphens
-        TICKET_ID_FOUND=""
-        
-        if echo "\$PR_TITLE_SAFE" | grep -qE "QA-[0-9]+"; then
-          TICKET_ID=\$(echo "\$PR_TITLE_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-          # Validate ticketId format before using it
-          if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
-            TICKET_ID_FOUND="\$TICKET_ID"
-          fi
-        fi
-        
-        # If not found in PR_TITLE, search in BRANCH_NAME
-        if [ -z "\$TICKET_ID_FOUND" ]; then
-          if echo "\$BRANCH_NAME_SAFE" | grep -qE "QA-[0-9]+"; then
-            TICKET_ID=\$(echo "\$BRANCH_NAME_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-            # Validate ticketId format before using it
-            if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
-              TICKET_ID_FOUND="\$TICKET_ID"
-            fi
-          fi
-        fi
-        
-        # If valid ticketId found, use it; otherwise use only the spec file
-        if [ -n "\$TICKET_ID_FOUND" ]; then
-          echo "test_filter=--grep \\"\$TICKET_ID_FOUND\\"" >> \$GITHUB_OUTPUT
-          echo "test_name=\$TICKET_ID_FOUND" >> \$GITHUB_OUTPUT
-          echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
-        else
-          # Fallback: use only the spec file
-          echo "test_filter=\$SPEC_FILE" >> \$GITHUB_OUTPUT
-          echo "test_name=\$SPEC_FILE" >> \$GITHUB_OUTPUT
-          echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
-        fi
-        
-        echo "Spec file: \$SPEC_FILE"
-        echo "Test filter: \${{ steps.extract-test.outputs.test_filter }}"
-      
     - name: Run generated test only
       env:
-        SPEC_FILE: \${{ steps.extract-test.outputs.spec_file }}
-        TEST_FILTER: \${{ steps.extract-test.outputs.test_filter }}
         PR_TITLE: \${{ github.event.pull_request.title }}
         BRANCH_NAME: \${{ github.head_ref }}
         TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
         VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
       run: |
-        # Sanitize and validate inputs
-        SPEC_FILE_SAFE=\$(echo "\$SPEC_FILE" | tr -d '\\n\\r')
-        TEST_FILTER_SAFE=\$(echo "\$TEST_FILTER" | tr -d '\\n\\r')
+        # Sanitize inputs
         PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
         BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
+        SPEC_FILE="${specFilePath}"
         
         # Validate that SPEC_FILE is a valid path
-        if ! echo "\$SPEC_FILE_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
+        if ! echo "\$SPEC_FILE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
           echo "Error: Invalid spec file path"
+          exit 1
+        fi
+        
+        # Extract QA-XXXX from PR title or branch name
+        TICKET_ID=""
+        if echo "\$PR_TITLE_SAFE" | grep -qE "QA-[0-9]+"; then
+          TICKET_ID=\$(echo "\$PR_TITLE_SAFE" | grep -oE "QA-[0-9]+" | head -1)
+        elif echo "\$BRANCH_NAME_SAFE" | grep -qE "QA-[0-9]+"; then
+          TICKET_ID=\$(echo "\$BRANCH_NAME_SAFE" | grep -oE "QA-[0-9]+" | head -1)
+        fi
+        
+        # Validate ticketId format
+        if [ -n "\$TICKET_ID" ] && ! echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
+          echo "Error: Invalid ticket ID format"
           exit 1
         fi
         
         # Determine environment from PR or branch (QA by default)
         ENVIRONMENT="qa"
-        
         if echo "\$PR_TITLE_SAFE" | grep -qiE "prod|production"; then
           ENVIRONMENT="prod"
         elif echo "\$BRANCH_NAME_SAFE" | grep -qiE "prod|production"; then
@@ -5529,31 +5484,17 @@ jobs:
         echo "=========================================="
         echo "🚀 ENVIRONMENT: \$(echo \$ENVIRONMENT | tr '[:lower:]' '[:upper:]')"
         echo "🌐 BASE_URL: \$BASE_URL"
-        echo "📁 Test file: \$SPEC_FILE_SAFE"
-        echo "🔍 Test filter: \$TEST_FILTER_SAFE"
+        echo "📁 Test file: \$SPEC_FILE"
+        echo "🔍 Test filter: \${TICKET_ID:+\"--grep \\\"\$TICKET_ID\\\"\"}"
         echo "=========================================="
         
-        # Validate TEST_FILTER before execution
-        # Check if TEST_FILTER contains --grep pattern (using -- to prevent grep from interpreting pattern as option)
-        if echo "\$TEST_FILTER_SAFE" | grep -qE -- '--grep'; then
-          # Extract ticketId safely (remove quotes and --grep prefix)
-          TICKET_ID=\$(echo "\$TEST_FILTER_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-          # Validate ticketId format
-          if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
-            echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE_SAFE"
-            ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE_SAFE" --grep "\$TICKET_ID"
-          else
-            echo "Error: Invalid ticket ID format"
-            exit 1
-          fi
-        elif echo "\$TEST_FILTER_SAFE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
-          # Fallback: run only the spec file (validated)
-          echo "Running all tests in file: \$TEST_FILTER_SAFE"
-          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$TEST_FILTER_SAFE"
+        # Run test with QA-XXXX filter if found, otherwise run all tests in file
+        if [ -n "\$TICKET_ID" ]; then
+          echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE"
+          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE" --grep "\$TICKET_ID"
         else
-          echo "Error: Invalid test filter format: \$TEST_FILTER_SAFE"
-          echo "Expected: --grep \"QA-XXXX\" or tests/specs/*.spec.ts"
-          exit 1
+          echo "No QA-XXXX found in PR title or branch, running all tests in file: \$SPEC_FILE"
+          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE"
         fi
         
     - name: Update PR status on success
@@ -5579,7 +5520,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: "✅ **Test passed!** PR moved from draft to ready for review.\\n\\n**Test executed:** \${{ steps.extract-test.outputs.test_name }}\\nCheck the workflow logs for details."
+              body: "✅ **Test passed!** PR moved from draft to ready for review.\\n\\nCheck the workflow logs for details."
             });
           }
           
@@ -5592,7 +5533,7 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number,
-              body: "❌ **Test failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\n**Failed test:** \${{ steps.extract-test.outputs.test_name }}\\nCheck the workflow logs for details."
+              body: "❌ **Test failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\nCheck the workflow logs for details."
           });
 `
   };
