@@ -30,10 +30,10 @@ function AnimatedCube({ speedMultiplier = 1 }: AnimatedCubeProps) {
       {/* Cubo con más segmentos para una malla wireframe más densa y completa */}
       <boxGeometry args={[1, 1, 1, 8, 8, 8]} />
       <meshBasicMaterial
-        color="#000000"
+        color="#666666"
         wireframe={true}
         transparent
-        opacity={0.9}
+        opacity={0.7}
       />
     </mesh>
   )
