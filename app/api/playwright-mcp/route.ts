@@ -4387,7 +4387,7 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         const fileData = await response.json();
         const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
         
-        // Agregar el nuevo test al final del archivo
+        // El archivo ya tiene imports correctos, solo agregar el test al final
         return `${existingContent}\n\n// Test agregado por Playwright MCP - ${new Date().toISOString()}\n${generatedTestCode}\n`;
   } else {
         console.warn(`⚠️ No se pudo leer el archivo existente ${specFile}, creando nuevo`);
@@ -4412,8 +4412,8 @@ function generateNewSpecFile(interpretation: any, generatedTestCode: string): st
     : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
     return `import { test, expect } from '@playwright/test';
-import { siteMap } from 'lib/siteMap';
-import { usersHelper } from 'lib/usersHelper';
+import { siteMap } from '../../lib/siteMap';
+import { usersHelper } from '../../lib/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
