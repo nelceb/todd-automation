@@ -4596,30 +4596,31 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
     
-    // If we already read the page object content above, use it; otherwise read it now
-    if (!existingPageObjectContent) {
-      if (!GITHUB_TOKEN || !REPOSITORY) {
-        console.warn('⚠️ GitHub not configured, cannot read existing page object');
-        return null;
-      }
-      
-      const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      
-      if (!response.ok) {
-        console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
-        return null;
-      }
-      
-      const fileData = await response.json();
-      existingPageObjectContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    // Read page object content from GitHub only when we need to add methods
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub not configured, cannot read existing page object');
+      return null;
     }
     
-    const existingContent = existingPageObjectContent;
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
+      return null;
+    }
+    
+    const fileData = await response.json();
+    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     
     // Find the last closing brace of the class (before the final closing brace)
     const classRegex = new RegExp(`(export class ${pageObjectName}[\\s\\S]*?)(\\n})`, 'm');
