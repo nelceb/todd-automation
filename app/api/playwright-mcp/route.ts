@@ -5457,8 +5457,15 @@ No issues found! The generated test follows best practices.
 
 // 🎯 GENERAR GITHUB ACTIONS WORKFLOW (EJECUTA SOLO EL TEST GENERADO)
 function generateGitHubActionsWorkflow(interpretation: any, ticketId: string | null, specFileInfo?: any) {
-  // Extraer información del test generado
-  const specFilePath = specFileInfo?.file || `tests/specs/${interpretation.context}.spec.ts`;
+  // Extraer información del test generado usando el mismo mapeo que detectAndGenerateSpecFile
+  const contextToSpecMap: Record<string, string> = {
+    'pastOrders': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',
+    'ordersHub': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',
+    'homepage': 'tests/frontend/desktop/subscription/coreUx/homePage.spec.ts',
+    'cart': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts'
+  };
+  
+  const specFilePath = specFileInfo?.file || contextToSpecMap[interpretation.context] || `tests/frontend/desktop/subscription/coreUx/${interpretation.context}.spec.ts`;
   // Normalizar ticketId para el nombre del test
   const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : null;
   
