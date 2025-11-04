@@ -4309,7 +4309,7 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
   }
 }
 
-// Generar código de Page Object
+// Generar código de Page Object usando observaciones reales de MCP
 function generatePageObjectCode(interpretation: any, behavior: any) {
   const pageName = `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
@@ -4320,28 +4320,95 @@ export class ${pageName} {
 
 `;
 
-  // Agregar métodos basados en las acciones observadas
+  // Mapear observaciones de MCP a métodos
+  const observedMethods = new Map<string, { testId?: string; locator?: string; type: 'action' | 'assertion' }>();
+  
+  // Procesar interacciones observadas (acciones)
+  if (behavior.interactions && behavior.interactions.length > 0) {
+    for (const interaction of behavior.interactions) {
+      if (interaction.element && interaction.locator) {
+        observedMethods.set(interaction.element, {
+          testId: interaction.testId || undefined,
+          locator: interaction.locator,
+          type: 'action'
+        });
+      }
+    }
+  }
+  
+  // Procesar elementos observados (para assertions)
+  if (behavior.elements && behavior.elements.length > 0) {
+    for (const element of behavior.elements) {
+      if (element.testId && element.locator) {
+        const elementName = element.testId.replace(/[^a-zA-Z0-9]/g, '');
+        if (!observedMethods.has(elementName)) {
+          observedMethods.set(elementName, {
+            testId: element.testId,
+            locator: element.locator,
+            type: 'assertion'
+          });
+        }
+      }
+    }
+  }
+
+  // Agregar métodos basados en acciones observadas
   for (const action of interpretation.actions) {
     if (!action.element) continue;
+    
+    // Buscar observación real del MCP
+    const observed = observedMethods.get(action.element) || 
+                     Array.from(observedMethods.entries()).find(([key]) => 
+                       key.toLowerCase().includes(action.element.toLowerCase()) ||
+                       action.element.toLowerCase().includes(key.toLowerCase())
+                     )?.[1];
+    
     const capitalizedName = action.element.charAt(0).toUpperCase() + action.element.slice(1);
     const methodName = `clickOn${capitalizedName}`;
+    
+    // Usar locator observado si está disponible, sino usar testId, sino fallback
+    let selector = `'[data-testid="${action.element.toLowerCase()}-btn"]'`;
+    if (observed?.locator) {
+      // Convertir locator de MCP (page.getByTestId(...)) a código de page object
+      const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
+      selector = locatorCode;
+    } else if (observed?.testId) {
+      selector = `this.page.getByTestId('${observed.testId}')`;
+    }
+    
     code += `  async ${methodName}(): Promise<void> {
-    // Implementación basada en observación MCP
-    const element = this.page.locator('[data-testid="${action.element.toLowerCase()}-btn"]');
+    const element = ${selector};
     await element.click();
   }
 
 `;
   }
 
-  // Agregar métodos de assertion basados en las assertions
+  // Agregar métodos de assertion basados en observaciones reales
   for (const assertion of interpretation.assertions) {
     if (!assertion.element) continue;
+    
+    // Buscar observación real del MCP
+    const observed = observedMethods.get(assertion.element) || 
+                     Array.from(observedMethods.entries()).find(([key]) => 
+                       key.toLowerCase().includes(assertion.element.toLowerCase()) ||
+                       assertion.element.toLowerCase().includes(key.toLowerCase())
+                     )?.[1];
+    
     const capitalizedName = assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1);
     const methodName = `is${capitalizedName}Visible`;
+    
+    // Usar locator observado si está disponible
+    let selector = `'[data-testid="${assertion.element.toLowerCase()}"]'`;
+    if (observed?.locator) {
+      const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
+      selector = locatorCode;
+    } else if (observed?.testId) {
+      selector = `this.page.getByTestId('${observed.testId}')`;
+    }
+    
     code += `  async ${methodName}(): Promise<boolean> {
-    // Implementación basada en observación MCP
-    const element = this.page.locator('[data-testid="${assertion.element.toLowerCase()}"]');
+    const element = ${selector};
     return await element.isVisible();
   }
 
