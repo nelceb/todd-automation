@@ -227,12 +227,17 @@ export default function TestGenerator() {
     try {
       setProgressLog(prev => [...prev, {
         step: 'fallback',
-        message: 'Playwright MCP failed, trying Smart Synapse...',
-        status: 'warning',
+        message: 'Smart Synapse deshabilitado - Playwright MCP falló',
+        status: 'error',
         timestamp: Date.now()
       }])
 
-      // Skip Playwright MCP retry - it already failed, go directly to Smart Synapse
+      // ⚠️ Smart Synapse deshabilitado temporalmente
+      // El usuario reportó que genera tests incorrectos
+      setError('Playwright MCP falló y Smart Synapse está deshabilitado. Por favor, revisa los logs del servidor para más detalles.')
+      return
+      
+      /* COMENTADO: Smart Synapse deshabilitado
       // Fallback to Smart Synapse
       const smartResponse = await fetch('/api/smart-synapse', {
         method: 'POST',
@@ -290,6 +295,7 @@ export default function TestGenerator() {
           alert('Error: ' + data.error)
         }
       }
+      */
     } catch (error) {
       alert('Error generating test: ' + error)
     } finally {

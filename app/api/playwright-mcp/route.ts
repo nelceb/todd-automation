@@ -1756,13 +1756,55 @@ async function performLoginIfNeeded(page: Page) {
       };
     }
     
-    // Esperar a que los campos de login estén visibles
+    // Esperar a que los campos de login estén visibles (búsqueda más flexible)
     console.log('🔍 Esperando campos de login...');
+    let emailInputFound = false;
+    
+    // Estrategia 1: Buscar por selector específico
     try {
-    await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]', { timeout: 5000 }); // Reducido a 5s
-      console.log('✅ Campo de email encontrado');
+      await page.waitForSelector('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"]', { timeout: 3000 }); // Reducido a 3s
+      emailInputFound = true;
+      console.log('✅ Campo de email encontrado por selector específico');
     } catch (selectorError) {
-      console.error('❌ No se encontró campo de email:', selectorError);
+      console.log('⚠️ No se encontró por selector específico, intentando búsqueda más amplia...');
+      
+      // Estrategia 2: Buscar cualquier input de texto visible
+      try {
+        const allInputs = await page.locator('input[type="text"], input[type="email"], input:not([type="hidden"]):not([type="submit"]):not([type="button"])').all();
+        if (allInputs.length > 0) {
+          // Verificar si alguno es visible
+          for (const input of allInputs) {
+            try {
+              if (await input.isVisible({ timeout: 1000 })) {
+                emailInputFound = true;
+                console.log('✅ Campo de email encontrado por búsqueda amplia');
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+        }
+      } catch (broadSearchError) {
+        console.log('⚠️ Búsqueda amplia también falló');
+      }
+      
+      // Estrategia 3: Buscar por placeholder o label que contenga "email"
+      if (!emailInputFound) {
+        try {
+          const emailByPlaceholder = page.locator('input[placeholder*="email" i], input[placeholder*="Email" i]').first();
+          if (await emailByPlaceholder.isVisible({ timeout: 2000 })) {
+            emailInputFound = true;
+            console.log('✅ Campo de email encontrado por placeholder');
+          }
+        } catch (placeholderError) {
+          console.log('⚠️ No se encontró por placeholder');
+        }
+      }
+    }
+    
+    if (!emailInputFound) {
+      console.error('❌ No se encontró campo de email después de todas las estrategias');
       // Intentar capturar screenshot para debug
       try {
         await page.screenshot({ path: '/tmp/login-page-error.png' });
@@ -1770,17 +1812,33 @@ async function performLoginIfNeeded(page: Page) {
       } catch (screenshotError) {
         console.error('⚠️ No se pudo tomar screenshot');
       }
+      
+      // Intentar una última estrategia: buscar el primer input visible
+      try {
+        const firstVisibleInput = page.locator('input').first();
+        if (await firstVisibleInput.isVisible({ timeout: 2000 })) {
+          emailInputFound = true;
+          console.log('✅ Usando primer input visible como campo de email');
+        }
+      } catch (lastResortError) {
+        console.error('❌ Última estrategia también falló');
+      }
+      
+      if (!emailInputFound) {
       return {
         success: false,
-        error: `No se encontró campo de email en la página: ${selectorError instanceof Error ? selectorError.message : String(selectorError)}`
+          error: 'No se encontró campo de email en la página después de múltiples intentos'
       };
+      }
     }
     
     // Llenar email
-    console.log(`📧 Llenando email: ${process.env.TEST_EMAIL ? process.env.TEST_EMAIL.substring(0, 3) + '***' : 'NO HAY EMAIL'}`);
-    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"]').first();
+    const testEmail = process.env.TEST_EMAIL || '';
+    console.log(`📧 Llenando email: ${testEmail ? testEmail.substring(0, 3) + '***' : 'NO HAY EMAIL'}`);
+    // Usar selector más flexible basado en lo que encontramos
+    const emailInput = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[type="text"], input:not([type="hidden"]):not([type="submit"]):not([type="button"])').first();
     await emailInput.click({ timeout: 3000 }); // Reducido a 3s
-    await emailInput.fill(process.env.TEST_EMAIL || '', { timeout: 3000 }); // Reducido a 3s
+    await emailInput.fill(testEmail, { timeout: 3000 }); // Reducido a 3s
     console.log('✅ Email llenado');
     
     // Llenar password
