@@ -780,11 +780,17 @@ export default function TestGenerator() {
                     
                     <button
                       onClick={() => {
-                        // Usar branchName de gitManagement si está disponible, sino del generatedTest
-                        const branchName = generatedTest.mcpData?.gitManagement?.branchName || 
-                                         generatedTest.branchName ||
-                                         'main';
-                        window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${branchName}`, '_blank');
+                        // Usar prUrl de gitManagement si está disponible (link al PR), sino usar branch
+                        const prUrl = generatedTest.mcpData?.gitManagement?.prUrl;
+                        if (prUrl) {
+                          window.open(prUrl, '_blank');
+                        } else {
+                          // Fallback al branch si no hay PR
+                          const branchName = generatedTest.mcpData?.gitManagement?.branchName || 
+                                           generatedTest.branchName ||
+                                           'main';
+                          window.open(`https://github.com/Cook-Unity/pw-cookunity-automation/tree/${branchName}`, '_blank');
+                        }
                       }}
                       className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] border-gray-600 hover:border-gray-700"
                       style={{ color: '#344055' }}
