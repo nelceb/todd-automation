@@ -5964,11 +5964,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
         
-    - name: Install Playwright Browsers
-      uses: microsoft/playwright-github-action@v1
-      with:
-        browsers: chromium
-        cache-dependency-path: package-lock.json
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
       
     - name: Run generated test only
       env:
