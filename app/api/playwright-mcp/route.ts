@@ -5310,15 +5310,38 @@ function generateBranchName(ticketId: string | null, interpretation: any, ticket
 
 // Generar descripción del PR
 function generatePRDescription(interpretation: any, codeGeneration: any, codeReview?: any) {
+  // Separar archivos generados (nuevos) de modificados (existentes actualizados)
+  const generatedFiles = codeGeneration.files.filter((f: any) => 
+    !f.insertionMethod || f.insertionMethod === 'create'
+  );
+  const modifiedFiles = codeGeneration.files.filter((f: any) => 
+    f.insertionMethod === 'append'
+  );
+  
   let description = `## 🎯 Test Generated with Playwright MCP
 
 **Context:** ${interpretation.context}
 **Acceptance Criteria:** ${interpretation.originalCriteria?.substring(0, 200) || 'N/A'}...
 
-### 📝 Generated Files
-${codeGeneration.files.map((f: any) => `- ${f.file}`).join('\n')}
+`;
 
-### 🔍 Test Details
+  // Solo mostrar sección de archivos generados si hay archivos nuevos
+  if (generatedFiles.length > 0) {
+    description += `### 📝 Generated Files
+${generatedFiles.map((f: any) => `- ${f.file}`).join('\n')}
+
+`;
+  }
+  
+  // Solo mostrar sección de archivos modificados si hay archivos existentes actualizados
+  if (modifiedFiles.length > 0) {
+    description += `### ✏️ Modified Files
+${modifiedFiles.map((f: any) => `- ${f.file}`).join('\n')}
+
+`;
+  }
+
+  description += `### 🔍 Test Details
 - **Test Type:** E2E Automated Test
 - **Framework:** Playwright
 - **Observations:** ${codeGeneration.observations?.length || 0} elements observed
