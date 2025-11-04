@@ -4544,12 +4544,37 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         let selector = '';
         
         // Try to find observation for this method
-        const observed = behavior.elements?.find((e: any) => 
-          e.testId?.toLowerCase().includes(methodUsed.toLowerCase().replace(/^(is|get|clickOn)/, '').replace(/visible|text$/i, '')) ||
-          methodUsed.toLowerCase().includes(e.testId?.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''))
-        ) || behavior.interactions?.find((i: any) => 
-          i.element?.toLowerCase().includes(methodUsed.toLowerCase().replace(/^(clickOn)/, ''))
-        );
+        // First check interactions for click methods
+        let observed = behavior.interactions?.find((i: any) => {
+          const methodLower = methodUsed.toLowerCase();
+          const elementLower = (i.element || '').toLowerCase();
+          const testIdLower = (i.testId || '').toLowerCase();
+          
+          // For click methods, check if element or testId matches
+          if (methodLower.startsWith('clickon')) {
+            const methodBase = methodLower.replace(/^clickon/, '').replace(/tab$/, '');
+            return elementLower.includes(methodBase) || 
+                   testIdLower.includes(methodBase) ||
+                   methodBase.includes(elementLower.replace(/[^a-zA-Z0-9]/g, '')) ||
+                   elementLower.includes('pastorders') && methodLower.includes('pastorders');
+          }
+          return false;
+        });
+        
+        // If not found in interactions, check elements
+        if (!observed) {
+          observed = behavior.elements?.find((e: any) => {
+            const methodLower = methodUsed.toLowerCase();
+            const testIdLower = (e.testId || '').toLowerCase();
+            const elementName = (e.element || '').toLowerCase();
+            
+            const methodBase = methodLower.replace(/^(is|get|clickOn)/, '').replace(/visible|text|tab$/i, '');
+            return testIdLower.includes(methodBase) || 
+                   methodBase.includes(testIdLower.replace(/[^a-zA-Z0-9]/g, '')) ||
+                   elementName.includes(methodBase) ||
+                   (methodLower.includes('pastorders') && (testIdLower.includes('pastorder') || elementName.includes('pastorder')));
+          });
+        }
         
         if (observed?.locator) {
           const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
