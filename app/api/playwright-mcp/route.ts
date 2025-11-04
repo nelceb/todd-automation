@@ -4583,13 +4583,23 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selector = `this.page.getByTestId('${observed.testId}')`;
         } else {
           // Fallback: generate selector from method name
-          const testIdPart = methodUsed
+          let testIdPart = methodUsed
             .replace(/^(is|get|clickOn)/, '')
-            .replace(/Visible|Text$/i, '')
+            .replace(/Visible|Text|Tab$/i, '')
             .replace(/([A-Z])/g, '-$1')
             .toLowerCase()
             .replace(/^-/, '');
-          selector = `this.page.locator('[data-testid="${testIdPart}"]')`;
+          
+          // Special handling for common patterns
+          if (methodUsed.toLowerCase().includes('pastorderstab')) {
+            testIdPart = 'pastorderstab-btn';
+          } else if (methodUsed.toLowerCase().includes('pastorder')) {
+            testIdPart = 'pastorderstab-btn';
+          } else if (methodUsed.toLowerCase().includes('tab') && !testIdPart.includes('-')) {
+            testIdPart = testIdPart + '-tab-btn';
+          }
+          
+          selector = `this.page.getByTestId('${testIdPart}')`;
         }
         
         // Generate method based on name pattern
