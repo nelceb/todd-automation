@@ -4466,18 +4466,27 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       const lines = generatedTestCode.split('\n');
       let pageObjectVar = '';
       for (const line of lines) {
-        // Detect page object variable assignment
+        // Detect page object variable assignment (any variable ending in Page)
         const pageVarMatch = line.match(/(?:const|let|var)\s+(\w+Page)\s*=/);
         if (pageVarMatch) {
           pageObjectVar = pageVarMatch[1];
+          console.log(`🔍 Detected page object variable: ${pageObjectVar}`);
+        }
+        
+        // Also detect if line contains await homePage.clickOnOrdersHubNavItem() pattern
+        const navMethodMatch = line.match(/(?:const|let|var)\s+(\w+)\s*=\s*await\s+\w+\.clickOnOrdersHubNavItem\(\)/);
+        if (navMethodMatch) {
+          pageObjectVar = navMethodMatch[1];
+          console.log(`🔍 Detected page object from navigation: ${pageObjectVar}`);
         }
         
         // If we found a page object variable, extract methods called on it
         if (pageObjectVar) {
-          const varMethodRegex = new RegExp(`${pageObjectVar}\\.(\\w+)\\s*\\(`, 'g');
+          const varMethodRegex = new RegExp(`${pageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\w+)\\s*\\(`, 'g');
           let varMatch;
           while ((varMatch = varMethodRegex.exec(line)) !== null) {
             methodsUsedInTest.add(varMatch[1]);
+            console.log(`🔍 Found method call: ${pageObjectVar}.${varMatch[1]}()`);
           }
         }
       }
@@ -6123,7 +6132,7 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+        
     - name: Run generated test only
       env:
         PR_TITLE: \${{ github.event.pull_request.title }}
