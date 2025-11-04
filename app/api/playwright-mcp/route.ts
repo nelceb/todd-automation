@@ -5349,13 +5349,16 @@ npm run test:playwright || exit 1
 - Added Husky pre-commit hooks for test validation
 - Test will auto-promote PR from draft to review on success`;
 
-    // ⚠️ OPTIMIZADO: Limitar número de archivos para evitar timeout (máximo 10 archivos)
+    // ⚠️ OPTIMIZED: Limit number of files to avoid timeout (max 10 files)
     const filesToCommitBatch = allFiles.slice(0, 10);
-    console.log(`📦 Commitando ${filesToCommitBatch.length} archivos (de ${allFiles.length} total)`);
+    console.log(`📦 Committing ${filesToCommitBatch.length} files (out of ${allFiles.length} total)`);
     
     for (const file of filesToCommitBatch) {
-      // Leer contenido del archivo si existe (para actualizar) o crear nuevo
+      // Check if file exists in branch (for update) or base branch (for new file)
       let fileSha = null;
+      let isUpdate = false;
+      
+      // First check if file exists in current branch
       try {
         const fileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}?ref=${branchName}`, {
           headers: {
@@ -5366,14 +5369,40 @@ npm run test:playwright || exit 1
         
         if (fileResponse.ok) {
           const fileData = await fileResponse.json();
-          fileSha = fileData.sha; // Si existe, necesitamos SHA para actualizar
+          fileSha = fileData.sha;
+          isUpdate = true;
+          console.log(`📝 File exists in branch, will update: ${file.file}`);
         }
       } catch (e) {
-        // Archivo no existe, se creará nuevo
+        // File doesn't exist in branch, check base branch
+        try {
+          const baseFileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}?ref=${baseBranch}`, {
+            headers: {
+              'Authorization': `Bearer ${GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+          
+          if (baseFileResponse.ok) {
+            const baseFileData = await baseFileResponse.json();
+            fileSha = baseFileData.sha;
+            isUpdate = true;
+            console.log(`📝 File exists in base branch, will update: ${file.file}`);
+          } else {
+            console.log(`📄 File doesn't exist, will create new: ${file.file}`);
+          }
+        } catch (baseError) {
+          // File doesn't exist in either branch, will create new
+          console.log(`📄 File doesn't exist, will create new: ${file.file}`);
+        }
       }
       
-      // Crear/actualizar archivo
+      // Create or update file using GitHub API
       const content = Buffer.from(file.content || '').toString('base64');
+      const commitMessage = isUpdate 
+        ? `Update ${file.file}${file.insertionMethod === 'append' ? ' - Add test' : ''}`
+        : `Add ${file.file}`;
+      
       const createFileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}`, {
         method: 'PUT',
         headers: {
@@ -5382,22 +5411,22 @@ npm run test:playwright || exit 1
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: fileSha ? `Update ${file.file}` : `Add ${file.file}`,
+          message: commitMessage,
           content: content,
-      branch: branchName,
-          ...(fileSha && { sha: fileSha }) // Solo incluir SHA si existe (actualización)
+          branch: branchName,
+          ...(fileSha && { sha: fileSha }) // Include SHA only if file exists (for update)
         })
       });
       
       if (!createFileResponse.ok) {
         const errorText = await createFileResponse.text();
-        console.error(`⚠️ Error creando archivo ${file.file}:`, errorText);
-        continue; // Continuar con siguiente archivo
+        console.error(`❌ Error ${isUpdate ? 'updating' : 'creating'} file ${file.file}:`, errorText);
+        continue; // Continue with next file
       }
       
       const fileCommit = await createFileResponse.json();
       currentSha = fileCommit.commit.sha;
-      console.log(`✅ Archivo creado/actualizado: ${file.file}`);
+      console.log(`✅ File ${isUpdate ? 'updated' : 'created'}: ${file.file}`);
     }
     
     // 7. Crear Pull Request (usar título del ticket si está disponible)
