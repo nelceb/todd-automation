@@ -4257,6 +4257,8 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     const codeFiles = [];
     
     // 1. Generar/actualizar Page Objects
+    // Skip generating page objects for pastOrders since it's a tab within OrdersHubPage
+    if (interpretation.context !== 'pastOrders') {
     const pageObjectCode = generatePageObjectCode(interpretation, behavior);
     if (pageObjectCode) {
       codeFiles.push({
@@ -4264,6 +4266,7 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
         content: pageObjectCode,
         type: 'page-object'
       });
+      }
     }
     
     // 2. Generar/actualizar Helpers si es necesario
@@ -5401,9 +5404,10 @@ jobs:
         echo "=========================================="
         
         # Validate TEST_FILTER before execution
-        if echo "\$TEST_FILTER_SAFE" | grep -qE "^--grep \"QA-[0-9]+\"$"; then
-          # Extract ticketId safely
-          TICKET_ID=\$(echo "\$TEST_FILTER_SAFE" | grep -oE "QA-[0-9]+")
+        # Check if TEST_FILTER contains --grep pattern
+        if echo "\$TEST_FILTER_SAFE" | grep -qE '--grep.*QA-[0-9]+'; then
+          # Extract ticketId safely (remove quotes and --grep prefix)
+          TICKET_ID=\$(echo "\$TEST_FILTER_SAFE" | grep -oE "QA-[0-9]+" | head -1)
           # Validate ticketId format
           if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
             echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE_SAFE"
@@ -5417,7 +5421,8 @@ jobs:
           echo "Running all tests in file: \$TEST_FILTER_SAFE"
           ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$TEST_FILTER_SAFE"
         else
-          echo "Error: Invalid test filter format"
+          echo "Error: Invalid test filter format: \$TEST_FILTER_SAFE"
+          echo "Expected: --grep \"QA-XXXX\" or tests/specs/*.spec.ts"
           exit 1
         fi
         
