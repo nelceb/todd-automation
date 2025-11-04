@@ -4484,7 +4484,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const methodsUsedInTest = new Set<string>();
     if (generatedTestCode) {
       // Extract method calls like ordersHubPage.isEmptyPastOrdersStateVisible() or ordersHubPage.getEmptyStatePastOrdersMessageText()
-      const methodCallRegex = /(?:ordersHubPage|homePage|pageVar|pageObject)\.(\w+)\s*\(/g;
+      // Also match await ordersHubPage.method() patterns
+      const methodCallRegex = /(?:ordersHubPage|homePage|pageVar|pageObject|const\s+\w+\s*=\s*await\s+\w+\.clickOnOrdersHubNavItem\(\)|await\s+\w+Page)\.(\w+)\s*\(/g;
       let match;
       while ((match = methodCallRegex.exec(generatedTestCode)) !== null) {
         methodsUsedInTest.add(match[1]);
@@ -4494,6 +4495,33 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       const expectMethodRegex = /expect\([^)]*\.(\w+)\s*\(\)/g;
       while ((match = expectMethodRegex.exec(generatedTestCode)) !== null) {
         methodsUsedInTest.add(match[1]);
+      }
+      
+      // Extract from await statements: await ordersHubPage.method()
+      const awaitMethodRegex = /await\s+\w+Page\.(\w+)\s*\(/g;
+      while ((match = awaitMethodRegex.exec(generatedTestCode)) !== null) {
+        methodsUsedInTest.add(match[1]);
+      }
+      
+      // Also look for patterns like: const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
+      // Then extract all methods called on ordersHubPage after that
+      const lines = generatedTestCode.split('\n');
+      let pageObjectVar = '';
+      for (const line of lines) {
+        // Detect page object variable assignment
+        const pageVarMatch = line.match(/(?:const|let|var)\s+(\w+Page)\s*=/);
+        if (pageVarMatch) {
+          pageObjectVar = pageVarMatch[1];
+        }
+        
+        // If we found a page object variable, extract methods called on it
+        if (pageObjectVar) {
+          const varMethodRegex = new RegExp(`${pageObjectVar}\\.(\\w+)\\s*\\(`, 'g');
+          let varMatch;
+          while ((varMatch = varMethodRegex.exec(line)) !== null) {
+            methodsUsedInTest.add(varMatch[1]);
+          }
+        }
       }
       
       console.log(`📋 Methods used in test: ${Array.from(methodsUsedInTest).join(', ')}`);
