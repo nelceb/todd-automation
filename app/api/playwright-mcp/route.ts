@@ -4263,13 +4263,13 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
       const needsPageObject = await checkIfPageObjectMethodsNeeded(interpretation, behavior);
       
       if (needsPageObject) {
-        const pageObjectCode = generatePageObjectCode(interpretation, behavior);
-        if (pageObjectCode) {
-          codeFiles.push({
-            file: `tests/pageObjects/${interpretation.context}Page.ts`,
-            content: pageObjectCode,
-            type: 'page-object'
-          });
+    const pageObjectCode = generatePageObjectCode(interpretation, behavior);
+    if (pageObjectCode) {
+      codeFiles.push({
+        file: `tests/pageObjects/${interpretation.context}Page.ts`,
+        content: pageObjectCode,
+        type: 'page-object'
+      });
         }
       } else {
         console.log(`✅ No se generará page object: todos los métodos ya existen en el código base`);
@@ -5711,9 +5711,11 @@ jobs:
         echo "=========================================="
         
         # Run test with QA-XXXX filter if found, otherwise run all tests in file
+        # Use regex pattern to match test name containing QA-XXXX anywhere
         if [ -n "\$TICKET_ID" ]; then
           echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE"
-          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE" --grep "\$TICKET_ID"
+          # Use regex pattern that matches QA-XXXX anywhere in the test name
+          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE" --grep "/.*\$TICKET_ID.*/"
         else
           echo "No QA-XXXX found in PR title or branch, running all tests in file: \$SPEC_FILE"
           ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE"
