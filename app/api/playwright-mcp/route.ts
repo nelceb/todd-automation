@@ -6046,45 +6046,62 @@ permissions:
 
 jobs:
   run-generated-test:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-dev-large
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-jammy
+    
+    env:
+      CI: true
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Necesario para detectar cambios
+        fetch-depth: 0
         
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+    - name: Setup environment
+      run: |
+        echo "# ENVIRONMENT=\$ENVIRONMENT"
+        echo "# BASE_URL=\$BASE_URL"
+        
+        ENV_SPLIT=$(echo \$ENVIRONMENT | cut -d'-' -f1)
+        echo "## FINAL ENVIRONMENT=\$ENV_SPLIT"
+        
+        # Load environment variables from properties file if it exists
+        if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
+          echo "Loading environment variables from properties/\$ENV_SPLIT/.env.\$ENVIRONMENT"
+          set -a
+          source properties/\$ENV_SPLIT/.env.\$ENVIRONMENT || true
+          set +a
+        else
+          echo "Properties file not found, using environment variables from workflow"
+        fi
+        
+        # [ -n "\${BASE_URL+x}" ] checks if variable is defined, [ "\$BASE_URL" != "" ] checks if variable is not empty
+        if [ -n "\${BASE_URL+x}" ] && [ "\$BASE_URL" != "" ]; then
+          echo "Overriding BASE_URL in .env.\$ENVIRONMENT with \$BASE_URL"
+          if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
+            sed -i "s|^BASE_URL=.*|BASE_URL=\$BASE_URL|" properties/\$ENV_SPLIT/.env.\$ENVIRONMENT || true
+          fi
+        else
+          echo "No BASE_URL parameter provided or empty value, using the default from .env.\$ENVIRONMENT"
+          if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
+            DEFAULT_BASE_URL=$(grep "^BASE_URL=" properties/\$ENV_SPLIT/.env.\$ENVIRONMENT | cut -d'=' -f2 || echo "")
+            if [ -n "\$DEFAULT_BASE_URL" ]; then
+              echo "BASE_URL=\$DEFAULT_BASE_URL" >> \$GITHUB_ENV
+              echo "Loaded default BASE_URL: \$DEFAULT_BASE_URL from properties/\$ENV_SPLIT/.env.\$ENVIRONMENT"
+            fi
+          fi
+        fi
         
     - name: Install dependencies
       run: npm ci
-        
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps chromium
       
     - name: Run generated test only
       env:
         PR_TITLE: \${{ github.event.pull_request.title }}
         BRANCH_NAME: \${{ github.head_ref }}
-        TEST_EMAIL: \${{ secrets.TEST_EMAIL }}
-        VALID_LOGIN_PASSWORD: \${{ secrets.VALID_LOGIN_PASSWORD }}
-        DB_HOST: \${{ secrets.DB_HOST }}
-        DB_PORT: \${{ secrets.DB_PORT }}
-        DB_USER: \${{ secrets.DB_USER }}
-        DB_PASSWORD: \${{ secrets.DB_PASSWORD }}
-        DB_NAME: \${{ secrets.DB_NAME }}
-        DB_DATABASE: \${{ secrets.DB_DATABASE }}
-        MYSQL_HOST: \${{ secrets.MYSQL_HOST }}
-        MYSQL_PORT: \${{ secrets.MYSQL_PORT }}
-        MYSQL_USER: \${{ secrets.MYSQL_USER }}
-        MYSQL_PASSWORD: \${{ secrets.MYSQL_PASSWORD }}
-        MYSQL_DATABASE: \${{ secrets.MYSQL_DATABASE }}
-        DATABASE_URL: \${{ secrets.DATABASE_URL }}
-        DB_CONNECTION_STRING: \${{ secrets.DB_CONNECTION_STRING }}
+        ENVIRONMENT: \${{ github.event.pull_request.head.ref == 'main' && 'prod' || 'qa' }}
       run: |
         # Sanitize inputs
         PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
@@ -6112,19 +6129,28 @@ jobs:
         fi
         
         # Determine environment from PR or branch (QA by default)
-        ENVIRONMENT="qa"
-        if echo "\$PR_TITLE_SAFE" | grep -qiE "prod|production"; then
-          ENVIRONMENT="prod"
-        elif echo "\$BRANCH_NAME_SAFE" | grep -qiE "prod|production"; then
-          ENVIRONMENT="prod"
+        if [ -z "\$ENVIRONMENT" ]; then
+          ENVIRONMENT="qa"
+          if echo "\$PR_TITLE_SAFE" | grep -qiE "prod|production"; then
+            ENVIRONMENT="prod"
+          elif echo "\$BRANCH_NAME_SAFE" | grep -qiE "prod|production"; then
+            ENVIRONMENT="prod"
+          fi
         fi
         
-        # Configure BASE_URL based on environment
-        if [ "\$ENVIRONMENT" = "prod" ]; then
-          BASE_URL="https://www.cookunity.com"
-        else
-          BASE_URL="https://qa.cookunity.com"
+        # Configure BASE_URL based on environment if not already set
+        if [ -z "\$BASE_URL" ]; then
+          if [ "\$ENVIRONMENT" = "prod" ]; then
+            BASE_URL="https://www.cookunity.com"
+          else
+            BASE_URL="https://qa.cookunity.com"
+          fi
         fi
+        
+        # Export environment variables for Playwright
+        export ENVIRONMENT=\$ENVIRONMENT
+        export BASE_URL=\$BASE_URL
+        export TARGET_ENV=\$ENVIRONMENT
         
         # Display environment information in console
         echo "=========================================="
@@ -6139,10 +6165,10 @@ jobs:
         if [ -n "\$TICKET_ID" ]; then
           echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE"
           # Use ticket ID directly (Playwright will match it in test names)
-          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE" --grep "\$TICKET_ID"
+          TARGET_ENV=\$ENVIRONMENT npx playwright test "\$SPEC_FILE" --grep "\$TICKET_ID" --project desktop
         else
           echo "No QA-XXXX found in PR title or branch, running all tests in file: \$SPEC_FILE"
-          ENVIRONMENT=\$ENVIRONMENT BASE_URL=\$BASE_URL npx playwright test "\$SPEC_FILE"
+          TARGET_ENV=\$ENVIRONMENT npx playwright test "\$SPEC_FILE" --project desktop
         fi
         
     - name: Update PR status on success
