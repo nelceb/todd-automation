@@ -4625,8 +4625,8 @@ function generateNewSpecFile(interpretation: any, generatedTestCode: string): st
     : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
     return `import { test, expect } from '@playwright/test';
-import { siteMap } from '../../lib/siteMap';
-import { usersHelper } from '../../lib/usersHelper';
+import { siteMap } from 'lib/siteMap';
+import { usersHelper } from 'lib/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
@@ -5309,47 +5309,47 @@ jobs:
         PR_TITLE: \${{ github.event.pull_request.title }}
         BRANCH_NAME: \${{ github.head_ref }}
       run: |
-        # Sanitizar entradas: remover caracteres peligrosos y validar formato
+        # Sanitize inputs: remove dangerous characters and validate format
         PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
         BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
         SPEC_FILE="${specFilePath}"
         
-        # Validar que SPEC_FILE sea un path válido (solo caracteres seguros)
+        # Validate that SPEC_FILE is a valid path (only safe characters)
         if ! echo "\$SPEC_FILE" | grep -qE '^tests/specs/[a-zA-Z0-9_.-]+\.spec\.ts\$'; then
           echo "Error: Invalid spec file path"
           exit 1
         fi
         
-        # Buscar ticketId en el título del PR (ej: "QA-2315 - Automate Orders HUB...")
-        # Validar que el ticketId solo contenga caracteres alfanuméricos y guiones
+        # Search for ticketId in PR title (e.g., "QA-2315 - Automate Orders HUB...")
+        # Validate that ticketId only contains alphanumeric characters and hyphens
         TICKET_ID_FOUND=""
         
         if echo "\$PR_TITLE_SAFE" | grep -qE "QA-[0-9]+"; then
           TICKET_ID=\$(echo "\$PR_TITLE_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-          # Validar formato del ticketId antes de usarlo
+          # Validate ticketId format before using it
           if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
             TICKET_ID_FOUND="\$TICKET_ID"
           fi
         fi
         
-        # Si no se encontró en PR_TITLE, buscar en BRANCH_NAME
+        # If not found in PR_TITLE, search in BRANCH_NAME
         if [ -z "\$TICKET_ID_FOUND" ]; then
           if echo "\$BRANCH_NAME_SAFE" | grep -qE "QA-[0-9]+"; then
             TICKET_ID=\$(echo "\$BRANCH_NAME_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-            # Validar formato del ticketId antes de usarlo
+            # Validate ticketId format before using it
             if echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
               TICKET_ID_FOUND="\$TICKET_ID"
             fi
           fi
         fi
         
-        # Si se encontró ticketId válido, usarlo; sino usar solo el archivo spec
+        # If valid ticketId found, use it; otherwise use only the spec file
         if [ -n "\$TICKET_ID_FOUND" ]; then
           echo "test_filter=--grep \\"\$TICKET_ID_FOUND\\"" >> \$GITHUB_OUTPUT
           echo "test_name=\$TICKET_ID_FOUND" >> \$GITHUB_OUTPUT
           echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
         else
-          # Fallback: usar solo el archivo spec
+          # Fallback: use only the spec file
           echo "test_filter=\$SPEC_FILE" >> \$GITHUB_OUTPUT
           echo "test_name=\$SPEC_FILE" >> \$GITHUB_OUTPUT
           echo "spec_file=\$SPEC_FILE" >> \$GITHUB_OUTPUT
