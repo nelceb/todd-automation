@@ -6037,7 +6037,7 @@ function generateGitHubActionsWorkflow(interpretation: any, ticketId: string | n
 on:
   pull_request:
     branches: [ main, develop ]
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -6057,6 +6057,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        ref: \${{ github.event.pull_request.head.ref }}
+        repository: \${{ github.event.pull_request.head.repo.full_name }}
         fetch-depth: 0
         
     - name: Setup environment
