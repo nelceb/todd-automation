@@ -4672,8 +4672,9 @@ function extractRequiredImports(testCode: string, existingContent?: string): Arr
   const imports: Array<{ import: string; module: string; from: string }> = [];
   
   // PRIMERO: Intentar extraer paths del archivo existente
-  let siteMapPath = '../../lib/siteMap'; // default
-  let usersHelperPath = '../../lib/usersHelper'; // default
+  // Si el archivo existente tiene un path, usarlo; sino usar path alias (lib/siteMap) como default
+  let siteMapPath = 'lib/siteMap'; // default: usar path alias (más común en proyectos TypeScript)
+  let usersHelperPath = 'lib/usersHelper'; // default: usar path alias
   
   if (existingContent) {
     // Buscar imports existentes de siteMap
@@ -4731,9 +4732,11 @@ function generateNewSpecFile(interpretation: any, generatedTestCode: string): st
     ? 'OrdersHubPage' 
     : `${interpretation.context.charAt(0).toUpperCase() + interpretation.context.slice(1)}Page`;
   
+    // Intentar usar path alias si existe (lib/siteMap), sino usar path relativo
+    // La mayoría de proyectos con TypeScript tienen path aliases configurados
     return `import { test, expect } from '@playwright/test';
-import { siteMap } from '../../lib/siteMap';
-import { usersHelper } from '../../lib/usersHelper';
+import { siteMap } from 'lib/siteMap';
+import { usersHelper } from 'lib/usersHelper';
 
 // Tests generados por Playwright MCP con observación real
 // Context: ${interpretation.context}
