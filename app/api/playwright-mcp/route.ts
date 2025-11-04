@@ -4982,21 +4982,52 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         // Verificar qué imports ya existen en el archivo
         const existingImports = extractExistingImports(existingContent);
         
+        // REMOVER imports del test generado antes de agregarlo (para evitar duplicados)
+        const testCodeWithoutImports = removeImportsFromTestCode(generatedTestCode);
+        
         // Agregar solo los imports faltantes
         let importsToAdd = '';
         for (const requiredImport of requiredImports) {
-          // Verificar si el import ya existe (más preciso: verificar módulo y path)
+          // Verificar si el import ya existe de forma más precisa
           const importExists = existingImports.some((existing: string) => {
-            // Verificar si contiene el módulo (siteMap, usersHelper) y el path
-            const hasModule = existing.includes(requiredImport.module);
-            const hasPath = existing.includes(requiredImport.from) || 
-                           existing.includes('siteMap') || 
-                           existing.includes('usersHelper');
-            return hasModule && hasPath;
+            // Normalizar ambos imports para comparación
+            const normalizedExisting = existing.toLowerCase().replace(/\s+/g, ' ');
+            const normalizedRequired = requiredImport.import.toLowerCase().replace(/\s+/g, ' ');
+            
+            // Extraer el nombre del módulo de ambos
+            const existingModuleMatch = normalizedExisting.match(/import\s+(?:\{?\s*)?(\w+)/);
+            const requiredModuleMatch = normalizedRequired.match(/import\s+(?:\{?\s*)?(\w+)/);
+            
+            if (existingModuleMatch && requiredModuleMatch) {
+              const existingModule = existingModuleMatch[1];
+              const requiredModule = requiredModuleMatch[1];
+              
+              // Verificar si el módulo coincide
+              if (existingModule === requiredModule) {
+                // También verificar que el path sea similar (puede tener variaciones de rutas relativas)
+                const existingPathMatch = normalizedExisting.match(/from\s+['"]([^'"]+)['"]/);
+                const requiredPathMatch = normalizedRequired.match(/from\s+['"]([^'"]+)['"]/);
+                
+                if (existingPathMatch && requiredPathMatch) {
+                  // Normalizar paths (quitar ./ y ../ redundantes)
+                  const existingPath = existingPathMatch[1].replace(/^\.\.\//, '').replace(/\/+/g, '/');
+                  const requiredPath = requiredPathMatch[1].replace(/^\.\.\//, '').replace(/\/+/g, '/');
+                  
+                  // Verificar si los paths son iguales o contienen el mismo archivo final
+                  const existingFile = existingPath.split('/').pop();
+                  const requiredFile = requiredPath.split('/').pop();
+                  
+                  return existingFile === requiredFile || existingPath === requiredPath;
+                }
+              }
+            }
+            return false;
           });
           
           if (!importExists) {
             importsToAdd += `${requiredImport.import}\n`;
+  } else {
+            console.log(`✅ Import already exists, skipping: ${requiredImport.import}`);
           }
         }
         
@@ -5028,7 +5059,8 @@ async function generateTestWithSmartInsertion(interpretation: any, specFile: str
         const needsInstances = existingContent.includes('new SiteMap()') || existingContent.includes('new UsersHelper()');
         const hasInstances = existingContent.includes('const siteMap =') || existingContent.includes('const usersHelper =');
         
-        let testCodeToAdd = generatedTestCode;
+        // Usar el test code sin imports (ya removidos arriba)
+        let testCodeToAdd = testCodeWithoutImports;
         
         // Si el archivo usa instancias pero el test generado no las tiene, el código debería funcionar
         // porque las instancias ya están definidas en el archivo existente
@@ -5142,6 +5174,28 @@ function extractExistingImports(fileContent: string): string[] {
   }
   
   return imports;
+}
+
+// Remover imports del código del test generado para evitar duplicados
+function removeImportsFromTestCode(testCode: string): string {
+  const lines = testCode.split('\n');
+  const filteredLines: string[] = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Saltar líneas que sean imports o líneas vacías al principio
+    if (trimmed.startsWith('import ')) {
+      continue; // Saltar este import
+    }
+    filteredLines.push(line);
+  }
+  
+  // Remover líneas vacías al principio
+  while (filteredLines.length > 0 && filteredLines[0].trim() === '') {
+    filteredLines.shift();
+  }
+  
+  return filteredLines.join('\n');
 }
 
 // Generar contenido de un nuevo spec file usando la estructura real del proyecto
