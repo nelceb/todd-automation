@@ -432,12 +432,12 @@ export default function TestGenerator() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8 sm:mb-12 lg:mb-16"
+          className="text-center mb-6 sm:mb-8"
         >
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-mono mb-3 tracking-wide" style={{ color: '#344055' }}>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-mono mb-2 tracking-wide" style={{ color: '#344055' }}>
             Test Generator
           </h1>
-          <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
+          <p className="text-base sm:text-lg font-mono" style={{ color: '#4B5563' }}>
             Generate automated tests from Jira acceptance criteria
           </p>
         </motion.div>
@@ -453,16 +453,16 @@ export default function TestGenerator() {
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-6"
+              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-4 sm:p-6"
             >
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Choose Generation Mode</h3>
-                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+              <div className="text-center mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Choose Generation Mode</h3>
+                <p className="text-xs sm:text-sm font-mono" style={{ color: '#6B7280' }}>
                   Generate tests from Jira tickets or use natural language with Claude AI
                 </p>
               </div>
               
-              <div className="flex gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <button
                   onClick={() => setMode('jira')}
                   className={`px-6 py-3 rounded-lg transition-all duration-200 font-semibold ${
@@ -495,17 +495,17 @@ export default function TestGenerator() {
               className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg"
             >
               {/* Content */}
-              <div className="p-6">
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Enter Jira Issue</h3>
-                  <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+              <div className="p-4 sm:p-6">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Enter Jira Issue</h3>
+                  <p className="text-xs sm:text-sm font-mono" style={{ color: '#6B7280' }}>
                     Enter the Jira issue key to extract acceptance criteria and generate tests
                   </p>
                 </div>
                 
                 <div className="max-w-md mx-auto">
-                  <div className="mb-6">
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  <div className="mb-4">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-800 mb-2">
                       Jira Issue Key
                     </label>
                     <input
@@ -518,9 +518,9 @@ export default function TestGenerator() {
                         }
                       }}
                       placeholder="QA-2301"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-2 font-mono">
+                    <p className="text-xs text-gray-500 mt-1.5 font-mono">
                       Format: PROJECT-NUMBER (e.g., QA-2301, PROJ-123) • Press Enter to generate
                     </p>
                   </div>
@@ -638,58 +638,25 @@ export default function TestGenerator() {
             >
               <div className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg">
                 <div className="p-6">
-                  <div className="text-center mb-6">
+                  <div className="text-center mb-4">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">Test Generated Successfully</h3>
                     <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
                       Test has been created and committed to repository
                     </p>
                   </div>
-                  
-                  
-                  
-                  {/* TODD Ultimate Analysis */}
-                  {generatedTest.interpretation && (
-                    <div className="mb-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-purple-800 mb-3">🚀 TODD Ultimate Analysis</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <h5 className="font-medium text-purple-700 mb-2">🧠 Interpretation</h5>
-                          <p className="text-sm text-purple-600">Context: {generatedTest.interpretation?.context || 'N/A'}</p>
-                          <p className="text-sm text-purple-600">UsersHelper: {generatedTest.interpretation?.usersHelper || 'N/A'}</p>
-                          <p className="text-sm text-purple-600">Tags: {Array.isArray(generatedTest.interpretation?.tags) ? generatedTest.interpretation.tags.join(', ') : 'N/A'}</p>
-                          <p className="text-sm text-purple-600">Actions: {generatedTest.interpretation?.actions?.length || 0}</p>
-                          <p className="text-sm text-purple-600">Assertions: {generatedTest.interpretation?.assertions?.length || 0}</p>
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-purple-700 mb-2">🌐 Navigation</h5>
-                          <p className="text-sm text-purple-600">URL: {generatedTest.navigation?.url || 'N/A'}</p>
-                          <p className="text-sm text-purple-600">Success: {generatedTest.navigation?.success ? '✅' : '❌'}</p>
-                          <p className="text-sm text-purple-600">Steps: {generatedTest.navigation?.steps?.length || 0}</p>
-                          <p className="text-sm text-purple-600">Self-Healing: {generatedTest.navigation?.selfHealing ? '✅' : '❌'}</p>
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-purple-700 mb-2">👀 Behavior</h5>
-                          <p className="text-sm text-purple-600">Observed: {generatedTest.behavior?.observed ? '✅' : '❌'}</p>
-                          <p className="text-sm text-purple-600">Interactions: {generatedTest.behavior?.interactions?.length || 0}</p>
-                          <p className="text-sm text-purple-600">Elements: {generatedTest.behavior?.elements?.length || 0}</p>
-                          <p className="text-sm text-purple-600">Self-Healing: {generatedTest.behavior?.interactions?.[0]?.selfHealing ? '✅' : '❌'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Smart Synapse Analysis */}
                   {generatedTest.synapse && (
-                    <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-blue-800 mb-3">🧠 Smart Synapse Analysis</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <h4 className="font-semibold text-blue-800 mb-2 text-sm">🧠 Smart Synapse Analysis</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <h5 className="font-medium text-blue-700 mb-2">👤 UsersHelper</h5>
-                          <p className="text-sm text-blue-600">{generatedTest.synapse?.usersHelper?.method || 'N/A'}</p>
+                          <h5 className="font-medium text-blue-700 mb-1 text-xs">👤 UsersHelper</h5>
+                          <p className="text-xs text-blue-600">{generatedTest.synapse?.usersHelper?.method || 'N/A'}</p>
                           <p className="text-xs text-blue-500">Confidence: {generatedTest.synapse?.usersHelper?.confidence ? Math.round(generatedTest.synapse.usersHelper.confidence * 100) : 0}%</p>
                         </div>
                         <div>
-                          <h5 className="font-medium text-blue-700 mb-2">🎯 Keywords Detected</h5>
+                          <h5 className="font-medium text-blue-700 mb-1 text-xs">🎯 Keywords Detected</h5>
                           <div className="flex flex-wrap gap-1">
                             {Array.isArray(generatedTest.synapse?.keywords) ? (
                               generatedTest.synapse.keywords.map((keyword: any, index: number) => (
@@ -708,13 +675,13 @@ export default function TestGenerator() {
 
                   {/* Generated Methods */}
                   {generatedTest.generatedMethods && generatedTest.generatedMethods.length > 0 && (
-                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-800 mb-3">🛠️ Generated Methods</h4>
+                    <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
+                      <h4 className="font-semibold text-green-800 mb-2 text-sm">🛠️ Generated Methods</h4>
                       {generatedTest.generatedMethods.map((method: any, index: number) => (
-                        <div key={index} className="mb-3">
-                          <h5 className="font-medium text-green-700 mb-1">Method {index + 1}</h5>
-                          <div className="bg-gray-900 text-green-400 p-3 rounded overflow-x-auto">
-                            <pre className="text-sm font-mono">{method.method}</pre>
+                        <div key={index} className="mb-2">
+                          <h5 className="font-medium text-green-700 mb-1 text-xs">Method {index + 1}</h5>
+                          <div className="bg-gray-900 text-green-400 p-2 rounded overflow-x-auto">
+                            <pre className="text-xs font-mono">{method.method}</pre>
                           </div>
                         </div>
                       ))}
@@ -723,24 +690,26 @@ export default function TestGenerator() {
 
                   {/* Generated Code */}
                   <div>
-                    <h4 className="font-semibold text-gray-800 mb-3">Generated Test Code</h4>
+                    <h4 className="font-semibold text-gray-800 mb-2">Generated Test Code</h4>
                     <div className="bg-gray-900 rounded-lg overflow-hidden">
-                      <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
+                      <div className="bg-gray-800 px-3 py-2 border-b border-gray-700 flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                           <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                           <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          <span className="text-gray-400 text-sm ml-4 font-mono">{generatedTest.fileName}</span>
+                          <span className="text-gray-400 text-sm ml-2 font-mono text-xs">{generatedTest.fileName}</span>
                         </div>
                       </div>
-                      <pre className="text-green-400 p-4 overflow-x-auto text-sm font-mono">
-                        {generatedTest.content}
-                      </pre>
+                      <div className="max-h-96 overflow-y-auto">
+                        <pre className="text-green-400 p-3 overflow-x-auto text-xs font-mono leading-relaxed">
+                          {generatedTest.content}
+                        </pre>
+                      </div>
                     </div>
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="mt-6 flex justify-center space-x-4">
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
                     <button
                       onClick={async () => {
                         try {
