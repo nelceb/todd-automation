@@ -27,8 +27,8 @@ function AnimatedCube({ speedMultiplier = 1 }: AnimatedCubeProps) {
 
   return (
     <mesh ref={meshRef}>
-      {/* Square mesh - all dimensions equal */}
-      <boxGeometry args={[1, 1, 1]} />
+      {/* Cubo con más segmentos para una malla wireframe más densa y completa */}
+      <boxGeometry args={[1, 1, 1, 8, 8, 8]} />
       <meshBasicMaterial
         color="#000000"
         wireframe={true}
