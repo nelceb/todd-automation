@@ -1359,11 +1359,11 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           throw new Error('Page was closed before navigation');
         }
         
-        await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 8000 }); // Reducido a 8s
+        await page.goto(loginURL, { waitUntil: 'domcontentloaded', timeout: 20000 }); // Increased to 20s for login page
         // Esperar de forma más flexible (no bloquear si networkidle falla)
         try {
           if (!page.isClosed()) {
-            await page.waitForLoadState('domcontentloaded', { timeout: 2000 }); // Reducido a 2s
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Increased to 5s
           }
         } catch (e) {
           console.log('⚠️ waitForLoadState timeout, continuando...');
@@ -1381,7 +1381,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         
         console.log('⚠️ Error navegando a login, intentando con load...');
         try {
-          await page.goto(loginURL, { waitUntil: 'load', timeout: 8000 }); // Reducido a 8s
+          await page.goto(loginURL, { waitUntil: 'load', timeout: 20000 }); // Increased to 20s for login page
         } catch (retryError) {
           // Si el segundo intento también falla, verificar si es por cierre
           if (retryError instanceof Error && (retryError.message.includes('closed') || retryError.message.includes('Target page'))) {
