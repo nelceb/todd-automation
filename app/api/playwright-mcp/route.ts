@@ -2454,18 +2454,80 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     let allElements = await page.$$('[data-testid]').catch(() => []);
     console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
     
-    // If we have actions that involve clicking tabs, wait a bit more and observe again
+    // If we have actions that involve clicking tabs, wait more and observe again with context-specific searches
     const hasTabClick = interpretation.actions?.some((a: any) => 
       a.element?.toLowerCase().includes('tab') || 
       a.element?.toLowerCase().includes('pastorder') ||
       a.description?.toLowerCase().includes('tab')
     );
     
-    if (hasTabClick && allElements.length < 5) {
-      console.log('🔄 Tab click detected but few elements found - waiting and re-observing...');
-      await page.waitForTimeout(3000); // Extra wait for tab content
+    if (hasTabClick) {
+      console.log('🔄 Tab click detected - waiting for tab content to load and observing...');
+      await page.waitForTimeout(4000); // Extra wait for tab content to fully render
+      
+      // Wait for specific content based on context
+      if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
+        console.log('🔍 Waiting for Past Orders/Orders Hub content...');
+        try {
+          // Wait for common empty state or content elements
+          await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"]', { timeout: 5000 }).catch(() => {
+            console.log('⚠️ No specific empty/past/order elements found, continuing...');
+          });
+        } catch (e) {
+          console.log('⚠️ Timeout waiting for specific elements, continuing...');
+        }
+      }
+      
+      // Re-observe elements after tab content loads
       allElements = await page.$$('[data-testid]').catch(() => []);
-      console.log(`🔍 Re-observation: ${allElements.length} elementos con data-testid encontrados`);
+      console.log(`🔍 Re-observation after tab click: ${allElements.length} elementos con data-testid encontrados`);
+      
+      // If still few elements, try more aggressive search by text content
+      if (allElements.length < 10) {
+        console.log('🔍 Few elements found, searching by visible text related to context...');
+        const contextKeywords = {
+          'pastOrders': ['past orders', 'empty state', 'no orders', 'order history'],
+          'ordersHub': ['orders', 'upcoming', 'past', 'empty'],
+          'cart': ['cart', 'basket', 'items'],
+          'homepage': ['menu', 'meals', 'add']
+        };
+        
+        const keywords = contextKeywords[interpretation.context as keyof typeof contextKeywords] || [];
+        for (const keyword of keywords) {
+          try {
+            const elementsByText = await page.$$(`*:has-text("${keyword}")`).catch(() => []);
+            if (elementsByText.length > 0) {
+              console.log(`✅ Found ${elementsByText.length} elements containing "${keyword}"`);
+              // Try to get data-testid from these elements or their parents
+              for (const elem of elementsByText.slice(0, 5)) {
+                try {
+                  const testId = await elem.getAttribute('data-testid').catch(() => null);
+                  if (testId && !allElements.some((e: any) => e === elem)) {
+                    allElements.push(elem);
+                  } else {
+                    // Check parent for data-testid
+                    const parent = await elem.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
+                    if (parent) {
+                      const parentTestId = await parent.asElement()?.getAttribute('data-testid').catch(() => null);
+                      if (parentTestId) {
+                        const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
+                        if (parentElem && !allElements.some((e: any) => e === parentElem)) {
+                          allElements.push(parentElem);
+                        }
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Skip this element
+                }
+              }
+            }
+          } catch (e) {
+            // Continue with next keyword
+          }
+        }
+        console.log(`🔍 After text search: ${allElements.length} elementos total encontrados`);
+      }
     }
     
     // Si no hay data-testid, buscar elementos usando otros métodos más agresivos
@@ -4749,55 +4811,15 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selectorName = toCamelCaseFromTestId(observed.testId) || observed.testId.replace(/[^a-zA-Z0-9]/g, '');
           console.log(`✅ Using observed testId: ${observed.testId} -> selectorName: ${selectorName}`);
         } else {
-          // FALLBACK: Generate reasonable selector based on method name and context
-          console.warn(`⚠️ No observation found for method ${methodUsed} - generating fallback selector`);
-          console.warn(`⚠️ Available interactions: ${JSON.stringify(behavior.interactions?.map((i: any) => ({ element: i.element, testId: i.testId })) || [])}`);
+          // NO FALLBACK: If no observation, skip this method generation
+          // We need real observations to create valid selectors
+          console.warn(`⚠️ No observation found for method ${methodUsed} - skipping method generation`);
+          console.warn(`⚠️ This method will not be added to the page object because we don't have real observations`);
+          console.warn(`⚠️ Available interactions: ${JSON.stringify(behavior.interactions?.map((i: any) => ({ element: i.element, testId: i.testId, observed: i.observed })) || [])}`);
           console.warn(`⚠️ Available elements: ${JSON.stringify(behavior.elements?.map((e: any) => ({ testId: e.testId, element: e.element })) || [])}`);
-          
-          // Generate reasonable testId from method name
-          // Example: clickOnPastOrdersTab -> past-orders-tab-btn
-          // Example: isEmptyPastOrdersStateVisible -> empty-past-orders-state
-          // Example: getEmptyStatePastOrdersText -> empty-state-past-orders-text
-          let testIdPart = methodUsed
-            .replace(/^(is|get|clickOn)/, '')
-            .replace(/Visible|Text|Tab$/i, '')
-            .replace(/([A-Z])/g, '-$1')
-            .toLowerCase()
-            .replace(/^-/, '');
-          
-          // Special handling for common patterns
-          if (methodUsed.toLowerCase().includes('pastorderstab') || methodUsed.toLowerCase() === 'clickonpastorderstab') {
-            testIdPart = 'past-orders-tab-btn';
-          } else if (methodUsed.toLowerCase().includes('pastorder') && methodUsed.toLowerCase().includes('tab')) {
-            testIdPart = 'past-orders-tab-btn';
-          } else if (methodUsed.toLowerCase().includes('tab') && !testIdPart.includes('-')) {
-            testIdPart = testIdPart + '-tab-btn';
-          } else if (methodUsed.toLowerCase().includes('emptystate') || methodUsed.toLowerCase().includes('emptypastorders')) {
-            testIdPart = 'empty-state-past-orders';
-          } else if (methodUsed.toLowerCase().includes('empty') && methodUsed.toLowerCase().includes('state')) {
-            testIdPart = 'empty-state-message';
-          } else if (methodUsed.toLowerCase().includes('image') && methodUsed.toLowerCase().includes('empty')) {
-            testIdPart = 'empty-state-image';
-          } else if (methodUsed.toLowerCase().includes('list') && methodUsed.toLowerCase().includes('past')) {
-            testIdPart = 'past-orders-list';
-          }
-          
-          // Add appropriate suffix based on method type
-          if (methodUsed.toLowerCase().startsWith('clickon')) {
-            if (!testIdPart.endsWith('-btn') && !testIdPart.endsWith('-button')) {
-              testIdPart = testIdPart + '-btn';
-            }
-          } else if (methodUsed.toLowerCase().startsWith('is') && methodUsed.toLowerCase().endsWith('visible')) {
-            // Keep as is for visibility checks
-          } else if (methodUsed.toLowerCase().startsWith('get') && methodUsed.toLowerCase().endsWith('text')) {
-            if (!testIdPart.endsWith('-text') && !testIdPart.endsWith('-message')) {
-              testIdPart = testIdPart + '-text';
-            }
-          }
-          
-          selector = `this.page.getByTestId('${testIdPart}')`;
-          selectorName = testIdPart.replace(/[^a-zA-Z0-9]/g, '') || 'element';
-          console.log(`⚠️ Generated fallback selector: ${selector} (from method name: ${methodUsed})`);
+          console.warn(`⚠️ Please ensure MCP observes elements correctly after interactions (especially after clicking tabs)`);
+          // Don't add this method if we don't have real observations
+          continue; // Skip this method - we need real observations
         }
         
         // Generate descriptive variable name from selector or element
