@@ -4462,10 +4462,13 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     }
     
     // Get existing method names from codebase patterns (already analyzed)
-    const availableMethods = codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+    // Normalize page object name to match extractPageObjectName format (camelCase)
+    const normalizedPageObjectName = pageObjectName.charAt(0).toLowerCase() + pageObjectName.slice(1);
+    const availableMethods = codebasePatterns.methodsWithTestIds[normalizedPageObjectName] || 
+                             codebasePatterns.methodsWithTestIds[pageObjectName] || [];
     const existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
     
-    console.log(`📖 Found ${existingMethodNames.length} existing methods in ${pageObjectName} from codebase patterns: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
+    console.log(`📖 Found ${existingMethodNames.length} existing methods in ${normalizedPageObjectName} (also checked ${pageObjectName}) from codebase patterns: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
     
     console.log(`🔍 Checking ${pageObjectName} for missing methods. Existing methods: ${existingMethodNames.length}`);
     
