@@ -2502,19 +2502,41 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               for (const elem of elementsByText.slice(0, 5)) {
                 try {
                   const testId = await elem.getAttribute('data-testid').catch(() => null);
-                  if (testId && !allElements.some((e: any) => e === elem)) {
-                    allElements.push(elem);
+                  if (testId) {
+                    const existingElem = await page.$(`[data-testid="${testId}"]`).catch(() => null);
+                    if (existingElem && !allElements.some((e: any) => {
+                      try {
+                        return e.getAttribute && e.getAttribute('data-testid') === testId;
+                      } catch {
+                        return false;
+                      }
+                    })) {
+                      allElements.push(existingElem as any);
+                    }
                   } else {
                     // Check parent for data-testid
-                    const parent = await elem.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
-                    if (parent) {
-                      const parentTestId = await parent.asElement()?.getAttribute('data-testid').catch(() => null);
-                      if (parentTestId) {
-                        const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
-                        if (parentElem && !allElements.some((e: any) => e === parentElem)) {
-                          allElements.push(parentElem);
+                    try {
+                      const parent = await elem.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
+                      if (parent) {
+                        const parentElement = parent.asElement();
+                        if (parentElement) {
+                          const parentTestId = await parentElement.getAttribute('data-testid').catch(() => null);
+                          if (parentTestId) {
+                            const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
+                            if (parentElem && !allElements.some((e: any) => {
+                              try {
+                                return e.getAttribute && e.getAttribute('data-testid') === parentTestId;
+                              } catch {
+                                return false;
+                              }
+                            })) {
+                              allElements.push(parentElem as any);
+                            }
+                          }
                         }
                       }
+                    } catch (e) {
+                      // Skip parent check
                     }
                   }
                 } catch (e) {
