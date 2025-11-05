@@ -1788,8 +1788,8 @@ async function performLoginIfNeeded(page: Page) {
     // Esperar a que la página cargue completamente antes de buscar campos
     console.log('⏳ Esperando a que la página de login cargue completamente...');
     try {
-      await page.waitForLoadState('domcontentloaded', { timeout: 8000 });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
+      await page.waitForLoadState('domcontentloaded', { timeout: 15000 }); // Increased to 15s
+      await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => { // Increased to 8s
         console.log('⚠️ networkidle timeout, continuando...');
       });
       await page.waitForTimeout(2000); // Dar tiempo adicional para elementos dinámicos
