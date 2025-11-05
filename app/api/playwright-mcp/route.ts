@@ -2437,6 +2437,23 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       // Similar lógica para Menu si es necesario
     }
     
+    // 🎯 CRITICAL: For pastOrders/ordersHub context, ensure we're on Orders Hub page FIRST
+    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') && !page.url().includes('orders-hub')) {
+      console.log('🧭 Navegando a Orders Hub antes de buscar tabs...');
+      try {
+        // Try to click Orders Hub nav item
+        const ordersHubNav = await page.locator("a[href*='orders-hub'], a:has-text('Orders Hub'), [data-testid*='orders-hub'], [data-testid*='ordershub']").first();
+        if (await ordersHubNav.count() > 0) {
+          await ordersHubNav.click();
+          await page.waitForURL(/orders-hub/, { timeout: 15000 });
+          await page.waitForTimeout(3000); // Wait for page to load
+          console.log('✅ Navegación a Orders Hub completada');
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo navegar a Orders Hub automáticamente:', e);
+      }
+    }
+    
     // 🎯 MCP INTELLIGENT DETECTION: Detectar y activar secciones específicas (tabs, etc.)
     // Execute actions first (especially clicking on tabs) and THEN observe
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
@@ -2452,9 +2469,62 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.log(`🖱️ Executing ${tabActions.length} tab click(s) before observation...`);
       for (const action of tabActions) {
         try {
-          // Try to find and click the tab element
+          // 🎯 STRATEGY 1: Try MCP snapshot search
           const searchTerms = action.intent || action.description || action.element;
-          const foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
+          let foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
+          
+          // 🎯 STRATEGY 2: If MCP doesn't find it, search manually for tabs
+          if (!foundElement) {
+            console.log(`🔍 MCP no encontró el tab, buscando manualmente...`);
+            // Search for tabs by multiple strategies
+            const tabSelectors = [
+              "button[role='tab']:has-text('Past')",
+              "button[role='tab']:has-text('past')",
+              "[role='tab']:has-text('Past Orders')",
+              "[role='tab']:has-text('Past')",
+              "[data-testid*='past']:has-text('Past')",
+              "[data-testid*='past-orders']",
+              "[data-testid*='pastorder']",
+              "button:has-text('Past Orders')",
+              "a:has-text('Past Orders')",
+              "[aria-label*='Past Orders']",
+              "[aria-label*='past orders']"
+            ];
+            
+            for (const selector of tabSelectors) {
+              try {
+                const tabElement = page.locator(selector).first();
+                if (await tabElement.count() > 0 && await tabElement.isVisible().catch(() => false)) {
+                  foundElement = tabElement;
+                  console.log(`✅ Tab encontrado con selector: ${selector}`);
+                  break;
+                }
+              } catch (e) {
+                // Continue with next selector
+              }
+            }
+          }
+          
+          // 🎯 STRATEGY 3: If still not found, search all tabs and filter by text
+          if (!foundElement) {
+            console.log(`🔍 Buscando todos los tabs y filtrando por texto...`);
+            try {
+              const allTabs = await page.locator("[role='tab'], button[aria-selected], [data-testid*='tab']").all();
+              for (const tab of allTabs) {
+                const text = await tab.textContent().catch(() => '');
+                if (text && (text.toLowerCase().includes('past') || text.toLowerCase().includes('order'))) {
+                  const isVisible = await tab.isVisible().catch(() => false);
+                  if (isVisible) {
+                    foundElement = tab;
+                    console.log(`✅ Tab encontrado por texto: "${text}"`);
+                    break;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️ Error buscando tabs:', e);
+            }
+          }
           
           if (foundElement) {
             console.log(`✅ Found tab element for "${action.element}", clicking...`);
@@ -2514,14 +2584,32 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               }
             }
           } else {
-            console.warn(`⚠️ Could not find tab element for "${action.element}", will try to find during observation`);
+            console.warn(`⚠️ Could not find tab element for "${action.element}" after all strategies`);
+            console.warn(`⚠️ Current URL: ${page.url()}`);
+            console.warn(`⚠️ Verificando si estamos en Orders Hub...`);
+            
+            // Last attempt: Check if we're on the right page and log all tabs
+            try {
+              const allTabs = await page.locator("[role='tab'], button[aria-selected], [data-testid*='tab']").all();
+              console.log(`📋 Tabs encontrados en la página: ${allTabs.length}`);
+              for (let i = 0; i < Math.min(allTabs.length, 10); i++) {
+                const tab = allTabs[i];
+                const text = await tab.textContent().catch(() => '');
+                const testId = await tab.getAttribute('data-testid').catch(() => '');
+                const isVisible = await tab.isVisible().catch(() => false);
+                console.log(`  Tab ${i + 1}: text="${text}", testId="${testId}", visible=${isVisible}`);
+              }
+            } catch (e) {
+              console.warn('⚠️ Error listando tabs:', e);
+            }
+            
             behavior.interactions.push({
               type: action.type,
               element: action.element,
-          observed: false,
-          exists: false,
-          visible: false,
-              note: 'Tab element not found during observation'
+              observed: false,
+              exists: false,
+              visible: false,
+              note: `Tab element not found after all search strategies. URL: ${page.url()}`
             });
           }
         } catch (e) {
