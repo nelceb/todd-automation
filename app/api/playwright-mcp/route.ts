@@ -2504,14 +2504,20 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   const testId = await elem.getAttribute('data-testid').catch(() => null);
                   if (testId) {
                     const existingElem = await page.$(`[data-testid="${testId}"]`).catch(() => null);
-                    if (existingElem && !allElements.some((e: any) => {
+                    let alreadyExists = false;
+                    for (const existing of allElements) {
                       try {
-                        return e.getAttribute && e.getAttribute('data-testid') === testId;
+                        const existingTestId = await existing.getAttribute('data-testid').catch(() => null);
+                        if (existingTestId === testId) {
+                          alreadyExists = true;
+                          break;
+                        }
                       } catch {
-                        return false;
+                        // Continue checking
                       }
-                    })) {
-                      allElements.push(existingElem as any);
+                    }
+                    if (existingElem && !alreadyExists) {
+                      allElements.push(existingElem);
                     }
                   } else {
                     // Check parent for data-testid
@@ -2523,14 +2529,22 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                           const parentTestId = await parentElement.getAttribute('data-testid').catch(() => null);
                           if (parentTestId) {
                             const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
-                            if (parentElem && !allElements.some((e: any) => {
-                              try {
-                                return e.getAttribute && e.getAttribute('data-testid') === parentTestId;
-                              } catch {
-                                return false;
+                            if (parentElem) {
+                              let parentExists = false;
+                              for (const existing of allElements) {
+                                try {
+                                  const existingTestId = await existing.getAttribute('data-testid').catch(() => null);
+                                  if (existingTestId === parentTestId) {
+                                    parentExists = true;
+                                    break;
+                                  }
+                                } catch {
+                                  // Continue checking
+                                }
                               }
-                            })) {
-                              allElements.push(parentElem as any);
+                              if (!parentExists) {
+                                allElements.push(parentElem);
+                              }
                             }
                           }
                         }
