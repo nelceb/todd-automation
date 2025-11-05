@@ -88,8 +88,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const repository = searchParams.get('repository') || 'maestro-test'
     
-    // Usar la misma lógica que funciona en /api/repositories
-    const token = await getGitHubToken(request)
+    // Intentar obtener token del header primero, luego del env
+    let token = await getGitHubToken(request)
+    
+    // Si no hay token en el header, usar GITHUB_TOKEN del env (nelceb token)
+    if (!token) {
+      token = process.env.GITHUB_TOKEN || null
+      console.log('🔑 Usando GITHUB_TOKEN del env:', token ? `Token presente (${token.substring(0, 10)}...)` : 'No encontrado')
+    } else {
+      console.log('🔑 Usando token del header:', token.substring(0, 10) + '...')
+    }
     
     if (!token) {
       throw new Error('GitHub token no configurado')

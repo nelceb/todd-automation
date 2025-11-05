@@ -62,7 +62,16 @@ export async function POST(request: NextRequest) {
     console.log('API received branch:', branch)
     console.log('API received inputs:', inputs)
     
-    const token = await getGitHubToken(request)
+    // Intentar obtener token del header primero, luego del env
+    let token = await getGitHubToken(request)
+    
+    // Si no hay token en el header, usar GITHUB_TOKEN del env (nelceb token)
+    if (!token) {
+      token = process.env.GITHUB_TOKEN || null
+      console.log('🔑 Usando GITHUB_TOKEN del env:', token ? `Token presente (${token.substring(0, 10)}...)` : 'No encontrado')
+    } else {
+      console.log('🔑 Usando token del header:', token.substring(0, 10) + '...')
+    }
     
     // Usar el mismo mapeo que funciona en /api/repositories
     const repoMapping: Record<string, string> = {
@@ -108,6 +117,24 @@ export async function POST(request: NextRequest) {
     console.log('📋 Total workflows recibidos de GitHub:', workflows.length)
     console.log('📋 Nombres de workflows:', workflows.map((w: any) => w.name).join(', '))
     console.log('📋 Paths de workflows:', workflows.map((w: any) => w.path).join(', '))
+    
+    // Buscar específicamente "QA US - CORE UX REGRESSION" en la lista
+    const regressionWorkflow = workflows.find((w: any) => 
+      w.name.toLowerCase().includes('core ux regression') || 
+      w.name.toLowerCase().includes('coreux regression') ||
+      w.path.toLowerCase().includes('coreux_regression') ||
+      w.path.toLowerCase().includes('core-ux-regression')
+    )
+    if (regressionWorkflow) {
+      console.log('✅ ENCONTRADO "QA US - CORE UX REGRESSION" en la lista:', {
+        name: regressionWorkflow.name,
+        path: regressionWorkflow.path,
+        id: regressionWorkflow.id,
+        state: regressionWorkflow.state
+      })
+    } else {
+      console.log('❌ NO encontrado "QA US - CORE UX REGRESSION" en la lista de workflows')
+    }
 
     // Normalize workflowId for comparison (remove extra spaces, convert to lowercase)
     const normalizeName = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ')
