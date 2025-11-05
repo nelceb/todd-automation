@@ -4,8 +4,8 @@ import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
 import { createConnection } from '@playwright/mcp';
 
-// Configurar timeout extendido para Vercel
-export const maxDuration = 60; // 60 segundos (máximo en plan Pro)
+// Configurar timeout extendido para Vercel Pro (permite hasta 300 segundos)
+export const maxDuration = 300; // 5 minutos para Vercel Pro
 export const dynamic = 'force-dynamic';
 
 // 🎯 MCP INTEGRATION: Wrapper que usa las mismas estrategias que el servidor MCP oficial
@@ -254,11 +254,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
     console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
     try {
-      // Usar Promise.race con timeout de 1 segundo (muy agresivo para evitar timeout)
+      // Usar Promise.race con timeout de 500ms (ultra rápido para evitar timeout)
       const codebaseAnalysis = await Promise.race([
         analyzeCodebaseForPatterns(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 1000) // 1 segundo - muy agresivo
+          setTimeout(() => reject(new Error('Timeout')), 500) // 500ms - ultra rápido
         )
       ]) as any;
       
@@ -802,7 +802,7 @@ async function analyzeCodebaseForPatterns() {
         const nameLower = file.name.toLowerCase();
         return nameLower.includes('home') || nameLower.includes('order') || nameLower.includes('cart');
       })
-      .slice(0, 3); // Solo 3 page objects más importantes (más rápido)
+      .slice(0, 2); // Solo 2 page objects más importantes (HomePage y OrdersHubPage) para máxima velocidad
     
     console.log(`📁 Analizando ${pageObjectFiles.length} page objects (optimizado para velocidad)...`);
     
