@@ -186,6 +186,9 @@ PLAYWRIGHT:
 - "Execute e2e core ux tests in QA" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@e2e,@coreUx"
 - "Run smoke core ux tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 - "Execute core ux smoke tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
+- "Run smoke test de core ux" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
+- "Execute smoke tests core ux" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
+- "Run core ux smoke test" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 
 SELENIUM:
 - "Run selenium web tests in QA" → automation-framework, QA E2E Web Regression, environment: "qa", groups: "e2e"
@@ -257,7 +260,8 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
 - If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
 - If user mentions "coreux" or "core ux" WITHOUT "smoke" → use Playwright QA US - CORE UX REGRESSION (pw-cookunity-automation) - DEFAULT
-- If user mentions "smoke core ux" or "core ux smoke" or "coreux smoke" → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation)
+- If user mentions "smoke" AND ("core ux" OR "coreux") in the same request → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation)
+- Examples of smoke core ux detection: "smoke core ux", "core ux smoke", "coreux smoke", "smoke test de core ux", "smoke tests core ux", "core ux smoke test", "smoke coreux", "smoke core ux tests", "run smoke core ux"
 - If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)
 - If user mentions "segment" → use Playwright (pw-cookunity-automation)
 - If user mentions "sanity" → use Playwright (pw-cookunity-automation)
