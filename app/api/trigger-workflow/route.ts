@@ -104,43 +104,76 @@ export async function POST(request: NextRequest) {
     const workflowsData = await workflowsResponse.json()
     const workflows = workflowsData.workflows || []
 
-    // Buscar el workflow por nombre o ID
+    // Normalize workflowId for comparison (remove extra spaces, convert to lowercase)
+    const normalizeName = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ')
+    
+    // Buscar el workflow por nombre o ID (exacto primero)
     let workflow = workflows.find((w: any) => 
       w.name === workflowId || 
       w.id.toString() === workflowId ||
       w.path === workflowId ||
-      w.path.includes(workflowId)
+      normalizeName(w.name) === normalizeName(workflowId)
     )
 
-    // Si no se encuentra, intentar con mapeo de fallback
+    // Si no se encuentra, intentar búsqueda parcial (case-insensitive)
     if (!workflow) {
-      const fallbackMapping: Record<string, string> = {
-        'iOS Maestro Cloud Tests': 'iOS Maestro Cloud Tests',
-        'Run BS iOS Maestro Test (Minimal Zip)': 'Run BS iOS Maestro Test (Minimal Zip)',
-        'iOS Gauge Tests on LambdaTest': 'iOS Gauge Tests on LambdaTest',
-        'Maestro Mobile Tests - iOS and Android': 'Maestro Mobile Tests - iOS and Android',
-        'Run Maestro Test on BrowserStack (iOS)': 'Run Maestro Test on BrowserStack (iOS)',
-        'Run Maestro Test on BrowserStack': 'Run Maestro Test on BrowserStack',
-        'Maestro iOS Tests': 'Maestro iOS Tests',
-        'QA US - CORE UX REGRESSION': 'qa_us_coreux_regression.yml',
-        'QA US - E2E': 'qa-e2e-web.yml',
-        'QA CA - E2E': 'qa-ca-e2e-web.yml',
-        'QA E2E Web Regression': 'qa_e2e_web_regression.yml',
-        'QA Android Regression': 'qa_android_regression.yml',
-        'QA iOS Regression': 'qa_ios_regression.yml',
-        'QA API Kitchen Regression': 'qa_api_kitchen_regression.yml',
-        'QA Logistics Regression': 'qa_logistics_regression.yml',
-        'Prod Android Regression': 'prod_android_regression.yml',
-        'Prod iOS Regression': 'prod_ios_regression.yml'
+      const normalizedWorkflowId = normalizeName(workflowId)
+      workflow = workflows.find((w: any) => {
+        const normalizedName = normalizeName(w.name)
+        const normalizedPath = w.path.toLowerCase()
+        
+        // Buscar si el nombre del workflow contiene las palabras clave del workflowId
+        const workflowIdWords = normalizedWorkflowId.split(/\s+/).filter(w => w.length > 2)
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 2)
+        
+        // Si todas las palabras clave están presentes en el nombre, es un match
+        const allWordsMatch = workflowIdWords.length > 0 && 
+          workflowIdWords.every(word => 
+            nameWords.some(nw => nw.includes(word) || word.includes(nw))
+          )
+        
+        return normalizedName.includes(normalizedWorkflowId) ||
+               normalizedWorkflowId.includes(normalizedName) ||
+               normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '_')) ||
+               normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '-')) ||
+               allWordsMatch
+      })
+    }
+
+    // Si aún no se encuentra, intentar con mapeo de fallback
+    if (!workflow) {
+      const fallbackMapping: Record<string, string[]> = {
+        'iOS Maestro Cloud Tests': ['iOS Maestro Cloud Tests'],
+        'Run BS iOS Maestro Test (Minimal Zip)': ['Run BS iOS Maestro Test (Minimal Zip)'],
+        'iOS Gauge Tests on LambdaTest': ['iOS Gauge Tests on LambdaTest'],
+        'Maestro Mobile Tests - iOS and Android': ['Maestro Mobile Tests - iOS and Android'],
+        'Run Maestro Test on BrowserStack (iOS)': ['Run Maestro Test on BrowserStack (iOS)'],
+        'Run Maestro Test on BrowserStack': ['Run Maestro Test on BrowserStack'],
+        'Maestro iOS Tests': ['Maestro iOS Tests'],
+        'QA US - CORE UX REGRESSION': ['QA US - CORE UX REGRESSION', 'qa_us_coreux_regression.yml', 'QA US - CORE UX SMOKE E2E'],
+        'QA US - E2E': ['QA US - E2E', 'qa-e2e-web.yml'],
+        'QA CA - E2E': ['QA CA - E2E', 'qa-ca-e2e-web.yml'],
+        'QA E2E Web Regression': ['QA E2E Web Regression', 'qa_e2e_web_regression.yml'],
+        'QA Android Regression': ['QA Android Regression', 'qa_android_regression.yml'],
+        'QA iOS Regression': ['QA iOS Regression', 'qa_ios_regression.yml'],
+        'QA API Kitchen Regression': ['QA API Kitchen Regression', 'qa_api_kitchen_regression.yml'],
+        'QA Logistics Regression': ['QA Logistics Regression', 'qa_logistics_regression.yml'],
+        'Prod Android Regression': ['Prod Android Regression', 'prod_android_regression.yml'],
+        'Prod iOS Regression': ['Prod iOS Regression', 'prod_ios_regression.yml']
       }
 
-      const fallbackName = fallbackMapping[workflowId]
-      if (fallbackName) {
-        workflow = workflows.find((w: any) => 
-          w.name === fallbackName || 
-          w.path === fallbackName ||
-          w.path.includes(fallbackName)
-        )
+      const fallbackNames = fallbackMapping[workflowId]
+      if (fallbackNames) {
+        for (const fallbackName of fallbackNames) {
+          workflow = workflows.find((w: any) => 
+            normalizeName(w.name) === normalizeName(fallbackName) ||
+            w.path === fallbackName ||
+            w.path.includes(fallbackName.toLowerCase()) ||
+            normalizeName(w.name).includes(normalizeName(fallbackName)) ||
+            normalizeName(fallbackName).includes(normalizeName(w.name))
+          )
+          if (workflow) break
+        }
       }
     }
     
