@@ -820,11 +820,11 @@ async function analyzeCodebaseForPatterns() {
           
           if (!fileContent) return null;
         
-          const pageObjectName = extractPageObjectName(file.name);
-          const extractedMethods = extractMethodsFromContent(fileContent);
-          const extractedSelectors = extractSelectorsFromContent(fileContent);
-          
-          console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
+        const pageObjectName = extractPageObjectName(file.name);
+        const extractedMethods = extractMethodsFromContent(fileContent);
+        const extractedSelectors = extractSelectorsFromContent(fileContent);
+        
+        console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
           return { 
             type: 'pageObject', 
             name: pageObjectName, 
@@ -4533,7 +4533,23 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     if (methodsUsedInTest.size === 0) {
       console.warn(`⚠️ WARNING: No methods detected in test code!`);
       console.warn(`⚠️ This might mean the test code is empty or format is unexpected.`);
-      console.warn(`⚠️ Generated test code preview: ${generatedTestCode?.substring(0, 200) || 'N/A'}...`);
+      console.warn(`⚠️ Generated test code preview: ${generatedTestCode?.substring(0, 500) || 'N/A'}...`);
+      console.warn(`⚠️ Attempting alternative extraction method...`);
+      
+      // Alternative: Try to extract methods more aggressively
+      if (generatedTestCode) {
+        // Try simpler pattern: any word followed by () after a dot
+        const simpleMethodRegex = /\.(\w+)\s*\(/g;
+        let simpleMatch;
+        while ((simpleMatch = simpleMethodRegex.exec(generatedTestCode)) !== null) {
+          const methodName = simpleMatch[1];
+          // Skip common built-ins and test framework methods
+          if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe', 'page', 'waitFor'].includes(methodName)) {
+            methodsUsedInTest.add(methodName);
+          }
+        }
+        console.log(`📋 Methods extracted with alternative method: ${Array.from(methodsUsedInTest).join(', ')}`);
+      }
     }
     
     // Find missing methods that are used in the test but don't exist in page object
@@ -5745,6 +5761,77 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       content: `#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# Validate that all methods used in test files exist in page objects
+echo "🔍 Validating page object methods..."
+
+# Find modified test files
+STAGED_SPEC_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.spec\\.ts$' || true)
+
+if [ -z "$STAGED_SPEC_FILES" ]; then
+  echo "✅ No test files to validate"
+  exit 0
+fi
+
+# Check each test file
+for SPEC_FILE in $STAGED_SPEC_FILES; do
+  echo "📋 Checking $SPEC_FILE..."
+  
+  # Extract page object variable name (e.g., ordersHubPage, homePage)
+  PAGE_VAR=$(grep -oE "(const|let|var)\\s+(\\w+Page)\\s*=" "$SPEC_FILE" | head -1 | grep -oE "\\w+Page" || echo "")
+  
+  if [ -z "$PAGE_VAR" ]; then
+    echo "⚠️  Could not detect page object variable in $SPEC_FILE"
+    continue
+  fi
+  
+  # Determine page object file path based on spec file
+  SPEC_DIR=$(dirname "$SPEC_FILE")
+  PAGE_OBJECT_FILE=""
+  
+  if echo "$SPEC_FILE" | grep -q "ordersHub"; then
+    PAGE_OBJECT_FILE="$SPEC_DIR/ordersHub.ts"
+  elif echo "$SPEC_FILE" | grep -q "homePage"; then
+    PAGE_OBJECT_FILE="$SPEC_DIR/homePage.ts"
+  else
+    # Try to infer from context
+    PAGE_OBJECT_FILE="$SPEC_DIR/$(basename "$SPEC_FILE" .spec.ts).ts"
+  fi
+  
+  if [ ! -f "$PAGE_OBJECT_FILE" ]; then
+    echo "❌ ERROR: Page object file not found: $PAGE_OBJECT_FILE"
+    echo "   Please ensure the page object exists before committing."
+    exit 1
+  fi
+  
+  # Extract methods used in test (e.g., ordersHubPage.clickOnPastOrdersTab())
+  METHODS_USED=$(grep -oE "$PAGE_VAR\\.(\\w+)\\(\\)" "$SPEC_FILE" | sed "s/$PAGE_VAR\\.//" | sed 's/()//' | sort -u || echo "")
+  
+  if [ -z "$METHODS_USED" ]; then
+    echo "⚠️  No methods found for $PAGE_VAR in $SPEC_FILE"
+    continue
+  fi
+  
+  # Check each method exists in page object
+  MISSING_METHODS=""
+  for METHOD in $METHODS_USED; do
+    if ! grep -qE "async\\s+$METHOD\\s*\\(" "$PAGE_OBJECT_FILE"; then
+      MISSING_METHODS="$MISSING_METHODS $METHOD"
+    fi
+  done
+  
+  if [ -n "$MISSING_METHODS" ]; then
+    echo "❌ ERROR: Missing methods in $PAGE_OBJECT_FILE:"
+    echo "$MISSING_METHODS" | tr ' ' '\\n' | sed 's/^/   - /'
+    echo ""
+    echo "Please add these methods to the page object before committing."
+    exit 1
+  fi
+  
+  echo "✅ All methods validated in $PAGE_OBJECT_FILE"
+done
+
+echo "✅ All page object methods validated successfully"
+
 # Run Playwright tests before commit
 npm run test:playwright || exit 1
 `
@@ -5758,6 +5845,77 @@ npm run test:playwright || exit 1
         file: '.husky/pre-commit',
         content: `#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
+
+# Validate that all methods used in test files exist in page objects
+echo "🔍 Validating page object methods..."
+
+# Find modified test files
+STAGED_SPEC_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\\.spec\\.ts$' || true)
+
+if [ -z "$STAGED_SPEC_FILES" ]; then
+  echo "✅ No test files to validate"
+  exit 0
+fi
+
+# Check each test file
+for SPEC_FILE in $STAGED_SPEC_FILES; do
+  echo "📋 Checking $SPEC_FILE..."
+  
+  # Extract page object variable name (e.g., ordersHubPage, homePage)
+  PAGE_VAR=$(grep -oE "(const|let|var)\\s+(\\w+Page)\\s*=" "$SPEC_FILE" | head -1 | grep -oE "\\w+Page" || echo "")
+  
+  if [ -z "$PAGE_VAR" ]; then
+    echo "⚠️  Could not detect page object variable in $SPEC_FILE"
+    continue
+  fi
+  
+  # Determine page object file path based on spec file
+  SPEC_DIR=$(dirname "$SPEC_FILE")
+  PAGE_OBJECT_FILE=""
+  
+  if echo "$SPEC_FILE" | grep -q "ordersHub"; then
+    PAGE_OBJECT_FILE="$SPEC_DIR/ordersHub.ts"
+  elif echo "$SPEC_FILE" | grep -q "homePage"; then
+    PAGE_OBJECT_FILE="$SPEC_DIR/homePage.ts"
+  else
+    # Try to infer from context
+    PAGE_OBJECT_FILE="$SPEC_DIR/$(basename "$SPEC_FILE" .spec.ts).ts"
+  fi
+  
+  if [ ! -f "$PAGE_OBJECT_FILE" ]; then
+    echo "❌ ERROR: Page object file not found: $PAGE_OBJECT_FILE"
+    echo "   Please ensure the page object exists before committing."
+    exit 1
+  fi
+  
+  # Extract methods used in test (e.g., ordersHubPage.clickOnPastOrdersTab())
+  METHODS_USED=$(grep -oE "$PAGE_VAR\\.(\\w+)\\(\\)" "$SPEC_FILE" | sed "s/$PAGE_VAR\\.//" | sed 's/()//' | sort -u || echo "")
+  
+  if [ -z "$METHODS_USED" ]; then
+    echo "⚠️  No methods found for $PAGE_VAR in $SPEC_FILE"
+    continue
+  fi
+  
+  # Check each method exists in page object
+  MISSING_METHODS=""
+  for METHOD in $METHODS_USED; do
+    if ! grep -qE "async\\s+$METHOD\\s*\\(" "$PAGE_OBJECT_FILE"; then
+      MISSING_METHODS="$MISSING_METHODS $METHOD"
+    fi
+  done
+  
+  if [ -n "$MISSING_METHODS" ]; then
+    echo "❌ ERROR: Missing methods in $PAGE_OBJECT_FILE:"
+    echo "$MISSING_METHODS" | tr ' ' '\\n' | sed 's/^/   - /'
+    echo ""
+    echo "Please add these methods to the page object before committing."
+    exit 1
+  fi
+  
+  echo "✅ All methods validated in $PAGE_OBJECT_FILE"
+done
+
+echo "✅ All page object methods validated successfully"
 
 # Run Playwright tests before commit
 npm run test:playwright || exit 1
