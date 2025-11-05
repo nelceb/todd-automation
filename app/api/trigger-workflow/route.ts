@@ -227,6 +227,7 @@ export async function POST(request: NextRequest) {
     
     // Log para debugging - verificar que el workflow encontrado es el correcto
     console.log(`🔍 Workflow buscado: "${workflowId}"`)
+    console.log(`📋 Todos los workflows disponibles:`, workflows.map((w: any) => `${w.name} (${w.path})`).join(', '))
     console.log(`✅ Workflow encontrado: "${workflow.name}" (ID: ${workflow.id}, Path: ${workflow.path})`)
     
     // Validación final: si el workflowId tiene "regression" y el encontrado tiene "smoke", rechazar
@@ -237,9 +238,20 @@ export async function POST(request: NextRequest) {
     const foundHasRegression = normalizedFound.includes('regression')
     const foundHasSmoke = normalizedFound.includes('smoke')
     
+    // Verificar si el nombre encontrado coincide exactamente con el buscado (después de normalización)
+    const exactMatch = normalizedSearched === normalizedFound
+    const nameContainsSearched = normalizedFound.includes(normalizedSearched) || normalizedSearched.includes(normalizedFound)
+    
+    console.log(`🔍 Match details: exactMatch=${exactMatch}, nameContainsSearched=${nameContainsSearched}, searchedHasRegression=${searchedHasRegression}, searchedHasSmoke=${searchedHasSmoke}, foundHasRegression=${foundHasRegression}, foundHasSmoke=${foundHasSmoke}`)
+    
     if ((searchedHasRegression && foundHasSmoke) || (searchedHasSmoke && foundHasRegression)) {
       console.error(`❌ ERROR: Match inválido - Buscado: "${workflowId}" (regression: ${searchedHasRegression}, smoke: ${searchedHasSmoke}) vs Encontrado: "${workflow.name}" (regression: ${foundHasRegression}, smoke: ${foundHasSmoke})`)
       throw new Error(`Workflow ${workflowId} no encontrado. Se encontró "${workflow.name}" pero no coincide (regression/smoke mismatch). Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
+    }
+    
+    // Si no hay match exacto y no es un match válido, advertir
+    if (!exactMatch && !nameContainsSearched) {
+      console.warn(`⚠️ ADVERTENCIA: El workflow encontrado "${workflow.name}" no coincide exactamente con el buscado "${workflowId}". Verificar que sea el correcto.`)
     }
 
     // Obtener información del workflow para verificar inputs válidos
