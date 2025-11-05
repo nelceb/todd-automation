@@ -48,9 +48,38 @@ export async function POST(request: NextRequest) {
       
       // Handle specific error cases
       if (cancelResponse.status === 404) {
+        // Try to get the run status to provide more specific error message
+        try {
+          const runStatusResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          })
+          
+          if (runStatusResponse.ok) {
+            const runData = await runStatusResponse.json()
+            const status = runData.status || 'unknown'
+            const conclusion = runData.conclusion || 'unknown'
+            
+            if (status === 'completed') {
+              return NextResponse.json({
+                success: false,
+                error: `El workflow ya terminó (${conclusion}). No se puede cancelar un workflow que ya completó.`,
+                runId: runId,
+                repository: `${owner}/${repo}`,
+                status: status,
+                conclusion: conclusion
+              })
+            }
+          }
+        } catch (statusError) {
+          console.log('Could not fetch run status:', statusError)
+        }
+        
         return NextResponse.json({
           success: false,
-          error: 'Workflow run not found or already completed. It may have finished before cancellation.',
+          error: 'El workflow no se encontró o ya terminó. Puede haber finalizado antes de la cancelación.',
           runId: runId,
           repository: `${owner}/${repo}`
         })

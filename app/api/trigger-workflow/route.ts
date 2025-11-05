@@ -84,7 +84,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔍 Triggering workflow for:', fullRepoName)
-    console.log('🔍 Workflow ID:', workflowId)
+    console.log('🔍 Workflow ID recibido:', workflowId)
+    console.log('🔍 Tipo de workflowId:', typeof workflowId)
 
     // Obtener workflows dinámicamente desde GitHub
     const workflowsResponse = await fetch(
