@@ -4812,6 +4812,13 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // If not found in interactions, check elements for visibility/get methods
         if (!observed) {
+          console.log(`🔍 Searching for element matching: ${methodBase}`);
+          console.log(`🔍 Available elements: ${JSON.stringify(behavior.elements?.map((e: any) => ({ 
+            testId: e.testId, 
+            element: e.element,
+            text: e.text?.substring(0, 50) || null
+          })) || [])}`);
+          
           observed = behavior.elements?.find((e: any) => {
             const testIdLower = (e.testId || '').toLowerCase();
             const elementName = (e.element || '').toLowerCase();
@@ -4824,20 +4831,24 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
                                textLower.includes(methodBase);
             
             // Special cases
-            if (methodBase.includes('pastorder') && (testIdLower.includes('pastorder') || elementName.includes('pastorder'))) {
-              return true;
-            }
+            const matchesPastOrder = methodBase.includes('pastorder') && (testIdLower.includes('pastorder') || elementName.includes('pastorder') || textLower.includes('past order'));
+            const matchesEmptyState = methodBase.includes('emptystate') && (testIdLower.includes('empty') || testIdLower.includes('state') || textLower.includes('empty'));
+            const matchesEmptyPastOrders = methodUsed.toLowerCase().includes('emptypastorders') && (testIdLower.includes('empty') || testIdLower.includes('past') || textLower.includes('empty'));
+            const matchesPastOrdersList = methodUsed.toLowerCase().includes('pastorderslist') && (testIdLower.includes('past') || testIdLower.includes('list') || textLower.includes('past order'));
             
-            if (methodBase.includes('emptystate') && (testIdLower.includes('empty') || textLower.includes('empty'))) {
-              return true;
-            }
+            const matches = matchesBase || matchesPastOrder || matchesEmptyState || matchesEmptyPastOrders || matchesPastOrdersList;
             
-            return matchesBase;
+            if (matches) {
+              console.log(`✅ Match found in element: ${JSON.stringify({ testId: e.testId, element: e.element, text: e.text?.substring(0, 50) })}`);
+            }
+            return matches;
           });
           
           if (observed) {
             selectorName = observed.element || observed.testId || 'element';
             console.log(`✅ Found element observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
+          } else {
+            console.warn(`⚠️ No element found for ${methodUsed} either`);
           }
         }
         
