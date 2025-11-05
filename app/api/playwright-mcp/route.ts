@@ -4840,6 +4840,39 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
     console.log(`📝 Missing methods: ${missingMethods.map(m => m.name).join(', ')}`);
     
+    // Read page object content from GitHub FIRST to check existing selectors
+    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+    const GITHUB_OWNER = process.env.GITHUB_OWNER;
+    const GITHUB_REPO = process.env.GITHUB_REPO;
+    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
+    
+    if (!GITHUB_TOKEN || !REPOSITORY) {
+      console.warn('⚠️ GitHub not configured, cannot read existing page object');
+      console.warn(`⚠️ GITHUB_TOKEN: ${GITHUB_TOKEN ? 'present' : 'missing'}, REPOSITORY: ${REPOSITORY || 'missing'}`);
+      return null;
+    }
+    
+    console.log(`🔍 Fetching page object from GitHub: ${REPOSITORY}/${pageObjectPath}`);
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.warn(`⚠️ Page object file not found: ${pageObjectPath}`);
+      console.warn(`⚠️ GitHub API response: ${response.status} ${response.statusText}`);
+      console.warn(`⚠️ Error details: ${errorText.substring(0, 200)}`);
+      return null;
+    }
+    
+    console.log(`✅ Successfully fetched page object from GitHub`);
+    
+    const fileData = await response.json();
+    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    
     // Extract and check existing selectors from the page object
     // Parse existing selectors to avoid duplicates
     const existingSelectors = new Map<string, string>(); // selectorCode -> propertyName
@@ -4944,39 +4977,6 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     }
     
     console.log(`📝 Found ${uniqueSelectors.size} unique selectors to add as properties`);
-    
-    // Read page object content from GitHub only when we need to add methods
-    const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-    const GITHUB_OWNER = process.env.GITHUB_OWNER;
-    const GITHUB_REPO = process.env.GITHUB_REPO;
-    const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
-    
-    if (!GITHUB_TOKEN || !REPOSITORY) {
-      console.warn('⚠️ GitHub not configured, cannot read existing page object');
-      console.warn(`⚠️ GITHUB_TOKEN: ${GITHUB_TOKEN ? 'present' : 'missing'}, REPOSITORY: ${REPOSITORY || 'missing'}`);
-      return null;
-    }
-    
-    console.log(`🔍 Fetching page object from GitHub: ${REPOSITORY}/${pageObjectPath}`);
-    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      console.warn(`⚠️ Page object file not found: ${pageObjectPath}`);
-      console.warn(`⚠️ GitHub API response: ${response.status} ${response.statusText}`);
-      console.warn(`⚠️ Error details: ${errorText.substring(0, 200)}`);
-      return null;
-    }
-    
-    console.log(`✅ Successfully fetched page object from GitHub`);
-    
-    const fileData = await response.json();
-    const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     
     // Find the last closing brace of the class (before the final closing brace)
     // Try multiple class name patterns: OrdersHubPage, ordersHubPage, CoreUxHomePage, etc.
