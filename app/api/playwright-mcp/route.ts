@@ -2227,6 +2227,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       note?: string;
       error?: string;
       locator?: string; // 🎯 Locator generado por MCP
+      testId?: string | null; // 🎯 Real testId captured from element
     }>;
     elements: Array<{ testId: string | null; text: string | null; locator?: string }>;
     observations: any[];
@@ -2517,9 +2518,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             behavior.interactions.push({
               type: action.type,
               element: action.element,
-              observed: false,
-              exists: false,
-              visible: false,
+          observed: false,
+          exists: false,
+          visible: false,
               note: 'Tab element not found during observation'
             });
           }
