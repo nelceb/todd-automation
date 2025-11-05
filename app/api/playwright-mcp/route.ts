@@ -4696,7 +4696,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Generate descriptive variable name from selector or element
         // Convert kebab-case, snake_case, or space-separated to camelCase
-        const toCamelCase = (str: string): string => {
+        // Helper function (defined outside to be reusable)
           if (!str) return 'element';
           
           // Split by hyphens, underscores, or spaces
@@ -4775,7 +4775,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         }
         
         const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
-        missingMethods.push({ name: methodUsed, code: methodCode, type: methodType });
+        
+        // Store selector information for later use
+        missingMethods.push({ 
+          name: methodUsed, 
+          code: methodCode, 
+          type: methodType,
+          selector: selector, // Store the selector code
+          selectorName: selectorName || finalVarName, // Store the selector name
+          observed: observed // Store observation data
+        });
       }
     }
     
@@ -4786,6 +4795,26 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
     console.log(`📝 Missing methods: ${missingMethods.map(m => m.name).join(', ')}`);
+    
+    // Extract unique selectors to create as private properties
+    const uniqueSelectors = new Map<string, { selector: string; name: string }>();
+    for (const method of missingMethods) {
+      if (method.selector && method.selectorName) {
+        // Normalize selector name (remove 'this.page.' prefix for property name)
+        const propName = toCamelCase(method.selectorName);
+        const selectorCode = method.selector;
+        
+        // Only add if not already present
+        if (!uniqueSelectors.has(propName)) {
+          uniqueSelectors.set(propName, {
+            name: propName,
+            selector: selectorCode
+          });
+        }
+      }
+    }
+    
+    console.log(`📝 Found ${uniqueSelectors.size} unique selectors to add as properties`);
     
     // Read page object content from GitHub only when we need to add methods
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
