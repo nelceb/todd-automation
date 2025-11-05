@@ -380,8 +380,9 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ ADVERTENCIA: El workflow encontrado "${workflow.name}" no coincide exactamente con el buscado "${workflowId}". Verificar que sea el correcto.`)
     }
 
-    // Obtener información del workflow para verificar inputs válidos
+    // Obtener información del workflow para verificar inputs válidos y workflow_dispatch
     let validInputs = {}
+    let hasWorkflowDispatch = false
     try {
       // Obtener el archivo YAML del workflow para ver los inputs
       const yamlResponse = await fetch(
@@ -398,6 +399,15 @@ export async function POST(request: NextRequest) {
         const yamlData = await yamlResponse.json()
         if (yamlData.content) {
           const yamlContent = Buffer.from(yamlData.content, 'base64').toString('utf-8')
+          
+          // Verificar si tiene workflow_dispatch configurado
+          hasWorkflowDispatch = yamlContent.includes('workflow_dispatch:') || yamlContent.includes('workflow_dispatch :')
+          console.log(`🔍 Workflow tiene workflow_dispatch: ${hasWorkflowDispatch}`)
+          
+          if (!hasWorkflowDispatch) {
+            console.warn(`⚠️ ADVERTENCIA: El workflow "${workflow.name}" no tiene workflow_dispatch configurado. Puede que no se pueda triggerear manualmente.`)
+          }
+          
           const availableInputs = extractInputsFromYaml(yamlContent)
           
           // Solo incluir inputs que el workflow acepta
@@ -443,6 +453,7 @@ export async function POST(request: NextRequest) {
     console.log('Branch:', targetBranch)
     console.log('Valid Inputs:', validInputs)
     
+    // Intentar triggerear el workflow
     const triggerResponse = await fetch(triggerUrl, {
       method: 'POST',
       headers: {
@@ -458,6 +469,13 @@ export async function POST(request: NextRequest) {
 
     if (!triggerResponse.ok) {
       const errorText = await triggerResponse.text()
+      console.error(`❌ Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
+      
+      // Mensaje más específico si el workflow no tiene workflow_dispatch
+      if (triggerResponse.status === 422 && !hasWorkflowDispatch) {
+        throw new Error(`El workflow "${workflow.name}" no tiene workflow_dispatch configurado y no puede ser triggerado manualmente. Por favor, agrega 'workflow_dispatch:' a la configuración del workflow en GitHub.`)
+      }
+      
       throw new Error(`Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
     }
 
