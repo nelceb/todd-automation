@@ -175,8 +175,8 @@ export async function POST(request: NextRequest) {
         'Run Maestro Test on BrowserStack (iOS)': ['Run Maestro Test on BrowserStack (iOS)'],
         'Run Maestro Test on BrowserStack': ['Run Maestro Test on BrowserStack'],
         'Maestro iOS Tests': ['Maestro iOS Tests'],
-        'QA US - CORE UX REGRESSION': ['QA US - CORE UX SMOKE E2E', 'QA US - CORE UX REGRESSION', 'qa_us_coreux_regression.yml'],
-        'QA US - CORE UX SMOKE E2E': ['QA US - CORE UX SMOKE E2E', 'qa_us_coreux_regression.yml', 'QA US - CORE UX REGRESSION'],
+        'QA US - CORE UX REGRESSION': ['QA US - CORE UX REGRESSION', 'qa_us_coreux_regression.yml'],
+        'QA US - CORE UX SMOKE E2E': ['QA US - CORE UX SMOKE E2E', 'qa_coreux_smoke_e2e.yml'],
         'QA US - E2E': ['QA US - E2E', 'qa-e2e-web.yml'],
         'QA CA - E2E': ['QA CA - E2E', 'qa-ca-e2e-web.yml'],
         'QA E2E Web Regression': ['QA E2E Web Regression', 'qa_e2e_web_regression.yml'],
@@ -191,13 +191,26 @@ export async function POST(request: NextRequest) {
       const fallbackNames = fallbackMapping[workflowId]
       if (fallbackNames) {
         for (const fallbackName of fallbackNames) {
-          workflow = workflows.find((w: any) => 
-            normalizeName(w.name) === normalizeName(fallbackName) ||
-            w.path === fallbackName ||
-            w.path.includes(fallbackName.toLowerCase()) ||
-            normalizeName(w.name).includes(normalizeName(fallbackName)) ||
-            normalizeName(fallbackName).includes(normalizeName(w.name))
-          )
+          const normalizedFallback = normalizeName(fallbackName)
+          workflow = workflows.find((w: any) => {
+            const normalizedName = normalizeName(w.name)
+            
+            // CRÍTICO: Evitar match entre regression y smoke
+            const idHasRegression = normalizedWorkflowId.includes('regression')
+            const idHasSmoke = normalizedWorkflowId.includes('smoke')
+            const nameHasRegression = normalizedName.includes('regression')
+            const nameHasSmoke = normalizedName.includes('smoke')
+            
+            if ((idHasRegression && nameHasSmoke) || (idHasSmoke && nameHasRegression)) {
+              return false // NO hacer match si uno tiene regression y el otro tiene smoke
+            }
+            
+            return normalizeName(w.name) === normalizedFallback ||
+                   w.path === fallbackName ||
+                   w.path.includes(fallbackName.toLowerCase()) ||
+                   normalizedName.includes(normalizedFallback) ||
+                   normalizedFallback.includes(normalizedName)
+          })
           if (workflow) break
         }
       }
