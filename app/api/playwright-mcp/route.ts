@@ -4798,10 +4798,25 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     // Extract unique selectors to create as private properties
     const uniqueSelectors = new Map<string, { selector: string; name: string }>();
-    for (const method of missingMethods) {
+    for (const method of missingMethods as any[]) {
       if (method.selector && method.selectorName) {
         // Normalize selector name (remove 'this.page.' prefix for property name)
-        const propName = toCamelCase(method.selectorName);
+        const toCamelCaseHelper = (str: string): string => {
+          if (!str) return 'element';
+          const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
+          if (parts.length === 0) return 'element';
+          const camelParts = parts.map((part: string, index: number) => {
+            if (index === 0) return part.toLowerCase();
+            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+          });
+          let result = camelParts.join('');
+          if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+          if (/^[0-9]/.test(result)) result = 'element' + result;
+          const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
+          if (keywords.includes(result.toLowerCase())) result = 'element';
+          return result || 'element';
+        };
+        const propName = toCamelCaseHelper(method.selectorName);
         const selectorCode = method.selector;
         
         // Only add if not already present
