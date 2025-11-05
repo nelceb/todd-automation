@@ -4866,14 +4866,14 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           
           // Filter out generic observations that are too generic (like "text" testId that matches many elements)
           const nonGenericElements = behavior.elements?.filter((e: any) => {
-            const testId = (e.testId || '').toLowerCase();
-            const text = (e.text || '').toLowerCase();
+            const testIdLower = (e.testId || '').toLowerCase();
+            const textLower = (e.text || '').toLowerCase();
             
             // Reject generic testIds that don't match context
-            if (testId === 'text' && !text.includes(methodBase) && !text.includes('past order') && !text.includes('empty')) {
+            if (testIdLower === 'text' && !textLower.includes(methodBase) && !textLower.includes('past order') && !textLower.includes('empty')) {
               return false; // Too generic, skip
             }
-            if (testId === 'button' || testId === 'link' || testId === 'div') {
+            if (testIdLower === 'button' || testIdLower === 'link' || testIdLower === 'div') {
               return false; // Too generic
             }
             return true;
