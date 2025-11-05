@@ -17,6 +17,7 @@ import {
   BoltIcon,
   CheckBadgeIcon
 } from '@heroicons/react/24/outline'
+import SmallCube from './SmallCube'
 
 interface AcceptanceCriteria {
   id: string
@@ -533,10 +534,10 @@ export default function TestGenerator() {
                       className="bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
                     >
                       {loading ? (
-                        <>
+                        <div className="flex items-center">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Fetching Issue...
-                        </>
+                          <span className="animate-pulse">Processing...</span>
+                        </div>
                       ) : (
                         <>
                           <BoltIcon className="w-4 h-4 mr-2" />
@@ -612,10 +613,10 @@ export default function TestGenerator() {
                       className="bg-purple-500 text-white px-8 py-3 rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm hover:shadow-md flex items-center"
                     >
                       {loading ? (
-                        <>
+                        <div className="flex items-center">
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Generating with Claude AI...
-                        </>
+                          <span className="animate-pulse">Generating with Claude AI...</span>
+                        </div>
                       ) : (
                         <>
                           <SparklesIcon className="w-4 h-4 mr-2" />
