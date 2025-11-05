@@ -4309,6 +4309,16 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     console.log(`📦 Total archivos generados: ${codeFiles.length}`);
     console.log(`📦 Archivos:`, codeFiles.map(f => ({ file: f.file, type: f.type })));
     
+    // Validate that page object is included if methods were missing
+    const pageObjectFiles = codeFiles.filter(f => f.type === 'page-object');
+    const testFiles = codeFiles.filter(f => f.type === 'test');
+    console.log(`📦 Resumen: ${testFiles.length} test file(s), ${pageObjectFiles.length} page object file(s)`);
+    
+    if (pageObjectFiles.length === 0 && pageObjectContext) {
+      console.warn(`⚠️ WARNING: No page object file was added, but context was ${pageObjectContext}`);
+      console.warn(`⚠️ This might mean all methods already exist, or there was an error`);
+    }
+    
     return {
       success: true,
       files: codeFiles,
@@ -5639,9 +5649,27 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
     ) || [];
     
     console.log(`📦 Archivos a commitear: ${filesToCommit.length} (tests: ${filesToCommit.filter((f: any) => f.type === 'test').length}, page objects: ${filesToCommit.filter((f: any) => f.type === 'page-object').length})`);
+    
+    // Log each file to commit
+    filesToCommit.forEach((f: any, index: number) => {
+      console.log(`📦 Archivo ${index + 1}: ${f.file} (tipo: ${f.type})`);
+    });
+    
     if (filesToCommit.length === 0) {
       console.error('❌ ERROR: No se encontraron archivos para commitear!');
       console.error('❌ codeGeneration.files:', JSON.stringify(codeGeneration.files, null, 2));
+    }
+    
+    // Validate page object is included
+    const pageObjectsToCommit = filesToCommit.filter((f: any) => f.type === 'page-object');
+    if (pageObjectsToCommit.length === 0) {
+      console.warn(`⚠️ WARNING: No page object files in filesToCommit!`);
+      console.warn(`⚠️ This might cause test failures if methods are missing.`);
+      const allPageObjects = codeGeneration.files?.filter((f: any) => f.type === 'page-object') || [];
+      console.warn(`⚠️ Page objects in codeGeneration.files: ${allPageObjects.length}`);
+      if (allPageObjects.length > 0) {
+        console.warn(`⚠️ Page objects found but not included:`, allPageObjects.map((f: any) => f.file));
+      }
     }
     
     // Verificar si workflow ya existe antes de agregarlo
