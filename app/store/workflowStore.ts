@@ -247,8 +247,27 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }
       
       const data = await response.json()
-      set({ workflowPreview: data })
-      return data
+      
+      // Handle case where API returns JSON as string in "response" field
+      let workflows = data.workflows || data
+      
+      if (data.response && typeof data.response === 'string' && data.response.includes('"workflows"')) {
+        try {
+          // Extract JSON from response string (might be like "Here is the preview...\n\n{...JSON...}")
+          const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsedResponse = JSON.parse(jsonMatch[0]);
+            if (parsedResponse.workflows) {
+              workflows = parsedResponse;
+            }
+          }
+        } catch (parseError) {
+          console.warn('Could not parse response field as JSON:', parseError);
+        }
+      }
+      
+      set({ workflowPreview: workflows })
+      return workflows
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Error generating preview' })
       return null
