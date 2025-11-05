@@ -4283,8 +4283,14 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
       if (pageObjectUpdate) {
         codeFiles.push(pageObjectUpdate);
         console.log(`✅ Added missing methods to page object: ${pageObjectUpdate.file}`);
+        console.log(`✅ Page object type: ${pageObjectUpdate.type}`);
+        console.log(`✅ Page object content length: ${pageObjectUpdate.content?.length || 0} characters`);
       } else {
-        console.log(`✅ All methods exist in page object, no update needed`);
+        console.log(`⚠️ WARNING: addMissingMethodsToPageObject returned null for context: ${pageObjectContext}`);
+        console.log(`⚠️ This could mean:`);
+        console.log(`⚠️   - All methods already exist (check logs above)`);
+        console.log(`⚠️   - File not found in GitHub`);
+        console.log(`⚠️   - Error during method detection`);
       }
     }
     
@@ -4505,10 +4511,19 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       }
       
       console.log(`📋 Methods used in test: ${Array.from(methodsUsedInTest).join(', ')}`);
+    } else {
+      console.warn(`⚠️ WARNING: No generatedTestCode provided to extract methods from!`);
+    }
+    
+    if (methodsUsedInTest.size === 0) {
+      console.warn(`⚠️ WARNING: No methods detected in test code!`);
+      console.warn(`⚠️ This might mean the test code is empty or format is unexpected.`);
+      console.warn(`⚠️ Generated test code preview: ${generatedTestCode?.substring(0, 200) || 'N/A'}...`);
     }
     
     // Find missing methods that are used in the test but don't exist in page object
     const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
+    console.log(`🔍 Starting comparison: ${methodsUsedInTest.size} methods in test vs ${existingMethodNames.length} existing methods`);
     
     for (const methodUsed of Array.from(methodsUsedInTest)) {
       // Check if method exists in the page object (case-insensitive)
@@ -5746,7 +5761,7 @@ npm run test:playwright || exit 1
     
     // First, get all file SHAs and prepare tree entries
     const treeEntries: any[] = [];
-    
+
     for (const file of allFiles) {
       // Check if file exists in branch (for update) or base branch (for new file)
       let fileSha = null;
