@@ -220,6 +220,23 @@ export async function POST(request: NextRequest) {
       console.log('Available workflows:', workflows.map((w: any) => ({ name: w.name, path: w.path, id: w.id })))
       throw new Error(`Workflow ${workflowId} no encontrado. Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
     }
+    
+    // Log para debugging - verificar que el workflow encontrado es el correcto
+    console.log(`🔍 Workflow buscado: "${workflowId}"`)
+    console.log(`✅ Workflow encontrado: "${workflow.name}" (ID: ${workflow.id}, Path: ${workflow.path})`)
+    
+    // Validación final: si el workflowId tiene "regression" y el encontrado tiene "smoke", rechazar
+    const normalizedSearched = normalizeName(workflowId)
+    const normalizedFound = normalizeName(workflow.name)
+    const searchedHasRegression = normalizedSearched.includes('regression')
+    const searchedHasSmoke = normalizedSearched.includes('smoke')
+    const foundHasRegression = normalizedFound.includes('regression')
+    const foundHasSmoke = normalizedFound.includes('smoke')
+    
+    if ((searchedHasRegression && foundHasSmoke) || (searchedHasSmoke && foundHasRegression)) {
+      console.error(`❌ ERROR: Match inválido - Buscado: "${workflowId}" (regression: ${searchedHasRegression}, smoke: ${searchedHasSmoke}) vs Encontrado: "${workflow.name}" (regression: ${foundHasRegression}, smoke: ${foundHasSmoke})`)
+      throw new Error(`Workflow ${workflowId} no encontrado. Se encontró "${workflow.name}" pero no coincide (regression/smoke mismatch). Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
+    }
 
     // Obtener información del workflow para verificar inputs válidos
     let validInputs = {}
