@@ -4776,7 +4776,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
         
-        // Store selector information for later use
+        // Store selector information for later use (extend type to include selector info)
         missingMethods.push({ 
           name: methodUsed, 
           code: methodCode, 
@@ -4784,7 +4784,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selector: selector, // Store the selector code
           selectorName: selectorName || finalVarName, // Store the selector name
           observed: observed // Store observation data
-        });
+        } as any); // Type assertion to allow extended properties
       }
     }
     
@@ -4890,23 +4890,92 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       };
     }
     
+    // Insert selectors as private properties first (after constructor, before methods)
+    let contentWithSelectors = existingContent;
+    if (uniqueSelectors.size > 0) {
+      // Find constructor position
+      const constructorMatch = existingContent.match(/(constructor[^}]*\}\s*)/);
+      if (constructorMatch) {
+        const afterConstructor = constructorMatch.index! + constructorMatch[0].length;
+        
+        // Check if selectors already exist
+        const selectorProperties = Array.from(uniqueSelectors.values()).map(sel => {
+          // Extract selector code (remove 'this.page.' prefix if present)
+          let selectorCode = sel.selector.replace(/^this\.page\./, '');
+          // If it's getByTestId, keep it as is
+          if (selectorCode.startsWith('getByTestId')) {
+            selectorCode = selectorCode;
+          }
+          return `  private get ${sel.name}() { return this.page.${selectorCode}; }`;
+        }).join('\n');
+        
+        // Check if any of these properties already exist
+        const existingProps = Array.from(uniqueSelectors.values()).filter(sel => {
+          const propRegex = new RegExp(`private\\s+get\\s+${sel.name}\\(\\)|private\\s+${sel.name}\\s*[:=]`);
+          return propRegex.test(existingContent);
+        });
+        
+        if (existingProps.length < uniqueSelectors.size) {
+          // Insert selectors after constructor
+          contentWithSelectors = existingContent.slice(0, afterConstructor) + 
+                                 `\n${selectorProperties}\n` + 
+                                 existingContent.slice(afterConstructor);
+          console.log(`✅ Added ${uniqueSelectors.size} selector properties after constructor`);
+        } else {
+          console.log(`✅ Selector properties already exist, skipping`);
+        }
+      }
+    }
+    
+    // Update method code to use selector properties instead of inline selectors
+    const methodsToAdd = (missingMethods as any[]).map((m: any) => {
+      if (m.selector && m.selectorName) {
+        const toCamelCaseHelper = (str: string): string => {
+          if (!str) return 'element';
+          const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
+          if (parts.length === 0) return 'element';
+          const camelParts = parts.map((part: string, index: number) => {
+            if (index === 0) return part.toLowerCase();
+            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+          });
+          let result = camelParts.join('');
+          if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+          if (/^[0-9]/.test(result)) result = 'element' + result;
+          const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
+          if (keywords.includes(result.toLowerCase())) result = 'element';
+          return result || 'element';
+        };
+        const propName = toCamelCaseHelper(m.selectorName);
+        const varName = toCamelCaseHelper(m.selectorName);
+        
+        // Replace inline selector with property reference
+        const selectorPattern = m.selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const updatedCode = m.code.replace(
+          new RegExp(`const\\s+${varName}\\s*=\\s*${selectorPattern};`, 'g'),
+          `const ${varName} = this.${propName};`
+        );
+        return updatedCode || m.code;
+      }
+      return m.code;
+    }).join('\n\n');
+    
     // Insert methods before the last closing brace of the class
     const beforeLastBrace = classMatch[1];
     const lastBrace = classMatch[2];
-    const methodsToAdd = missingMethods.map(m => m.code).join('\n\n');
+    
     // Recreate the regex that matched for replacement
     // Find which pattern matched by checking the classMatch groups
     let matchedClassName = pageObjectName; // fallback
     for (const className of classPatterns) {
       const testRegex = new RegExp(`export class ${className}`, 'm');
-      if (testRegex.test(existingContent)) {
+      if (testRegex.test(contentWithSelectors)) {
         matchedClassName = className;
         console.log(`✅ Using class name: ${matchedClassName}`);
         break;
       }
     }
     const replacementRegex = new RegExp(`(export class ${matchedClassName}[\\s\\S]*?)(\\n})`, 'm');
-    const updatedContent = existingContent.replace(
+    const updatedContent = contentWithSelectors.replace(
       replacementRegex,
       `$1\n${methodsToAdd}\n$2`
     );
