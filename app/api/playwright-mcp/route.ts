@@ -3450,9 +3450,11 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           continue;
         }
         
-        // Marcar método como usado
+        // Marcar método como usado (case-insensitive)
         if (existingMethod) {
-          usedMethods.add(existingMethod);
+          usedMethods.add(existingMethod.toLowerCase());
+        } else {
+          usedMethods.add(elementName.toLowerCase());
         }
         
         let assertionCode = '';
@@ -5739,20 +5741,13 @@ npm run test:playwright || exit 1
       ...(huskyConfig ? [huskyConfig] : [])
     ];
     
-    // 6. Crear commits para cada archivo usando GitHub API (optimizado: batch commits)
-    let currentSha = baseSha;
-    const commitMessage = `feat: Add ${interpretation.context} test with Playwright MCP
-
-- Generated test with real browser observation
-- Added GitHub Actions workflow for automated testing
-- Added Husky pre-commit hooks for test validation
-- Test will auto-promote PR from draft to review on success`;
-
-    // ⚠️ OPTIMIZED: Limit number of files to avoid timeout (max 10 files)
-    const filesToCommitBatch = allFiles.slice(0, 10);
-    console.log(`📦 Committing ${filesToCommitBatch.length} files (out of ${allFiles.length} total)`);
+    // 6. Crear un solo commit con todos los archivos usando GitHub API Tree
+    console.log(`📦 Preparing single commit with ${allFiles.length} files`);
     
-    for (const file of filesToCommitBatch) {
+    // First, get all file SHAs and prepare tree entries
+    const treeEntries: any[] = [];
+    
+    for (const file of allFiles) {
       // Check if file exists in branch (for update) or base branch (for new file)
       let fileSha = null;
       let isUpdate = false;
@@ -5796,37 +5791,110 @@ npm run test:playwright || exit 1
         }
       }
       
-      // Create or update file using GitHub API
+      // Create blob for file content
       const content = Buffer.from(file.content || '').toString('base64');
-      const commitMessage = isUpdate 
-        ? `Update ${file.file}${file.insertionMethod === 'append' ? ' - Add test' : ''}`
-        : `Add ${file.file}`;
       
-      const createFileResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${file.file}`, {
-        method: 'PUT',
+      const blobResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/blobs`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${GITHUB_TOKEN}`,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: commitMessage,
           content: content,
-      branch: branchName,
-          ...(fileSha && { sha: fileSha }) // Include SHA only if file exists (for update)
+          encoding: 'base64'
         })
       });
       
-      if (!createFileResponse.ok) {
-        const errorText = await createFileResponse.text();
-        console.error(`❌ Error ${isUpdate ? 'updating' : 'creating'} file ${file.file}:`, errorText);
-        continue; // Continue with next file
+      if (!blobResponse.ok) {
+        const errorText = await blobResponse.text();
+        console.error(`❌ Error creating blob for ${file.file}:`, errorText);
+        continue;
       }
       
-      const fileCommit = await createFileResponse.json();
-      currentSha = fileCommit.commit.sha;
-      console.log(`✅ File ${isUpdate ? 'updated' : 'created'}: ${file.file}`);
+      const blobData = await blobResponse.json();
+      treeEntries.push({
+        path: file.file,
+        mode: '100644',
+        type: 'blob',
+        sha: blobData.sha
+      });
+      
+      console.log(`✅ Prepared ${isUpdate ? 'update' : 'new'} file: ${file.file}`);
     }
+    
+    // Create tree with all files
+    const treeResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/trees`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        base_tree: baseSha,
+        tree: treeEntries
+      })
+    });
+    
+    if (!treeResponse.ok) {
+      const errorText = await treeResponse.text();
+      throw new Error(`Failed to create tree: ${errorText}`);
+    }
+    
+    const treeData = await treeResponse.json();
+    
+    // Create single commit with all files
+    const commitMessage = `feat: Add ${interpretation.context} test with Playwright MCP
+
+- Generated test with real browser observation
+- Added missing page object methods
+- Added GitHub Actions workflow for automated testing
+- Added Husky pre-commit hooks for test validation
+- Test will auto-promote PR from draft to review on success`;
+    
+    const commitResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/commits`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: commitMessage,
+        tree: treeData.sha,
+        parents: [baseSha]
+      })
+    });
+    
+    if (!commitResponse.ok) {
+      const errorText = await commitResponse.text();
+      throw new Error(`Failed to create commit: ${errorText}`);
+    }
+    
+    const commitData = await commitResponse.json();
+    const currentSha = commitData.sha;
+    
+    // Update branch reference
+    const updateRefResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/refs/heads/${branchName}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sha: currentSha
+      })
+    });
+    
+    if (!updateRefResponse.ok) {
+      const errorText = await updateRefResponse.text();
+      throw new Error(`Failed to update branch reference: ${errorText}`);
+    }
+    
+    console.log(`✅ Created single commit with ${treeEntries.length} files: ${currentSha.substring(0, 7)}`);
     
     // 7. Crear Pull Request (usar título del ticket si está disponible)
     // Normalizar finalTicketId para evitar duplicación (remover QA- o qa- si ya existe)
