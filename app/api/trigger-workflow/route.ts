@@ -205,9 +205,25 @@ export async function POST(request: NextRequest) {
         // Normalizar workflowId para las validaciones
         const normalizedWorkflowIdForCheck = normalizeName(workflowId)
         
+        // Generar variaciones del path para buscar
+        const generatePathVariations = (name: string): string[] => {
+          const variations: string[] = []
+          const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '_')
+          variations.push(normalized)
+          variations.push(normalized.replace(/_/g, '-'))
+          variations.push(normalized.replace(/_/g, ''))
+          // También agregar variaciones sin extensiones
+          variations.push(...variations.map(v => v.replace(/\.yml$/, '')))
+          return variations
+        }
+        
         for (const fallbackName of fallbackNames) {
           const normalizedFallback = normalizeName(fallbackName)
           console.log(`🔍 Buscando workflow con fallback name: "${fallbackName}" (normalized: "${normalizedFallback}")`)
+          
+          // Generar variaciones del path
+          const pathVariations = generatePathVariations(fallbackName)
+          console.log(`🔍 Variaciones de path a buscar:`, pathVariations)
           
           workflow = workflows.find((w: any) => {
             const normalizedName = normalizeName(w.name)
@@ -218,9 +234,11 @@ export async function POST(request: NextRequest) {
             const idHasSmoke = normalizedWorkflowIdForCheck.includes('smoke')
             const nameHasRegression = normalizedName.includes('regression')
             const nameHasSmoke = normalizedName.includes('smoke')
+            const pathHasRegression = normalizedPath.includes('regression')
+            const pathHasSmoke = normalizedPath.includes('smoke')
             
-            if ((idHasRegression && nameHasSmoke) || (idHasSmoke && nameHasRegression)) {
-              console.log(`❌ Rechazado por mismatch regression/smoke: "${w.name}"`)
+            if ((idHasRegression && (nameHasSmoke || pathHasSmoke)) || (idHasSmoke && (nameHasRegression || pathHasRegression))) {
+              console.log(`❌ Rechazado por mismatch regression/smoke: "${w.name}" (${w.path})`)
               return false // NO hacer match si uno tiene regression y el otro tiene smoke
             }
             
@@ -230,10 +248,14 @@ export async function POST(request: NextRequest) {
             const pathMatch = w.path === fallbackName || normalizedPath === fallbackName.toLowerCase()
             // Buscar por path parcial (sin extensión)
             const pathPartialMatch = normalizedPath.includes(fallbackName.toLowerCase().replace('.yml', ''))
+            // Buscar por todas las variaciones del path
+            const pathVariationMatch = pathVariations.some(variation => 
+              normalizedPath.includes(variation) || normalizedPath === variation || normalizedPath === `${variation}.yml`
+            )
             // Buscar por inclusión en nombre
             const nameIncludesMatch = normalizedName.includes(normalizedFallback) || normalizedFallback.includes(normalizedName)
             
-            const match = nameMatch || pathMatch || pathPartialMatch || nameIncludesMatch
+            const match = nameMatch || pathMatch || pathPartialMatch || pathVariationMatch || nameIncludesMatch
             
             if (match) {
               console.log(`✅ Match encontrado en fallback: "${w.name}" (${w.path})`)
@@ -247,6 +269,27 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+    }
+    
+    // Último intento: buscar por palabras clave específicas si buscamos "QA US - CORE UX REGRESSION"
+    if (!workflow && workflowId.includes('CORE UX REGRESSION')) {
+      console.log('🔍 Último intento: buscando workflow con "coreux" y "regression" en nombre o path')
+      workflow = workflows.find((w: any) => {
+        const normalizedName = normalizeName(w.name)
+        const normalizedPath = w.path.toLowerCase()
+        const hasCoreUx = normalizedName.includes('coreux') || normalizedName.includes('core ux') || normalizedPath.includes('coreux')
+        const hasRegression = normalizedName.includes('regression') || normalizedPath.includes('regression')
+        const hasQA = normalizedName.includes('qa') || normalizedPath.includes('qa')
+        const hasUS = normalizedName.includes('us') || normalizedPath.includes('us')
+        const hasSmoke = normalizedName.includes('smoke') || normalizedPath.includes('smoke')
+        
+        // Buscar workflows que tengan coreux, regression, qa, us, pero NO smoke
+        if (hasCoreUx && hasRegression && hasQA && hasUS && !hasSmoke) {
+          console.log(`✅ Workflow encontrado por palabras clave: "${w.name}" (${w.path})`)
+          return true
+        }
+        return false
+      })
     }
     
     if (!workflow) {
