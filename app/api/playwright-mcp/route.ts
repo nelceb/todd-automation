@@ -5433,117 +5433,176 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       };
     }
     
-    // Insert selectors as private properties (after constructor, before methods)
-    // IMPORTANT: Selectors should be AFTER constructor, not before
+    // Insert selectors - use baseSelectors pattern if detected, otherwise use private get
     let contentWithSelectors = existingContent;
     if (uniqueSelectors.size > 0) {
-      // Find constructor position - look for the closing brace of constructor
-      // Use [\s\S] instead of . with 's' flag for compatibility
-      const constructorMatch = existingContent.match(/(constructor\s*\([^)]*\)\s*\{[\s\S]*?\}\s*)/);
-      
-      if (constructorMatch) {
-        const afterConstructor = constructorMatch.index! + constructorMatch[0].length;
+      if (usesBaseSelectorsPattern) {
+        // Add selectors to baseSelectors object
+        console.log('📝 Using baseSelectors pattern - adding selectors to baseSelectors object');
         
-        // Check if there are already selectors after constructor (before first method)
-        // Look for pattern: constructor } followed by potential selectors, then methods
-        const afterConstructorContent = existingContent.slice(afterConstructor);
-        const firstMethodMatch = afterConstructorContent.match(/(async\s+\w+|private\s+get\s+\w+|public\s+\w+)/);
-        const insertPosition = afterConstructor + (firstMethodMatch?.index || 0);
+        // Find baseSelectors object
+        const baseSelectorsRegex = /(private\s+readonly\s+baseSelectors\s*=\s*\{)([\s\S]*?)(\};)/;
+        const baseSelectorsMatch = existingContent.match(baseSelectorsRegex);
         
-        // Check if selectors already exist
-        const selectorProperties = Array.from(uniqueSelectors.values()).map(sel => {
-          // Extract selector code (remove 'this.page.' prefix if present)
-          let selectorCode = sel.selector.replace(/^this\.page\./, '');
-          // If it's getByTestId, keep it as is
-          if (selectorCode.startsWith('getByTestId')) {
-            selectorCode = selectorCode;
-          }
-          return `  private get ${sel.name}() { return this.page.${selectorCode}; }`;
-        }).join('\n');
-        
-        // Check if any of these properties already exist
-        const existingProps = Array.from(uniqueSelectors.values()).filter(sel => {
-          const propRegex = new RegExp(`private\\s+get\\s+${sel.name}\\s*\\(\\)`);
-          return propRegex.test(existingContent);
-        });
-        
-        if (existingProps.length < uniqueSelectors.size) {
-          // Insert selectors after constructor, before first method
-          contentWithSelectors = existingContent.slice(0, insertPosition) + 
-                                 `\n${selectorProperties}\n` + 
-                                 existingContent.slice(insertPosition);
-          console.log(`✅ Added ${uniqueSelectors.size} selector properties after constructor (before first method)`);
+        if (baseSelectorsMatch) {
+          const baseSelectorsStart = baseSelectorsMatch[1];
+          const baseSelectorsContent = baseSelectorsMatch[2];
+          const baseSelectorsEnd = baseSelectorsMatch[3];
+          
+          // Generate new selector entries
+          const newSelectors = Array.from(uniqueSelectors.values()).map(sel => {
+            // Extract testId from selector (e.g., "this.page.getByTestId('pastorderstab-btn')" -> "pastorderstab-btn")
+            let testId = '';
+            if (sel.selector.includes("getByTestId('")) {
+              const match = sel.selector.match(/getByTestId\('([^']+)'\)/);
+              testId = match ? match[1] : '';
+            }
+            
+            // Generate selector string in baseSelectors format
+            // Convert property name to selector string (e.g., "pastorderstab" -> "[data-testid='pastorderstab-btn']")
+            let selectorString = '';
+            if (testId) {
+              selectorString = `"[data-testid='${testId}']"`;
+            } else {
+              // Fallback: use property name to generate selector
+              const selectorName = sel.name.replace(/([A-Z])/g, '-$1').toLowerCase();
+              selectorString = `"[data-testid='${selectorName}']"`;
+            }
+            
+            // Generate property name in camelCase for baseSelectors
+            const baseSelectorName = sel.name;
+            
+            return `    ${baseSelectorName}: ${selectorString},`;
+          }).join('\n');
+          
+          // Check if there's a trailing comma in existing content
+          const needsComma = baseSelectorsContent.trim().length > 0 && !baseSelectorsContent.trim().endsWith(',');
+          const separator = needsComma ? ',\n' : '\n';
+          
+          // Insert new selectors before the closing brace
+          const updatedBaseSelectors = baseSelectorsStart + 
+                                      baseSelectorsContent + 
+                                      (needsComma ? ',' : '') + 
+                                      '\n' + newSelectors + 
+                                      '\n  ' + baseSelectorsEnd;
+          
+          contentWithSelectors = existingContent.replace(baseSelectorsRegex, updatedBaseSelectors);
+          console.log(`✅ Added ${uniqueSelectors.size} selectors to baseSelectors object`);
         } else {
-          console.log(`✅ Selector properties already exist, skipping`);
+          console.warn('⚠️ Could not find baseSelectors object, falling back to private get pattern');
+          usesBaseSelectorsPattern = false; // Fallback to private get
         }
-      } else {
-        // Fallback: if no constructor found, try to find after class declaration
-        const classMatch = existingContent.match(/(export\s+class\s+\w+\s*\{)/);
-        if (classMatch) {
-          const afterClass = classMatch.index! + classMatch[0].length;
+      }
+      
+      // Fallback: Use private get pattern if not using baseSelectors
+      if (!usesBaseSelectorsPattern) {
+        // Find constructor position - look for the closing brace of constructor
+        const constructorMatch = existingContent.match(/(constructor\s*\([^)]*\)\s*\{[\s\S]*?\}\s*)/);
+        
+        if (constructorMatch) {
+          const afterConstructor = constructorMatch.index! + constructorMatch[0].length;
+          const afterConstructorContent = existingContent.slice(afterConstructor);
+          const firstMethodMatch = afterConstructorContent.match(/(async\s+\w+|private\s+get\s+\w+|public\s+\w+)/);
+          const insertPosition = afterConstructor + (firstMethodMatch?.index || 0);
+          
           const selectorProperties = Array.from(uniqueSelectors.values()).map(sel => {
             let selectorCode = sel.selector.replace(/^this\.page\./, '');
-            if (selectorCode.startsWith('getByTestId')) {
-              selectorCode = selectorCode;
-            }
             return `  private get ${sel.name}() { return this.page.${selectorCode}; }`;
           }).join('\n');
           
-          contentWithSelectors = existingContent.slice(0, afterClass) + 
-                                 `\n${selectorProperties}\n` + 
-                                 existingContent.slice(afterClass);
-          console.log(`✅ Added ${uniqueSelectors.size} selector properties after class declaration (no constructor found)`);
-        } else {
-          console.warn(`⚠️ Could not find constructor or class declaration, selectors may be misplaced`);
+          const existingProps = Array.from(uniqueSelectors.values()).filter(sel => {
+            const propRegex = new RegExp(`private\\s+get\\s+${sel.name}\\s*\\(\\)`);
+            return propRegex.test(existingContent);
+          });
+          
+          if (existingProps.length < uniqueSelectors.size) {
+            contentWithSelectors = existingContent.slice(0, insertPosition) + 
+                                   `\n${selectorProperties}\n` + 
+                                   existingContent.slice(insertPosition);
+            console.log(`✅ Added ${uniqueSelectors.size} selector properties after constructor`);
+          }
         }
       }
     }
     
-    // Update method code to use selector properties instead of inline selectors
+    // Update method code to use selector properties or baseSelectors pattern
     const methodsToAdd = (missingMethods as any[]).map((m: any) => {
-      // If method has an existing selector property, use it
-      if (m.existingSelectorProp) {
-        const propName = m.existingSelectorProp;
-        // Extract variable name from method code
-        const varMatch = m.code.match(/const\s+(\w+)\s*=/);
-        const varName = varMatch ? varMatch[1] : 'element';
-        
-        // Replace inline selector with existing property reference
-        const updatedCode = m.code.replace(
-          /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
-          `const ${varName} = this.${propName};`
-        );
-        console.log(`♻️  Updated method ${m.name} to use existing selector: this.${propName}`);
-        return updatedCode || m.code;
+      // Skip waitForLoadPage if it already exists
+      if (m.name === 'waitForLoadPage' && /async\s+waitForLoadPage\s*\(/.test(existingContent)) {
+        console.log(`⚠️  Skipping ${m.name} - already exists in page object`);
+        return null; // Skip this method
       }
       
-      // If method has a new selector that will be added as property
-      if (m.selector && m.observed) {
-        // Find the property name for this selector
-        const selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
-          const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
-          return sel.normalizedSelector === normalized || sel.selector === m.selector;
-        });
+      // If using baseSelectors pattern, use this.page.locator(this.selectors.xxx)
+      if (usesBaseSelectorsPattern) {
+        let selectorKey = '';
         
-        if (selectorEntry) {
-          const propName = selectorEntry[1].name;
-          // Extract variable name from method code
-          const varMatch = m.code.match(/const\s+(\w+)\s*=/);
-          const varName = varMatch ? varMatch[1] : propName;
+        // If method has an existing selector in baseSelectors
+        if (m.existingSelectorProp) {
+          selectorKey = m.existingSelectorProp;
+        } else if (m.selector && m.observed) {
+          // Find the property name for this selector
+          const selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
+            const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+            return sel.normalizedSelector === normalized || sel.selector === m.selector;
+          });
           
-          // Replace inline selector with property reference
+          if (selectorEntry) {
+            selectorKey = selectorEntry[1].name;
+          }
+        }
+        
+        if (selectorKey) {
+          // Replace inline selector with this.page.locator(this.selectors.xxx)
+          const varMatch = m.code.match(/const\s+(\w+)\s*=/);
+          const varName = varMatch ? varMatch[1] : selectorKey;
+          
+          const updatedCode = m.code.replace(
+            /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
+            `const ${varName} = this.page.locator(this.selectors.${selectorKey});`
+          );
+          console.log(`✅ Updated method ${m.name} to use baseSelectors pattern: this.selectors.${selectorKey}`);
+          return updatedCode || m.code;
+        }
+      } else {
+        // Use private get pattern (existing logic)
+        if (m.existingSelectorProp) {
+          const propName = m.existingSelectorProp;
+          const varMatch = m.code.match(/const\s+(\w+)\s*=/);
+          const varName = varMatch ? varMatch[1] : 'element';
+          
           const updatedCode = m.code.replace(
             /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
             `const ${varName} = this.${propName};`
           );
-          console.log(`✅ Updated method ${m.name} to use new selector property: this.${propName}`);
+          console.log(`♻️  Updated method ${m.name} to use existing selector: this.${propName}`);
           return updatedCode || m.code;
+        }
+        
+        if (m.selector && m.observed) {
+          const selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
+            const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+            return sel.normalizedSelector === normalized || sel.selector === m.selector;
+          });
+          
+          if (selectorEntry) {
+            const propName = selectorEntry[1].name;
+            const varMatch = m.code.match(/const\s+(\w+)\s*=/);
+            const varName = varMatch ? varMatch[1] : propName;
+            
+            const updatedCode = m.code.replace(
+              /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
+              `const ${varName} = this.${propName};`
+            );
+            console.log(`✅ Updated method ${m.name} to use new selector property: this.${propName}`);
+            return updatedCode || m.code;
+          }
         }
       }
       
       // Fallback: return original code
       return m.code;
-    }).join('\n\n');
+    }).filter((code): code is string => code !== null).join('\n\n');
     
     // Insert methods before the last closing brace of the class
     const beforeLastBrace = classMatch[1];
