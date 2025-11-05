@@ -492,7 +492,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           try {
             // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
             const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
+            console.log(`🚀 Triggering workflow: "${workflow.workflowName}" in repository: "${repoName}"`)
+            console.log(`📦 Workflow inputs:`, workflow.inputs)
             const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, repoName, targetBranch)
+            console.log(`✅ Workflow triggered successfully:`, result)
             results.push({ ...result, workflow })
             
             if (result && result.runId) {
