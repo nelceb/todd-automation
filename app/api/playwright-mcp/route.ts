@@ -980,10 +980,17 @@ async function fetchFileFromGitHub(repo: string, path: string, token: string): P
 }
 
 // Extraer nombre del page object desde el nombre del archivo
+// Page objects have names like: ordersHubPage.ts, coreUxHomePage.ts, coreUxCartPage.ts
 function extractPageObjectName(fileName: string): string {
-  if (fileName.toLowerCase().includes('home')) return 'homePage';
-  if (fileName.toLowerCase().includes('orders')) return 'ordersHubPage';
-  if (fileName.toLowerCase().includes('user')) return 'usersHelper';
+  const nameLower = fileName.toLowerCase();
+  // Handle ordersHubPage.ts -> ordersHubPage
+  if (nameLower.includes('order') && nameLower.includes('hub')) return 'ordersHubPage';
+  // Handle coreUxHomePage.ts or homePage.ts -> homePage
+  if (nameLower.includes('home')) return 'homePage';
+  // Handle coreUxCartPage.ts or cartPage.ts -> cartPage
+  if (nameLower.includes('cart')) return 'cartPage';
+  // Handle usersHelper.ts -> usersHelper
+  if (nameLower.includes('user')) return 'usersHelper';
   return 'unknown';
 }
 
