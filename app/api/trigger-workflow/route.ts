@@ -109,12 +109,18 @@ export async function POST(request: NextRequest) {
     const normalizeName = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ')
     
     // Buscar el workflow por nombre o ID (exacto primero)
-    let workflow = workflows.find((w: any) => 
-      w.name === workflowId || 
-      w.id.toString() === workflowId ||
-      w.path === workflowId ||
-      normalizeName(w.name) === normalizeName(workflowId)
-    )
+    let workflow = workflows.find((w: any) => {
+      const exactNameMatch = w.name === workflowId
+      const exactPathMatch = w.path === workflowId
+      const exactIdMatch = w.id.toString() === workflowId
+      const normalizedNameMatch = normalizeName(w.name) === normalizeName(workflowId)
+      
+      if (exactNameMatch || exactPathMatch || exactIdMatch || normalizedNameMatch) {
+        console.log(`✅ Match exacto encontrado: "${w.name}" (${w.path}) para "${workflowId}"`)
+        return true
+      }
+      return false
+    })
 
     // Si no se encuentra, intentar búsqueda parcial (case-insensitive) PERO con más estrictez
     if (!workflow) {
