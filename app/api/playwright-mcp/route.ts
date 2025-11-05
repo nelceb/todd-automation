@@ -5084,14 +5084,9 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         }
         
         // Use observed locator/testId if found, otherwise skip generation (no hardcoded fallbacks)
-        if (observed?.locator) {
-          // Use the actual locator observed by MCP
-          const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
-          selector = locatorCode;
-          selectorName = selectorName || observed.element || observed.testId || 'element';
-          console.log(`✅ Using observed locator: ${locatorCode}`);
-        } else if (observed?.testId) {
-          // Use the actual testId observed by MCP
+        // 🎯 PRIORITY 1: Use REAL testId from interaction (captured before click)
+        if (observed?.testId) {
+          // Use the actual testId observed by MCP (REAL, not invented)
           selector = `this.page.getByTestId('${observed.testId}')`;
           // Generate descriptive name from testId (e.g., 'empty-state-message' -> 'emptyStateMessage')
           const toCamelCaseFromTestId = (testId: string): string => {
@@ -5103,7 +5098,13 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
               .join('');
           };
           selectorName = toCamelCaseFromTestId(observed.testId) || observed.testId.replace(/[^a-zA-Z0-9]/g, '');
-          console.log(`✅ Using observed testId: ${observed.testId} -> selectorName: ${selectorName}`);
+          console.log(`✅ Using REAL observed testId: ${observed.testId} -> selectorName: ${selectorName}`);
+        } else if (observed?.locator) {
+          // PRIORITY 2: Use the actual locator observed by MCP
+          const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
+          selector = locatorCode;
+          selectorName = selectorName || observed.element || observed.testId || 'element';
+          console.log(`✅ Using observed locator: ${locatorCode}`);
         } else {
           // FALLBACK: Use interpretation to generate selector when no observation is available
           // This ensures methods are generated even if MCP didn't observe them
