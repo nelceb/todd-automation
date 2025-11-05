@@ -552,12 +552,33 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
       const data = await response.json()
       
-      if (data.workflowTriggered) {
+      // Handle both formats: workflowTriggered (expected) or direct workflowId (legacy)
+      const workflowData = data.workflowTriggered || (data.workflowId ? {
+        workflowId: data.workflowId,
+        name: data.name,
+        inputs: data.inputs
+      } : null);
+      
+      if (workflowData) {
+        // Extract repository from workflow name or use default
+        let repoName = 'pw-cookunity-automation'; // Default for Playwright
+        if (data.repository) {
+          repoName = data.repository.split('/').pop() || repoName;
+        } else if (workflowData.name?.includes('Maestro')) {
+          repoName = 'maestro-test';
+        } else if (workflowData.name?.includes('Selenium') || workflowData.workflowId?.includes('selenium')) {
+          repoName = 'automation-framework';
+        }
+        
+        console.log(`🚀 Executing workflow: ${workflowData.name} (${workflowData.workflowId}) in ${repoName}`);
+        
         // Execute workflow
         const result = await triggerWorkflow(
-          data.workflowTriggered.workflowId, 
-          data.workflowTriggered.inputs,
-          githubToken
+          workflowData.workflowId, 
+          workflowData.inputs,
+          githubToken,
+          repoName,
+          targetBranch
         )
 
         if (result && result.runId) {
@@ -565,13 +586,28 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           startPollingLogs(result.runId, githubToken)
         }
 
-        // Add assistant response
+        // Add assistant response with workflow details
+        const workflowInfo = `🚀 Executing workflow: **${workflowData.name}**\n\n` +
+          `- Workflow ID: \`${workflowData.workflowId}\`\n` +
+          `- Repository: \`${repoName}\`\n` +
+          `- Environment: \`${workflowData.inputs?.environment || 'N/A'}\`\n` +
+          `- Groups: \`${workflowData.inputs?.groups || workflowData.inputs?.test_suite || 'N/A'}\``;
+        
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: data.response || 'Workflow executed successfully',
+          content: data.response || workflowInfo,
           timestamp: new Date(),
-          workflowResult: result
+          workflowResult: result,
+          workflowPreview: {
+            workflows: [{
+              repository: `Cook-Unity/${repoName}`,
+              workflowName: workflowData.name,
+              inputs: workflowData.inputs
+            }],
+            totalWorkflows: 1,
+            technologies: [workflowData.name?.includes('Maestro') ? 'maestro' : workflowData.name?.includes('Selenium') ? 'selenium' : 'playwright']
+          }
         }])
 
         // Trigger workflow executed callback
