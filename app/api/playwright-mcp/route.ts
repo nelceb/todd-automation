@@ -4696,19 +4696,19 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Generate descriptive variable name from selector or element
         // Convert kebab-case, snake_case, or space-separated to camelCase
-        // Helper function (defined outside to be reusable)
+        const toCamelCase = (str: string): string => {
           if (!str) return 'element';
           
           // Split by hyphens, underscores, or spaces
           const parts = str
             .replace(/[^a-zA-Z0-9\s_-]/g, '') // Remove special chars but keep separators
             .split(/[\s_-]+/) // Split by spaces, hyphens, or underscores
-            .filter(p => p.length > 0);
+            .filter((p: string) => p.length > 0);
           
           if (parts.length === 0) return 'element';
           
           // First part lowercase, rest capitalize first letter
-          const camelParts = parts.map((part, index) => {
+          const camelParts = parts.map((part: string, index: number) => {
             if (index === 0) {
               return part.toLowerCase();
             }
