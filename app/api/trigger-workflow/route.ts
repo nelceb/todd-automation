@@ -115,48 +115,54 @@ export async function POST(request: NextRequest) {
       normalizeName(w.name) === normalizeName(workflowId)
     )
 
-    // Si no se encuentra, intentar búsqueda parcial (case-insensitive)
+    // Si no se encuentra, intentar búsqueda parcial (case-insensitive) PERO con más estrictez
     if (!workflow) {
       const normalizedWorkflowId = normalizeName(workflowId)
+      
+      // Primero, intentar match exacto normalizado (sin espacios extra)
       workflow = workflows.find((w: any) => {
         const normalizedName = normalizeName(w.name)
-        const normalizedPath = w.path.toLowerCase()
-        
-        // Buscar si el nombre del workflow contiene las palabras clave del workflowId
-        const workflowIdWords = normalizedWorkflowId.split(/\s+/).filter(w => w.length > 2)
-        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 2)
-        
-        // Si todas las palabras clave están presentes en el nombre, es un match
-        const allWordsMatch = workflowIdWords.length > 0 && 
-          workflowIdWords.every(word => 
-            nameWords.some(nw => nw.includes(word) || word.includes(nw))
-          )
-        
-        // Extraer palabras clave importantes (ignorar "us", "qa", "core", "ux", "regression", "smoke", "e2e")
-        const importantWords = workflowIdWords.filter(word => 
-          !['us', 'qa', 'core', 'ux', 'regression', 'smoke', 'e2e', 'test', 'tests'].includes(word)
-        )
-        const nameImportantWords = nameWords.filter(word => 
-          !['us', 'qa', 'core', 'ux', 'regression', 'smoke', 'e2e', 'test', 'tests'].includes(word)
-        )
-        
-        // Si hay palabras importantes, verificar que coincidan
-        const importantWordsMatch = importantWords.length === 0 || 
-          importantWords.every(word => 
-            nameImportantWords.some(nw => nw.includes(word) || word.includes(nw))
-          )
-        
-        // También verificar si "core" y "ux" están presentes (caso especial para CORE UX)
-        const hasCoreUx = (normalizedWorkflowId.includes('core') && normalizedWorkflowId.includes('ux')) &&
-                          (normalizedName.includes('core') && normalizedName.includes('ux'))
-        
-        return normalizedName.includes(normalizedWorkflowId) ||
-               normalizedWorkflowId.includes(normalizedName) ||
-               normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '_')) ||
-               normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '-')) ||
-               allWordsMatch ||
-               (hasCoreUx && importantWordsMatch)
+        return normalizedName === normalizedWorkflowId
       })
+      
+      // Si aún no se encuentra, buscar por palabras clave pero siendo más estricto
+      if (!workflow) {
+        workflow = workflows.find((w: any) => {
+          const normalizedName = normalizeName(w.name)
+          const normalizedPath = w.path.toLowerCase()
+          
+          // Extraer palabras clave del workflowId y del nombre del workflow
+          const workflowIdWords = normalizedWorkflowId.split(/\s+/).filter(w => w.length > 1)
+          const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 1)
+          
+          // CRÍTICO: Si el workflowId contiene "regression" y el nombre contiene "smoke", NO hacer match
+          // Si el workflowId contiene "smoke" y el nombre contiene "regression", NO hacer match
+          const idHasRegression = normalizedWorkflowId.includes('regression')
+          const idHasSmoke = normalizedWorkflowId.includes('smoke')
+          const nameHasRegression = normalizedName.includes('regression')
+          const nameHasSmoke = normalizedName.includes('smoke')
+          
+          if ((idHasRegression && nameHasSmoke) || (idHasSmoke && nameHasRegression)) {
+            return false // NO hacer match si uno tiene regression y el otro tiene smoke
+          }
+          
+          // Si todas las palabras clave están presentes en el nombre, es un match
+          const allWordsMatch = workflowIdWords.length > 0 && 
+            workflowIdWords.every(word => 
+              nameWords.some(nw => nw.includes(word) || word.includes(nw))
+            )
+          
+          // También verificar inclusión simple
+          const includesMatch = normalizedName.includes(normalizedWorkflowId) ||
+                               normalizedWorkflowId.includes(normalizedName)
+          
+          // O match por path
+          const pathMatch = normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '_')) ||
+                           normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '-'))
+          
+          return includesMatch || pathMatch || allWordsMatch
+        })
+      }
     }
 
     // Si aún no se encuentra, intentar con mapeo de fallback
