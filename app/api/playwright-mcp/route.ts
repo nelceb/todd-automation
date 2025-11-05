@@ -2451,7 +2451,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // Observar elementos visibles usando snapshot MCP (AFTER interactions)
     console.log('🔍 Buscando elementos con data-testid (después de interacciones)...');
-    let allElements = await page.$$('[data-testid]').catch(() => []);
+    let allElements: any[] = await page.$$('[data-testid]').catch(() => []);
     console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
     
     // If we have actions that involve clicking tabs, wait more and observe again with context-specific searches
