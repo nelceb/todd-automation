@@ -4759,15 +4759,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const lastBrace = classMatch[2];
     const methodsToAdd = missingMethods.map(m => m.code).join('\n\n');
     // Recreate the regex that matched for replacement
-    const matchedClassName = classMatch.input ? (() => {
-      // Find which pattern matched by checking the content
-      for (const className of classPatterns) {
-        if (existingContent.includes(`export class ${className}`)) {
-          return className;
-        }
+    // Find which pattern matched by checking the classMatch groups
+    let matchedClassName = pageObjectName; // fallback
+    for (const className of classPatterns) {
+      const testRegex = new RegExp(`export class ${className}`, 'm');
+      if (testRegex.test(existingContent)) {
+        matchedClassName = className;
+        console.log(`✅ Using class name: ${matchedClassName}`);
+        break;
       }
-      return pageObjectName; // fallback
-    })() : pageObjectName;
+    }
     const replacementRegex = new RegExp(`(export class ${matchedClassName}[\\s\\S]*?)(\\n})`, 'm');
     const updatedContent = existingContent.replace(
       replacementRegex,
