@@ -105,6 +105,10 @@ export async function POST(request: NextRequest) {
     const workflowsData = await workflowsResponse.json()
     const workflows = workflowsData.workflows || []
 
+    console.log('📋 Total workflows recibidos de GitHub:', workflows.length)
+    console.log('📋 Nombres de workflows:', workflows.map((w: any) => w.name).join(', '))
+    console.log('📋 Paths de workflows:', workflows.map((w: any) => w.path).join(', '))
+
     // Normalize workflowId for comparison (remove extra spaces, convert to lowercase)
     const normalizeName = (str: string) => str.toLowerCase().trim().replace(/\s+/g, ' ')
     
@@ -197,13 +201,17 @@ export async function POST(request: NextRequest) {
 
       const fallbackNames = fallbackMapping[workflowId]
       if (fallbackNames) {
+        console.log(`🔍 Intentando fallback mapping para "${workflowId}" con opciones:`, fallbackNames)
         // Normalizar workflowId para las validaciones
         const normalizedWorkflowIdForCheck = normalizeName(workflowId)
         
         for (const fallbackName of fallbackNames) {
           const normalizedFallback = normalizeName(fallbackName)
+          console.log(`🔍 Buscando workflow con fallback name: "${fallbackName}" (normalized: "${normalizedFallback}")`)
+          
           workflow = workflows.find((w: any) => {
             const normalizedName = normalizeName(w.name)
+            const normalizedPath = w.path.toLowerCase()
             
             // CRÍTICO: Evitar match entre regression y smoke
             const idHasRegression = normalizedWorkflowIdForCheck.includes('regression')
@@ -212,16 +220,31 @@ export async function POST(request: NextRequest) {
             const nameHasSmoke = normalizedName.includes('smoke')
             
             if ((idHasRegression && nameHasSmoke) || (idHasSmoke && nameHasRegression)) {
+              console.log(`❌ Rechazado por mismatch regression/smoke: "${w.name}"`)
               return false // NO hacer match si uno tiene regression y el otro tiene smoke
             }
             
-            return normalizeName(w.name) === normalizedFallback ||
-                   w.path === fallbackName ||
-                   w.path.includes(fallbackName.toLowerCase()) ||
-                   normalizedName.includes(normalizedFallback) ||
-                   normalizedFallback.includes(normalizedName)
+            // Buscar por nombre exacto normalizado
+            const nameMatch = normalizedName === normalizedFallback
+            // Buscar por path exacto
+            const pathMatch = w.path === fallbackName || normalizedPath === fallbackName.toLowerCase()
+            // Buscar por path parcial (sin extensión)
+            const pathPartialMatch = normalizedPath.includes(fallbackName.toLowerCase().replace('.yml', ''))
+            // Buscar por inclusión en nombre
+            const nameIncludesMatch = normalizedName.includes(normalizedFallback) || normalizedFallback.includes(normalizedName)
+            
+            const match = nameMatch || pathMatch || pathPartialMatch || nameIncludesMatch
+            
+            if (match) {
+              console.log(`✅ Match encontrado en fallback: "${w.name}" (${w.path})`)
+            }
+            
+            return match
           })
-          if (workflow) break
+          if (workflow) {
+            console.log(`✅ Workflow encontrado usando fallback: "${workflow.name}" (${workflow.path})`)
+            break
+          }
         }
       }
     }
