@@ -4840,35 +4840,105 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
     console.log(`📝 Missing methods: ${missingMethods.map(m => m.name).join(', ')}`);
     
+    // Extract and check existing selectors from the page object
+    // Parse existing selectors to avoid duplicates
+    const existingSelectors = new Map<string, string>(); // selectorCode -> propertyName
+    const existingSelectorRegex = /private\s+get\s+(\w+)\s*\(\)\s*\{\s*return\s+(this\.page\.[^;]+);\s*\}/g;
+    let selectorMatch;
+    while ((selectorMatch = existingSelectorRegex.exec(existingContent)) !== null) {
+      const propName = selectorMatch[1];
+      const selectorCode = selectorMatch[2];
+      // Normalize selector code for comparison
+      const normalizedSelector = selectorCode.replace(/\s+/g, ' ').trim();
+      existingSelectors.set(normalizedSelector, propName);
+      console.log(`📋 Found existing selector: ${propName} = ${normalizedSelector}`);
+    }
+    
     // Extract unique selectors to create as private properties
-    const uniqueSelectors = new Map<string, { selector: string; name: string }>();
+    // Only add if selector doesn't already exist (by code comparison)
+    const uniqueSelectors = new Map<string, { selector: string; name: string; normalizedSelector: string }>();
     for (const method of missingMethods as any[]) {
-      if (method.selector && method.selectorName) {
-        // Normalize selector name (remove 'this.page.' prefix for property name)
-        const toCamelCaseHelper = (str: string): string => {
-          if (!str) return 'element';
-          const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
-          if (parts.length === 0) return 'element';
-          const camelParts = parts.map((part: string, index: number) => {
-            if (index === 0) return part.toLowerCase();
-            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-          });
-          let result = camelParts.join('');
-          if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
-          if (/^[0-9]/.test(result)) result = 'element' + result;
-          const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
-          if (keywords.includes(result.toLowerCase())) result = 'element';
-          return result || 'element';
-        };
-        const propName = toCamelCaseHelper(method.selectorName);
+      if (method.selector && method.observed) {
+        // Normalize selector code for comparison
+        const normalizedSelector = method.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+        
+        // Check if this selector already exists in the page object
+        const existingPropName = Array.from(existingSelectors.entries()).find(([selCode]) => {
+          const existingNormalized = selCode.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+          return existingNormalized === normalizedSelector || 
+                 existingNormalized.includes(normalizedSelector) ||
+                 normalizedSelector.includes(existingNormalized);
+        })?.[1];
+        
+        if (existingPropName) {
+          console.log(`♻️  Reusing existing selector: ${existingPropName} for method ${method.name}`);
+          // Store the existing property name to use in method code
+          method.existingSelectorProp = existingPropName;
+          continue; // Skip adding this selector - it already exists
+        }
+        
+        // Generate descriptive name from observation
+        let propName = '';
+        if (method.observed.testId) {
+          // Use testId as base for property name (convert to camelCase)
+          const toCamelCaseHelper = (str: string): string => {
+            if (!str) return 'element';
+            const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
+            if (parts.length === 0) return 'element';
+            const camelParts = parts.map((part: string, index: number) => {
+              if (index === 0) return part.toLowerCase();
+              return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+            });
+            let result = camelParts.join('');
+            if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+            if (/^[0-9]/.test(result)) result = 'element' + result;
+            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
+            if (keywords.includes(result.toLowerCase())) result = 'element';
+            return result || 'element';
+          };
+          propName = toCamelCaseHelper(method.observed.testId);
+        } else if (method.observed.element) {
+          // Use element name as base
+          const toCamelCaseHelper = (str: string): string => {
+            if (!str) return 'element';
+            const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
+            if (parts.length === 0) return 'element';
+            const camelParts = parts.map((part: string, index: number) => {
+              if (index === 0) return part.toLowerCase();
+              return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+            });
+            let result = camelParts.join('');
+            if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+            if (/^[0-9]/.test(result)) result = 'element' + result;
+            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
+            if (keywords.includes(result.toLowerCase())) result = 'element';
+            return result || 'element';
+          };
+          propName = toCamelCaseHelper(method.observed.element);
+        } else {
+          // Fallback: use method name
+          const methodBase = method.name.replace(/^(is|get|clickOn)/, '').replace(/Visible|Text|Tab$/i, '');
+          propName = methodBase.charAt(0).toLowerCase() + methodBase.slice(1);
+        }
+        
+        // Check if property name already exists
+        const existingPropRegex = new RegExp(`private\\s+get\\s+${propName}\\s*\\(\\)`, 'g');
+        if (existingPropRegex.test(existingContent)) {
+          console.log(`⚠️  Property name ${propName} already exists, using existing selector`);
+          method.existingSelectorProp = propName;
+          continue; // Skip adding this selector
+        }
+        
         const selectorCode = method.selector;
         
         // Only add if not already present
         if (!uniqueSelectors.has(propName)) {
           uniqueSelectors.set(propName, {
             name: propName,
-            selector: selectorCode
+            selector: selectorCode,
+            normalizedSelector: normalizedSelector
           });
+          console.log(`✅ Will add new selector property: ${propName} = ${normalizedSelector}`);
         }
       }
     }
@@ -4988,33 +5058,47 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     // Update method code to use selector properties instead of inline selectors
     const methodsToAdd = (missingMethods as any[]).map((m: any) => {
-      if (m.selector && m.selectorName) {
-        const toCamelCaseHelper = (str: string): string => {
-          if (!str) return 'element';
-          const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
-          if (parts.length === 0) return 'element';
-          const camelParts = parts.map((part: string, index: number) => {
-            if (index === 0) return part.toLowerCase();
-            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-          });
-          let result = camelParts.join('');
-          if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
-          if (/^[0-9]/.test(result)) result = 'element' + result;
-          const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
-          if (keywords.includes(result.toLowerCase())) result = 'element';
-          return result || 'element';
-        };
-        const propName = toCamelCaseHelper(m.selectorName);
-        const varName = toCamelCaseHelper(m.selectorName);
+      // If method has an existing selector property, use it
+      if (m.existingSelectorProp) {
+        const propName = m.existingSelectorProp;
+        // Extract variable name from method code
+        const varMatch = m.code.match(/const\s+(\w+)\s*=/);
+        const varName = varMatch ? varMatch[1] : 'element';
         
-        // Replace inline selector with property reference
-        const selectorPattern = m.selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Replace inline selector with existing property reference
         const updatedCode = m.code.replace(
-          new RegExp(`const\\s+${varName}\\s*=\\s*${selectorPattern};`, 'g'),
+          /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
           `const ${varName} = this.${propName};`
         );
+        console.log(`♻️  Updated method ${m.name} to use existing selector: this.${propName}`);
         return updatedCode || m.code;
       }
+      
+      // If method has a new selector that will be added as property
+      if (m.selector && m.observed) {
+        // Find the property name for this selector
+        const selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
+          const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+          return sel.normalizedSelector === normalized || sel.selector === m.selector;
+        });
+        
+        if (selectorEntry) {
+          const propName = selectorEntry[1].name;
+          // Extract variable name from method code
+          const varMatch = m.code.match(/const\s+(\w+)\s*=/);
+          const varName = varMatch ? varMatch[1] : propName;
+          
+          // Replace inline selector with property reference
+          const updatedCode = m.code.replace(
+            /const\s+\w+\s*=\s*this\.page\.[^;]+;/,
+            `const ${varName} = this.${propName};`
+          );
+          console.log(`✅ Updated method ${m.name} to use new selector property: this.${propName}`);
+          return updatedCode || m.code;
+        }
+      }
+      
+      // Fallback: return original code
       return m.code;
     }).join('\n\n');
     
