@@ -1177,30 +1177,39 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 </svg>
                               </a>
                               
-                              {/* Cancel button - only show for in_progress workflows */}
+                              {/* Cancel button - only show for in_progress workflows and if we can determine repository */}
                               {logs.run.status === 'in_progress' && logs.run.id && (() => {
                                 // Extract repository from htmlUrl (e.g., https://github.com/Cook-Unity/pw-cookunity-automation/actions/runs/...)
-                                let repoName = 'maestro-test' // default
+                                let repoName: string | null = null
+                                
                                 if (logs.run.htmlUrl) {
                                   const urlMatch = logs.run.htmlUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\//)
                                   if (urlMatch && urlMatch[2]) {
                                     repoName = urlMatch[2]
                                   }
                                 }
+                                
                                 // Also try to get from workflowPreview if available
-                                const workflowPreview = messages[messages.length - 1]?.workflowPreview
-                                if (workflowPreview?.workflows && workflowPreview.workflows.length > 0) {
-                                  const workflow = workflowPreview.workflows.find((w: any) => 
-                                    logs.run.htmlUrl?.includes(w.repository)
-                                  )
-                                  if (workflow?.repository) {
-                                    repoName = workflow.repository.split('/').pop() || repoName
+                                if (!repoName) {
+                                  const workflowPreview = messages[messages.length - 1]?.workflowPreview
+                                  if (workflowPreview?.workflows && workflowPreview.workflows.length > 0) {
+                                    const workflow = workflowPreview.workflows.find((w: any) => 
+                                      logs.run.htmlUrl?.includes(w.repository)
+                                    )
+                                    if (workflow?.repository) {
+                                      repoName = workflow.repository.split('/').pop() || null
+                                    }
                                   }
+                                }
+                                
+                                // Only show cancel button if we have a valid repository
+                                if (!repoName) {
+                                  return null
                                 }
                                 
                                 return (
                                   <button
-                                    onClick={() => handleCancelWorkflow(logs.run.id.toString(), repoName)}
+                                    onClick={() => handleCancelWorkflow(logs.run.id.toString(), repoName!)}
                                     className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
