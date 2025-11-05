@@ -247,8 +247,46 @@ export const useWorkflowStore = create<WorkflowStore>()(
       }
       
       const data = await response.json()
-      set({ workflowPreview: data })
-      return data
+      
+      // Handle case where response contains a "response" field with JSON string
+      let workflows = data.workflows || data
+      
+      if (data.response && typeof data.response === 'string') {
+        try {
+          // Try to parse the response string if it contains JSON
+          const parsedResponse = JSON.parse(data.response)
+          if (parsedResponse.workflows) {
+            workflows = parsedResponse
+          }
+        } catch (parseError) {
+          // If parsing fails, use the original data
+          console.warn('Could not parse response field as JSON:', parseError)
+        }
+      }
+      
+      // Ensure workflows is an array and has required fields
+      if (workflows && !workflows.workflows && !Array.isArray(workflows)) {
+        // If workflows is not an array and doesn't have workflows property, it might be the full response
+        workflows = { workflows: [], totalWorkflows: 0, technologies: [] }
+      }
+      
+      // Ensure workflows array exists
+      if (workflows && !Array.isArray(workflows.workflows)) {
+        workflows.workflows = []
+      }
+      
+      // Ensure technologies array exists
+      if (workflows && !Array.isArray(workflows.technologies)) {
+        workflows.technologies = []
+      }
+      
+      // Ensure totalWorkflows is a number
+      if (workflows && typeof workflows.totalWorkflows !== 'number') {
+        workflows.totalWorkflows = workflows.workflows?.length || 0
+      }
+      
+      set({ workflowPreview: workflows })
+      return workflows
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Error generating preview' })
       return null

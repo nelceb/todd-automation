@@ -451,7 +451,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       // First, get preview of workflows
       const preview = await previewWorkflows(userMessage)
       
-      if (preview && preview.workflows.length > 0) {
+      if (preview && preview.workflows && Array.isArray(preview.workflows) && preview.workflows.length > 0) {
         // Keep previous logs and add new ones
         
         // Extract branch from user message if specified
@@ -517,10 +517,15 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         }
 
         // Add assistant response with workflow info
+        const technologies = preview.technologies && Array.isArray(preview.technologies) 
+          ? preview.technologies.join(', ') 
+          : 'unknown';
+        const totalWorkflows = preview.totalWorkflows || (preview.workflows?.length || 0);
+        
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: `Executing ${preview.totalWorkflows} workflow${preview.totalWorkflows > 1 ? 's' : ''} across ${preview.technologies.join(', ')} frameworks...`,
+          content: `Executing ${totalWorkflows} workflow${totalWorkflows > 1 ? 's' : ''}${technologies !== 'unknown' ? ` across ${technologies} frameworks` : ''}...`,
           timestamp: new Date(),
           workflowResult: results,
           workflowPreview: preview
