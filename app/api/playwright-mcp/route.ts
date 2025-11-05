@@ -2488,16 +2488,95 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // After executing actions (especially tabs), wait for new content to load
     console.log('⏳ Waiting for content to load after interactions...');
     try {
-      await page.waitForTimeout(3000); // Increased wait for dynamic content
+      await page.waitForTimeout(4000); // Increased wait for dynamic content (4s)
       await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+      // Also wait for network to be idle if possible
+      try {
+        await page.waitForLoadState('networkidle', { timeout: 3000 });
+      } catch (e) {
+        console.log('⚠️ networkidle timeout, continuing...');
+      }
     } catch (e) {
       console.log('⚠️ waitForLoadState timeout after interactions, continuing...');
     }
+    
+    // 🎯 CRITICAL: Capture NEW snapshot AFTER tab clicks to see the updated DOM
+    console.log('📸 MCP: Capturando snapshot DESPUÉS de interacciones (tabs)...');
+    const postInteractionSnapshot = await mcpWrapper.browserSnapshot();
+    console.log('✅ MCP: Snapshot post-interacción capturado');
     
     // Observar elementos visibles usando snapshot MCP (AFTER interactions)
     console.log('🔍 Buscando elementos con data-testid (después de interacciones)...');
     let allElements: any[] = await page.$$('[data-testid]').catch(() => []);
     console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
+    
+    // 🎯 NEW: Extract elements from snapshot that match the context
+    if (postInteractionSnapshot) {
+      console.log('🔍 Analizando snapshot para encontrar elementos relevantes...');
+      const extractElementsFromSnapshot = (node: any, elements: any[] = []): any[] => {
+        if (!node) return elements;
+        
+        // Check if this node has relevant text or role
+        const nodeText = (node.name || '').toLowerCase();
+        const nodeRole = (node.role || '').toLowerCase();
+        const isRelevant = 
+          (interpretation.context === 'pastOrders' && (nodeText.includes('past') || nodeText.includes('order') || nodeText.includes('empty'))) ||
+          (interpretation.context === 'ordersHub' && (nodeText.includes('order') || nodeText.includes('upcoming') || nodeText.includes('past'))) ||
+          nodeRole === 'button' || nodeRole === 'link' || nodeRole === 'tab';
+        
+        if (isRelevant && nodeText) {
+          elements.push({
+            text: node.name,
+            role: node.role,
+            node: node
+          });
+        }
+        
+        if (node.children) {
+          for (const child of node.children) {
+            extractElementsFromSnapshot(child, elements);
+          }
+        }
+        
+        return elements;
+      };
+      
+      const snapshotElements = extractElementsFromSnapshot(postInteractionSnapshot);
+      console.log(`📸 Encontrados ${snapshotElements.length} elementos relevantes en snapshot`);
+      
+      // Try to find these elements in the DOM and get their data-testid
+      for (const snapElem of snapshotElements.slice(0, 20)) {
+        try {
+          // Try to find element by text content
+          const textLocator = page.locator(`text="${snapElem.text}"`).first();
+          const count = await textLocator.count();
+          if (count > 0) {
+            // Try to get parent or element with data-testid
+            const withTestId = textLocator.locator('..').locator('[data-testid]').first();
+            const testIdCount = await withTestId.count();
+            if (testIdCount > 0) {
+              const testId = await withTestId.getAttribute('data-testid');
+              if (testId) {
+                // Check if we already have this element
+                const alreadyExists = allElements.some(async (el) => {
+                  const existingTestId = await el.getAttribute('data-testid').catch(() => null);
+                  return existingTestId === testId;
+                });
+                if (!alreadyExists) {
+                  const elem = await page.$(`[data-testid="${testId}"]`);
+                  if (elem) allElements.push(elem);
+                  console.log(`✅ Encontrado elemento desde snapshot: ${testId} (text: "${snapElem.text}")`);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Continue with next element
+        }
+      }
+      
+      console.log(`🔍 Total después de análisis de snapshot: ${allElements.length} elementos`);
+    }
     
     // If we have actions that involve clicking tabs, wait more and observe again with context-specific searches
     const hasTabClick = interpretation.actions?.some((a: any) => 
@@ -5173,18 +5252,47 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const fileData = await response.json();
     const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     
+    // Detect if page object uses baseSelectors pattern (like OrdersHubPage)
+    const hasBaseSelectors = /private\s+readonly\s+baseSelectors\s*=/g.test(existingContent);
+    const hasSelectorsGetter = /private\s+get\s+selectors\(\)/g.test(existingContent);
+    const usesBaseSelectorsPattern = hasBaseSelectors && hasSelectorsGetter;
+    
+    console.log(`🔍 Page object pattern detection:`);
+    console.log(`   - Has baseSelectors: ${hasBaseSelectors}`);
+    console.log(`   - Has selectors() getter: ${hasSelectorsGetter}`);
+    console.log(`   - Uses baseSelectors pattern: ${usesBaseSelectorsPattern}`);
+    
     // Extract and check existing selectors from the page object
     // Parse existing selectors to avoid duplicates
     const existingSelectors = new Map<string, string>(); // selectorCode -> propertyName
-    const existingSelectorRegex = /private\s+get\s+(\w+)\s*\(\)\s*\{\s*return\s+(this\.page\.[^;]+);\s*\}/g;
-    let selectorMatch;
-    while ((selectorMatch = existingSelectorRegex.exec(existingContent)) !== null) {
-      const propName = selectorMatch[1];
-      const selectorCode = selectorMatch[2];
-      // Normalize selector code for comparison
-      const normalizedSelector = selectorCode.replace(/\s+/g, ' ').trim();
-      existingSelectors.set(normalizedSelector, propName);
-      console.log(`📋 Found existing selector: ${propName} = ${normalizedSelector}`);
+    
+    if (usesBaseSelectorsPattern) {
+      // Extract selectors from baseSelectors object
+      const baseSelectorsMatch = existingContent.match(/private\s+readonly\s+baseSelectors\s*=\s*\{([\s\S]*?)\};/);
+      if (baseSelectorsMatch) {
+        const baseSelectorsContent = baseSelectorsMatch[1];
+        // Match: key: "value" or key: '[selector]'
+        const selectorRegex = /(\w+):\s*["']([^"']+)["']/g;
+        let selectorMatch;
+        while ((selectorMatch = selectorRegex.exec(baseSelectorsContent)) !== null) {
+          const propName = selectorMatch[1];
+          const selectorValue = selectorMatch[2];
+          existingSelectors.set(selectorValue, propName);
+          console.log(`📋 Found baseSelector: ${propName} = "${selectorValue}"`);
+        }
+      }
+    } else {
+      // Extract from private get properties (old pattern)
+      const existingSelectorRegex = /private\s+get\s+(\w+)\s*\(\)\s*\{\s*return\s+(this\.page\.[^;]+);\s*\}/g;
+      let selectorMatch;
+      while ((selectorMatch = existingSelectorRegex.exec(existingContent)) !== null) {
+        const propName = selectorMatch[1];
+        const selectorCode = selectorMatch[2];
+        // Normalize selector code for comparison
+        const normalizedSelector = selectorCode.replace(/\s+/g, ' ').trim();
+        existingSelectors.set(normalizedSelector, propName);
+        console.log(`📋 Found existing selector: ${propName} = ${normalizedSelector}`);
+      }
     }
     
     // Extract unique selectors to create as private properties
