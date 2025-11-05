@@ -4776,21 +4776,37 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // First check interactions for click methods
         if (methodUsed.toLowerCase().startsWith('clickon')) {
+          console.log(`🔍 Searching for click interaction matching: ${methodBase}`);
+          console.log(`🔍 Available interactions: ${JSON.stringify(behavior.interactions?.map((i: any) => ({ 
+            element: i.element, 
+            testId: i.testId, 
+            observed: i.observed,
+            hasLocator: !!i.locator 
+          })) || [])}`);
+          
           observed = behavior.interactions?.find((i: any) => {
             const elementLower = (i.element || '').toLowerCase();
             const testIdLower = (i.testId || '').toLowerCase();
             const locatorLower = (i.locator || '').toLowerCase();
             
             // Match by element name, testId, or locator
-            return elementLower.includes(methodBase.replace(/tab$/, '')) ||
+            const matches = elementLower.includes(methodBase.replace(/tab$/, '')) ||
                    testIdLower.includes(methodBase.replace(/tab$/, '')) ||
                    locatorLower.includes(methodBase.replace(/tab$/, '')) ||
-                   (methodBase.includes('pastorder') && (elementLower.includes('pastorder') || testIdLower.includes('pastorder')));
+                   (methodBase.includes('pastorder') && (elementLower.includes('pastorder') || testIdLower.includes('pastorder'))) ||
+                   (methodUsed.toLowerCase().includes('pastorderstab') && (elementLower.includes('pastorder') || testIdLower.includes('pastorder') || testIdLower.includes('tab')));
+            
+            if (matches) {
+              console.log(`✅ Match found in interaction: ${JSON.stringify({ element: i.element, testId: i.testId, observed: i.observed })}`);
+            }
+            return matches;
           });
           
           if (observed) {
             selectorName = observed.element || observed.testId || 'element';
             console.log(`✅ Found interaction observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
+          } else {
+            console.warn(`⚠️ No interaction found for ${methodUsed}, checking elements...`);
           }
         }
         
