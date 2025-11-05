@@ -653,7 +653,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       } else {
         // Handle specific error cases
         if (result.error && result.error.includes('not found or already completed')) {
-          toast.info('El workflow ya terminó o no se puede cancelar (ya completado/no encontrado)')
+          toast('El workflow ya terminó o no se puede cancelar (ya completado/no encontrado)', {
+            icon: 'ℹ️',
+            duration: 4000
+          })
         } else {
           toast.error(result.error || 'Error al cancelar el workflow')
         }
@@ -1175,17 +1178,38 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               </a>
                               
                               {/* Cancel button - only show for in_progress workflows */}
-                              {logs.run.status === 'in_progress' && logs.run.id && (
-                                <button
-                                  onClick={() => handleCancelWorkflow(logs.run.id.toString(), 'maestro-test')}
-                                  className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                  <span>Cancel Run</span>
-                                </button>
-                              )}
+                              {logs.run.status === 'in_progress' && logs.run.id && (() => {
+                                // Extract repository from htmlUrl (e.g., https://github.com/Cook-Unity/pw-cookunity-automation/actions/runs/...)
+                                let repoName = 'maestro-test' // default
+                                if (logs.run.htmlUrl) {
+                                  const urlMatch = logs.run.htmlUrl.match(/github\.com\/([^\/]+)\/([^\/]+)\//)
+                                  if (urlMatch && urlMatch[2]) {
+                                    repoName = urlMatch[2]
+                                  }
+                                }
+                                // Also try to get from workflowPreview if available
+                                const workflowPreview = messages[messages.length - 1]?.workflowPreview
+                                if (workflowPreview?.workflows && workflowPreview.workflows.length > 0) {
+                                  const workflow = workflowPreview.workflows.find((w: any) => 
+                                    logs.run.htmlUrl?.includes(w.repository)
+                                  )
+                                  if (workflow?.repository) {
+                                    repoName = workflow.repository.split('/').pop() || repoName
+                                  }
+                                }
+                                
+                                return (
+                                  <button
+                                    onClick={() => handleCancelWorkflow(logs.run.id.toString(), repoName)}
+                                    className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    <span>Cancel Run</span>
+                                  </button>
+                                )
+                              })()}
                             </div>
                           )}
                         </div>
