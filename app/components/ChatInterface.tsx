@@ -451,7 +451,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
       // First, get preview of workflows
       const preview = await previewWorkflows(userMessage)
       
-      if (preview && preview.workflows.length > 0) {
+      if (preview && preview.workflows && Array.isArray(preview.workflows) && preview.workflows.length > 0) {
         // Keep previous logs and add new ones
         
         // Extract branch from user message if specified
