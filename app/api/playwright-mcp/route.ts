@@ -4510,12 +4510,17 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     for (const methodUsed of Array.from(methodsUsedInTest)) {
       // Check if method exists in the page object (case-insensitive)
-      const methodExists = existingMethodNames.some((method: string) => 
-        method.toLowerCase() === methodUsed.toLowerCase()
-      );
+      const methodExists = existingMethodNames.some((method: string) => {
+        const match = method.toLowerCase() === methodUsed.toLowerCase();
+        if (match) {
+          console.log(`✅ Method ${methodUsed} already exists as ${method}`);
+        }
+        return match;
+      });
       
       if (!methodExists) {
         console.log(`⚠️ Missing method used in test: ${methodUsed}`);
+        console.log(`⚠️ Existing methods to compare: ${existingMethodNames.slice(0, 10).join(', ')}${existingMethodNames.length > 10 ? '...' : ''}`);
         
         // Determine method type and generate code
         let methodCode = '';
