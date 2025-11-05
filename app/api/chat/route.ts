@@ -292,12 +292,9 @@ If preview=true, return:
 
 If preview=false, return:
 {
-  "response": "I will execute [type] tests in [environment]",
-  "workflowTriggered": {
-    "workflowId": "ios-maestro-tests.yml",
-    "name": "iOS Maestro Tests",
-    "inputs": {"test_suite": "login"}
-  }
+  "workflowId": "ios-maestro-tests.yml",
+  "name": "iOS Maestro Tests",
+  "inputs": {"test_suite": "login"}
 }
 - "Run Maestro BrowserStack iOS" → for Maestro tests on iOS with BrowserStack
 - "Run Maestro BrowserStack" → for generic Maestro tests with BrowserStack
@@ -322,23 +319,19 @@ Environments:
 PRIORITY: If specific platform (iOS/Android) and environment (prod/qa) are mentioned, use the specific workflow.
 
     Always respond in JSON format with:
-    For preview=false:
-    {
+{
       "response": "I will execute [type] tests in [environment]",
-      "workflowTriggered": {
+  "workflowTriggered": {
         "workflowId": "ios-maestro-tests.yml",
         "name": "iOS Maestro Tests",
-        "inputs": {
+    "inputs": {
           "test_suite": "all|login|signup|smoke|regression|cart|completeOrder|menu|search",
           "bitrise_build_number": "",
           "user_email": "email@example.com", // Only include if user specifies an email
           "user_password": "password123" // Only include if user specifies a password
         }
-      },
-      "repository": "Cook-Unity/maestro-test" // Include repository path
+      }
     }
-    
-    IMPORTANT: Always include both "response" (user-friendly message) and "workflowTriggered" (workflow details) in the response.
 
 test_suite mapping:
 - "login" → for login tests
