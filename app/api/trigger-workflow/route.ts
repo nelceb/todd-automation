@@ -112,19 +112,27 @@ export async function POST(request: NextRequest) {
     }
 
     const workflowsData = await workflowsResponse.json()
-    const workflows = workflowsData.workflows || []
+    const allWorkflows = workflowsData.workflows || []
+    
+    // NO filtrar workflows - incluir todos (activos, deshabilitados, etc.)
+    const workflows = allWorkflows
 
     console.log('📋 Total workflows recibidos de GitHub:', workflows.length)
-    console.log('📋 Nombres de workflows:', workflows.map((w: any) => w.name).join(', '))
+    console.log('📋 Nombres de workflows:', workflows.map((w: any) => `${w.name} (state: ${w.state})`).join(', '))
     console.log('📋 Paths de workflows:', workflows.map((w: any) => w.path).join(', '))
     
-    // Buscar específicamente "QA US - CORE UX REGRESSION" en la lista
-    const regressionWorkflow = workflows.find((w: any) => 
-      w.name.toLowerCase().includes('core ux regression') || 
-      w.name.toLowerCase().includes('coreux regression') ||
-      w.path.toLowerCase().includes('coreux_regression') ||
-      w.path.toLowerCase().includes('core-ux-regression')
-    )
+    // Buscar específicamente "QA US - CORE UX REGRESSION" en la lista (incluso si está deshabilitado)
+    const regressionWorkflow = workflows.find((w: any) => {
+      const nameLower = w.name.toLowerCase()
+      const pathLower = w.path.toLowerCase()
+      return nameLower.includes('core ux regression') || 
+             nameLower.includes('coreux regression') ||
+             nameLower === 'qa us - core ux regression' ||
+             pathLower.includes('coreux_regression') ||
+             pathLower.includes('core-ux-regression') ||
+             pathLower.includes('qa_us_coreux_regression') ||
+             pathLower.includes('qa-us-coreux-regression')
+    })
     if (regressionWorkflow) {
       console.log('✅ ENCONTRADO "QA US - CORE UX REGRESSION" en la lista:', {
         name: regressionWorkflow.name,
@@ -132,8 +140,20 @@ export async function POST(request: NextRequest) {
         id: regressionWorkflow.id,
         state: regressionWorkflow.state
       })
+      console.log('⚠️ Si el state es diferente de "active", el workflow puede estar deshabilitado')
     } else {
       console.log('❌ NO encontrado "QA US - CORE UX REGRESSION" en la lista de workflows')
+      console.log('🔍 Buscando variaciones...')
+      // Buscar cualquier workflow con "coreux" y "regression" por separado
+      const partialMatches = workflows.filter((w: any) => {
+        const nameLower = w.name.toLowerCase()
+        const pathLower = w.path.toLowerCase()
+        return (nameLower.includes('coreux') || pathLower.includes('coreux')) &&
+               (nameLower.includes('regression') || pathLower.includes('regression'))
+      })
+      if (partialMatches.length > 0) {
+        console.log('🔍 Workflows con "coreux" y "regression":', partialMatches.map((w: any) => `${w.name} (${w.path}, state: ${w.state})`).join(', '))
+      }
     }
 
     // Normalize workflowId for comparison (remove extra spaces, convert to lowercase)
@@ -299,9 +319,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Último intento: buscar por palabras clave específicas si buscamos "QA US - CORE UX REGRESSION"
-    if (!workflow && workflowId.includes('CORE UX REGRESSION')) {
-      console.log('🔍 Último intento: buscando workflow con "coreux" y "regression" en nombre o path')
-      workflow = workflows.find((w: any) => {
+    if (!workflow && (workflowId.includes('CORE UX REGRESSION') || workflowId.includes('core ux regression'))) {
+      console.log('🔍 Último intento: buscando workflow con "coreux" y "regression" en nombre o path (incluyendo deshabilitados)')
+      const candidates = workflows.filter((w: any) => {
         const normalizedName = normalizeName(w.name)
         const normalizedPath = w.path.toLowerCase()
         const hasCoreUx = normalizedName.includes('coreux') || normalizedName.includes('core ux') || normalizedPath.includes('coreux')
@@ -311,12 +331,19 @@ export async function POST(request: NextRequest) {
         const hasSmoke = normalizedName.includes('smoke') || normalizedPath.includes('smoke')
         
         // Buscar workflows que tengan coreux, regression, qa, us, pero NO smoke
-        if (hasCoreUx && hasRegression && hasQA && hasUS && !hasSmoke) {
-          console.log(`✅ Workflow encontrado por palabras clave: "${w.name}" (${w.path})`)
-          return true
-        }
-        return false
+        return hasCoreUx && hasRegression && hasQA && hasUS && !hasSmoke
       })
+      
+      if (candidates.length > 0) {
+        // Preferir workflows activos, pero usar deshabilitados si no hay activos
+        workflow = candidates.find((w: any) => w.state === 'active') || candidates[0]
+        console.log(`✅ Workflow encontrado por palabras clave: "${workflow.name}" (${workflow.path}, state: ${workflow.state})`)
+        if (workflow.state !== 'active') {
+          console.log('⚠️ ADVERTENCIA: El workflow está deshabilitado pero se usará de todas formas')
+        }
+      } else {
+        console.log('❌ No se encontraron candidatos con las palabras clave')
+      }
     }
     
     if (!workflow) {
