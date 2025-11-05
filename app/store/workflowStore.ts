@@ -248,30 +248,57 @@ export const useWorkflowStore = create<WorkflowStore>()(
       
       const data = await response.json()
       
+      console.log('📥 Raw response from chat API:', JSON.stringify(data, null, 2));
+      
       // Handle case where response contains a "response" field with JSON string
       let workflows = data.workflows || data
       
       if (data.response && typeof data.response === 'string') {
         try {
           // Try to parse the response string if it contains JSON
-          const parsedResponse = JSON.parse(data.response)
-          if (parsedResponse.workflows) {
-            workflows = parsedResponse
+          // The response might be like: "Here is the preview of workflows that will be executed...\n\n{...JSON...}"
+          const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsedResponse = JSON.parse(jsonMatch[0]);
+            if (parsedResponse.workflows) {
+              workflows = parsedResponse;
+              console.log('✅ Parsed workflows from response string:', workflows);
+            }
           }
         } catch (parseError) {
           // If parsing fails, use the original data
-          console.warn('Could not parse response field as JSON:', parseError)
+          console.warn('⚠️ Could not parse response field as JSON:', parseError);
+          console.warn('⚠️ Response content:', data.response?.substring(0, 500));
         }
+      }
+      
+      // Also check if response is directly in the data object
+      if (!workflows.workflows && data.workflowTriggered) {
+        // Convert single workflow to preview format
+        const repoName = data.repository || 'pw-cookunity-automation';
+        workflows = {
+          workflows: [{
+            repository: repoName.includes('/') ? repoName : `Cook-Unity/${repoName}`,
+            workflowName: data.workflowTriggered.name || data.name,
+            inputs: data.workflowTriggered.inputs || data.inputs
+          }],
+          totalWorkflows: 1,
+          technologies: [data.workflowTriggered.name?.includes('Maestro') ? 'maestro' : 
+                        data.workflowTriggered.name?.includes('Selenium') ? 'selenium' : 'playwright']
+        };
+        console.log('✅ Converted workflowTriggered to preview format:', workflows);
       }
       
       // Ensure workflows is an array and has required fields
       if (workflows && !workflows.workflows && !Array.isArray(workflows)) {
         // If workflows is not an array and doesn't have workflows property, it might be the full response
+        console.warn('⚠️ No workflows found in response, creating empty structure');
         workflows = { workflows: [], totalWorkflows: 0, technologies: [] }
       }
       
       // Ensure workflows array exists
       if (workflows && !Array.isArray(workflows.workflows)) {
+        console.warn('⚠️ workflows.workflows is not an array, initializing empty array');
         workflows.workflows = []
       }
       
@@ -284,6 +311,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
       if (workflows && typeof workflows.totalWorkflows !== 'number') {
         workflows.totalWorkflows = workflows.workflows?.length || 0
       }
+      
+      console.log('📤 Final workflows preview:', JSON.stringify(workflows, null, 2));
       
       set({ workflowPreview: workflows })
       return workflows
