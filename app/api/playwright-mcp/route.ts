@@ -4602,6 +4602,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           .toLowerCase();
         
         console.log(`🔍 Looking for observation for method: ${methodUsed} (base: ${methodBase})`);
+        console.log(`🔍 Available interactions: ${behavior.interactions?.length || 0}`);
+        console.log(`🔍 Available elements: ${behavior.elements?.length || 0}`);
         
         let observed = null;
         let selectorName = ''; // Name for the selector variable (descriptive)
@@ -4693,15 +4695,60 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         }
         
         // Generate descriptive variable name from selector or element
-        const variableName = selectorName
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .replace(/^[0-9]/, '') // Can't start with number
-          .replace(/^(is|get|click|async|await|const|let|var)$/i, 'element') // Avoid keywords
-          || 'element';
+        // Convert kebab-case, snake_case, or space-separated to camelCase
+        const toCamelCase = (str: string): string => {
+          if (!str) return 'element';
+          
+          // Split by hyphens, underscores, or spaces
+          const parts = str
+            .replace(/[^a-zA-Z0-9\s_-]/g, '') // Remove special chars but keep separators
+            .split(/[\s_-]+/) // Split by spaces, hyphens, or underscores
+            .filter(p => p.length > 0);
+          
+          if (parts.length === 0) return 'element';
+          
+          // First part lowercase, rest capitalize first letter
+          const camelParts = parts.map((part, index) => {
+            if (index === 0) {
+              return part.toLowerCase();
+            }
+            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+          });
+          
+          let result = camelParts.join('');
+          
+          // Ensure it starts with lowercase letter
+          if (result.length > 0 && /^[A-Z]/.test(result)) {
+            result = result.charAt(0).toLowerCase() + result.slice(1);
+          }
+          
+          // Can't start with number
+          if (/^[0-9]/.test(result)) {
+            result = 'element' + result;
+          }
+          
+          // Avoid keywords
+          const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return', 'await'];
+          if (keywords.includes(result.toLowerCase())) {
+            result = 'element';
+          }
+          
+          return result || 'element';
+        };
         
-        // Use camelCase for variable name
-        const camelCaseVarName = variableName.charAt(0).toLowerCase() + variableName.slice(1).replace(/[^a-zA-Z0-9]/g, '');
-        const finalVarName = camelCaseVarName || 'element';
+        // Use the method name base to generate a descriptive variable name
+        // Extract meaningful part from method name (remove prefixes/suffixes)
+        let baseName = methodUsed
+          .replace(/^(is|get|clickOn)/, '')
+          .replace(/Visible|Text|Tab|Message$/i, '');
+        
+        // If we have a selectorName from observation, prefer that
+        if (selectorName && selectorName !== 'element') {
+          baseName = selectorName;
+        }
+        
+        // Convert to camelCase
+        const finalVarName = toCamelCase(baseName);
         
         // Generate method based on name pattern
         if (methodUsed.startsWith('get') && methodUsed.endsWith('Text')) {
