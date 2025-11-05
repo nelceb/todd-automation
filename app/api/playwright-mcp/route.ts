@@ -4594,46 +4594,84 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         let methodCode = '';
         let selector = '';
         
-        // Try to find observation for this method
-        // First check interactions for click methods
-        let observed = behavior.interactions?.find((i: any) => {
-          const methodLower = methodUsed.toLowerCase();
-          const elementLower = (i.element || '').toLowerCase();
-          const testIdLower = (i.testId || '').toLowerCase();
-          
-          // For click methods, check if element or testId matches
-          if (methodLower.startsWith('clickon')) {
-            const methodBase = methodLower.replace(/^clickon/, '').replace(/tab$/, '');
-            return elementLower.includes(methodBase) || 
-                   testIdLower.includes(methodBase) ||
-                   methodBase.includes(elementLower.replace(/[^a-zA-Z0-9]/g, '')) ||
-                   elementLower.includes('pastorders') && methodLower.includes('pastorders');
-          }
-          return false;
-        });
+        // Try to find observation for this method from MCP observations
+        // Extract method base name (remove prefixes and suffixes)
+        const methodBase = methodUsed
+          .replace(/^(is|get|clickOn)/, '')
+          .replace(/Visible|Text|Tab$/i, '')
+          .toLowerCase();
         
-        // If not found in interactions, check elements
-        if (!observed) {
-          observed = behavior.elements?.find((e: any) => {
-            const methodLower = methodUsed.toLowerCase();
-            const testIdLower = (e.testId || '').toLowerCase();
-            const elementName = (e.element || '').toLowerCase();
+        console.log(`🔍 Looking for observation for method: ${methodUsed} (base: ${methodBase})`);
+        
+        let observed = null;
+        let selectorName = ''; // Name for the selector variable (descriptive)
+        
+        // First check interactions for click methods
+        if (methodUsed.toLowerCase().startsWith('clickon')) {
+          observed = behavior.interactions?.find((i: any) => {
+            const elementLower = (i.element || '').toLowerCase();
+            const testIdLower = (i.testId || '').toLowerCase();
+            const locatorLower = (i.locator || '').toLowerCase();
             
-            const methodBase = methodLower.replace(/^(is|get|clickOn)/, '').replace(/visible|text|tab$/i, '');
-            return testIdLower.includes(methodBase) || 
-                   methodBase.includes(testIdLower.replace(/[^a-zA-Z0-9]/g, '')) ||
-                   elementName.includes(methodBase) ||
-                   (methodLower.includes('pastorders') && (testIdLower.includes('pastorder') || elementName.includes('pastorder')));
+            // Match by element name, testId, or locator
+            return elementLower.includes(methodBase.replace(/tab$/, '')) ||
+                   testIdLower.includes(methodBase.replace(/tab$/, '')) ||
+                   locatorLower.includes(methodBase.replace(/tab$/, '')) ||
+                   (methodBase.includes('pastorder') && (elementLower.includes('pastorder') || testIdLower.includes('pastorder')));
           });
+          
+          if (observed) {
+            selectorName = observed.element || observed.testId || 'element';
+            console.log(`✅ Found interaction observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
+          }
         }
         
+        // If not found in interactions, check elements for visibility/get methods
+        if (!observed) {
+          observed = behavior.elements?.find((e: any) => {
+            const testIdLower = (e.testId || '').toLowerCase();
+            const elementName = (e.element || '').toLowerCase();
+            const textLower = (e.text || '').toLowerCase();
+            
+            // More flexible matching
+            const matchesBase = testIdLower.includes(methodBase) || 
+                               methodBase.includes(testIdLower.replace(/[^a-zA-Z0-9]/g, '')) ||
+                               elementName.includes(methodBase) ||
+                               textLower.includes(methodBase);
+            
+            // Special cases
+            if (methodBase.includes('pastorder') && (testIdLower.includes('pastorder') || elementName.includes('pastorder'))) {
+              return true;
+            }
+            
+            if (methodBase.includes('emptystate') && (testIdLower.includes('empty') || textLower.includes('empty'))) {
+              return true;
+            }
+            
+            return matchesBase;
+          });
+          
+          if (observed) {
+            selectorName = observed.element || observed.testId || 'element';
+            console.log(`✅ Found element observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
+          }
+        }
+        
+        // Use observed locator/testId if found, otherwise fallback
         if (observed?.locator) {
+          // Use the actual locator observed by MCP
           const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
           selector = locatorCode;
+          selectorName = selectorName || observed.element || observed.testId || 'element';
+          console.log(`✅ Using observed locator: ${locatorCode}`);
         } else if (observed?.testId) {
+          // Use the actual testId observed by MCP
           selector = `this.page.getByTestId('${observed.testId}')`;
+          selectorName = observed.testId.replace(/[^a-zA-Z0-9]/g, '') || 'element';
+          console.log(`✅ Using observed testId: ${observed.testId}`);
         } else {
-          // Fallback: generate selector from method name
+          // Fallback: log warning but still generate with reasonable selector
+          console.warn(`⚠️ No observation found for method ${methodUsed}, using fallback selector`);
           let testIdPart = methodUsed
             .replace(/^(is|get|clickOn)/, '')
             .replace(/Visible|Text|Tab$/i, '')
@@ -4651,29 +4689,41 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           }
           
           selector = `this.page.getByTestId('${testIdPart}')`;
+          selectorName = testIdPart.replace(/[^a-zA-Z0-9]/g, '') || 'element';
         }
+        
+        // Generate descriptive variable name from selector or element
+        const variableName = selectorName
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .replace(/^[0-9]/, '') // Can't start with number
+          .replace(/^(is|get|click|async|await|const|let|var)$/i, 'element') // Avoid keywords
+          || 'element';
+        
+        // Use camelCase for variable name
+        const camelCaseVarName = variableName.charAt(0).toLowerCase() + variableName.slice(1).replace(/[^a-zA-Z0-9]/g, '');
+        const finalVarName = camelCaseVarName || 'element';
         
         // Generate method based on name pattern
         if (methodUsed.startsWith('get') && methodUsed.endsWith('Text')) {
           methodCode = `  async ${methodUsed}(): Promise<string> {
-    const element = ${selector};
-    return await element.textContent() || '';
+    const ${finalVarName} = ${selector};
+    return await ${finalVarName}.textContent() || '';
   }`;
         } else if (methodUsed.startsWith('is') && methodUsed.endsWith('Visible')) {
           methodCode = `  async ${methodUsed}(): Promise<boolean> {
-    const element = ${selector};
-    return await element.isVisible();
+    const ${finalVarName} = ${selector};
+    return await ${finalVarName}.isVisible();
   }`;
         } else if (methodUsed.startsWith('clickOn')) {
           methodCode = `  async ${methodUsed}(): Promise<void> {
-    const element = ${selector};
-    await element.click();
+    const ${finalVarName} = ${selector};
+    await ${finalVarName}.click();
   }`;
         } else {
           // Generic method
           methodCode = `  async ${methodUsed}(): Promise<boolean> {
-    const element = ${selector};
-    return await element.isVisible();
+    const ${finalVarName} = ${selector};
+    return await ${finalVarName}.isVisible();
   }`;
         }
         
