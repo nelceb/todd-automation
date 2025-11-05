@@ -5049,7 +5049,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     let contentWithSelectors = existingContent;
     if (uniqueSelectors.size > 0) {
       // Find constructor position - look for the closing brace of constructor
-      const constructorMatch = existingContent.match(/(constructor\s*\([^)]*\)\s*\{[^}]*\}\s*)/s);
+      // Use [\s\S] instead of . with 's' flag for compatibility
+      const constructorMatch = existingContent.match(/(constructor\s*\([^)]*\)\s*\{[\s\S]*?\}\s*)/);
       
       if (constructorMatch) {
         const afterConstructor = constructorMatch.index! + constructorMatch[0].length;
