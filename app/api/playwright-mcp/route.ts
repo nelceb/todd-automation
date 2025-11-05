@@ -6120,12 +6120,60 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       })
     });
     
+    let branchSha = baseSha; // Default to base SHA
+    
     if (!branchResponse.ok && branchResponse.status !== 422) { // 422 = branch already exists
       const errorText = await branchResponse.text();
       throw new Error(`Failed to create branch: ${branchResponse.statusText} - ${errorText}`);
+    } else if (branchResponse.status === 422) {
+      // Branch already exists - delete it and create a new one
+      console.log(`⚠️ Branch ${branchName} ya existe, eliminando y creando nueva...`);
+      try {
+        const deleteBranchResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/refs/heads/${branchName}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (deleteBranchResponse.ok || deleteBranchResponse.status === 404) {
+          console.log(`✅ Rama eliminada exitosamente`);
+          
+          // Reintentar crear la rama desde base
+          const retryBranchResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/git/refs`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              ref: `refs/heads/${branchName}`,
+              sha: baseSha
+            })
+          });
+          
+          if (!retryBranchResponse.ok) {
+            const errorText = await retryBranchResponse.text();
+            throw new Error(`Failed to create branch after delete: ${retryBranchResponse.statusText} - ${errorText}`);
+          }
+          
+          console.log(`✅ Nueva rama creada: ${branchName}`);
+          branchSha = baseSha; // Usar base SHA para nueva rama
+        } else {
+          const errorText = await deleteBranchResponse.text();
+          console.warn(`⚠️ No se pudo eliminar rama existente: ${errorText}`);
+          // Intentar usar baseSha de todos modos
+          branchSha = baseSha;
+        }
+      } catch (e) {
+        console.warn(`⚠️ Error eliminando rama existente: ${e}, usando base SHA`);
+        branchSha = baseSha;
+      }
+    } else {
+      console.log(`✅ Branch creado: ${branchName}`);
     }
-    
-    console.log(`✅ Branch creado: ${branchName}`);
     
     // 5. Preparar archivos para commit
     console.log(`📦 Total archivos en codeGeneration: ${codeGeneration.files?.length || 0}`);
@@ -6507,7 +6555,7 @@ npm run test:playwright || exit 1
       body: JSON.stringify({
         message: commitMessage,
         tree: treeData.sha,
-        parents: [baseSha]
+        parents: [branchSha] // Usar branchSha (puede ser baseSha o SHA de rama existente)
       })
     });
     
