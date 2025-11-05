@@ -332,11 +332,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Disparar el workflow directamente
-    // Validate branch - don't use environment names as branches
+    // Always use 'main' as default branch
     const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
     console.log('Original branch received:', branch)
     console.log('Is branch an environment name?', branch ? environmentNames.includes(branch.toLowerCase()) : false)
-    const targetBranch = (branch && !environmentNames.includes(branch.toLowerCase())) ? branch : 'main'
+    // Use provided branch only if it's explicitly set and not an environment name, otherwise default to 'main'
+    const targetBranch = (branch && branch.trim() && !environmentNames.includes(branch.toLowerCase())) ? branch.trim() : 'main'
     console.log('Final target branch:', targetBranch)
     const triggerUrl = `https://api.github.com/repos/${fullRepoName}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
