@@ -806,24 +806,36 @@ async function analyzeCodebaseForPatterns() {
     
     console.log(`📁 Analizando ${pageObjectFiles.length} page objects (optimizado para velocidad)...`);
     
-    // 2. Analizar page objects en paralelo
+    // 2. Analizar page objects en paralelo con timeout individual
     const fileResults = await Promise.all(
       pageObjectFiles.map(async (file: any) => {
-      const fileContent = await fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN);
-        if (!fileContent) return null;
-      
-        const pageObjectName = extractPageObjectName(file.name);
-        const extractedMethods = extractMethodsFromContent(fileContent);
-        const extractedSelectors = extractSelectorsFromContent(fileContent);
+        try {
+          // Timeout individual de 400ms por archivo para máxima velocidad
+          const fileContent = await Promise.race([
+            fetchFileFromGitHub(REPOSITORY, file.path, GITHUB_TOKEN),
+            new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('File fetch timeout')), 400)
+            )
+          ]) as string | null;
+          
+          if (!fileContent) return null;
         
-        console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
-        return { 
-          type: 'pageObject', 
-          name: pageObjectName, 
-          methods: extractedMethods,
-          methodsWithTestIds: extractedMethods,
-          selectors: extractedSelectors
-        };
+          const pageObjectName = extractPageObjectName(file.name);
+          const extractedMethods = extractMethodsFromContent(fileContent);
+          const extractedSelectors = extractSelectorsFromContent(fileContent);
+          
+          console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
+          return { 
+            type: 'pageObject', 
+            name: pageObjectName, 
+            methods: extractedMethods,
+            methodsWithTestIds: extractedMethods,
+            selectors: extractedSelectors
+          };
+        } catch (error) {
+          console.warn(`⚠️ Error analizando ${file.name}, saltando...`);
+          return null;
+        }
       })
     );
     
