@@ -4485,56 +4485,66 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     // Extract all methods used in the generated test code
     const methodsUsedInTest = new Set<string>();
     if (generatedTestCode) {
-      // Extract method calls like ordersHubPage.isEmptyPastOrdersStateVisible() or ordersHubPage.getEmptyStatePastOrdersMessageText()
-      // Also match await ordersHubPage.method() patterns
-      const methodCallRegex = /(?:ordersHubPage|homePage|pageVar|pageObject|const\s+\w+\s*=\s*await\s+\w+\.clickOnOrdersHubNavItem\(\)|await\s+\w+Page)\.(\w+)\s*\(/g;
-      let match;
-      while ((match = methodCallRegex.exec(generatedTestCode)) !== null) {
-        methodsUsedInTest.add(match[1]);
-      }
+      console.log(`🔍 Extracting methods from test code (length: ${generatedTestCode.length})...`);
       
-      // Also extract from expect statements: expect(await ordersHubPage.method())
-      const expectMethodRegex = /expect\([^)]*\.(\w+)\s*\(\)/g;
-      while ((match = expectMethodRegex.exec(generatedTestCode)) !== null) {
-        methodsUsedInTest.add(match[1]);
-      }
-      
-      // Extract from await statements: await ordersHubPage.method()
-      const awaitMethodRegex = /await\s+\w+Page\.(\w+)\s*\(/g;
-      while ((match = awaitMethodRegex.exec(generatedTestCode)) !== null) {
-        methodsUsedInTest.add(match[1]);
-      }
-      
-      // Also look for patterns like: const ordersHubPage = await homePage.clickOnOrdersHubNavItem();
-      // Then extract all methods called on ordersHubPage after that
-      const lines = generatedTestCode.split('\n');
+      // First, detect the page object variable name (e.g., ordersHubPage, homePage)
       let pageObjectVar = '';
-      for (const line of lines) {
-        // Detect page object variable assignment (any variable ending in Page)
-        const pageVarMatch = line.match(/(?:const|let|var)\s+(\w+Page)\s*=/);
-        if (pageVarMatch) {
-          pageObjectVar = pageVarMatch[1];
-          console.log(`🔍 Detected page object variable: ${pageObjectVar}`);
+      const pageVarPatterns = [
+        /(?:const|let|var)\s+(\w+Page)\s*=/g,
+        /(?:const|let|var)\s+(\w+)\s*=\s*await\s+\w+\.clickOnOrdersHubNavItem\(\)/g
+      ];
+      
+      for (const pattern of pageVarPatterns) {
+        const match = pattern.exec(generatedTestCode);
+        if (match) {
+          pageObjectVar = match[1];
+          console.log(`✅ Detected page object variable: ${pageObjectVar}`);
+          break;
         }
-        
-        // Also detect if line contains await homePage.clickOnOrdersHubNavItem() pattern
-        const navMethodMatch = line.match(/(?:const|let|var)\s+(\w+)\s*=\s*await\s+\w+\.clickOnOrdersHubNavItem\(\)/);
-        if (navMethodMatch) {
-          pageObjectVar = navMethodMatch[1];
-          console.log(`🔍 Detected page object from navigation: ${pageObjectVar}`);
-        }
-        
-        // If we found a page object variable, extract methods called on it
-        if (pageObjectVar) {
-          const varMethodRegex = new RegExp(`${pageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\w+)\\s*\\(`, 'g');
-          let varMatch;
-          while ((varMatch = varMethodRegex.exec(line)) !== null) {
-            methodsUsedInTest.add(varMatch[1]);
-            console.log(`🔍 Found method call: ${pageObjectVar}.${varMatch[1]}()`);
+      }
+      
+      // Extract all method calls on the page object variable
+      if (pageObjectVar) {
+        // Match: pageObjectVar.methodName()
+        const methodCallRegex = new RegExp(`${pageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\w+)\\s*\\(`, 'g');
+        let match;
+        while ((match = methodCallRegex.exec(generatedTestCode)) !== null) {
+          const methodName = match[1];
+          // Skip common test framework methods
+          if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe'].includes(methodName)) {
+            methodsUsedInTest.add(methodName);
+            console.log(`  ✅ Found: ${pageObjectVar}.${methodName}()`);
           }
         }
       }
       
+      // Fallback: Extract any method call pattern if we didn't find page object var
+      if (methodsUsedInTest.size === 0) {
+        console.log(`⚠️ No methods found with page object variable, trying fallback patterns...`);
+        // Try patterns like: ordersHubPage.method(), homePage.method(), await ordersHubPage.method()
+        const fallbackRegex = /(?:ordersHubPage|homePage|\w+Page)\.(\w+)\s*\(/g;
+        let fallbackMatch;
+        while ((fallbackMatch = fallbackRegex.exec(generatedTestCode)) !== null) {
+          const methodName = fallbackMatch[1];
+          if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe', 'waitFor', 'page'].includes(methodName)) {
+            methodsUsedInTest.add(methodName);
+            console.log(`  ✅ Found (fallback): ${fallbackMatch[0]}`);
+          }
+        }
+      }
+      
+      // Also extract from expect statements: expect(await ordersHubPage.method())
+      const expectMethodRegex = /expect\([^)]*\.(\w+)\s*\(\)/g;
+      let expectMatch;
+      while ((expectMatch = expectMethodRegex.exec(generatedTestCode)) !== null) {
+        const methodName = expectMatch[1];
+        if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe'].includes(methodName)) {
+          methodsUsedInTest.add(methodName);
+          console.log(`  ✅ Found in expect: ${methodName}()`);
+        }
+      }
+      
+      console.log(`📋 Total methods extracted: ${methodsUsedInTest.size}`);
       console.log(`📋 Methods used in test: ${Array.from(methodsUsedInTest).join(', ')}`);
     } else {
       console.warn(`⚠️ WARNING: No generatedTestCode provided to extract methods from!`);
