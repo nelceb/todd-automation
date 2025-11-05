@@ -132,11 +132,30 @@ export async function POST(request: NextRequest) {
             nameWords.some(nw => nw.includes(word) || word.includes(nw))
           )
         
+        // Extraer palabras clave importantes (ignorar "us", "qa", "core", "ux", "regression", "smoke", "e2e")
+        const importantWords = workflowIdWords.filter(word => 
+          !['us', 'qa', 'core', 'ux', 'regression', 'smoke', 'e2e', 'test', 'tests'].includes(word)
+        )
+        const nameImportantWords = nameWords.filter(word => 
+          !['us', 'qa', 'core', 'ux', 'regression', 'smoke', 'e2e', 'test', 'tests'].includes(word)
+        )
+        
+        // Si hay palabras importantes, verificar que coincidan
+        const importantWordsMatch = importantWords.length === 0 || 
+          importantWords.every(word => 
+            nameImportantWords.some(nw => nw.includes(word) || word.includes(nw))
+          )
+        
+        // También verificar si "core" y "ux" están presentes (caso especial para CORE UX)
+        const hasCoreUx = (normalizedWorkflowId.includes('core') && normalizedWorkflowId.includes('ux')) &&
+                          (normalizedName.includes('core') && normalizedName.includes('ux'))
+        
         return normalizedName.includes(normalizedWorkflowId) ||
                normalizedWorkflowId.includes(normalizedName) ||
                normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '_')) ||
                normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '-')) ||
-               allWordsMatch
+               allWordsMatch ||
+               (hasCoreUx && importantWordsMatch)
       })
     }
 
