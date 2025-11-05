@@ -2457,20 +2457,56 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           
           if (foundElement) {
             console.log(`✅ Found tab element for "${action.element}", clicking...`);
-            await foundElement.click();
             
-            // Store the locator in the action for later use
+            // 🎯 CRITICAL: Capture testId BEFORE clicking (the element will be in DOM before click)
+            let testId = await foundElement.getAttribute('data-testid').catch(() => null);
+            if (!testId) {
+              // Try to get from parent or closest element with data-testid
+              try {
+                const parent = await foundElement.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
+                if (parent) {
+                  const parentElement = parent.asElement();
+                  if (parentElement) {
+                    testId = await parentElement.getAttribute('data-testid').catch(() => null);
+                  }
+                }
+              } catch (e) {
+                // Continue
+              }
+            }
+            
+            // Store the testId in the action for later use
+            if (testId) {
+              action.testId = testId;
+              console.log(`✅ Captured testId for tab "${action.element}": ${testId}`);
+            }
+            
+            // Generate and store locator
             const generatedLocator = await mcpWrapper.generateLocator(foundElement);
             action.locator = generatedLocator;
             
+            await foundElement.click();
+            
+            // Store interaction in behavior with REAL testId
+            behavior.interactions.push({
+              type: action.type,
+              element: action.element,
+              observed: true,
+              exists: true,
+              visible: true,
+              testId: testId,
+              locator: generatedLocator,
+              note: `Tab clicked successfully with testId: ${testId || 'unknown'}`
+            });
+            
             // Wait for tab content to load
             console.log('⏳ Waiting for tab content to load after click...');
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(4000); // Increased to 4s
             
             // Try to wait for specific content
             if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
               try {
-                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"]', { timeout: 5000 });
+                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"]', { timeout: 8000 });
                 console.log('✅ Tab content loaded');
               } catch (e) {
                 console.log('⚠️ Timeout waiting for specific tab content, continuing...');
@@ -2478,6 +2514,14 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
           } else {
             console.warn(`⚠️ Could not find tab element for "${action.element}", will try to find during observation`);
+            behavior.interactions.push({
+              type: action.type,
+              element: action.element,
+              observed: false,
+              exists: false,
+              visible: false,
+              note: 'Tab element not found during observation'
+            });
           }
         } catch (e) {
           console.warn(`⚠️ Error clicking tab "${action.element}":`, e);
@@ -2602,9 +2646,36 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         }
       }
       
-      // Re-observe elements after tab content loads
+      // Re-observe elements after tab content loads - MORE AGGRESSIVE SEARCH
+      console.log('🔍 Re-observing ALL elements with data-testid after tab click...');
       allElements = await page.$$('[data-testid]').catch(() => []);
       console.log(`🔍 Re-observation after tab click: ${allElements.length} elementos con data-testid encontrados`);
+      
+      // 🎯 CRITICAL: Extract and log ALL testIds found for debugging
+      if (allElements.length > 0) {
+        const allTestIds = await Promise.all(
+          allElements.slice(0, 50).map(async (el) => {
+            try {
+              const testId = await el.getAttribute('data-testid');
+              const text = await el.textContent().catch(() => '');
+              const isVisible = await el.isVisible().catch(() => false);
+              return { testId, text: text?.substring(0, 50), isVisible };
+            } catch {
+              return null;
+            }
+          })
+        );
+        const validTestIds = allTestIds.filter(Boolean).filter((t: any) => t.testId);
+        console.log(`📋 All data-testids found (first 30):`, validTestIds.slice(0, 30).map((t: any) => `${t.testId} (visible: ${t.isVisible}, text: "${t.text}")`));
+        
+        // Specifically look for tab-related testIds
+        const tabTestIds = validTestIds.filter((t: any) => 
+          t.testId.toLowerCase().includes('tab') || 
+          t.testId.toLowerCase().includes('past') ||
+          t.testId.toLowerCase().includes('order')
+        );
+        console.log(`🎯 Tab-related testIds found:`, tabTestIds.map((t: any) => t.testId));
+      }
       
       // If still few elements, try more aggressive search by text content
       if (allElements.length < 10) {
