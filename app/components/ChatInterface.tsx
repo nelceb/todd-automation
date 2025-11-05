@@ -522,10 +522,32 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           : 'unknown';
         const totalWorkflows = preview.totalWorkflows || (preview.workflows?.length || 0);
         
+        // Build detailed workflow information message
+        let workflowInfoMessage = `🚀 **Executing ${totalWorkflows} workflow${totalWorkflows > 1 ? 's' : ''}**\n\n`;
+        
+        if (preview.workflows && preview.workflows.length > 0) {
+          preview.workflows.forEach((workflow: any, index: number) => {
+            workflowInfoMessage += `**${index + 1}. ${workflow.workflowName || 'Unknown Workflow'}**\n`;
+            workflowInfoMessage += `   - Repository: \`${workflow.repository || 'N/A'}\`\n`;
+            if (workflow.inputs) {
+              if (workflow.inputs.environment) {
+                workflowInfoMessage += `   - Environment: \`${workflow.inputs.environment}\`\n`;
+              }
+              if (workflow.inputs.groups) {
+                workflowInfoMessage += `   - Groups: \`${workflow.inputs.groups}\`\n`;
+              }
+              if (workflow.inputs.test_suite) {
+                workflowInfoMessage += `   - Test Suite: \`${workflow.inputs.test_suite}\`\n`;
+              }
+            }
+            workflowInfoMessage += `\n`;
+          });
+        }
+        
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
           type: 'assistant',
-          content: `Executing ${totalWorkflows} workflow${totalWorkflows > 1 ? 's' : ''}${technologies !== 'unknown' ? ` across ${technologies} frameworks` : ''}...`,
+          content: workflowInfoMessage,
           timestamp: new Date(),
           workflowResult: results,
           workflowPreview: preview
