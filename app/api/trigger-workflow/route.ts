@@ -190,14 +190,17 @@ export async function POST(request: NextRequest) {
 
       const fallbackNames = fallbackMapping[workflowId]
       if (fallbackNames) {
+        // Normalizar workflowId para las validaciones
+        const normalizedWorkflowIdForCheck = normalizeName(workflowId)
+        
         for (const fallbackName of fallbackNames) {
           const normalizedFallback = normalizeName(fallbackName)
           workflow = workflows.find((w: any) => {
             const normalizedName = normalizeName(w.name)
             
             // CRÍTICO: Evitar match entre regression y smoke
-            const idHasRegression = normalizedWorkflowId.includes('regression')
-            const idHasSmoke = normalizedWorkflowId.includes('smoke')
+            const idHasRegression = normalizedWorkflowIdForCheck.includes('regression')
+            const idHasSmoke = normalizedWorkflowIdForCheck.includes('smoke')
             const nameHasRegression = normalizedName.includes('regression')
             const nameHasSmoke = normalizedName.includes('smoke')
             
