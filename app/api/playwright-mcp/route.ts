@@ -4408,14 +4408,15 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     if (context === 'pastOrders' || context === 'ordersHub') {
       pageObjectName = 'OrdersHubPage';
-      // Use actual path from project structure
-      pageObjectPath = 'pages/OrdersHubPage.ts';
+      // Use actual path from project structure: tests/frontend/desktop/subscription/coreUx/ordersHub.ts
+      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/ordersHub.ts';
     } else if (context === 'homepage' || context === 'home' || context === 'menu') {
       pageObjectName = 'HomePage';
-      pageObjectPath = 'pages/HomePage.ts';
+      // Use actual path from project structure: tests/frontend/desktop/subscription/coreUx/homePage.ts
+      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/homePage.ts';
     } else if (context === 'cart') {
       pageObjectName = 'HomePage';
-      pageObjectPath = 'pages/HomePage.ts';
+      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/homePage.ts';
     }
     
     if (!pageObjectPath) {
