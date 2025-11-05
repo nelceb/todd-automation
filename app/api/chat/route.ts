@@ -59,8 +59,8 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
 2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
    - Workflows: 
-     * QA US - CORE UX REGRESSION (qa_us_coreux_regression.yml) - DEFAULT for "core ux" or "coreux"
-     * QA US - CORE UX SMOKE E2E (qa_us_coreux_smoke_e2e.yml) - ONLY when user explicitly mentions "smoke core ux" or "core ux smoke"
+     * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux"
+     * Note: "QA US - CORE UX REGRESSION" does not exist - use "QA US - CORE UX SMOKE E2E" instead
      * QA CA - SIGNUP (qa_signup_regression_ca.yml)
      * QA US - SIGNUP (qa_signup_regression.yml)
      * QA US - SEGMENT - SIGN UP (qa_segment_regression.yml)
@@ -181,9 +181,9 @@ PLAYWRIGHT:
 - "Run visual regression tests" → pw-cookunity-automation, PROD VISUAL REGRESSION, environment: "prod", groups: "@visual"
 - "Execute lighthouse performance tests" → pw-cookunity-automation, PROD US - LCP Lighthouse, environment: "prod", groups: "@lcpLighthouse"
 - "Run growth tests in QA" → pw-cookunity-automation, QA US - GROWTH, environment: "qa", groups: "@growth"
-- "Execute core ux tests" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@coreUx"
-- "Run e2e core ux tests" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@e2e,@coreUx"
-- "Execute e2e core ux tests in QA" → pw-cookunity-automation, QA US - CORE UX REGRESSION, environment: "qa", groups: "@e2e,@coreUx"
+- "Execute core ux tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
+- "Run e2e core ux tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@e2e,@coreUx"
+- "Execute e2e core ux tests in QA" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@e2e,@coreUx"
 - "Run smoke core ux tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 - "Execute core ux smoke tests" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 - "Run smoke test de core ux" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
@@ -259,9 +259,8 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "growth" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
 - If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
-- If user mentions "coreux" or "core ux" WITHOUT "smoke" → use Playwright QA US - CORE UX REGRESSION (pw-cookunity-automation) - DEFAULT
-- If user mentions "smoke" AND ("core ux" OR "coreux") in the same request → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation)
-- Examples of smoke core ux detection: "smoke core ux", "core ux smoke", "coreux smoke", "smoke test de core ux", "smoke tests core ux", "core ux smoke test", "smoke coreux", "smoke core ux tests", "run smoke core ux"
+- If user mentions "coreux" or "core ux" → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation) - DEFAULT
+- Note: "QA US - CORE UX REGRESSION" does not exist in GitHub, always use "QA US - CORE UX SMOKE E2E" for core ux tests
 - If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)
 - If user mentions "segment" → use Playwright (pw-cookunity-automation)
 - If user mentions "sanity" → use Playwright (pw-cookunity-automation)

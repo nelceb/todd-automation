@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         'Run Maestro Test on BrowserStack (iOS)': ['Run Maestro Test on BrowserStack (iOS)'],
         'Run Maestro Test on BrowserStack': ['Run Maestro Test on BrowserStack'],
         'Maestro iOS Tests': ['Maestro iOS Tests'],
-        'QA US - CORE UX REGRESSION': ['QA US - CORE UX REGRESSION', 'qa_us_coreux_regression.yml'],
+        'QA US - CORE UX REGRESSION': ['QA US - CORE UX SMOKE E2E', 'qa_coreux_smoke_e2e.yml'], // REGRESSION doesn't exist, map to SMOKE E2E
         'QA US - CORE UX SMOKE E2E': ['QA US - CORE UX SMOKE E2E', 'qa_coreux_smoke_e2e.yml'],
         'QA US - E2E': ['QA US - E2E', 'qa-e2e-web.yml'],
         'QA CA - E2E': ['QA CA - E2E', 'qa-ca-e2e-web.yml'],
