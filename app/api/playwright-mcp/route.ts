@@ -4904,8 +4904,9 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             
             // For getEmptyStatePastOrdersTextText, require more specific match
             if (methodUsed.toLowerCase().includes('getemptystatepastorderstext')) {
+              // Reject generic "text" testId that doesn't match context
               if (testIdLower === 'text' && !textLower.includes('past order') && !textLower.includes('empty')) {
-                return false; // Reject generic "text" that doesn't match context
+                return false;
               }
             }
             
