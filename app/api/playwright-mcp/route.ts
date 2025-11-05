@@ -2437,12 +2437,36 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     }
     
     // 🎯 MCP INTELLIGENT DETECTION: Detectar y activar secciones específicas (tabs, etc.)
+    // Execute actions first (especially clicking on tabs) and THEN observe
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
     
-    // Observar elementos visibles usando snapshot MCP
-    console.log('🔍 Buscando elementos con data-testid...');
+    // After executing actions (especially tabs), wait for new content to load
+    console.log('⏳ Waiting for content to load after interactions...');
+    try {
+      await page.waitForTimeout(2000); // Wait for dynamic content
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+    } catch (e) {
+      console.log('⚠️ waitForLoadState timeout after interactions, continuing...');
+    }
+    
+    // Observar elementos visibles usando snapshot MCP (AFTER interactions)
+    console.log('🔍 Buscando elementos con data-testid (después de interacciones)...');
     let allElements = await page.$$('[data-testid]').catch(() => []);
     console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
+    
+    // If we have actions that involve clicking tabs, wait a bit more and observe again
+    const hasTabClick = interpretation.actions?.some((a: any) => 
+      a.element?.toLowerCase().includes('tab') || 
+      a.element?.toLowerCase().includes('pastorder') ||
+      a.description?.toLowerCase().includes('tab')
+    );
+    
+    if (hasTabClick && allElements.length < 5) {
+      console.log('🔄 Tab click detected but few elements found - waiting and re-observing...');
+      await page.waitForTimeout(3000); // Extra wait for tab content
+      allElements = await page.$$('[data-testid]').catch(() => []);
+      console.log(`🔍 Re-observation: ${allElements.length} elementos con data-testid encontrados`);
+    }
     
     // Si no hay data-testid, buscar elementos usando otros métodos más agresivos
     if (allElements.length === 0) {
@@ -4703,7 +4727,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           }
         }
         
-        // Use observed locator/testId if found, otherwise fallback
+        // Use observed locator/testId if found, otherwise skip generation (no hardcoded fallbacks)
         if (observed?.locator) {
           // Use the actual locator observed by MCP
           const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
@@ -4713,29 +4737,24 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         } else if (observed?.testId) {
           // Use the actual testId observed by MCP
           selector = `this.page.getByTestId('${observed.testId}')`;
-          selectorName = observed.testId.replace(/[^a-zA-Z0-9]/g, '') || 'element';
-          console.log(`✅ Using observed testId: ${observed.testId}`);
+          // Generate descriptive name from testId (e.g., 'empty-state-message' -> 'emptyStateMessage')
+          const toCamelCaseFromTestId = (testId: string): string => {
+            return testId
+              .split(/[-_]/)
+              .map((part, index) => 
+                index === 0 ? part.toLowerCase() : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+              )
+              .join('');
+          };
+          selectorName = toCamelCaseFromTestId(observed.testId) || observed.testId.replace(/[^a-zA-Z0-9]/g, '');
+          console.log(`✅ Using observed testId: ${observed.testId} -> selectorName: ${selectorName}`);
         } else {
-          // Fallback: log warning but still generate with reasonable selector
-          console.warn(`⚠️ No observation found for method ${methodUsed}, using fallback selector`);
-          let testIdPart = methodUsed
-            .replace(/^(is|get|clickOn)/, '')
-            .replace(/Visible|Text|Tab$/i, '')
-            .replace(/([A-Z])/g, '-$1')
-            .toLowerCase()
-            .replace(/^-/, '');
-          
-          // Special handling for common patterns
-          if (methodUsed.toLowerCase().includes('pastorderstab') || methodUsed.toLowerCase() === 'clickonpastorderstab') {
-            testIdPart = 'pastorderstab-btn';
-          } else if (methodUsed.toLowerCase().includes('pastorder') && methodUsed.toLowerCase().includes('tab')) {
-            testIdPart = 'pastorderstab-btn';
-          } else if (methodUsed.toLowerCase().includes('tab') && !testIdPart.includes('-')) {
-            testIdPart = testIdPart + '-tab-btn';
-          }
-          
-          selector = `this.page.getByTestId('${testIdPart}')`;
-          selectorName = testIdPart.replace(/[^a-zA-Z0-9]/g, '') || 'element';
+          // NO FALLBACK: If no observation, skip this method generation
+          console.warn(`⚠️ No observation found for method ${methodUsed} - skipping method generation. Please ensure MCP observes the element correctly.`);
+          console.warn(`⚠️ Available interactions: ${JSON.stringify(behavior.interactions?.map((i: any) => ({ element: i.element, testId: i.testId })) || [])}`);
+          console.warn(`⚠️ Available elements: ${JSON.stringify(behavior.elements?.map((e: any) => ({ testId: e.testId, element: e.element })) || [])}`);
+          // Don't add this method if we don't have real observations
+          continue; // Skip this method - we need real observations
         }
         
         // Generate descriptive variable name from selector or element
@@ -4910,28 +4929,33 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           continue; // Skip adding this selector - it already exists
         }
         
-        // Generate descriptive name from observation
+        // Generate descriptive name from observation (MUST use observed data, not method name)
         let propName = '';
         if (method.observed.testId) {
-          // Use testId as base for property name (convert to camelCase)
-          const toCamelCaseHelper = (str: string): string => {
-            if (!str) return 'element';
-            const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
+          // Use testId as base for property name (convert kebab-case/snake_case to camelCase)
+          // Example: 'empty-state-message' -> 'emptyStateMessage', 'past_orders_tab' -> 'pastOrdersTab'
+          const toCamelCaseFromTestId = (testId: string): string => {
+            if (!testId) return 'element';
+            const parts = testId.split(/[-_]/).filter((p: string) => p.length > 0);
             if (parts.length === 0) return 'element';
             const camelParts = parts.map((part: string, index: number) => {
               if (index === 0) return part.toLowerCase();
               return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
             });
             let result = camelParts.join('');
+            // Ensure it starts with lowercase
             if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+            // Can't start with number
             if (/^[0-9]/.test(result)) result = 'element' + result;
-            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
-            if (keywords.includes(result.toLowerCase())) result = 'element';
+            // Avoid keywords
+            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return', 'text'];
+            if (keywords.includes(result.toLowerCase())) result = 'element' + result.charAt(0).toUpperCase() + result.slice(1);
             return result || 'element';
           };
-          propName = toCamelCaseHelper(method.observed.testId);
+          propName = toCamelCaseFromTestId(method.observed.testId);
+          console.log(`📝 Generated property name from testId '${method.observed.testId}': ${propName}`);
         } else if (method.observed.element) {
-          // Use element name as base
+          // Use element name as base (convert to camelCase)
           const toCamelCaseHelper = (str: string): string => {
             if (!str) return 'element';
             const parts = str.replace(/[^a-zA-Z0-9\s_-]/g, '').split(/[\s_-]+/).filter((p: string) => p.length > 0);
@@ -4943,15 +4967,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             let result = camelParts.join('');
             if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
             if (/^[0-9]/.test(result)) result = 'element' + result;
-            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return'];
-            if (keywords.includes(result.toLowerCase())) result = 'element';
+            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return', 'text'];
+            if (keywords.includes(result.toLowerCase())) result = 'element' + result.charAt(0).toUpperCase() + result.slice(1);
             return result || 'element';
           };
           propName = toCamelCaseHelper(method.observed.element);
+          console.log(`📝 Generated property name from element '${method.observed.element}': ${propName}`);
         } else {
-          // Fallback: use method name
-          const methodBase = method.name.replace(/^(is|get|clickOn)/, '').replace(/Visible|Text|Tab$/i, '');
-          propName = methodBase.charAt(0).toLowerCase() + methodBase.slice(1);
+          // Should not happen - we already skip methods without observations
+          console.error(`❌ ERROR: Method ${method.name} has no observed testId or element - this should not happen`);
+          continue; // Skip this method
         }
         
         // Check if property name already exists
@@ -5019,13 +5044,21 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       };
     }
     
-    // Insert selectors as private properties first (after constructor, before methods)
+    // Insert selectors as private properties (after constructor, before methods)
+    // IMPORTANT: Selectors should be AFTER constructor, not before
     let contentWithSelectors = existingContent;
     if (uniqueSelectors.size > 0) {
-      // Find constructor position
-      const constructorMatch = existingContent.match(/(constructor[^}]*\}\s*)/);
+      // Find constructor position - look for the closing brace of constructor
+      const constructorMatch = existingContent.match(/(constructor\s*\([^)]*\)\s*\{[^}]*\}\s*)/s);
+      
       if (constructorMatch) {
         const afterConstructor = constructorMatch.index! + constructorMatch[0].length;
+        
+        // Check if there are already selectors after constructor (before first method)
+        // Look for pattern: constructor } followed by potential selectors, then methods
+        const afterConstructorContent = existingContent.slice(afterConstructor);
+        const firstMethodMatch = afterConstructorContent.match(/(async\s+\w+|private\s+get\s+\w+|public\s+\w+)/);
+        const insertPosition = afterConstructor + (firstMethodMatch?.index || 0);
         
         // Check if selectors already exist
         const selectorProperties = Array.from(uniqueSelectors.values()).map(sel => {
@@ -5040,18 +5073,38 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Check if any of these properties already exist
         const existingProps = Array.from(uniqueSelectors.values()).filter(sel => {
-          const propRegex = new RegExp(`private\\s+get\\s+${sel.name}\\(\\)|private\\s+${sel.name}\\s*[:=]`);
+          const propRegex = new RegExp(`private\\s+get\\s+${sel.name}\\s*\\(\\)`);
           return propRegex.test(existingContent);
         });
         
         if (existingProps.length < uniqueSelectors.size) {
-          // Insert selectors after constructor
-          contentWithSelectors = existingContent.slice(0, afterConstructor) + 
+          // Insert selectors after constructor, before first method
+          contentWithSelectors = existingContent.slice(0, insertPosition) + 
                                  `\n${selectorProperties}\n` + 
-                                 existingContent.slice(afterConstructor);
-          console.log(`✅ Added ${uniqueSelectors.size} selector properties after constructor`);
+                                 existingContent.slice(insertPosition);
+          console.log(`✅ Added ${uniqueSelectors.size} selector properties after constructor (before first method)`);
         } else {
           console.log(`✅ Selector properties already exist, skipping`);
+        }
+      } else {
+        // Fallback: if no constructor found, try to find after class declaration
+        const classMatch = existingContent.match(/(export\s+class\s+\w+\s*\{)/);
+        if (classMatch) {
+          const afterClass = classMatch.index! + classMatch[0].length;
+          const selectorProperties = Array.from(uniqueSelectors.values()).map(sel => {
+            let selectorCode = sel.selector.replace(/^this\.page\./, '');
+            if (selectorCode.startsWith('getByTestId')) {
+              selectorCode = selectorCode;
+            }
+            return `  private get ${sel.name}() { return this.page.${selectorCode}; }`;
+          }).join('\n');
+          
+          contentWithSelectors = existingContent.slice(0, afterClass) + 
+                                 `\n${selectorProperties}\n` + 
+                                 existingContent.slice(afterClass);
+          console.log(`✅ Added ${uniqueSelectors.size} selector properties after class declaration (no constructor found)`);
+        } else {
+          console.warn(`⚠️ Could not find constructor or class declaration, selectors may be misplaced`);
         }
       }
     }
