@@ -5255,7 +5255,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     // Detect if page object uses baseSelectors pattern (like OrdersHubPage)
     const hasBaseSelectors = /private\s+readonly\s+baseSelectors\s*=/g.test(existingContent);
     const hasSelectorsGetter = /private\s+get\s+selectors\(\)/g.test(existingContent);
-    const usesBaseSelectorsPattern = hasBaseSelectors && hasSelectorsGetter;
+    let usesBaseSelectorsPattern = hasBaseSelectors && hasSelectorsGetter;
     
     console.log(`🔍 Page object pattern detection:`);
     console.log(`   - Has baseSelectors: ${hasBaseSelectors}`);
