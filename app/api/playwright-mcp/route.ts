@@ -2440,10 +2440,55 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // Execute actions first (especially clicking on tabs) and THEN observe
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
     
+    // Execute tab clicks immediately after detection (before observing)
+    const tabActions = interpretation.actions?.filter((a: any) => 
+      a.element?.toLowerCase().includes('tab') || 
+      a.element?.toLowerCase().includes('pastorder') ||
+      a.description?.toLowerCase().includes('tab')
+    ) || [];
+    
+    if (tabActions.length > 0) {
+      console.log(`🖱️ Executing ${tabActions.length} tab click(s) before observation...`);
+      for (const action of tabActions) {
+        try {
+          // Try to find and click the tab element
+          const searchTerms = action.intent || action.description || action.element;
+          const foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
+          
+          if (foundElement) {
+            console.log(`✅ Found tab element for "${action.element}", clicking...`);
+            await foundElement.click();
+            
+            // Store the locator in the action for later use
+            const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            action.locator = generatedLocator;
+            
+            // Wait for tab content to load
+            console.log('⏳ Waiting for tab content to load after click...');
+            await page.waitForTimeout(3000);
+            
+            // Try to wait for specific content
+            if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
+              try {
+                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"]', { timeout: 5000 });
+                console.log('✅ Tab content loaded');
+              } catch (e) {
+                console.log('⚠️ Timeout waiting for specific tab content, continuing...');
+              }
+            }
+          } else {
+            console.warn(`⚠️ Could not find tab element for "${action.element}", will try to find during observation`);
+          }
+        } catch (e) {
+          console.warn(`⚠️ Error clicking tab "${action.element}":`, e);
+        }
+      }
+    }
+    
     // After executing actions (especially tabs), wait for new content to load
     console.log('⏳ Waiting for content to load after interactions...');
     try {
-      await page.waitForTimeout(2000); // Wait for dynamic content
+      await page.waitForTimeout(3000); // Increased wait for dynamic content
       await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
     } catch (e) {
       console.log('⚠️ waitForLoadState timeout after interactions, continuing...');
@@ -4819,7 +4864,24 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             text: e.text?.substring(0, 50) || null
           })) || [])}`);
           
-          observed = behavior.elements?.find((e: any) => {
+          // Filter out generic observations that are too generic (like "text" testId that matches many elements)
+          const nonGenericElements = behavior.elements?.filter((e: any) => {
+            const testId = (e.testId || '').toLowerCase();
+            const text = (e.text || '').toLowerCase();
+            
+            // Reject generic testIds that don't match context
+            if (testId === 'text' && !text.includes(methodBase) && !text.includes('past order') && !text.includes('empty')) {
+              return false; // Too generic, skip
+            }
+            if (testId === 'button' || testId === 'link' || testId === 'div') {
+              return false; // Too generic
+            }
+            return true;
+          }) || [];
+          
+          console.log(`🔍 Filtered ${nonGenericElements.length} non-generic elements from ${behavior.elements?.length || 0} total`);
+          
+          observed = nonGenericElements.find((e: any) => {
             const testIdLower = (e.testId || '').toLowerCase();
             const elementName = (e.element || '').toLowerCase();
             const textLower = (e.text || '').toLowerCase();
@@ -4830,11 +4892,22 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
                                elementName.includes(methodBase) ||
                                textLower.includes(methodBase);
             
-            // Special cases
+            // Special cases - more specific matching
             const matchesPastOrder = methodBase.includes('pastorder') && (testIdLower.includes('pastorder') || elementName.includes('pastorder') || textLower.includes('past order'));
             const matchesEmptyState = methodBase.includes('emptystate') && (testIdLower.includes('empty') || testIdLower.includes('state') || textLower.includes('empty'));
-            const matchesEmptyPastOrders = methodUsed.toLowerCase().includes('emptypastorders') && (testIdLower.includes('empty') || testIdLower.includes('past') || textLower.includes('empty'));
+            const matchesEmptyPastOrders = methodUsed.toLowerCase().includes('emptypastorders') && (
+              (testIdLower.includes('empty') && testIdLower.includes('past')) ||
+              (testIdLower.includes('empty') && textLower.includes('past order')) ||
+              (textLower.includes('empty') && textLower.includes('past order'))
+            );
             const matchesPastOrdersList = methodUsed.toLowerCase().includes('pastorderslist') && (testIdLower.includes('past') || testIdLower.includes('list') || textLower.includes('past order'));
+            
+            // For getEmptyStatePastOrdersTextText, require more specific match
+            if (methodUsed.toLowerCase().includes('getemptystatepastorderstext')) {
+              if (testId === 'text' && !textLower.includes('past order') && !textLower.includes('empty')) {
+                return false; // Reject generic "text" that doesn't match context
+              }
+            }
             
             const matches = matchesBase || matchesPastOrder || matchesEmptyState || matchesEmptyPastOrders || matchesPastOrdersList;
             
