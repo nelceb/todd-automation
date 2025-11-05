@@ -4503,9 +4503,18 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         }
       }
       
-      // Extract all method calls on the page object variable
-      if (pageObjectVar) {
-        // Match: pageObjectVar.methodName()
+      // Determine which page object this method should belong to based on context
+      const expectedPageObjectVar = context === 'pastOrders' || context === 'ordersHub' 
+        ? 'ordersHubPage' 
+        : context === 'homepage' || context === 'home' || context === 'menu'
+        ? 'homePage'
+        : 'homePage';
+      
+      console.log(`🎯 Expected page object variable for context '${context}': ${expectedPageObjectVar}`);
+      
+      // Extract all method calls ONLY on the expected page object variable
+      if (pageObjectVar && pageObjectVar === expectedPageObjectVar) {
+        // Match: pageObjectVar.methodName() - only if it matches expected page object
         const methodCallRegex = new RegExp(`${pageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\w+)\\s*\\(`, 'g');
         let match;
         while ((match = methodCallRegex.exec(generatedTestCode)) !== null) {
@@ -4516,31 +4525,39 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             console.log(`  ✅ Found: ${pageObjectVar}.${methodName}()`);
           }
         }
+      } else if (pageObjectVar && pageObjectVar !== expectedPageObjectVar) {
+        console.log(`⚠️ Skipping methods from ${pageObjectVar} - belongs to different page object (expected ${expectedPageObjectVar})`);
       }
       
-      // Fallback: Extract any method call pattern if we didn't find page object var
+      // Fallback: Extract methods ONLY if they match the expected page object
       if (methodsUsedInTest.size === 0) {
         console.log(`⚠️ No methods found with page object variable, trying fallback patterns...`);
-        // Try patterns like: ordersHubPage.method(), homePage.method(), await ordersHubPage.method()
-        const fallbackRegex = /(?:ordersHubPage|homePage|\w+Page)\.(\w+)\s*\(/g;
+        // Try patterns but ONLY for the expected page object
+        const expectedPageObjectPattern = expectedPageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const fallbackRegex = new RegExp(`${expectedPageObjectPattern}\\.(\\w+)\\s*\\(`, 'g');
         let fallbackMatch;
         while ((fallbackMatch = fallbackRegex.exec(generatedTestCode)) !== null) {
           const methodName = fallbackMatch[1];
           if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe', 'waitFor', 'page'].includes(methodName)) {
             methodsUsedInTest.add(methodName);
-            console.log(`  ✅ Found (fallback): ${fallbackMatch[0]}`);
+            console.log(`  ✅ Found (fallback): ${expectedPageObjectVar}.${methodName}()`);
           }
         }
       }
       
-      // Also extract from expect statements: expect(await ordersHubPage.method())
-      const expectMethodRegex = /expect\([^)]*\.(\w+)\s*\(\)/g;
+      // Extract from expect statements but verify it's for the correct page object
+      const expectMethodRegex = /expect\([^)]*(\w+Page)\.(\w+)\s*\(\)/g;
       let expectMatch;
       while ((expectMatch = expectMethodRegex.exec(generatedTestCode)) !== null) {
-        const methodName = expectMatch[1];
-        if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe'].includes(methodName)) {
+        const pageObjectInExpect = expectMatch[1];
+        const methodName = expectMatch[2];
+        // Only include if it's for the expected page object
+        if (pageObjectInExpect === expectedPageObjectVar && 
+            !['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe'].includes(methodName)) {
           methodsUsedInTest.add(methodName);
-          console.log(`  ✅ Found in expect: ${methodName}()`);
+          console.log(`  ✅ Found in expect: ${pageObjectInExpect}.${methodName}()`);
+        } else {
+          console.log(`  ⚠️ Skipping ${pageObjectInExpect}.${methodName}() - belongs to different page object`);
         }
       }
       
@@ -4572,16 +4589,43 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       }
     }
     
+    // Check if methods exist in OTHER page objects (should not be added to this one)
+    const allPageObjectMethods = new Map<string, string[]>(); // pageObjectName -> methods[]
+    if (codebasePatterns.methodsWithTestIds) {
+      Object.keys(codebasePatterns.methodsWithTestIds).forEach((pageObjName: string) => {
+        const methods = codebasePatterns.methodsWithTestIds[pageObjName] || [];
+        const methodNames = methods.map((m: any) => typeof m === 'string' ? m : m.name);
+        allPageObjectMethods.set(pageObjName, methodNames);
+      });
+    }
+    
     // Find missing methods that are used in the test but don't exist in page object
     const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
     console.log(`🔍 Starting comparison: ${methodsUsedInTest.size} methods in test vs ${existingMethodNames.length} existing methods`);
     
     for (const methodUsed of Array.from(methodsUsedInTest)) {
-      // Check if method exists in the page object (case-insensitive)
+      // First check if method exists in OTHER page objects (should skip it)
+      let methodExistsInOtherPageObject = false;
+      for (const [otherPageObjName, otherMethods] of allPageObjectMethods.entries()) {
+        if (otherPageObjName !== normalizedPageObjectName && otherPageObjName !== pageObjectName) {
+          const existsInOther = otherMethods.some((m: string) => m.toLowerCase() === methodUsed.toLowerCase());
+          if (existsInOther) {
+            console.log(`⚠️ Method ${methodUsed} already exists in ${otherPageObjName} - skipping (should not add to ${pageObjectName})`);
+            methodExistsInOtherPageObject = true;
+            break;
+          }
+        }
+      }
+      
+      if (methodExistsInOtherPageObject) {
+        continue; // Skip this method - it belongs to another page object
+      }
+      
+      // Check if method exists in the CURRENT page object (case-insensitive)
       const methodExists = existingMethodNames.some((method: string) => {
         const match = method.toLowerCase() === methodUsed.toLowerCase();
         if (match) {
-          console.log(`✅ Method ${methodUsed} already exists as ${method}`);
+          console.log(`✅ Method ${methodUsed} already exists as ${method} in ${pageObjectName}`);
         }
         return match;
       });
