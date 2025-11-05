@@ -4714,8 +4714,23 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
     
     // Find the last closing brace of the class (before the final closing brace)
-    const classRegex = new RegExp(`(export class ${pageObjectName}[\\s\\S]*?)(\\n})`, 'm');
-    const classMatch = existingContent.match(classRegex);
+    // Try multiple class name patterns: OrdersHubPage, ordersHubPage, CoreUxHomePage, etc.
+    const classPatterns = [
+      pageObjectName, // e.g., OrdersHubPage
+      pageObjectName.charAt(0).toLowerCase() + pageObjectName.slice(1), // e.g., ordersHubPage
+      `CoreUx${pageObjectName}`, // e.g., CoreUxOrdersHubPage
+      `coreUx${pageObjectName}` // e.g., coreUxOrdersHubPage
+    ];
+    
+    let classMatch = null;
+    for (const className of classPatterns) {
+      const classRegex = new RegExp(`(export class ${className}[\\s\\S]*?)(\\n})`, 'm');
+      classMatch = existingContent.match(classRegex);
+      if (classMatch) {
+        console.log(`✅ Found class: ${className}`);
+        break;
+      }
+    }
     
     if (!classMatch) {
       // Fallback: find last closing brace
