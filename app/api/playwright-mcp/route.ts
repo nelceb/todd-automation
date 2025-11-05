@@ -4605,6 +4605,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     }
     
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
+    console.log(`📝 Missing methods: ${missingMethods.map(m => m.name).join(', ')}`);
     
     // Read page object content from GitHub only when we need to add methods
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -4614,9 +4615,11 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     if (!GITHUB_TOKEN || !REPOSITORY) {
       console.warn('⚠️ GitHub not configured, cannot read existing page object');
+      console.warn(`⚠️ GITHUB_TOKEN: ${GITHUB_TOKEN ? 'present' : 'missing'}, REPOSITORY: ${REPOSITORY || 'missing'}`);
       return null;
     }
     
+    console.log(`🔍 Fetching page object from GitHub: ${REPOSITORY}/${pageObjectPath}`);
     const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${pageObjectPath}`, {
       headers: {
         'Authorization': `Bearer ${GITHUB_TOKEN}`,
@@ -4625,9 +4628,14 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     });
     
     if (!response.ok) {
-      console.warn(`⚠️ Page object file not found: ${pageObjectPath}, will skip adding methods`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.warn(`⚠️ Page object file not found: ${pageObjectPath}`);
+      console.warn(`⚠️ GitHub API response: ${response.status} ${response.statusText}`);
+      console.warn(`⚠️ Error details: ${errorText.substring(0, 200)}`);
       return null;
     }
+    
+    console.log(`✅ Successfully fetched page object from GitHub`);
     
     const fileData = await response.json();
     const existingContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
@@ -4666,6 +4674,10 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       classRegex,
       `$1\n${methodsToAdd}\n$2`
     );
+    
+    console.log(`✅ Generated updated page object content with ${missingMethods.length} new methods`);
+    console.log(`✅ Page object file: ${pageObjectPath}`);
+    console.log(`✅ Methods added: ${missingMethods.map(m => m.name).join(', ')}`);
     
     return {
       file: pageObjectPath,
