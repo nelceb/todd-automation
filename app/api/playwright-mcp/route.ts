@@ -4999,7 +4999,13 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           });
           
           if (observed) {
-            selectorName = observed.element || observed.testId || 'element';
+            // 🎯 PRIORITY: Use REAL testId from interaction if available
+            if (observed.testId) {
+              selectorName = observed.testId;
+              console.log(`✅ Using REAL testId from interaction: ${observed.testId}`);
+            } else {
+              selectorName = observed.element || 'element';
+            }
             console.log(`✅ Found interaction observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
           } else {
             console.warn(`⚠️ No interaction found for ${methodUsed}, checking elements...`);
