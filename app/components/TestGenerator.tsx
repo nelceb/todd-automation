@@ -235,7 +235,7 @@ export default function TestGenerator() {
 
       // ⚠️ Smart Synapse deshabilitado temporalmente
       // El usuario reportó que genera tests incorrectos
-      setError('Playwright MCP falló y Smart Synapse está deshabilitado. Por favor, revisa los logs del servidor para más detalles.')
+      setError('Playwright MCP failed and Smart Synapse is disabled. Please check the server logs for more details.')
       return
       
       /* COMENTADO: Smart Synapse deshabilitado
@@ -399,29 +399,67 @@ export default function TestGenerator() {
   // Show error if there's one
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#AED4E6' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 relative overflow-hidden"
+        >
+          {/* Decorative gradient background */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500"></div>
+          
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            {/* Error icon with animated pulse */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+              className="w-20 h-20 bg-gradient-to-br from-red-50 to-red-100 rounded-full flex items-center justify-center mx-auto mb-6 relative"
+            >
+              <div className="absolute inset-0 bg-red-200 rounded-full animate-ping opacity-20"></div>
+              <svg className="w-10 h-10 text-red-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Application Error</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
+            </motion.div>
+            
+            {/* Error title */}
+            <motion.h2
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl font-bold text-gray-900 mb-3"
+            >
+              Application Error
+            </motion.h2>
+            
+            {/* Error message */}
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-gray-600 mb-6 leading-relaxed text-sm"
+            >
+              {error}
+            </motion.p>
+            
+            {/* Reset button */}
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
               onClick={() => {
                 setError(null)
                 setStep('jira')
                 setAcceptanceCriteria(null)
                 setGeneratedTest(null)
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 active:scale-95 w-full sm:w-auto min-w-[140px]"
             >
               Reset Application
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       </div>
     )
   }
