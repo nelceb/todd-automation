@@ -765,7 +765,8 @@ async function analyzeCodebaseForPatterns() {
     const GITHUB_OWNER = process.env.GITHUB_OWNER;
     const GITHUB_REPO = process.env.GITHUB_REPO;
     const REPOSITORY = GITHUB_OWNER && GITHUB_REPO ? `${GITHUB_OWNER}/${GITHUB_REPO}` : null;
-    const BASE_PATH = 'tests/frontend/desktop/subscription/coreUx';
+    // Page objects are in pages/subscription/coreUx/, not in tests/
+    const BASE_PATH = 'pages/subscription/coreUx';
     
     if (!GITHUB_TOKEN || !REPOSITORY) {
       const missing = []
@@ -795,9 +796,10 @@ async function analyzeCodebaseForPatterns() {
     
     // 🚀 OPTIMIZACIÓN: Limitar análisis SOLO a page objects (más rápido, solo 2-3 archivos)
     // Priorizar: HomePage, OrdersHubPage (son los más usados)
+    // Page objects have names like: ordersHubPage.ts, coreUxHomePage.ts, coreUxCartPage.ts
     const pageObjectFiles = files
       .filter((file: any) => file.type === 'file')
-      .filter((file: any) => file.name.endsWith('.ts') && !file.name.endsWith('.spec.ts'))
+      .filter((file: any) => file.name.endsWith('.ts'))
       .filter((file: any) => {
         const nameLower = file.name.toLowerCase();
         return nameLower.includes('home') || nameLower.includes('order') || nameLower.includes('cart');
@@ -4438,15 +4440,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     if (context === 'pastOrders' || context === 'ordersHub') {
       pageObjectName = 'OrdersHubPage';
-      // Use actual path from project structure: tests/frontend/desktop/subscription/coreUx/ordersHub.ts
-      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/ordersHub.ts';
+      // Use actual path from project structure: pages/subscription/coreUx/ordersHubPage.ts
+      pageObjectPath = 'pages/subscription/coreUx/ordersHubPage.ts';
     } else if (context === 'homepage' || context === 'home' || context === 'menu') {
       pageObjectName = 'HomePage';
-      // Use actual path from project structure: tests/frontend/desktop/subscription/coreUx/homePage.ts
-      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/homePage.ts';
+      // Use actual path from project structure: pages/subscription/coreUx/coreUxHomePage.ts
+      pageObjectPath = 'pages/subscription/coreUx/coreUxHomePage.ts';
     } else if (context === 'cart') {
-      pageObjectName = 'HomePage';
-      pageObjectPath = 'tests/frontend/desktop/subscription/coreUx/homePage.ts';
+      pageObjectName = 'CartPage';
+      // Use actual path from project structure: pages/subscription/coreUx/coreUxCartPage.ts
+      pageObjectPath = 'pages/subscription/coreUx/coreUxCartPage.ts';
     }
     
     if (!pageObjectPath) {
@@ -5788,13 +5791,21 @@ for SPEC_FILE in $STAGED_SPEC_FILES; do
   SPEC_DIR=$(dirname "$SPEC_FILE")
   PAGE_OBJECT_FILE=""
   
+  # Page objects are in pages/subscription/coreUx/, not in tests/
+  # Determine page object path based on spec file location
   if echo "$SPEC_FILE" | grep -q "ordersHub"; then
-    PAGE_OBJECT_FILE="$SPEC_DIR/ordersHub.ts"
+    # From tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts
+    # To pages/subscription/coreUx/ordersHubPage.ts
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/ordersHubPage.ts"
   elif echo "$SPEC_FILE" | grep -q "homePage"; then
-    PAGE_OBJECT_FILE="$SPEC_DIR/homePage.ts"
+    # From tests/frontend/desktop/subscription/coreUx/homePage.spec.ts
+    # To pages/subscription/coreUx/coreUxHomePage.ts
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/coreUxHomePage.ts"
+  elif echo "$SPEC_FILE" | grep -q "cart"; then
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/coreUxCartPage.ts"
   else
-    # Try to infer from context
-    PAGE_OBJECT_FILE="$SPEC_DIR/$(basename "$SPEC_FILE" .spec.ts).ts"
+    # Try to infer from context - assume same directory structure
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/$(basename "$SPEC_FILE" .spec.ts)Page.ts"
   fi
   
   if [ ! -f "$PAGE_OBJECT_FILE" ]; then
@@ -5873,13 +5884,21 @@ for SPEC_FILE in $STAGED_SPEC_FILES; do
   SPEC_DIR=$(dirname "$SPEC_FILE")
   PAGE_OBJECT_FILE=""
   
+  # Page objects are in pages/subscription/coreUx/, not in tests/
+  # Determine page object path based on spec file location
   if echo "$SPEC_FILE" | grep -q "ordersHub"; then
-    PAGE_OBJECT_FILE="$SPEC_DIR/ordersHub.ts"
+    # From tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts
+    # To pages/subscription/coreUx/ordersHubPage.ts
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/ordersHubPage.ts"
   elif echo "$SPEC_FILE" | grep -q "homePage"; then
-    PAGE_OBJECT_FILE="$SPEC_DIR/homePage.ts"
+    # From tests/frontend/desktop/subscription/coreUx/homePage.spec.ts
+    # To pages/subscription/coreUx/coreUxHomePage.ts
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/coreUxHomePage.ts"
+  elif echo "$SPEC_FILE" | grep -q "cart"; then
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/coreUxCartPage.ts"
   else
-    # Try to infer from context
-    PAGE_OBJECT_FILE="$SPEC_DIR/$(basename "$SPEC_FILE" .spec.ts).ts"
+    # Try to infer from context - assume same directory structure
+    PAGE_OBJECT_FILE="pages/subscription/coreUx/$(basename "$SPEC_FILE" .spec.ts)Page.ts"
   fi
   
   if [ ! -f "$PAGE_OBJECT_FILE" ]; then
