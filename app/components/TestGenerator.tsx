@@ -527,7 +527,7 @@ export default function TestGenerator() {
           )}
 
           {/* Step 1: Jira Configuration */}
-          {step === 'jira' && mode === 'jira' && (
+          {step === 'jira' && mode === 'jira' && !(showProgress && loading) && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -590,7 +590,7 @@ export default function TestGenerator() {
           )}
 
           {/* Step 1: Natural Language Input */}
-          {step === 'jira' && mode === 'natural' && (
+          {step === 'jira' && mode === 'natural' && !(showProgress && loading) && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
