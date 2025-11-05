@@ -4606,7 +4606,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     for (const methodUsed of Array.from(methodsUsedInTest)) {
       // First check if method exists in OTHER page objects (should skip it)
       let methodExistsInOtherPageObject = false;
-      for (const [otherPageObjName, otherMethods] of allPageObjectMethods.entries()) {
+      for (const [otherPageObjName, otherMethods] of Array.from(allPageObjectMethods.entries())) {
         if (otherPageObjName !== normalizedPageObjectName && otherPageObjName !== pageObjectName) {
           const existsInOther = otherMethods.some((m: string) => m.toLowerCase() === methodUsed.toLowerCase());
           if (existsInOther) {
