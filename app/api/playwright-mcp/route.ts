@@ -7261,6 +7261,16 @@ npm run test:playwright || exit 1
     
     // 6. Crear un solo commit con todos los archivos usando GitHub API Tree
     console.log(`📦 Preparing single commit with ${allFiles.length} files`);
+    console.log(`📦 Files breakdown:`);
+    console.log(`   - Test files: ${filesToCommit.filter((f: any) => f.type === 'test').length}`);
+    console.log(`   - Page object files: ${filesToCommit.filter((f: any) => f.type === 'page-object').length}`);
+    console.log(`   - Workflow file: ${workflowFile ? 'yes' : 'no'}`);
+    console.log(`   - Husky config: ${huskyConfig ? 'yes' : 'no'}`);
+    
+    // Log each file that will be committed
+    allFiles.forEach((f: any, index: number) => {
+      console.log(`📦 File ${index + 1}/${allFiles.length}: ${f.file} (type: ${f.type || 'unknown'})`);
+    });
     
     // First, get all file SHAs and prepare tree entries
     const treeEntries: any[] = [];
