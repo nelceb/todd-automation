@@ -2836,6 +2836,196 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     );
     
     if (hasTabClick) {
+      console.log('🔄 Tab click detected - waiting for tab content to load and observing AGGRESSIVELY...');
+      
+      // 🎯 ASSERTIVE: After clicking Past Orders tab, AGGRESSIVELY search for empty state elements
+      if (interpretation.context === 'pastOrders') {
+        console.log('🔍 ASSERTIVE SEARCH: Looking for Past Orders empty state elements...');
+        
+        // Wait for content to appear
+        await page.waitForTimeout(3000);
+        
+        // 🎯 ASSERTIVE STRATEGY 1: Search for empty state by multiple selectors
+        const emptyStateSelectors = [
+          '[data-testid*="empty"]',
+          '[data-testid*="past"]',
+          '[data-testid*="state"]',
+          '[class*="empty"]',
+          '[class*="Empty"]',
+          '[class*="empty-state"]',
+          '[class*="EmptyState"]',
+          'text=/no past order/i',
+          'text=/empty/i',
+          'text=/no order/i',
+          '[role="status"]',
+          '[role="alert"]',
+          '[aria-label*="empty"]',
+          '[aria-label*="Empty"]',
+          '[aria-label*="no order"]',
+          '[aria-label*="No order"]'
+        ];
+        
+        for (const selector of emptyStateSelectors) {
+          try {
+            const elements = await page.locator(selector).all();
+            for (const elem of elements) {
+              try {
+                const testId = await elem.getAttribute('data-testid').catch(() => null);
+                const text = await elem.textContent().catch(() => null);
+                const isVisible = await elem.isVisible().catch(() => false);
+                
+                if (isVisible && (testId || (text && text.trim().length > 0))) {
+                  // Check if this element is relevant to empty state
+                  const textLower = (text || '').toLowerCase();
+                  const testIdLower = (testId || '').toLowerCase();
+                  
+                  if (textLower.includes('empty') || textLower.includes('no past') || textLower.includes('no order') ||
+                      testIdLower.includes('empty') || testIdLower.includes('past') || testIdLower.includes('state')) {
+                    
+                    // Generate locator
+                    let locator = '';
+                    if (testId) {
+                      locator = `page.getByTestId('${testId}')`;
+                    } else if (text) {
+                      const escapedText = text.trim().replace(/'/g, "\\'");
+                      locator = `page.getByText('${escapedText}')`;
+                    }
+                    
+                    // Add to allElements if not already present
+                    const elemWithTestId = testId ? await page.$(`[data-testid="${testId}"]`).catch(() => null) : null;
+                    if (elemWithTestId && !allElements.includes(elemWithTestId)) {
+                      allElements.push(elemWithTestId);
+                      console.log(`✅ ASSERTIVE: Found empty state element: testId="${testId}", text="${text?.substring(0, 50)}"`);
+                    } else if (!testId && text) {
+                      // Try to find parent with data-testid
+                      try {
+                        const parent = await elem.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
+                        if (parent) {
+                          const parentElement = parent.asElement();
+                          if (parentElement) {
+                            const parentTestId = await parentElement.getAttribute('data-testid').catch(() => null);
+                            if (parentTestId) {
+                              const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
+                              if (parentElem && !allElements.includes(parentElem)) {
+                                allElements.push(parentElem);
+                                console.log(`✅ ASSERTIVE: Found empty state parent: testId="${parentTestId}"`);
+                              }
+                            }
+                          }
+                        }
+                      } catch (e) {
+                        // Continue
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        // 🎯 ASSERTIVE STRATEGY 2: Search for message text elements
+        console.log('🔍 ASSERTIVE SEARCH: Looking for message text elements...');
+        const messageTexts = [
+          'no past orders',
+          'no orders',
+          'empty',
+          'You haven\'t',
+          'You have no',
+          'No past',
+          'No orders'
+        ];
+        
+        for (const msgText of messageTexts) {
+          try {
+            const textLocator = page.locator(`text=/${msgText}/i`);
+            const count = await textLocator.count();
+            if (count > 0) {
+              const firstMatch = textLocator.first();
+              const text = await firstMatch.textContent().catch(() => null);
+              const isVisible = await firstMatch.isVisible().catch(() => false);
+              
+              if (isVisible && text) {
+                // Try to find parent with data-testid
+                try {
+                  const parent = await firstMatch.locator('..').locator('[data-testid]').first();
+                  const parentCount = await parent.count();
+                  if (parentCount > 0) {
+                    const parentTestId = await parent.getAttribute('data-testid');
+                    if (parentTestId) {
+                      const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
+                      if (parentElem && !allElements.includes(parentElem)) {
+                        allElements.push(parentElem);
+                        console.log(`✅ ASSERTIVE: Found message element: testId="${parentTestId}", text="${text.substring(0, 50)}"`);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Continue
+                }
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        // 🎯 ASSERTIVE STRATEGY 3: Search for images/illustrations (empty state often has images)
+        console.log('🔍 ASSERTIVE SEARCH: Looking for empty state images...');
+        try {
+          const images = await page.locator('img, [role="img"], svg').all();
+          for (const img of images) {
+            try {
+              const alt = await img.getAttribute('alt').catch(() => null);
+              const ariaLabel = await img.getAttribute('aria-label').catch(() => null);
+              const src = await img.getAttribute('src').catch(() => null);
+              const isVisible = await img.isVisible().catch(() => false);
+              
+              if (isVisible && (alt || ariaLabel || src)) {
+                const altLower = (alt || '').toLowerCase();
+                const ariaLabelLower = (ariaLabel || '').toLowerCase();
+                const srcLower = (src || '').toLowerCase();
+                
+                if (altLower.includes('empty') || altLower.includes('no order') || 
+                    ariaLabelLower.includes('empty') || ariaLabelLower.includes('no order') ||
+                    srcLower.includes('empty') || srcLower.includes('no-order')) {
+                  
+                  // Try to find parent with data-testid
+                  try {
+                    const parent = await img.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
+                    if (parent) {
+                      const parentElement = parent.asElement();
+                      if (parentElement) {
+                        const parentTestId = await parentElement.getAttribute('data-testid').catch(() => null);
+                        if (parentTestId) {
+                          const parentElem = await page.$(`[data-testid="${parentTestId}"]`).catch(() => null);
+                          if (parentElem && !allElements.includes(parentElem)) {
+                            allElements.push(parentElem);
+                            console.log(`✅ ASSERTIVE: Found empty state image container: testId="${parentTestId}"`);
+                          }
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    // Continue
+                  }
+                }
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Error searching for images:', e);
+        }
+        
+        console.log(`✅ ASSERTIVE SEARCH: Found ${allElements.length} total elements after aggressive search`);
+      }
+      
       console.log('🔄 Tab click detected - waiting for tab content to load and observing...');
       await page.waitForTimeout(4000); // Extra wait for tab content to fully render
       
