@@ -2724,12 +2724,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           } else {
             console.warn(`⚠️ Could not find tab element for "${action.element}" after all strategies`);
             console.warn(`⚠️ Current URL: ${page.url()}`);
-            console.warn(`⚠️ Verificando si estamos en Orders Hub...`);
+            console.warn(`⚠️ Verifying if we are on Orders Hub...`);
             
             // Last attempt: Check if we're on the right page and log all tabs
             try {
               const allTabs = await page.locator("[role='tab'], button[aria-selected], [data-testid*='tab']").all();
-              console.log(`📋 Tabs encontrados en la página: ${allTabs.length}`);
+              console.log(`📋 Tabs found on the page: ${allTabs.length}`);
               for (let i = 0; i < Math.min(allTabs.length, 10); i++) {
                 const tab = allTabs[i];
                 const text = await tab.textContent().catch(() => '');
@@ -2738,7 +2738,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                 console.log(`  Tab ${i + 1}: text="${text}", testId="${testId}", visible=${isVisible}`);
               }
             } catch (e) {
-              console.warn('⚠️ Error listando tabs:', e);
+              console.warn('⚠️ Error listing tabs:', e);
             }
             
             behavior.interactions.push({
@@ -2776,14 +2776,14 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     const postInteractionSnapshot = await mcpWrapper.browserSnapshot();
     console.log('✅ MCP: Snapshot post-interacción capturado');
     
-    // Observar elementos visibles usando snapshot MCP (AFTER interactions)
-    console.log('🔍 Buscando elementos con data-testid (después de interacciones)...');
+    // Observe visible elements using MCP snapshot (AFTER interactions)
+    console.log('🔍 Searching for elements with data-testid (after interactions)...');
     let allElements: any[] = await page.$$('[data-testid]').catch(() => []);
-    console.log(`🔍 Total de elementos con data-testid encontrados: ${allElements.length}`);
+    console.log(`🔍 Total elements with data-testid found: ${allElements.length}`);
     
     // 🎯 NEW: Extract elements from snapshot that match the context
     if (postInteractionSnapshot) {
-      console.log('🔍 Analizando snapshot para encontrar elementos relevantes...');
+      console.log('🔍 Analyzing snapshot to find relevant elements...');
       const extractElementsFromSnapshot = (node: any, elements: any[] = []): any[] => {
         if (!node) return elements;
         
@@ -2813,7 +2813,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       };
       
       const snapshotElements = extractElementsFromSnapshot(postInteractionSnapshot);
-      console.log(`📸 Encontrados ${snapshotElements.length} elementos relevantes en snapshot`);
+      console.log(`📸 Found ${snapshotElements.length} relevant elements in snapshot`);
       
       // Try to find these elements in the DOM and get their data-testid
       for (const snapElem of snapshotElements.slice(0, 20)) {
@@ -2836,7 +2836,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                 if (!alreadyExists) {
                   const elem = await page.$(`[data-testid="${testId}"]`);
                   if (elem) allElements.push(elem);
-                  console.log(`✅ Encontrado elemento desde snapshot: ${testId} (text: "${snapElem.text}")`);
+                  console.log(`✅ Found element from snapshot: ${testId} (text: "${snapElem.text}")`);
                 }
               }
             }
@@ -2846,7 +2846,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         }
       }
       
-      console.log(`🔍 Total después de análisis de snapshot: ${allElements.length} elementos`);
+      console.log(`🔍 Total after snapshot analysis: ${allElements.length} elements`);
     }
     
     // If we have actions that involve clicking tabs, wait more and observe again with context-specific searches
@@ -3076,7 +3076,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       // Re-observe elements after tab content loads - MORE AGGRESSIVE SEARCH
       console.log('🔍 Re-observing ALL elements with data-testid after tab click...');
       allElements = await page.$$('[data-testid]').catch(() => []);
-      console.log(`🔍 Re-observation after tab click: ${allElements.length} elementos con data-testid encontrados`);
+      console.log(`🔍 Re-observation after tab click: ${allElements.length} elements with data-testid found`);
       
       // 🎯 CRITICAL: Extract and log ALL testIds found for debugging
       if (allElements.length > 0) {
@@ -3184,19 +3184,30 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             // Continue with next keyword
           }
         }
-        console.log(`🔍 After text search: ${allElements.length} elementos total encontrados`);
+        console.log(`🔍 After text search: ${allElements.length} total elements found`);
       }
     }
     
-    // Si no hay data-testid, buscar elementos usando otros métodos más agresivos
+    // 🎯 CRITICAL: If no data-testid, search for elements using other more aggressive methods
+    // THIS IS CRITICAL - we must find elements or the test will fail
     if (allElements.length === 0) {
-      console.warn('⚠️ [OBSERVATION] NO se encontraron elementos con data-testid, buscando elementos con otros métodos...');
-      console.warn(`⚠️ [OBSERVATION] URL actual: ${page.url()}`);
+      console.warn('⚠️ [OBSERVATION] No elements with data-testid found, searching for elements using other methods...');
+      console.warn(`⚠️ [OBSERVATION] Current URL: ${page.url()}`);
+      
+      // 🎯 CRITICAL: Verify page is still open
+      if (page.isClosed()) {
+        throw new Error('Page was closed before fallback element search');
+      }
       
       // Esperar más tiempo para elementos dinámicos
       await page.waitForTimeout(3000);
       
-      // Buscar elementos interactivos: botones, links, inputs, navs, tabs
+      // 🎯 CRITICAL: Verify page is still open after wait
+      if (page.isClosed()) {
+        throw new Error('Page was closed during fallback element search wait');
+      }
+      
+      // Search for interactive elements: buttons, links, inputs, navs, tabs
       const buttons = await page.$$('button').catch(() => []);
       const links = await page.$$('a[href]').catch(() => []);
       const inputs = await page.$$('input:not([type="hidden"])').catch(() => []);
@@ -3204,20 +3215,20 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       const tabs = await page.$$('[role="tab"], button[role="tab"], .tab').catch(() => []);
       const divs = await page.$$('div[class*="tab"], div[class*="Tab"], div[class*="button"], div[role="button"]').catch(() => []);
       
-      console.log(`🔍 [OBSERVATION] Elementos encontrados: ${buttons.length} botones, ${links.length} links, ${inputs.length} inputs, ${navs.length} navs, ${tabs.length} tabs, ${divs.length} divs interactivos`);
+      console.log(`🔍 [OBSERVATION] Elements found: ${buttons.length} buttons, ${links.length} links, ${inputs.length} inputs, ${navs.length} navs, ${tabs.length} tabs, ${divs.length} interactive divs`);
       
-      // Combinar todos los elementos para observación
+      // Combine all elements for observation
       allElements = [...buttons, ...links, ...inputs, ...navs, ...tabs, ...divs];
       
-      // Si aún no hay elementos, buscar por texto visible
+      // If still no elements, search by visible text
       if (allElements.length === 0) {
-        console.log('🔍 [OBSERVATION] Buscando elementos por texto visible...');
+        console.log('🔍 [OBSERVATION] Searching for elements by visible text...');
         try {
-          // Buscar elementos que contengan texto relacionado con el contexto
+          // Search for elements containing text related to the context
           const contextKeywords = {
-            'pastOrders': ['past orders', 'previous orders', 'order history', 'historial'],
-            'ordersHub': ['orders', 'pedidos', 'subscription'],
-            'cart': ['cart', 'carrito', 'basket'],
+            'pastOrders': ['past orders', 'previous orders', 'order history'],
+            'ordersHub': ['orders', 'subscription'],
+            'cart': ['cart', 'basket'],
             'homepage': ['home', 'menu', 'meals']
           };
           
@@ -3233,32 +3244,32 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
           }
         } catch (textSearchError) {
-          console.log('⚠️ Búsqueda por texto falló');
+          console.log('⚠️ Text search failed');
         }
       }
       
-      // Intentar capturar snapshot
+      // Try to capture snapshot
       const snapshot = await mcpWrapper.browserSnapshot().catch(() => null);
       const snapshotSummary = snapshot ? JSON.stringify(snapshot).substring(0, 1000) : 'No snapshot available';
-      console.warn(`⚠️ [OBSERVATION] Contenido de la página (snapshot):`, snapshotSummary);
+      console.warn(`⚠️ [OBSERVATION] Page content (snapshot):`, snapshotSummary);
       
-      // Agregar snapshot a observations
+      // Add snapshot to observations
       behavior.observations.push({
           url: page.url(),
           title: await page.title().catch(() => 'Unknown'),
           snapshot: snapshot || {},
           timestamp: Date.now(),
-        note: `No data-testid - usando ${allElements.length} elementos encontrados por otros métodos`
+        note: `No data-testid - using ${allElements.length} elements found by other methods`
       });
       
-      console.log(`✅ [OBSERVATION] Encontrados ${allElements.length} elementos usando métodos alternativos`);
+      console.log(`✅ [OBSERVATION] Found ${allElements.length} elements using alternative methods`);
     } else {
-      console.log(`✅ [OBSERVATION] Página autenticada validada: ${allElements.length} elementos con data-testid encontrados`);
+      console.log(`✅ [OBSERVATION] Authenticated page validated: ${allElements.length} elements with data-testid found`);
     }
     
     const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string; cssSelector?: string }> = [];
     
-    console.log(`🔍 [OBSERVATION] Procesando ${allElements.length} elementos encontrados...`);
+    console.log(`🔍 [OBSERVATION] Processing ${allElements.length} elements found...`);
     
     for (const element of allElements) {
       try {
