@@ -5562,7 +5562,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     
     // Extract unique selectors to create as private properties
     // Only add if selector doesn't already exist (by code comparison)
-    const uniqueSelectors = new Map<string, { selector: string; name: string; normalizedSelector: string }>();
+    const uniqueSelectors = new Map<string, { selector: string; name: string; normalizedSelector: string; cssSelector?: string }>();
     for (const method of missingMethods as any[]) {
       if (method.selector && method.observed) {
         // Normalize selector code for comparison
