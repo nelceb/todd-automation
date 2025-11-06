@@ -2673,7 +2673,17 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
             action.locator = generatedLocator;
             
+            // 🎯 CRITICAL: Verify page is still open before clicking
+            if (page.isClosed()) {
+              throw new Error('Page was closed before tab click');
+            }
+            
             await foundElement.click();
+            
+            // 🎯 CRITICAL: Verify page is still open after click
+            if (page.isClosed()) {
+              throw new Error('Page was closed after tab click');
+            }
             
             // Store interaction in behavior with REAL testId
             behavior.interactions.push({
@@ -2689,7 +2699,18 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             
             // Wait for tab content to load
             console.log('⏳ Waiting for tab content to load after click...');
+            
+            // 🎯 CRITICAL: Verify page is still open before waiting
+            if (page.isClosed()) {
+              throw new Error('Page was closed before waiting for tab content');
+            }
+            
             await page.waitForTimeout(4000); // Increased to 4s
+            
+            // 🎯 CRITICAL: Verify page is still open after wait
+            if (page.isClosed()) {
+              throw new Error('Page was closed while waiting for tab content');
+            }
             
             // Try to wait for specific content
             if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
@@ -2842,8 +2863,18 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       if (interpretation.context === 'pastOrders') {
         console.log('🔍 ASSERTIVE SEARCH: Looking for Past Orders empty state elements...');
         
+        // 🎯 CRITICAL: Verify page is still open before searching
+        if (page.isClosed()) {
+          throw new Error('Page was closed before assertive search');
+        }
+        
         // Wait for content to appear
         await page.waitForTimeout(3000);
+        
+        // 🎯 CRITICAL: Verify page is still open after wait
+        if (page.isClosed()) {
+          throw new Error('Page was closed while waiting for content');
+        }
         
         // 🎯 ASSERTIVE STRATEGY 1: Search for empty state by multiple selectors
         const emptyStateSelectors = [
