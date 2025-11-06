@@ -2447,74 +2447,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       // Similar lógica para Menu si es necesario
     }
     
-    // 🎯 CRITICAL: For pastOrders/ordersHub context, ensure we're on Orders Hub page FIRST
-    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
-      const currentUrl = page.url();
-      const isOnOrdersHub = currentUrl.includes('orders-hub') || currentUrl.includes('ordershub');
-      
-      if (!isOnOrdersHub) {
-        console.log('🧭 Navegando a Orders Hub antes de buscar tabs...');
-        console.log(`📍 URL actual: ${currentUrl}`);
-        
-        try {
-          // Strategy 1: Try to find and click Orders Hub nav item
-          const ordersHubSelectors = [
-            "a[href*='orders-hub']",
-            "a:has-text('Orders Hub')",
-            "[data-testid*='orders-hub']",
-            "[data-testid*='ordershub']",
-            "a:has-text('Orders')",
-            "nav a:has-text('Orders')"
-          ];
-          
-          let ordersHubNav = null;
-          for (const selector of ordersHubSelectors) {
-            try {
-              const nav = page.locator(selector).first();
-              if (await nav.count() > 0 && await nav.isVisible().catch(() => false)) {
-                ordersHubNav = nav;
-                console.log(`✅ Encontrado Orders Hub nav con selector: ${selector}`);
-                break;
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-          
-          if (ordersHubNav) {
-            await ordersHubNav.click();
-            await page.waitForURL(/orders-hub|ordershub/, { timeout: 15000 });
-            await page.waitForTimeout(3000); // Wait for page to load
-            console.log(`✅ Navegación a Orders Hub completada: ${page.url()}`);
-          } else {
-            // Strategy 2: Try direct navigation
-            console.log('⚠️ No se encontró nav item, intentando navegación directa...');
-            try {
-              await page.goto('https://subscription.qa.cookunity.com/orders-hub', { waitUntil: 'domcontentloaded', timeout: 20000 });
-              await page.waitForTimeout(3000);
-              console.log(`✅ Navegación directa completada: ${page.url()}`);
-            } catch (directNavError) {
-              console.warn('⚠️ Navegación directa falló:', directNavError);
-            }
-          }
-        } catch (e) {
-          console.warn('⚠️ No se pudo navegar a Orders Hub automáticamente:', e);
-        }
-      } else {
-        console.log(`✅ Ya estamos en Orders Hub: ${currentUrl}`);
-      }
-      
-      // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
-      try {
-        // Wait for Orders Hub page title or specific element
-        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
-        console.log('✅ Orders Hub page verified - found page title or header');
-      } catch (verifyError) {
-        console.warn('⚠️ Could not verify Orders Hub page - may not be loaded correctly');
-        // Try to wait a bit more
-        await page.waitForTimeout(2000);
-      }
-    }
+    // 🎯 NOTE: Navigation to Orders Hub is now handled BEFORE detectAndActivateSectionWithMCP
+    // This ensures we're on the correct page before trying to find tabs
     
     // 🎯 CRITICAL: Navigate to Orders Hub FIRST before trying to find tabs
     // For pastOrders/ordersHub context, ensure we're on Orders Hub page BEFORE detecting tabs
