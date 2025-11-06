@@ -2019,18 +2019,53 @@ async function performLoginIfNeeded(page: Page) {
     const buttonText = await submitButton.textContent().catch(() => 'N/A');
     console.log(`🚀 Botón encontrado con texto: "${buttonText}"`);
     
+    const urlBeforeSubmit = page.url();
+    console.log(`📍 URL antes del submit: ${urlBeforeSubmit}`);
+    
     await submitButton.click({ timeout: 3000 }); // Reducido a 3s
     console.log('✅ Click en submit realizado');
     
-    // Esperar un momento para que el login procese
+    // 🎯 CRITICAL: Esperar a que la URL cambie (redirección después del login)
+    console.log('⏳ Esperando redirect después del login...');
+    try {
+      // Esperar a que la URL cambie (ya no esté en login)
+      await page.waitForURL((url) => {
+        const urlStr = url.toString();
+        const isNotLogin = !urlStr.includes('auth.qa.cookunity.com') && !urlStr.includes('/login');
+        console.log(`🔍 Checking URL: ${urlStr} - isNotLogin: ${isNotLogin}`);
+        return isNotLogin;
+      }, { timeout: 15000 }); // 15 segundos para el redirect
+      
+      const urlAfterRedirect = page.url();
+      console.log(`✅ Redirect completado: ${urlAfterRedirect}`);
+    } catch (redirectError) {
+      console.warn(`⚠️ Redirect timeout o error: ${redirectError}`);
+      console.warn(`⚠️ URL actual: ${page.url()}`);
+      // Esperar un poco más por si acaso
+      await page.waitForTimeout(3000);
+    }
+    
+    // Esperar un momento adicional para que la página cargue completamente
     await page.waitForTimeout(2000);
     
-    console.log('✅ Login automático completado, URL después del submit:', page.url());
+    const finalURL = page.url();
+    console.log('✅ Login automático completado, URL final:', finalURL);
+    
+    // Verificar que realmente salimos de la página de login
+    const stillOnLogin = finalURL.includes('auth.qa.cookunity.com') || finalURL.includes('/login');
+    if (stillOnLogin) {
+      console.error('❌ Todavía en página de login después del submit y espera');
+      return {
+        success: false,
+        error: 'Login no completado - todavía en página de login después del submit',
+        url: finalURL
+      };
+    }
     
     return {
       success: true,
       message: 'Login realizado automáticamente',
-      url: page.url()
+      url: finalURL
     };
   } catch (error) {
     console.error('❌ Error en login automático:', error);
