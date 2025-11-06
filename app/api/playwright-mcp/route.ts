@@ -4146,17 +4146,26 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         // 🎯 Intentar reutilizar método existente primero
         const existingMethod = findExistingAssertionMethod(elementName, assertion.type, interpretation.context);
         
-        // Si ya usamos este método para otra assertion, saltar esta (evitar duplicados)
-        if (existingMethod && usedMethods.has(existingMethod)) {
-          console.log(`⚠️ Saltando assertion duplicada: ${elementName} ya usa el método ${existingMethod}`);
+        // Create unique key for this assertion (element + type) to avoid duplicates
+        const assertionKey = `${elementName.toLowerCase()}_${assertion.type}`;
+        
+        // Si ya usamos esta combinación de elemento+tipo para otra assertion, saltar esta (evitar duplicados)
+        if (usedMethods.has(assertionKey)) {
+          console.log(`⚠️ Saltando assertion duplicada: ${elementName} (${assertion.type}) ya fue procesada`);
           continue;
         }
         
-        // Marcar método como usado (case-insensitive)
+        // Marcar esta combinación como usada
+        usedMethods.add(assertionKey);
+        
+        // También marcar el método si existe (para evitar usar el mismo método para diferentes elementos)
         if (existingMethod) {
-          usedMethods.add(existingMethod.toLowerCase());
-        } else {
-          usedMethods.add(elementName.toLowerCase());
+          const methodKey = `${existingMethod.toLowerCase()}_${assertion.type}`;
+          if (usedMethods.has(methodKey)) {
+            console.log(`⚠️ Saltando assertion: método ${existingMethod} ya fue usado para otro elemento con tipo ${assertion.type}`);
+            continue;
+          }
+          usedMethods.add(methodKey);
         }
         
         let assertionCode = '';
