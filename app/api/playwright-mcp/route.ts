@@ -5154,11 +5154,26 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     // Get existing method names from codebase patterns (already analyzed)
     // Normalize page object name to match extractPageObjectName format (camelCase)
     const normalizedPageObjectName = pageObjectName.charAt(0).toLowerCase() + pageObjectName.slice(1);
-    const availableMethods = codebasePatterns.methodsWithTestIds[normalizedPageObjectName] || 
-                             codebasePatterns.methodsWithTestIds[pageObjectName] || [];
+    
+    // Try multiple variations of the page object name
+    const availableMethods = 
+      codebasePatterns.methodsWithTestIds?.[normalizedPageObjectName] || 
+      codebasePatterns.methodsWithTestIds?.[pageObjectName] ||
+      codebasePatterns.methods?.[normalizedPageObjectName] ||
+      codebasePatterns.methods?.[pageObjectName] ||
+      [];
+    
     const existingMethodNames = availableMethods.map((m: any) => typeof m === 'string' ? m : m.name);
     
-    console.log(`📖 Found ${existingMethodNames.length} existing methods in ${normalizedPageObjectName} (also checked ${pageObjectName}) from codebase patterns: ${existingMethodNames.slice(0, 5).join(', ')}${existingMethodNames.length > 5 ? '...' : ''}`);
+    console.log(`📖 Checking methods for page object: ${pageObjectName} (normalized: ${normalizedPageObjectName})`);
+    console.log(`📖 Available methods from codebasePatterns.methodsWithTestIds: ${JSON.stringify(Object.keys(codebasePatterns.methodsWithTestIds || {}))}`);
+    console.log(`📖 Available methods from codebasePatterns.methods: ${JSON.stringify(Object.keys(codebasePatterns.methods || {}))}`);
+    console.log(`📖 Found ${existingMethodNames.length} existing methods in ${normalizedPageObjectName} (also checked ${pageObjectName}): ${existingMethodNames.slice(0, 10).join(', ')}${existingMethodNames.length > 10 ? '...' : ''}`);
+    
+    // If no methods found, try to fetch from GitHub directly as fallback
+    if (existingMethodNames.length === 0) {
+      console.warn(`⚠️ No methods found in codebase patterns for ${pageObjectName}, will proceed with method detection from test code only`);
+    }
     
     console.log(`🔍 Checking ${pageObjectName} for missing methods. Existing methods: ${existingMethodNames.length}`);
     
