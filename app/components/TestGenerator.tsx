@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   CheckCircleIcon, 
@@ -18,6 +18,7 @@ import {
   CheckBadgeIcon
 } from '@heroicons/react/24/outline'
 import SmallCube from './SmallCube'
+import { useTestGeneratorStore } from '../store/testGeneratorStore'
 
 interface AcceptanceCriteria {
   id: string
@@ -54,22 +55,43 @@ interface ProgressLog {
 }
 
 export default function TestGenerator() {
-  const [mode, setMode] = useState<'jira' | 'natural'>('jira') // New: natural language mode
-  const [jiraConfig, setJiraConfig] = useState({
-    issueKey: ''
-  })
-  const [naturalLanguageInput, setNaturalLanguageInput] = useState('') // New: natural language input
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]) // New: chat history
+  // Use persistent store instead of local state
+  const {
+    mode,
+    setMode,
+    jiraConfig,
+    setJiraConfig,
+    naturalLanguageInput,
+    setNaturalLanguageInput,
+    chatMessages,
+    setChatMessages,
+    acceptanceCriteria,
+    setAcceptanceCriteria,
+    generatedTest,
+    setGeneratedTest,
+    loading,
+    setLoading,
+    step,
+    setStep,
+    error,
+    setError,
+    copyButtonState,
+    setCopyButtonState,
+    progressLog,
+    setProgressLog,
+    addProgressLog,
+    showProgress,
+    setShowProgress
+  } = useTestGeneratorStore()
   
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState<AcceptanceCriteria | null>(null)
-  const [generatedTest, setGeneratedTest] = useState<GeneratedTest | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'jira' | 'generate' | 'result'>('jira')
-  const [error, setError] = useState<string | null>(null)
-  const [copyButtonState, setCopyButtonState] = useState<'idle' | 'copied'>('idle')
-  const [progressLog, setProgressLog] = useState<ProgressLog[]>([])
-  const [showProgress, setShowProgress] = useState(false)
   const progressContainerRef = React.useRef<HTMLDivElement>(null)
+  
+  // Restore progress log when component mounts if generation was in progress
+  useEffect(() => {
+    if (loading && progressLog.length > 0) {
+      setShowProgress(true)
+    }
+  }, [])
 
   // Add error boundary effect
   React.useEffect(() => {
@@ -142,7 +164,7 @@ export default function TestGenerator() {
 
     try {
       // Paso: interpretar y llamar al endpoint real
-      setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria with Claude AI...', status: 'info', timestamp: Date.now() }])
+      addProgressLog({ step: 'interpret', message: 'Interpreting acceptance criteria with Claude AI...', status: 'info', timestamp: Date.now() })
       
       // Simulate dynamic progress updates with smoother transitions
       progressInterval = setInterval(() => {
@@ -215,15 +237,12 @@ export default function TestGenerator() {
       clearInterval(progressInterval);
       
       // Logs de progreso derivados de la respuesta real
-      setProgressLog(prev => [
-        ...prev,
-        { step: 'browser', message: 'Launching browser for real observation...', status: 'info', timestamp: Date.now() },
-        { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.navigation },
-        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions and ${data.behavior?.elements?.length || 0} elements`, status: 'info', timestamp: Date.now(), details: data.behavior },
-        { step: 'generate', message: 'Generating test code and page object methods...', status: 'info', timestamp: Date.now() },
-        { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.testValidation },
-        { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() }
-      ])
+      addProgressLog({ step: 'browser', message: 'Launching browser for real observation...', status: 'info', timestamp: Date.now() })
+      addProgressLog({ step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.navigation })
+      addProgressLog({ step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions and ${data.behavior?.elements?.length || 0} elements`, status: 'info', timestamp: Date.now(), details: data.behavior })
+      addProgressLog({ step: 'generate', message: 'Generating test code and page object methods...', status: 'info', timestamp: Date.now() })
+      addProgressLog({ step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.testValidation })
+      addProgressLog({ step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() })
 
       if (data.success) {
         setGeneratedTest({
@@ -260,12 +279,12 @@ export default function TestGenerator() {
 
   const handleFallbackGeneration = async (criteria: AcceptanceCriteria) => {
     try {
-      setProgressLog(prev => [...prev, {
+      addProgressLog({
         step: 'fallback',
         message: 'Smart Synapse deshabilitado - Playwright MCP falló',
         status: 'error',
         timestamp: Date.now()
-      }])
+      })
 
       // ⚠️ Smart Synapse deshabilitado temporalmente
       // El usuario reportó que genera tests incorrectos
@@ -350,15 +369,15 @@ export default function TestGenerator() {
     setLoading(true)
     setProgressLog([])
     setShowProgress(true)
-    setChatMessages(prev => [...prev, { role: 'user', content: naturalLanguageInput }])
+    setChatMessages((prev: Array<{role: 'user' | 'assistant', content: string}>) => [...prev, { role: 'user', content: naturalLanguageInput }])
 
     try {
-      setProgressLog(prev => [...prev, { 
+      addProgressLog({ 
         step: 'interpret', 
         message: 'Interpreting natural language with Claude API...', 
         status: 'info', 
         timestamp: Date.now() 
-      }])
+      })
 
       // Call new endpoint that uses Claude to interpret and generate test
       const response = await fetch('/api/generate-test-from-natural-language', {
@@ -377,7 +396,7 @@ export default function TestGenerator() {
       const data = await response.json()
 
       // Add assistant response to chat
-      setChatMessages(prev => [...prev, { 
+      setChatMessages((prev: Array<{role: 'user' | 'assistant', content: string}>) => [...prev, { 
         role: 'assistant', 
         content: data.claudeResponse || 'Test generation initiated...' 
       }])
@@ -397,7 +416,7 @@ export default function TestGenerator() {
       // Agregar cada paso progresivamente con timestamp único
       steps.forEach((stepData, index) => {
         setTimeout(() => {
-          setProgressLog(prev => [...prev, { ...stepData, timestamp: baseTime + index * 10 }])
+          addProgressLog({ ...stepData, timestamp: baseTime + index * 10 })
         }, index * 50) // Delay de 50ms entre cada paso para efecto progresivo
       })
 
@@ -420,7 +439,7 @@ export default function TestGenerator() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setShowProgress(false)
-      setChatMessages(prev => [...prev, { 
+      setChatMessages((prev: Array<{role: 'user' | 'assistant', content: string}>) => [...prev, { 
         role: 'assistant', 
         content: `Error: ${err instanceof Error ? err.message : 'Unknown error occurred'}` 
       }])
