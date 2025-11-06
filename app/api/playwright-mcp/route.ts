@@ -5658,31 +5658,46 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           const baseSelectorsContent = baseSelectorsMatch[2];
           const baseSelectorsEnd = baseSelectorsMatch[3];
           
-          // Generate new selector entries
-          const newSelectors = Array.from(uniqueSelectors.values()).map(sel => {
-            // Extract testId from selector (e.g., "this.page.getByTestId('pastorderstab-btn')" -> "pastorderstab-btn")
-            let testId = '';
-            if (sel.selector.includes("getByTestId('")) {
-              const match = sel.selector.match(/getByTestId\('([^']+)'\)/);
-              testId = match ? match[1] : '';
-            }
-            
-            // Generate selector string in baseSelectors format
-            // Convert property name to selector string (e.g., "pastorderstab" -> "[data-testid='pastorderstab-btn']")
-            let selectorString = '';
-            if (testId) {
-              selectorString = `"[data-testid='${testId}']"`;
-            } else {
-              // Fallback: use property name to generate selector
-              const selectorName = sel.name.replace(/([A-Z])/g, '-$1').toLowerCase();
-              selectorString = `"[data-testid='${selectorName}']"`;
-            }
-            
-            // Generate property name in camelCase for baseSelectors
-            const baseSelectorName = sel.name;
-            
-            return `    ${baseSelectorName}: ${selectorString},`;
-          }).join('\n');
+          // Generate new selector entries - ONLY from observed selectors (NO invention)
+          const newSelectors = Array.from(uniqueSelectors.values())
+            .map(sel => {
+              // Extract testId from selector (e.g., "this.page.getByTestId('pastorderstab-btn')" -> "pastorderstab-btn")
+              let testId = '';
+              if (sel.selector.includes("getByTestId('")) {
+                const match = sel.selector.match(/getByTestId\('([^']+)'\)/);
+                testId = match ? match[1] : '';
+              }
+              
+              // Extract text from selector if it's a getByText locator
+              let textFromSelector = '';
+              if (sel.selector.includes("getByText('")) {
+                const match = sel.selector.match(/getByText\('([^']+)'\)/);
+                textFromSelector = match ? match[1] : '';
+              }
+              
+              // 🚫 RULE: NEVER invent selectors - only use observed ones
+              let selectorString = '';
+              if (testId) {
+                // Use observed testId
+                selectorString = `"[data-testid='${testId}']"`;
+              } else if (textFromSelector) {
+                // Use observed text - but we can't use getByText in baseSelectors, so we need to use a different approach
+                // For now, skip selectors that only have text (they'll use getByText directly in methods)
+                console.warn(`⚠️ Selector ${sel.name} uses getByText('${textFromSelector}') - cannot add to baseSelectors, will use directly in method`);
+                return null; // Skip this selector from baseSelectors
+              } else {
+                // 🚫 NO FALLBACK: If no testId and no text, skip this selector
+                console.error(`❌ CRITICAL: Selector ${sel.name} has no observed testId or text - SKIPPING (not inventing)`);
+                return null; // Skip this selector
+              }
+              
+              // Generate property name in camelCase for baseSelectors
+              const baseSelectorName = sel.name;
+              
+              return `    ${baseSelectorName}: ${selectorString},`;
+            })
+            .filter((sel: string | null) => sel !== null) // Remove null entries (skipped selectors)
+            .join('\n');
           
           // Check if there's a trailing comma in existing content
           const needsComma = baseSelectorsContent.trim().length > 0 && !baseSelectorsContent.trim().endsWith(',');
