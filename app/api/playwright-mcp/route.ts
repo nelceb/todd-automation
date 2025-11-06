@@ -4057,7 +4057,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           'emptyStateIllustration': 'isEmptyStateImageVisible',
           'emptystateimage': 'isEmptyStateImageVisible',
           'emptystateillustration': 'isEmptyStateImageVisible',
-          // Generic empty state - fallback
+          // Generic empty state - fallback (only if not message or image)
           'emptystate': 'isEmptyPastOrdersStateVisible',
           'empty': 'isEmptyPastOrdersStateVisible',
           // Past orders list
