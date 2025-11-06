@@ -5645,10 +5645,27 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Only add if not already present
         if (!uniqueSelectors.has(propName)) {
+          // Try to get cssSelector from observed element if available
+          let cssSelector = undefined;
+          if (method.observed && behavior.elements) {
+            // Find the element that matches this method's observation
+            const matchingElement = behavior.elements.find((e: any) => {
+              if (method.observed.testId && e.testId === method.observed.testId) return true;
+              if (method.observed.text && e.text === method.observed.text) return true;
+              if (method.observed.locator && e.locator === method.observed.locator) return true;
+              return false;
+            });
+            if (matchingElement?.cssSelector) {
+              cssSelector = matchingElement.cssSelector;
+              console.log(`✅ Found cssSelector for ${propName}: ${cssSelector}`);
+            }
+          }
+          
           uniqueSelectors.set(propName, {
             name: propName,
             selector: selectorCode,
-            normalizedSelector: normalizedSelector
+            normalizedSelector: normalizedSelector,
+            cssSelector: cssSelector // Store CSS selector for baseSelectors format
           });
           console.log(`✅ Will add new selector property: ${propName} = ${normalizedSelector}`);
         }
