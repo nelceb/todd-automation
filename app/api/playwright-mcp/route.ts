@@ -2371,86 +2371,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
     }
     
-    // 🎯 Usar snapshot de accesibilidad del MCP
-    console.log('📸 MCP: Capturando snapshot de accesibilidad...');
-    const snapshot = await mcpWrapper.browserSnapshot();
-    console.log('✅ MCP: Snapshot capturado');
-    
-    // 🎯 NAVEGACIÓN INTELIGENTE DESDE HOME: La observación navega dinámicamente según el acceptance criteria
-    console.log(`🧭 Navegación inteligente: contexto detectado = "${interpretation.context}"`);
-    console.log(`🧭 URL actual antes de navegación inteligente: ${currentURL}`);
-    
-    // Si el contexto requiere una sección específica (OrdersHub, Cart, Menu, etc.), navegar desde el Home
-    if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
-      console.log('🧭 Navegando desde Home a OrdersHub...');
-      
-      try {
-        // Intentar navegar directamente a OrdersHub
-        await page.goto('https://subscription.qa.cookunity.com/orders', { waitUntil: 'domcontentloaded', timeout: 10000 }); // Reducido a 10s
-        
-        try {
-          await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-        } catch (e) {
-          console.log('⚠️ waitForLoadState timeout, continuando...');
-        }
-        
-        const ordersURL = page.url();
-        console.log(`✅ Navegado a OrdersHub: ${ordersURL}`);
-        
-        // Validar contenido
-        await page.waitForSelector('[data-testid], button, nav', { timeout: 5000 }); // Reducido a 5s
-        console.log('✅ OrdersHub cargado con contenido');
-        
-      } catch (navError) {
-        console.log('⚠️ Navegación directa falló, intentando buscar link desde Home...');
-        
-        // Buscar link de orders desde el Home
-        const searchTerms = ['orders', 'subscription', 'my orders', 'order history'];
-        let ordersLink = null;
-        
-        for (const term of searchTerms) {
-          try {
-            ordersLink = await findElementWithAccessibility(page, term);
-            if (ordersLink) {
-              console.log(`✅ Encontrado link usando término: "${term}"`);
-              break;
-            }
-          } catch (e) {
-            // Continuar
-          }
-        }
-        
-        if (ordersLink) {
-          await ordersLink.click();
-          try {
-            await page.waitForURL(/orders|subscription/, { timeout: 12000 }); // Aumentado a 12s
-            console.log(`✅ Redirección detectada: ${page.url()}`);
-          } catch (urlTimeout) {
-            console.log('⚠️ waitForURL timeout después de navegar a OrdersHub, pero continuando...');
-            console.log(`📍 URL actual: ${page.url()}`);
-          }
-          try {
-            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
-          } catch (e) {
-            console.log('⚠️ waitForLoadState timeout, continuando...');
-          }
-          console.log(`✅ Navegado a OrdersHub mediante link: ${page.url()}`);
-        } else {
-          console.warn('⚠️ No se encontró link a OrdersHub - continuando con observación en Home');
-        }
-      }
-    } else if (interpretation.context === 'cart') {
-      console.log('🧭 Navegando desde Home a Cart...');
-      // Similar lógica para Cart si es necesario
-    } else if (interpretation.context === 'menu') {
-      console.log('🧭 Navegando desde Home a Menu...');
-      // Similar lógica para Menu si es necesario
-    }
-    
-    // 🎯 NOTE: Navigation to Orders Hub is now handled BEFORE detectAndActivateSectionWithMCP
+    // 🎯 CRITICAL: Navigate to Orders Hub FIRST (before capturing snapshot or detecting tabs)
     // This ensures we're on the correct page before trying to find tabs
-    
-    // 🎯 CRITICAL: Navigate to Orders Hub FIRST before trying to find tabs
     // For pastOrders/ordersHub context, ensure we're on Orders Hub page BEFORE detecting tabs
     if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
       const currentUrl = page.url();
@@ -2518,7 +2440,24 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       } else {
         console.log(`✅ Already on Orders Hub: ${currentUrl}`);
       }
+      
+      // 🎯 CRITICAL: Wait for Orders Hub page to fully load and tabs to be visible
+      console.log('⏳ Waiting for Orders Hub page to fully load...');
+      await page.waitForTimeout(3000); // Wait for dynamic content
+      
+      // Wait for tabs to be visible
+      try {
+        await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 8000 });
+        console.log('✅ Orders Hub tabs are visible');
+      } catch (e) {
+        console.warn('⚠️ Tabs not found immediately, continuing...');
+      }
     }
+    
+    // 🎯 NOW capture snapshot AFTER navigation (so we see the correct page)
+    console.log('📸 MCP: Capturing accessibility snapshot AFTER navigation...');
+    const snapshot = await mcpWrapper.browserSnapshot();
+    console.log('✅ MCP: Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
     // NOW we can safely search for tabs since we're on the correct page
