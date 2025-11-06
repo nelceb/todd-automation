@@ -6004,7 +6004,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             // Use REAL testId if available
             if (observed.testId) {
               selector = `this.page.getByTestId('${observed.testId}')`;
-              selectorName = observed.testId.replace(/[-_]/g, '').replace(/([A-Z])/g, '$1').replace(/^./, (c) => c.toLowerCase());
+              selectorName = observed.testId.replace(/[-_]/g, '').replace(/([A-Z])/g, '$1').replace(/^./, (c: string) => c.toLowerCase());
               console.log(`✅ Using REAL testId: ${observed.testId}`);
             } else if (observed.text && observed.text.trim().length > 0) {
               // Use text-based selector (getByText or getByRole)
