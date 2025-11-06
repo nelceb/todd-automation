@@ -264,7 +264,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       
     if (codebaseAnalysis) {
       const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
-      console.log(`✅ Encontrados ${totalMethods} métodos y ${codebaseAnalysis.selectors?.length || 0} selectors existentes`);
+      console.log(`✅ Found ${totalMethods} methods and ${codebaseAnalysis.selectors?.length || 0} existing selectors`);
       // Combinar interpretación con conocimiento del codebase
       interpretation.codebasePatterns = codebaseAnalysis;
       }
@@ -357,7 +357,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 5. Observar comportamiento REAL usando capacidades del MCP
     const behavior = await observeBehaviorWithMCP(page, interpretation, mcpWrapper);
     
-    console.log(`✅ Playwright MCP: Observados ${behavior.elements.length} elementos`);
+    console.log(`✅ Playwright MCP: Observed ${behavior.elements.length} elements`);
     
     // 6. Generar test con datos reales observados
     const smartTest = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
@@ -423,13 +423,13 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       // Solo fallar si realmente no pudimos observar nada
       // ⚠️ MEJORADO: Si tenemos observaciones (snapshot) pero no elementos, continuar de todos modos
       if (behavior.observations.length > 0) {
-        console.log('⚠️ Playwright MCP: No se encontraron elementos con data-testid, pero hay snapshot - continuando...');
-        console.log(`✅ Continuando con ${behavior.observations.length} observaciones de la página`);
+        console.log('⚠️ Playwright MCP: No elements with data-testid found, but snapshot available - continuing...');
+        console.log(`✅ Continuing with ${behavior.observations.length} page observations`);
         // Continuar con la generación usando el snapshot
       } else {
         console.log('⚠️ Playwright MCP: Could not observe elements or snapshot, but continuing with basic generation...');
         // NO FALLAR - continuar generando el test basado en la interpretación
-        console.log('✅ Continuando con generación de test basada en interpretación y métodos existentes del codebase');
+        console.log('✅ Continuing with test generation based on interpretation and existing codebase methods');
       }
     }
   } catch (error) {
@@ -826,7 +826,7 @@ async function analyzeCodebaseForPatterns() {
         const extractedMethods = extractMethodsFromContent(fileContent);
         const extractedSelectors = extractSelectorsFromContent(fileContent);
         
-        console.log(`✅ ${pageObjectName}: ${extractedMethods.length} métodos encontrados`);
+        console.log(`✅ ${pageObjectName}: ${extractedMethods.length} methods found`);
           return { 
             type: 'pageObject', 
             name: pageObjectName, 
@@ -3273,27 +3273,27 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     for (const element of allElements) {
       try {
-        // Intentar obtener data-testid
+        // Try to get data-testid
         let testId = await element.getAttribute('data-testid').catch(() => null);
         
-        // Si no tiene data-testid, buscar por texto visible (más confiable que inventar)
+        // If no data-testid, search by visible text (more reliable than inventing)
         if (!testId) {
           const text = await element.textContent().catch(() => null);
           const trimmedText = text?.trim();
           
-          // Si tiene texto descriptivo, usarlo como identificador
+          // If it has descriptive text, use it as identifier
           if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
-            // Usar texto como identificador (será usado para buscar por texto, no como testId)
-            testId = null; // Mantener null para indicar que no hay data-testid
-            // El texto se usará para generar un locator por texto
+            // Use text as identifier (will be used to search by text, not as testId)
+            testId = null; // Keep null to indicate no data-testid
+            // Text will be used to generate a locator by text
           } else {
-            // Si no tiene texto útil, intentar otros atributos
+            // If no useful text, try other attributes
             const id = await element.getAttribute('id').catch(() => null);
             const name = await element.getAttribute('name').catch(() => null);
             const role = await element.getAttribute('role').catch(() => null);
             const ariaLabel = await element.getAttribute('aria-label').catch(() => null);
             
-            // Solo usar atributos reales, NO inventar
+            // Only use real attributes, DO NOT invent
             testId = id || name || role || ariaLabel || null;
           }
         }
