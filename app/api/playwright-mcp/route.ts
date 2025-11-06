@@ -5748,7 +5748,64 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       if (methodsUsedInTest.size > 0 && existingMethodNames.length === 0) {
         console.warn(`⚠️ WARNING: No existing methods found in codebase, but test uses ${methodsUsedInTest.size} methods`);
         console.warn(`⚠️ This might mean codebase analysis failed - will generate methods anyway`);
-        // Don't return null - continue to generate methods
+        console.warn(`⚠️ Methods to generate: ${Array.from(methodsUsedInTest).join(', ')}`);
+        
+        // Generate methods from test code even though we didn't detect them as missing
+        // This happens when codebase analysis returns empty results
+        for (const methodUsed of Array.from(methodsUsedInTest)) {
+          // Skip if method exists in other page objects
+          let methodExistsInOtherPageObject = false;
+          for (const [otherPageObjName, otherMethods] of Array.from(allPageObjectMethods.entries())) {
+            if (otherPageObjName !== normalizedPageObjectName && otherPageObjName !== pageObjectName) {
+              const existsInOther = otherMethods.some((m: string) => m.toLowerCase() === methodUsed.toLowerCase());
+              if (existsInOther) {
+                methodExistsInOtherPageObject = true;
+                break;
+              }
+            }
+          }
+          
+          if (!methodExistsInOtherPageObject) {
+            // Generate method code (will use fallback selectors if no observations)
+            const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
+            const selectorName = methodUsed.replace(/^(clickOn|is|get)/, '').replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+            const selector = `this.page.getByTestId('${selectorName}')`; // Fallback selector
+            let methodCode = '';
+            
+            if (methodUsed.startsWith('get')) {
+              methodCode = `  async ${methodUsed}(): Promise<string> {
+    const ${selectorName} = ${selector};
+    return await ${selectorName}.textContent() || '';
+  }`;
+            } else if (methodUsed.startsWith('is')) {
+              methodCode = `  async ${methodUsed}(): Promise<boolean> {
+    const ${selectorName} = ${selector};
+    return await ${selectorName}.isVisible();
+  }`;
+            } else if (methodUsed.startsWith('clickOn')) {
+              methodCode = `  async ${methodUsed}(): Promise<void> {
+    const ${selectorName} = ${selector};
+    await ${selectorName}.click();
+  }`;
+            }
+            
+            missingMethods.push({
+              name: methodUsed,
+              code: methodCode,
+              type: methodType,
+              selector: selector,
+              selectorName: selectorName,
+              observed: null
+            } as any);
+            
+            console.log(`📝 Added method ${methodUsed} to missingMethods (codebase analysis returned empty)`);
+          }
+        }
+        
+        if (missingMethods.length === 0) {
+          console.log(`✅ All methods exist in other page objects, no update needed`);
+          return null;
+        }
       } else {
         console.log(`✅ All methods exist in ${pageObjectName}, no update needed`);
         return null; // No missing methods
