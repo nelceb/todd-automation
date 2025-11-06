@@ -357,6 +357,17 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 5. Observar comportamiento REAL usando capacidades del MCP
     const behavior = await observeBehaviorWithMCP(page, interpretation, mcpWrapper);
     
+    // 🎯 CRITICAL: Update navigation URL after observeBehaviorWithMCP navigates to target section
+    // observeBehaviorWithMCP may navigate to Orders Hub, Cart, etc. by clicking, so update the URL
+    const finalNavigationURL = page.url();
+    if (finalNavigationURL !== navigation.url) {
+      console.log(`🔄 Navigation URL updated: ${navigation.url} → ${finalNavigationURL}`);
+      navigation = {
+        ...navigation,
+        url: finalNavigationURL
+      };
+    }
+    
     console.log(`✅ Playwright MCP: Observed ${behavior.elements.length} elements`);
     
     // 6. Generar test con datos reales observados
