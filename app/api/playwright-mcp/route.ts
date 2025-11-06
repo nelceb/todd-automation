@@ -2933,7 +2933,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.log(`✅ [OBSERVATION] Página autenticada validada: ${allElements.length} elementos con data-testid encontrados`);
     }
     
-    const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string }> = [];
+    const visibleElements: Array<{ testId: string | null; text: string | null; locator?: string; cssSelector?: string }> = [];
     
     console.log(`🔍 [OBSERVATION] Procesando ${allElements.length} elementos encontrados...`);
     
@@ -2998,16 +2998,64 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           try {
             // 🎯 PRIORITY: Generate locator based on what we actually have
             let locator: string | undefined = undefined;
+            let cssSelector: string | undefined = undefined; // For baseSelectors format
+            
+            // Capture element attributes for CSS selector generation
+            const elementTag = tagName || 'div';
+            const elementClass = await element.getAttribute('class').catch(() => null);
+            const elementRole = await element.getAttribute('role').catch(() => null);
+            const elementId = await element.getAttribute('id').catch(() => null);
             
             if (testId) {
               // If we have a real data-testid, use it
               locator = `page.getByTestId('${testId}')`;
+              cssSelector = `[data-testid='${testId}']`;
             } else if (text && text.trim().length > 0 && text.trim().length < 100) {
-              // If no testId but we have descriptive text, use text locator
+              // If no testId but we have descriptive text, generate CSS selector with :has-text()
               const trimmedText = text.trim();
-              // Escape quotes in text for locator
               const escapedText = trimmedText.replace(/'/g, "\\'");
-              locator = `page.getByText('${escapedText}')`;
+              
+              // Build CSS selector combining element info with :has-text()
+              let selectorParts: string[] = [];
+              
+              // Add tag if it's not generic
+              if (elementTag && elementTag !== 'div' && elementTag !== 'span') {
+                selectorParts.push(elementTag);
+              }
+              
+              // Add id if available
+              if (elementId) {
+                selectorParts.push(`#${elementId}`);
+              }
+              
+              // Add class if available (take first class)
+              if (elementClass) {
+                const firstClass = elementClass.split(' ')[0];
+                if (firstClass) {
+                  selectorParts.push(`.${firstClass}`);
+                }
+              }
+              
+              // Add role if available
+              if (elementRole) {
+                selectorParts.push(`[role='${elementRole}']`);
+              }
+              
+              // If we have a partial testId (like 'text' or 'button'), use it
+              const partialTestId = await element.getAttribute('data-testid').catch(() => null);
+              if (partialTestId) {
+                selectorParts.push(`[data-testid='${partialTestId}']`);
+              }
+              
+              // Build final selector with :has-text()
+              if (selectorParts.length > 0) {
+                cssSelector = `${selectorParts.join('')}:has-text('${escapedText}')`;
+                locator = `page.locator('${cssSelector}')`;
+              } else {
+                // Fallback: use tag with :has-text()
+                cssSelector = `${elementTag}:has-text('${escapedText}')`;
+                locator = `page.locator('${cssSelector}')`;
+              }
             } else {
               // Try to generate locator using MCP (may use role, aria-label, etc.)
               locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
@@ -3015,12 +3063,20 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               if (locator && locator.startsWith('p.')) {
                 locator = locator.replace(/^p\./, 'page.');
               }
+              // Try to extract CSS selector from MCP locator
+              if (locator && locator.includes("locator('")) {
+                const match = locator.match(/locator\('([^']+)'\)/);
+                if (match) {
+                  cssSelector = match[1];
+                }
+              }
             }
             
             visibleElements.push({ 
               testId: testId || null, // null if no testId (don't invent)
               text: text?.trim() || null, 
-              locator: locator || undefined 
+              locator: locator || undefined,
+              cssSelector: cssSelector || undefined // For baseSelectors format
             });
           } catch (locatorError) {
             // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
