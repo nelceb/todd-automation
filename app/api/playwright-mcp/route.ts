@@ -5766,47 +5766,94 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           }
           
           if (!methodExistsInOtherPageObject) {
-            // Generate method code (will use fallback selectors if no observations)
+            // 🎯 CRITICAL: Try to find REAL observations from behavior before generating fallback
+            // Search for observations that match this method
+            const methodBase = methodUsed
+              .replace(/^(is|get|clickOn)/, '')
+              .replace(/Visible|Text|Tab$/i, '')
+              .toLowerCase();
+            
+            console.log(`🔍 Searching for REAL observations for method: ${methodUsed} (base: ${methodBase})`);
+            
+            // Search in interactions first (for click methods)
+            let observed = null;
+            if (methodUsed.toLowerCase().startsWith('clickon')) {
+              observed = behavior.interactions?.find((i: any) => {
+                const elementLower = (i.element || '').toLowerCase();
+                const testIdLower = (i.testId || '').toLowerCase();
+                return elementLower.includes(methodBase) || testIdLower.includes(methodBase);
+              });
+            }
+            
+            // Search in elements (for visibility/get methods)
+            if (!observed && behavior.elements) {
+              observed = behavior.elements.find((e: any) => {
+                const testIdLower = (e.testId || '').toLowerCase();
+                const textLower = (e.text || '').toLowerCase();
+                return testIdLower.includes(methodBase) || textLower.includes(methodBase);
+              });
+            }
+            
+            // 🎯 ONLY generate method if we have REAL observations (testId, text, or locator)
+            if (!observed || (!observed.testId && !observed.text && !observed.locator)) {
+              console.warn(`⚠️ SKIPPING method ${methodUsed}: No real observations found (no testId, text, or locator)`);
+              console.warn(`⚠️ This prevents inventing data-testid values`);
+              continue; // Skip this method - don't invent selectors
+            }
+            
+            console.log(`✅ Found REAL observation for ${methodUsed}:`, {
+              testId: observed.testId,
+              text: observed.text?.substring(0, 50),
+              hasLocator: !!observed.locator
+            });
+            
             const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
+            let selector = '';
+            let selectorName = '';
             
-            // Generate selector name from method name
-            // clickOnPastOrdersTab -> pastOrdersTab
-            // isEmptyPastOrdersStateVisible -> emptyPastOrdersStateVisible
-            // getEmptyStatePastOrdersText -> emptyStatePastOrdersText
-            let selectorName = methodUsed
-              .replace(/^(clickOn|is|get)/, '')
-              .replace(/([A-Z])/g, '-$1')
-              .toLowerCase()
-              .replace(/^-/, '');
-            
-            // Generate testId from selector name (e.g., past-orders-tab -> past-orders-tab)
-            const testId = selectorName;
-            const selector = `this.page.getByTestId('${testId}')`; // Fallback selector
-            
-            // Create a minimal observation object for consistency
-            const fallbackObservation = {
-              element: selectorName,
-              testId: testId,
-              locator: selector,
-              text: null
-            };
+            // Use REAL testId if available
+            if (observed.testId) {
+              selector = `this.page.getByTestId('${observed.testId}')`;
+              selectorName = observed.testId.replace(/[-_]/g, '').replace(/([A-Z])/g, '$1').replace(/^./, (c) => c.toLowerCase());
+              console.log(`✅ Using REAL testId: ${observed.testId}`);
+            } else if (observed.text && observed.text.trim().length > 0) {
+              // Use text-based selector (getByText or getByRole)
+              const text = observed.text.trim();
+              // For buttons/tabs, use getByRole; for text, use getByText
+              if (methodUsed.toLowerCase().includes('tab') || methodUsed.toLowerCase().includes('button')) {
+                selector = `this.page.getByRole('button', { name: '${text.replace(/'/g, "\\'")}' })`;
+              } else {
+                selector = `this.page.getByText('${text.replace(/'/g, "\\'")}')`;
+              }
+              selectorName = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+              console.log(`✅ Using REAL text: ${text.substring(0, 30)}...`);
+            } else if (observed.locator) {
+              // Use observed locator (already formatted)
+              selector = observed.locator.replace(/^page\./, 'this.page.');
+              selectorName = 'element';
+              console.log(`✅ Using REAL locator: ${observed.locator}`);
+            } else {
+              console.warn(`⚠️ SKIPPING method ${methodUsed}: Observation found but no usable data`);
+              continue; // Skip - no usable observation data
+            }
             
             let methodCode = '';
+            const varName = selectorName || 'element';
             
             if (methodUsed.startsWith('get')) {
               methodCode = `  async ${methodUsed}(): Promise<string> {
-    const ${selectorName} = ${selector};
-    return await ${selectorName}.textContent() || '';
+    const ${varName} = ${selector};
+    return await ${varName}.textContent() || '';
   }`;
             } else if (methodUsed.startsWith('is')) {
               methodCode = `  async ${methodUsed}(): Promise<boolean> {
-    const ${selectorName} = ${selector};
-    return await ${selectorName}.isVisible();
+    const ${varName} = ${selector};
+    return await ${varName}.isVisible();
   }`;
             } else if (methodUsed.startsWith('clickOn')) {
               methodCode = `  async ${methodUsed}(): Promise<void> {
-    const ${selectorName} = ${selector};
-    await ${selectorName}.click();
+    const ${varName} = ${selector};
+    await ${varName}.click();
   }`;
             }
             
@@ -5816,11 +5863,10 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
               type: methodType,
               selector: selector,
               selectorName: selectorName,
-              observed: fallbackObservation // Use fallback observation instead of null
+              observed: observed // Use REAL observation, not fallback
             } as any);
             
-            console.log(`📝 Added method ${methodUsed} to missingMethods (codebase analysis returned empty)`);
-            console.log(`📝 Method will use fallback selector: ${selector}`);
+            console.log(`✅ Added method ${methodUsed} with REAL observation (not invented)`);
           }
         }
         
