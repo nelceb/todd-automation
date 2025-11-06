@@ -5364,6 +5364,14 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     const missingMethods: Array<{ name: string; code: string; type: 'action' | 'assertion' }> = [];
     console.log(`🔍 Starting comparison: ${methodsUsedInTest.size} methods in test vs ${existingMethodNames.length} existing methods`);
     
+    // 🎯 CRITICAL: If codebase patterns are empty, we should still generate methods
+    // This happens when the codebase analysis didn't find methods, but the test code uses them
+    const shouldGenerateMethods = existingMethodNames.length === 0 || methodsUsedInTest.size > 0;
+    
+    if (!shouldGenerateMethods && existingMethodNames.length === 0) {
+      console.warn(`⚠️ WARNING: No existing methods found in codebase patterns, but will still check test methods`);
+    }
+    
     for (const methodUsed of Array.from(methodsUsedInTest)) {
       // First check if method exists in OTHER page objects (should skip it)
       let methodExistsInOtherPageObject = false;
@@ -5383,7 +5391,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       }
       
       // Check if method exists in the CURRENT page object (case-insensitive)
-      const methodExists = existingMethodNames.some((method: string) => {
+      // 🎯 CRITICAL: If existingMethodNames is empty, we should still generate the method
+      const methodExists = existingMethodNames.length > 0 && existingMethodNames.some((method: string) => {
         const match = method.toLowerCase() === methodUsed.toLowerCase();
         if (match) {
           console.log(`✅ Method ${methodUsed} already exists as ${method} in ${pageObjectName}`);
@@ -5393,7 +5402,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       
       if (!methodExists) {
         console.log(`⚠️ Missing method used in test: ${methodUsed}`);
-        console.log(`⚠️ Existing methods to compare: ${existingMethodNames.slice(0, 10).join(', ')}${existingMethodNames.length > 10 ? '...' : ''}`);
+        console.log(`⚠️ Existing methods to compare: ${existingMethodNames.length > 0 ? existingMethodNames.slice(0, 10).join(', ') + (existingMethodNames.length > 10 ? '...' : '') : 'NONE (will generate)'}`);
         
         // Determine method type and generate code
         let methodCode = '';
@@ -5734,8 +5743,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     }
     
     if (missingMethods.length === 0) {
-      console.log(`✅ All methods exist in ${pageObjectName}, no update needed`);
-      return null; // No missing methods
+      // 🎯 CRITICAL: If we have methods in test but no existing methods in codebase,
+      // we should still generate them (codebase analysis might have failed)
+      if (methodsUsedInTest.size > 0 && existingMethodNames.length === 0) {
+        console.warn(`⚠️ WARNING: No existing methods found in codebase, but test uses ${methodsUsedInTest.size} methods`);
+        console.warn(`⚠️ This might mean codebase analysis failed - will generate methods anyway`);
+        // Don't return null - continue to generate methods
+      } else {
+        console.log(`✅ All methods exist in ${pageObjectName}, no update needed`);
+        return null; // No missing methods
+      }
     }
     
     console.log(`📝 Found ${missingMethods.length} missing methods, will add to ${pageObjectPath}`);
