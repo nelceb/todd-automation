@@ -5741,7 +5741,17 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
                 testId = match ? match[1] : '';
               }
               
-              // Extract text from selector if it's a getByText locator
+              // 🎯 PRIORITY: Use stored cssSelector if available (from observation)
+              let cssSelectorFromStorage = sel.cssSelector;
+              
+              // Extract CSS selector from locator if available (for :has-text() patterns)
+              let cssSelectorFromLocator = '';
+              if (sel.selector.includes("locator('")) {
+                const match = sel.selector.match(/locator\('([^']+)'\)/);
+                cssSelectorFromLocator = match ? match[1] : '';
+              }
+              
+              // Extract text from selector if it's a getByText locator (legacy)
               let textFromSelector = '';
               if (sel.selector.includes("getByText('")) {
                 const match = sel.selector.match(/getByText\('([^']+)'\)/);
@@ -5753,14 +5763,31 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
               if (testId) {
                 // Use observed testId
                 selectorString = `"[data-testid='${testId}']"`;
+              } else if (cssSelectorFromStorage) {
+                // 🎯 PRIORITY: Use stored CSS selector from observation (includes :has-text() patterns)
+                selectorString = `"${cssSelectorFromStorage}"`;
+                console.log(`✅ Using stored CSS selector: ${cssSelectorFromStorage}`);
+              } else if (cssSelectorFromLocator && cssSelectorFromLocator.includes(':has-text(')) {
+                // Use observed CSS selector with :has-text() (e.g., "button:has-text('Past Orders')")
+                selectorString = `"${cssSelectorFromLocator}"`;
+                console.log(`✅ Using CSS selector with :has-text(): ${cssSelectorFromLocator}`);
               } else if (textFromSelector) {
-                // Use observed text - but we can't use getByText in baseSelectors, so we need to use a different approach
-                // For now, skip selectors that only have text (they'll use getByText directly in methods)
-                console.warn(`⚠️ Selector ${sel.name} uses getByText('${textFromSelector}') - cannot add to baseSelectors, will use directly in method`);
-                return null; // Skip this selector from baseSelectors
+                // Legacy: getByText - try to find the element info from observed data
+                // This should not happen often, but handle it gracefully
+                console.warn(`⚠️ Selector ${sel.name} uses getByText('${textFromSelector}') - trying to find element info...`);
+                // Try to find element info from behavior.elements
+                const elementInfo = behavior.elements?.find((e: any) => e.text?.includes(textFromSelector));
+                if (elementInfo?.cssSelector) {
+                  selectorString = `"${elementInfo.cssSelector}"`;
+                  console.log(`✅ Found CSS selector from element info: ${elementInfo.cssSelector}`);
+                } else {
+                  // Last resort: use generic selector with :has-text()
+                  selectorString = `"*:has-text('${textFromSelector}')"`;
+                  console.warn(`⚠️ Using generic selector with :has-text() for ${sel.name}`);
+                }
               } else {
-                // 🚫 NO FALLBACK: If no testId and no text, skip this selector
-                console.error(`❌ CRITICAL: Selector ${sel.name} has no observed testId or text - SKIPPING (not inventing)`);
+                // 🚫 NO FALLBACK: If no testId and no text/CSS selector, skip this selector
+                console.error(`❌ CRITICAL: Selector ${sel.name} has no observed testId, text, or CSS selector - SKIPPING (not inventing)`);
                 return null; // Skip this selector
               }
               
