@@ -2516,8 +2516,78 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
     }
     
-    // 🎯 MCP INTELLIGENT DETECTION: Detectar y activar secciones específicas (tabs, etc.)
-    // Execute actions first (especially clicking on tabs) and THEN observe
+    // 🎯 CRITICAL: Navigate to Orders Hub FIRST before trying to find tabs
+    // For pastOrders/ordersHub context, ensure we're on Orders Hub page BEFORE detecting tabs
+    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
+      const currentUrl = page.url();
+      const isOnOrdersHub = currentUrl.includes('orders-hub') || currentUrl.includes('ordershub');
+      
+      if (!isOnOrdersHub) {
+        console.log('🧭 Navigating to Orders Hub BEFORE detecting tabs...');
+        console.log(`📍 Current URL: ${currentUrl}`);
+        
+        try {
+          // Strategy 1: Try to find and click Orders Hub nav item
+          const ordersHubSelectors = [
+            "a[href*='orders-hub']",
+            "a:has-text('Orders Hub')",
+            "[data-testid*='orders-hub']",
+            "[data-testid*='ordershub']",
+            "a:has-text('Orders')",
+            "nav a:has-text('Orders')"
+          ];
+          
+          let ordersHubNav = null;
+          for (const selector of ordersHubSelectors) {
+            try {
+              const nav = page.locator(selector).first();
+              if (await nav.count() > 0 && await nav.isVisible().catch(() => false)) {
+                ordersHubNav = nav;
+                console.log(`✅ Found Orders Hub nav with selector: ${selector}`);
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          if (ordersHubNav) {
+            await ordersHubNav.click();
+            await page.waitForURL(/orders-hub|ordershub/, { timeout: 15000 });
+            await page.waitForTimeout(3000); // Wait for page to load
+            console.log(`✅ Navigation to Orders Hub completed: ${page.url()}`);
+          } else {
+            // Strategy 2: Try direct navigation
+            console.log('⚠️ Nav item not found, trying direct navigation...');
+            try {
+              await page.goto('https://subscription.qa.cookunity.com/orders-hub', { waitUntil: 'domcontentloaded', timeout: 20000 });
+              await page.waitForTimeout(3000);
+              console.log(`✅ Direct navigation completed: ${page.url()}`);
+            } catch (directNavError) {
+              console.warn('⚠️ Direct navigation failed:', directNavError);
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not navigate to Orders Hub automatically:', e);
+        }
+        
+        // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
+        try {
+          // Wait for Orders Hub page title or specific element
+          await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
+          console.log('✅ Orders Hub page verified - found page title or header');
+        } catch (verifyError) {
+          console.warn('⚠️ Could not verify Orders Hub page - may not be loaded correctly');
+          // Try to wait a bit more
+          await page.waitForTimeout(2000);
+        }
+      } else {
+        console.log(`✅ Already on Orders Hub: ${currentUrl}`);
+      }
+    }
+    
+    // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
+    // NOW we can safely search for tabs since we're on the correct page
     await detectAndActivateSectionWithMCP(page, interpretation, mcpWrapper);
     
     // Execute tab clicks immediately after detection (before observing)
