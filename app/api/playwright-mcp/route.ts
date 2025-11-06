@@ -2609,13 +2609,13 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       ];
       
       let tabsFound = false;
-      // CRITICAL: Wait longer for tabs to load dynamically (they load AFTER page navigation)
-      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to load dynamically (this can take 5-10 seconds)...');
+      // CRITICAL: Wait for tabs to load dynamically (they load AFTER page navigation)
+      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to load dynamically...');
       
-      for (const selector of ordersHubTabSelectors) {
+      // Try selectors with shorter timeouts but in sequence (more efficient than parallel)
+      for (const selector of ordersHubTabSelectors.slice(0, 6)) { // Try first 6 selectors only
         try {
-          console.log(`🔍 STEP 4: Waiting for tab with selector: "${selector}"...`);
-          await page.waitForSelector(selector, { timeout: 15000, state: 'visible' }); // Increased to 15s
+          await page.waitForSelector(selector, { timeout: 6000, state: 'visible' }); // Reduced to 6s per selector
           const count = await page.locator(selector).count();
           if (count > 0) {
             const isVisible = await page.locator(selector).first().isVisible();
@@ -2624,27 +2624,26 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               tabsFound = true;
               break;
             }
-            }
-          } catch (e) {
-          console.log(`⚠️ Tab selector "${selector}" not found yet, trying next...`);
+          }
+        } catch (e) {
           continue;
         }
       }
       
       if (!tabsFound) {
-        console.warn('⚠️ STEP 4 WARNING: No tabs found after waiting, trying additional wait...');
-        // Wait longer as fallback - tabs might be loading very slowly
-        await page.waitForTimeout(5000); // Increased to 5s
-        // Try one more time with a more generic selector
+        console.warn('⚠️ STEP 4 WARNING: No tabs found with specific selectors, trying generic selector...');
+        // Try generic selector with shorter timeout
         try {
-          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 10000, state: 'visible' });
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' }); // Reduced to 6s
           const genericTabs = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
           if (genericTabs > 0) {
-            console.log(`✅ STEP 4 SUCCESS: Found ${genericTabs} generic tabs after additional wait`);
+            console.log(`✅ STEP 4 SUCCESS: Found ${genericTabs} generic tabs`);
             tabsFound = true;
           }
         } catch (e) {
-          console.warn('⚠️ Still no tabs found after extended wait');
+          console.warn('⚠️ Still no tabs found, but continuing...');
+          // Only wait 2s as last resort
+          await page.waitForTimeout(2000);
         }
       }
       
@@ -2702,23 +2701,23 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // Try to wait for Orders Hub specific content (tabs, orders, etc.)
         // CRITICAL: Wait for tabs to be visible (they load dynamically)
         try {
-          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 10000, state: 'visible' }); // Increased to 10s
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' }); // Reduced to 6s
           const tabCount = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
           console.log(`✅ Orders Hub tabs confirmed visible (${tabCount} tabs found)`);
         } catch (e) {
           console.warn('⚠️ Tabs not confirmed after waiting, but continuing...');
-          // Wait a bit more as fallback
-          await page.waitForTimeout(3000);
+          // Wait shorter as fallback
+          await page.waitForTimeout(2000); // Reduced to 2s
         }
         
         // Check for content to ensure page is loaded
         const hasContent = await page.locator('button, a, [data-testid]').count();
         console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
         
-        // Wait longer if very few elements (likely still loading)
-        if (hasContent < 10) {
-          console.warn('⚠️ Very few interactive elements found, waiting 3 more seconds for dynamic content...');
-          await page.waitForTimeout(3000); // Increased to 3s
+        // Wait only if very few elements (likely still loading)
+        if (hasContent < 5) {
+          console.warn('⚠️ Very few interactive elements found, waiting 2 seconds for dynamic content...');
+          await page.waitForTimeout(2000); // Reduced to 2s
           
           // Check again
           const retryContent = await page.locator('button, a, [data-testid]').count();
@@ -2919,31 +2918,31 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             });
             
             // Wait for tab content to load (CRITICAL: dynamic content takes time)
-            console.log('⏳ Waiting for tab content to load after click (this can take 5-10 seconds)...');
+            console.log('⏳ Waiting for tab content to load after click...');
             
             // 🎯 CRITICAL: Verify page is still open before waiting
             if (page.isClosed()) {
               throw new Error('Page was closed before waiting for tab content');
             }
             
-            // Wait longer for dynamic content to load after tab click
-            await page.waitForTimeout(5000); // Increased to 5s for dynamic content
+            // Wait for dynamic content to load after tab click (reduced to avoid timeout)
+            await page.waitForTimeout(3000); // Reduced to 3s
             
             // 🎯 CRITICAL: Verify page is still open after wait
             if (page.isClosed()) {
               throw new Error('Page was closed while waiting for tab content');
             }
             
-            // Try to wait for specific content with longer timeout
+            // Try to wait for specific content with shorter timeout
             if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
               try {
                 // Wait for empty state or past orders content (more flexible selectors)
-                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"], [class*="empty"], [class*="past"], [class*="Empty"]', { timeout: 12000 }); // Increased to 12s
+                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"], [class*="empty"], [class*="past"], [class*="Empty"]', { timeout: 8000 }); // Reduced to 8s
                 console.log('✅ Tab content loaded');
               } catch (e) {
                 console.log('⚠️ Timeout waiting for specific tab content, but continuing...');
-                // Wait a bit more as fallback
-                await page.waitForTimeout(3000);
+                // Wait shorter as fallback
+                await page.waitForTimeout(2000); // Reduced to 2s
               }
             }
           } else {
