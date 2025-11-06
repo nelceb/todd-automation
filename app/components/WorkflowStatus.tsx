@@ -89,25 +89,33 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
   // Smart expansion logic based on device type and running workflows
   useEffect(() => {
-    if (repositories.length > 0) {
-      // Check if we're on mobile (screen width < 1024px)
-      const isMobile = window.innerWidth < 1024
-      
-      if (isMobile) {
-        // Mobile: Always keep repositories collapsed by default
-        // Only expand if user manually clicks
-        setExpandedRepositories(new Set())
-      } else {
-        // Web: Always keep all repositories expanded
-        const allRepositories = new Set(repositories.map(r => r.name))
-        setExpandedRepositories(allRepositories)
-      }
+    // Define the 3 repositories that should be expanded
+    const repositoryDataNames = ['pw-cookunity-automation', 'maestro-test', 'automation-framework']
+    
+    // Check if we're on mobile (screen width < 1024px)
+    const isMobile = window.innerWidth < 1024
+    
+    if (isMobile) {
+      // Mobile: Always keep repositories collapsed by default
+      // Only expand if user manually clicks
+      setExpandedRepositories(new Set())
+    } else {
+      // Web: Always keep all repositories expanded (use repositoryData names to ensure all are included)
+      const allRepositories = new Set(repositoryDataNames)
+      // Also include any repositories from the store that might not be in repositoryData
+      repositories.forEach(repo => {
+        allRepositories.add(repo.name)
+      })
+      setExpandedRepositories(allRepositories)
     }
   }, [repositories, setExpandedRepositories])
 
   // Additional effect to handle running workflows from TODD
   useEffect(() => {
-    if (repositories.length > 0 && runningWorkflowsFromTodd.length > 0) {
+    // Define the 3 repositories that should be expanded
+    const repositoryDataNames = ['pw-cookunity-automation', 'maestro-test', 'automation-framework']
+    
+    if (runningWorkflowsFromTodd.length > 0) {
       const repositoriesWithRunningWorkflows = new Set(
         runningWorkflowsFromTodd.map(w => w.repository)
       )
@@ -129,8 +137,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         // Mobile: Only expand repositories with running workflows
         setExpandedRepositories(repositoriesWithRunningWorkflows)
       } else {
-        // Web: Ensure all repositories are expanded (they should already be)
-        const allRepositories = new Set(repositories.map(r => r.name))
+        // Web: Ensure all repositories are expanded (use repositoryData names to ensure all are included)
+        const allRepositories = new Set(repositoryDataNames)
+        // Also include any repositories from the store that might not be in repositoryData
+        repositories.forEach(repo => {
+          allRepositories.add(repo.name)
+        })
         setExpandedRepositories(allRepositories)
       }
     }
