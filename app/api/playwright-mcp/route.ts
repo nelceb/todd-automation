@@ -1386,7 +1386,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
             await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Increased to 5s
           }
         } catch (e) {
-          console.log('⚠️ waitForLoadState timeout, continuando...');
+          console.log('⚠️ waitForLoadState timeout, continuing...');
         }
       } catch (gotoError) {
         // Verificar si el error es porque la página se cerró
@@ -1428,20 +1428,20 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       
       console.log('✅ [LOGIN] Login automático completado exitosamente');
       
-      // Después del login, esperar a que redirija al home autenticado
-      console.log('⏳ Esperando redirección después del login...');
-      // Esperar redirección después del login (más flexible, no fallar si tarda)
+      // After login, wait for redirect to authenticated home
+      console.log('⏳ Waiting for redirect after login...');
+      // Wait for redirect after login (more flexible, don't fail if it takes time)
       try {
-        await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 15000 }); // Aumentado a 15s
+        await page.waitForURL(/qa\.cookunity\.com|subscription\.qa\.cookunity\.com/, { timeout: 15000 }); // Increased to 15s
       } catch (urlTimeout) {
-        console.log('⚠️ waitForURL timeout después del login, pero continuando con la URL actual...');
-        console.log(`📍 URL actual: ${page.url()}`);
+        console.log('⚠️ waitForURL timeout after login, but continuing with current URL...');
+        console.log(`📍 Current URL: ${page.url()}`);
       }
-      // Esperar de forma flexible (no bloquear si networkidle falla - páginas dinámicas tienen tráfico constante)
+      // Wait flexibly (don't block if networkidle fails - dynamic pages have constant traffic)
       try {
-        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Increased to 5s
       } catch (e) {
-        console.log('⚠️ waitForLoadState timeout después del login, continuando...');
+        console.log('⚠️ waitForLoadState timeout after login, continuing...');
       }
       
       const postLoginURL = page.url();
@@ -1463,10 +1463,10 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           }
         }
         
-        // Dar tiempo adicional para que los elementos dinámicos se carguen
-        await page.waitForTimeout(1000); // Reducido a 1s
+        // Give additional time for dynamic elements to load
+        await page.waitForTimeout(1000); // Reduced to 1s
         
-        // Verificar que NO estamos en página de login primero (más importante)
+        // Verify we're NOT on login page first (most important)
         const currentURL = page.url();
         const isLoginPage = currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login');
         
@@ -1479,7 +1479,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           };
         }
         
-        // Verificar elementos disponibles (más flexible - solo necesita encontrar ALGUNOS elementos)
+        // Verify available elements (more flexible - only needs to find SOME elements)
         const testIdCount = await page.locator('[data-testid]').count().catch(() => 0);
         const buttonCount = await page.locator('button').count().catch(() => 0);
         const navCount = await page.locator('nav, a[href*="orders"], a[href*="subscription"]').count().catch(() => 0);
@@ -1505,18 +1505,18 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           };
         }
         
-        // Validación más flexible: si encontramos CUALQUIER elemento interactivo o la URL es correcta, asumir éxito
+        // More flexible validation: if we find ANY interactive element or URL is correct, assume success
         const hasAnyInteractiveElement = testIdCount > 0 || buttonCount > 0 || navCount > 0 || linkCount > 5;
         const isCorrectDomain = currentURL.includes('qa.cookunity.com') || currentURL.includes('subscription.qa.cookunity.com');
         
         if (!hasAnyInteractiveElement && !isCorrectDomain) {
           console.warn('⚠️ [AUTH VALIDATION] No se encontraron elementos inicialmente, intentando estrategias adicionales...');
           
-          // ESTRATEGIA DE RECUPERACIÓN: Esperar un poco más y verificar de nuevo
-          console.log('⏳ [AUTH VALIDATION] Esperando 3 segundos adicionales para carga dinámica...');
-          await page.waitForTimeout(2000); // Reducido a 2s
+          // RECOVERY STRATEGY: Wait a bit more and verify again
+          console.log('⏳ [AUTH VALIDATION] Waiting 3 additional seconds for dynamic loading...');
+          await page.waitForTimeout(2000); // Reduced to 2s
           
-          // Verificar de nuevo después de esperar
+          // Verify again after waiting
           const retryTestIdCount = await page.locator('[data-testid]').count().catch(() => 0);
           const retryButtonCount = await page.locator('button').count().catch(() => 0);
           const retryLinkCount = await page.locator('a').count().catch(() => 0);
@@ -1529,7 +1529,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
           const retryHasElements = retryTestIdCount > 0 || retryButtonCount > 0 || retryLinkCount > 5;
           
           if (!retryHasElements && !isCorrectDomain) {
-            // Última verificación: buscar elementos más básicos (inputs, divs con contenido)
+            // Last verification: search for more basic elements (inputs, divs with content)
             const inputCount = await page.locator('input').count().catch(() => 0);
             const divCount = await page.locator('div').count().catch(() => 0);
             const bodyLength = bodyText.length;
@@ -1539,7 +1539,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
             console.log(`  - divs: ${divCount}`);
             console.log(`  - body text length: ${bodyLength}`);
             
-            // Si hay contenido sustancial en la página (más de 100 caracteres) y estamos en el dominio correcto, asumir éxito
+            // If there's substantial content on the page (more than 100 characters) and we're on the correct domain, assume success
             const hasSubstantialContent = bodyLength > 100 && (inputCount > 0 || divCount > 5);
             
             if (!hasSubstantialContent && !isCorrectDomain) {
@@ -1605,7 +1605,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         if (isLoginPage) {
           // Si estamos en login page, intentar una última vez esperando más tiempo
           console.warn('⚠️ [AUTH VALIDATION] Todavía en login page, esperando 5 segundos más antes de fallar...');
-          await page.waitForTimeout(3000); // Reducido a 3s
+          await page.waitForTimeout(2000); // Reduced to 2s // Reducido a 3s
           
           // Verificar una última vez
           const finalURL = page.url();
@@ -1658,14 +1658,14 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         throw new Error('Page was closed before navigation');
       }
       
-      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 12000 }); // Aumentado a 12s
-      // Esperar de forma flexible (no bloquear si networkidle falla)
+      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 12000 }); // Increased to 12s
+      // Wait flexibly (don't block if networkidle fails)
       try {
         if (!page.isClosed()) {
-          await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
+          await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Increased to 5s
         }
       } catch (e) {
-        console.log('⚠️ waitForLoadState timeout, continuando...');
+        console.log('⚠️ waitForLoadState timeout, continuing...');
       }
     } catch (gotoError) {
       // Verificar si el error es porque la página se cerró
@@ -1679,7 +1679,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       }
       
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
-      await page.goto(targetURL, { waitUntil: 'load', timeout: 12000 }); // Aumentado a 12s
+      await page.goto(targetURL, { waitUntil: 'load', timeout: 12000 }); // Increased to 12s
     }
     
     // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
@@ -1689,11 +1689,11 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       await page.waitForURL(/auth\.qa\.cookunity\.com|\/login/, { timeout: 5000 }); // Reducido a 5s
     } catch (timeoutError) {
       // Si no redirige, continuar
-      console.log('✅ No se detectó redirección al login, continuando...');
+      console.log('✅ No redirect to login detected, continuing...');
     }
     
     const currentURL = page.url();
-    console.log(`📍 URL actual después de navegación: ${currentURL}`);
+    console.log(`📍 Current URL after navigation: ${currentURL}`);
     
     // Si estamos en página de login, hacer login automáticamente
     if (currentURL.includes('auth.qa.cookunity.com') || currentURL.includes('/login')) {
@@ -1716,7 +1716,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         console.log(`✅ Redirección detectada: ${page.url()}`);
       } catch (urlTimeout) {
         console.log('⚠️ waitForURL timeout después del login, pero continuando con la URL actual...');
-        console.log(`📍 URL actual: ${page.url()}`);
+        console.log(`📍 Current URL: ${page.url()}`);
         // Verificar si estamos en una URL válida aunque no haya coincidido el patrón
         const currentURL = page.url();
         if (currentURL.includes('qa.cookunity.com') || currentURL.includes('subscription.qa.cookunity.com')) {
@@ -1748,11 +1748,11 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
             await page.waitForURL(/\/menu/, { timeout: 10000 }); // Aumentado a 10s
           } catch (urlTimeout) {
             console.log('⚠️ waitForURL timeout después de click en menu, pero continuando...');
-            console.log(`📍 URL actual: ${page.url()}`);
+            console.log(`📍 Current URL: ${page.url()}`);
           }
             // Esperar de forma flexible
             try {
-            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Aumentado a 5s
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }); // Increased to 5s
             } catch (e) {
               console.log('⚠️ waitForLoadState timeout después de click en menu, continuando...');
             }
@@ -2048,19 +2048,19 @@ async function performLoginIfNeeded(page: Page) {
       }, { timeout: 15000 }); // 15 segundos para el redirect
       
       const urlAfterRedirect = page.url();
-      console.log(`✅ Redirect completado: ${urlAfterRedirect}`);
+      console.log(`✅ Redirect completed: ${urlAfterRedirect}`);
     } catch (redirectError) {
-      console.warn(`⚠️ Redirect timeout o error: ${redirectError}`);
-      console.warn(`⚠️ URL actual: ${page.url()}`);
-      // Esperar un poco más por si acaso
-      await page.waitForTimeout(3000);
+      console.warn(`⚠️ Redirect timeout or error: ${redirectError}`);
+      console.warn(`⚠️ Current URL: ${page.url()}`);
+      // Wait a bit more just in case
+      await page.waitForTimeout(1000); // Reduced to 1s
     }
     
-    // Esperar un momento adicional para que la página cargue completamente
-    await page.waitForTimeout(2000);
+    // Wait an additional moment for page to fully load
+    await page.waitForTimeout(1000); // Reduced to 1s
     
     const finalURL = page.url();
-    console.log('✅ Login automático completado, URL final:', finalURL);
+    console.log('✅ Automatic login completed, final URL:', finalURL);
     
     // Verificar que realmente salimos de la página de login
     const stillOnLogin = finalURL.includes('auth.qa.cookunity.com') || finalURL.includes('/login');
@@ -2399,7 +2399,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.warn('⚠️ [PRE-OBSERVATION] Buscando elementos con otros métodos más agresivos...');
       
       // NO FALLAR - buscar elementos con otros métodos y continuar
-      await page.waitForTimeout(3000); // Esperar más tiempo
+      await page.waitForTimeout(2000); // Reduced to 2s
       
       const buttonCount = await page.locator('button').count().catch(() => 0);
       const linkCount = await page.locator('a').count().catch(() => 0);
@@ -2474,7 +2474,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         console.log(`✅ [navigateToSectionByClick] Click executed, waiting for URL change...`);
         
         try {
-          await page.waitForURL(urlPattern, { timeout: 15000 });
+          await page.waitForURL(urlPattern, { timeout: 10000 }); // Reduced to 10s
           const newUrl = page.url();
           console.log(`✅ [navigateToSectionByClick] URL changed successfully: ${newUrl}`);
           
@@ -2496,9 +2496,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             ];
             
             let tabsVisible = false;
+            // Try to find tabs quickly with shorter timeout
             for (const selector of tabSelectors) {
               try {
-                await page.waitForSelector(selector, { timeout: 10000, state: 'visible' });
+                await page.waitForSelector(selector, { timeout: 5000, state: 'visible' }); // Reduced to 5s
                 const count = await page.locator(selector).count();
                 if (count > 0) {
                   console.log(`✅ [navigateToSectionByClick] Orders Hub tabs are visible (selector: ${selector}, count: ${count})`);
@@ -2511,8 +2512,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
             
             if (!tabsVisible) {
-              console.warn(`⚠️ [navigateToSectionByClick] Tabs not found after waiting, waiting 3 more seconds as fallback...`);
-              await page.waitForTimeout(3000);
+              console.warn(`⚠️ [navigateToSectionByClick] Tabs not found after waiting, waiting 2 more seconds as fallback...`);
+              await page.waitForTimeout(2000); // Reduced to 2s
             }
           } else {
             // For other sections, just wait a bit for content to load
@@ -2567,13 +2568,13 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.log('🔍 STEP 3: Verifying we are on Orders Hub page...');
       try {
         // Wait for Orders Hub page title or specific element
-        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
+        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 5000 }); // Reduced to 5s
         console.log('✅ STEP 3 SUCCESS: Orders Hub page verified - found page title or header');
       } catch (verifyError) {
         console.warn('⚠️ STEP 3 WARNING: Could not verify Orders Hub page - may not be loaded correctly');
         console.warn(`⚠️ Verification error: ${verifyError}`);
         // Try to wait a bit more
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1000); // Reduced to 1s
       }
       
       // 🎯 CRITICAL: Wait for Orders Hub tabs to appear AFTER the click
@@ -2618,7 +2619,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       if (!tabsFound) {
         console.warn('⚠️ STEP 4 WARNING: No tabs found after waiting, but continuing...');
         // Wait a bit more as fallback
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(2000); // Reduced to 2s
       }
       
       console.log('✅ STEP 4 COMPLETE: Tabs should be visible now');
@@ -2673,26 +2674,23 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       // Wait for specific Orders Hub content elements to be visible
       try {
         // Try to wait for Orders Hub specific content (tabs, orders, etc.)
-        await page.waitForSelector(
-          '[role="tab"], button[role="tab"], [data-testid*="orders"], h1:has-text("Orders"), .orders-hub, [class*="orders"]',
-          { timeout: 10000 }
-        ).catch(() => {
-          console.warn('⚠️ Orders Hub specific content selector not found, trying generic content...');
-        });
+        // Try to find tabs quickly (they should already be visible from previous step)
+        try {
+          await page.waitForSelector('[role="tab"], button[role="tab"]', { timeout: 3000, state: 'visible' }); // Reduced to 3s
+          console.log('✅ Orders Hub tabs confirmed visible');
+        } catch (e) {
+          console.warn('⚠️ Tabs not confirmed, but continuing...');
+        }
         
-        // Wait for any interactive content (buttons, links, etc.) to be visible
+        // Quick check for content (no long waits)
         const hasContent = await page.locator('button, a, [data-testid]').count();
         console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
         
-        if (hasContent < 5) {
-          console.warn('⚠️ Very few interactive elements found, waiting additional 3 seconds...');
-          await page.waitForTimeout(3000);
+        // Only wait if very few elements (likely still loading)
+        if (hasContent < 3) {
+          console.warn('⚠️ Very few interactive elements found, waiting 1 second...');
+          await page.waitForTimeout(1000); // Reduced to 1s
         }
-        
-        // Additional wait for dynamic content
-        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-          console.log('⚠️ networkidle timeout, continuing...');
-        });
         
         console.log('✅ STEP 6 COMPLETE: Orders Hub content should be loaded');
       } catch (e) {
@@ -2895,7 +2893,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               throw new Error('Page was closed before waiting for tab content');
             }
             
-            await page.waitForTimeout(4000); // Increased to 4s
+            await page.waitForTimeout(2000); // Reduced to 2s
             
             // 🎯 CRITICAL: Verify page is still open after wait
             if (page.isClosed()) {
@@ -2949,7 +2947,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // After executing actions (especially tabs), wait for new content to load
     console.log('⏳ Waiting for content to load after interactions...');
     try {
-      await page.waitForTimeout(4000); // Increased wait for dynamic content (4s)
+      await page.waitForTimeout(2000); // Reduced to 2s
             await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
       // Also wait for network to be idle if possible
       try {
@@ -3059,7 +3057,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         }
         
         // Wait for content to appear
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(2000); // Reduced to 2s
         
         // 🎯 CRITICAL: Verify page is still open after wait
         if (page.isClosed()) {
@@ -3248,7 +3246,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
       
       console.log('🔄 Tab click detected - waiting for tab content to load and observing...');
-      await page.waitForTimeout(4000); // Extra wait for tab content to fully render
+      await page.waitForTimeout(2000); // Reduced to 2s
       
       // Wait for specific content based on context
       if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
@@ -3849,11 +3847,11 @@ async function observeBehavior(page: Page, interpretation: any) {
   };
   
   try {
-    // Esperar a que la página cargue completamente (flexible - no bloquear si falla)
+    // Wait for page to fully load (flexible - don't block if it fails)
     try {
-      await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reducido a 3s
+      await page.waitForLoadState('domcontentloaded', { timeout: 3000 }); // Reduced to 3s
     } catch (e) {
-      console.log('⚠️ waitForLoadState timeout en observeBehavior, continuando...');
+      console.log('⚠️ waitForLoadState timeout in observeBehavior, continuing...');
     }
     
     // 🎯 MCP INTELLIGENT DETECTION: Detectar si necesitamos navegar a una sección específica
