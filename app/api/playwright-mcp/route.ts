@@ -5375,15 +5375,80 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           }
           console.log(`✅ Using observed locator: ${locatorCode} (from text: "${observed.text || 'N/A'}")`);
         } else {
-          // 🚫 NO FALLBACK: If no observation is found, skip generating this method
-          // We should ONLY generate methods for elements that were actually observed
-          console.error(`❌ CRITICAL: No observation found for method ${methodUsed} - SKIPPING method generation`);
-          console.error(`❌ This method will NOT be added to the page object because the element was not observed`);
-          console.error(`❌ Available interactions: ${behavior.interactions?.length || 0}`);
-          console.error(`❌ Available elements: ${behavior.elements?.length || 0}`);
+          // 🚫 NO FALLBACK: If no observation is found, try ONE MORE TIME to find by text
+          // Search in observed elements for text that matches the method intent
+          console.warn(`⚠️ No direct observation found for method ${methodUsed} - trying text-based search...`);
           
-          // Skip this method - don't add it to methodsToAdd
-          continue;
+          // Try to find element by text content in observed elements
+          const textBasedMatch = behavior.elements?.find((e: any) => {
+            const textLower = (e.text || '').toLowerCase();
+            const methodIntent = methodUsed.toLowerCase()
+              .replace(/^(is|get|clickon)/, '')
+              .replace(/visible|text|tab|message$/i, '');
+            
+            // Match by text content - be more specific
+            if (methodUsed.toLowerCase().includes('pastorderstab') && (textLower.includes('past order') || textLower.includes('past orders'))) {
+              return true;
+            }
+            if (methodUsed.toLowerCase().includes('emptystate') && (textLower.includes('empty') || textLower.includes('no order') || textLower.includes('no past'))) {
+              return true;
+            }
+            if (methodUsed.toLowerCase().includes('pastorderslist') && (textLower.includes('past order') || textLower.includes('order list'))) {
+              return true;
+            }
+            // Generic match by method intent
+            if (textLower.includes(methodIntent) && methodIntent.length > 3) {
+              return true;
+            }
+            return false;
+          });
+          
+          if (textBasedMatch && (textBasedMatch.locator || textBasedMatch.text || textBasedMatch.cssSelector)) {
+            // Use the locator/CSS selector from text-based match
+            let locator = textBasedMatch.locator;
+            let cssSelector = textBasedMatch.cssSelector;
+            
+            if (!locator && cssSelector) {
+              // Generate locator from CSS selector
+              locator = `this.page.locator('${cssSelector}')`;
+            } else if (!locator && textBasedMatch.text) {
+              // Generate locator from text
+              const escapedText = textBasedMatch.text.trim().replace(/'/g, "\\'");
+              locator = `this.page.getByText('${escapedText}')`;
+            }
+            
+            if (locator) {
+              observed = {
+                element: textBasedMatch.text || methodUsed,
+                testId: textBasedMatch.testId || null,
+                locator: locator,
+                cssSelector: cssSelector,
+                text: textBasedMatch.text,
+                observed: true
+              };
+              selector = locator;
+              selectorName = textBasedMatch.text?.trim().replace(/[^a-zA-Z0-9]/g, '') || methodUsed;
+              console.log(`✅ Found text-based match for ${methodUsed}: "${textBasedMatch.text}" with locator: ${locator}`);
+            } else {
+              console.error(`❌ CRITICAL: No observation found for method ${methodUsed} - SKIPPING method generation`);
+              console.error(`❌ This method will NOT be added to the page object because the element was not observed`);
+              console.error(`❌ Available interactions: ${behavior.interactions?.length || 0}`);
+              console.error(`❌ Available elements: ${behavior.elements?.length || 0}`);
+              continue;
+            }
+          } else {
+            // 🚫 NO FALLBACK: If still no observation, skip generating this method
+            console.error(`❌ CRITICAL: No observation found for method ${methodUsed} - SKIPPING method generation`);
+            console.error(`❌ This method will NOT be added to the page object because the element was not observed`);
+            console.error(`❌ Available interactions: ${behavior.interactions?.length || 0}`);
+            console.error(`❌ Available elements: ${behavior.elements?.length || 0}`);
+            if (behavior.elements && behavior.elements.length > 0) {
+              console.error(`❌ Sample elements: ${JSON.stringify(behavior.elements.slice(0, 5).map((e: any) => ({ testId: e.testId, text: e.text?.substring(0, 30) })))}`);
+            }
+            
+            // Skip this method - don't add it to methodsToAdd
+            continue;
+          }
         }
         
         // Generate descriptive variable name from selector or element
