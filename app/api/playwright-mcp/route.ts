@@ -2942,16 +2942,26 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // Intentar obtener data-testid
         let testId = await element.getAttribute('data-testid').catch(() => null);
         
-        // Si no tiene data-testid, intentar otros atributos identificadores
+        // Si no tiene data-testid, buscar por texto visible (más confiable que inventar)
         if (!testId) {
-          const id = await element.getAttribute('id').catch(() => null);
-          const name = await element.getAttribute('name').catch(() => null);
-          const role = await element.getAttribute('role').catch(() => null);
-          const ariaLabel = await element.getAttribute('aria-label').catch(() => null);
-          const className = await element.getAttribute('class').catch(() => null);
+          const text = await element.textContent().catch(() => null);
+          const trimmedText = text?.trim();
           
-          // Usar el primer atributo identificador disponible o generar uno
-          testId = id || name || role || ariaLabel || (className ? `class-${className.split(' ')[0]}` : null) || `element-${visibleElements.length}`;
+          // Si tiene texto descriptivo, usarlo como identificador
+          if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
+            // Usar texto como identificador (será usado para buscar por texto, no como testId)
+            testId = null; // Mantener null para indicar que no hay data-testid
+            // El texto se usará para generar un locator por texto
+          } else {
+            // Si no tiene texto útil, intentar otros atributos
+            const id = await element.getAttribute('id').catch(() => null);
+            const name = await element.getAttribute('name').catch(() => null);
+            const role = await element.getAttribute('role').catch(() => null);
+            const ariaLabel = await element.getAttribute('aria-label').catch(() => null);
+            
+            // Solo usar atributos reales, NO inventar
+            testId = id || name || role || ariaLabel || null;
+          }
         }
         
         const text = await element.textContent().catch(() => null);
@@ -2986,24 +2996,41 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         if (isVisible || testId) {
           try {
-            let locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
-            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
-            if (locator && locator.startsWith('p.')) {
-              locator = locator.replace(/^p\./, 'page.');
+            // 🎯 PRIORITY: Generate locator based on what we actually have
+            let locator: string | undefined = undefined;
+            
+            if (testId) {
+              // If we have a real data-testid, use it
+              locator = `page.getByTestId('${testId}')`;
+            } else if (text && text.trim().length > 0 && text.trim().length < 100) {
+              // If no testId but we have descriptive text, use text locator
+              const trimmedText = text.trim();
+              // Escape quotes in text for locator
+              const escapedText = trimmedText.replace(/'/g, "\\'");
+              locator = `page.getByText('${escapedText}')`;
+            } else {
+              // Try to generate locator using MCP (may use role, aria-label, etc.)
+              locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
+              // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+              if (locator && locator.startsWith('p.')) {
+                locator = locator.replace(/^p\./, 'page.');
+              }
             }
             
             visibleElements.push({ 
-              testId: testId || `${tagName}-${visibleElements.length}`, 
+              testId: testId || null, // null if no testId (don't invent)
               text: text?.trim() || null, 
               locator: locator || undefined 
             });
           } catch (locatorError) {
-            // Si no se puede generar locator, agregar de todos modos
-            visibleElements.push({ 
-              testId: testId || `${tagName}-${visibleElements.length}`, 
-              text: text?.trim() || null, 
-              locator: undefined 
-            });
+            // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
+            if (testId || (text && text.trim().length > 0 && text.trim().length < 100)) {
+              visibleElements.push({ 
+                testId: testId || null,
+                text: text?.trim() || null, 
+                locator: undefined 
+              });
+            }
           }
         }
       } catch (elementError) {
@@ -3572,9 +3599,45 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     ? `const ${pageVarName} = await homePage.clickOnOrdersHubNavItem();`
     : ''; // Para homepage, no agregar nada porque ya tenemos homePage definido arriba
   
+  // 🎯 Determine appropriate usersHelper method based on acceptance criteria
+  const determineUsersHelperMethod = (acceptanceCriteria: string, ticketTitle: string, ticketId: string): string => {
+    const criteriaLower = (acceptanceCriteria || '').toLowerCase();
+    const titleLower = (ticketTitle || '').toLowerCase();
+    const idLower = (ticketId || '').toLowerCase();
+    const combined = `${criteriaLower} ${titleLower} ${idLower}`;
+    
+    // Check for "no past orders" or "empty state" scenarios
+    if (combined.includes('no past orders') || combined.includes('empty state') || 
+        combined.includes('no orders') || combined.includes('sin órdenes') ||
+        combined.includes('empty past orders')) {
+      return 'getActiveUserEmailWithHomeOnboardingViewed'; // Default user without past orders
+    }
+    
+    // Check for "past orders" scenarios
+    if (combined.includes('past orders') || combined.includes('órdenes pasadas') ||
+        combined.includes('order history') || combined.includes('historial') ||
+        combined.includes('rate') || combined.includes('rating')) {
+      return 'getActiveUserEmailWithPastOrders';
+    }
+    
+    // Check for "orders hub onboarding" scenarios
+    if (combined.includes('orders hub onboarding') || combined.includes('onboarding orders hub')) {
+      return 'getActiveUserEmailWithOrdersHubOnboardingViewed';
+    }
+    
+    // Default: user with home onboarding viewed
+    return 'getActiveUserEmailWithHomeOnboardingViewed';
+  };
+  
+  const usersHelperMethod = determineUsersHelperMethod(
+    interpretation.originalCriteria || '',
+    ticketTitle || '',
+    ticketId || ''
+  );
+  
   let testCode = `test('${testTitle}', { tag: [${tags.map(t => `'${t}'`).join(', ')}] }, async ({ page }) => {
   //GIVEN
-  const userEmail = await usersHelper.getActiveUserEmailWithHomeOnboardingViewed();
+  const userEmail = await usersHelper.${usersHelperMethod}();
   const loginPage = await siteMap.loginPage(page);
   const homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);`;
   
@@ -5238,85 +5301,15 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selectorName = selectorName || observed.element || observed.testId || 'element';
           console.log(`✅ Using observed locator: ${locatorCode}`);
         } else {
-          // FALLBACK: Use interpretation to generate selector when no observation is available
-          // This ensures methods are generated even if MCP didn't observe them
-          console.warn(`⚠️ No observation found for method ${methodUsed} - using interpretation fallback`);
+          // 🚫 NO FALLBACK: If no observation is found, skip generating this method
+          // We should ONLY generate methods for elements that were actually observed
+          console.error(`❌ CRITICAL: No observation found for method ${methodUsed} - SKIPPING method generation`);
+          console.error(`❌ This method will NOT be added to the page object because the element was not observed`);
+          console.error(`❌ Available interactions: ${behavior.interactions?.length || 0}`);
+          console.error(`❌ Available elements: ${behavior.elements?.length || 0}`);
           
-          // Find the corresponding action or assertion from interpretation
-          let interpretationMatch = null;
-          
-          // For click methods, look in actions
-          if (methodUsed.toLowerCase().startsWith('clickon')) {
-            interpretationMatch = interpretation.actions?.find((a: any) => {
-              const elementName = (a.element || '').toLowerCase();
-              const methodBaseLower = methodBase.toLowerCase();
-              return elementName.includes(methodBaseLower) || 
-                     methodBaseLower.includes(elementName.replace(/tab|button|link/gi, '')) ||
-                     (methodUsed.toLowerCase().includes('pastorderstab') && elementName.includes('pastorder'));
-            });
-          } else {
-            // For visibility/get methods, look in assertions
-            interpretationMatch = interpretation.assertions?.find((a: any) => {
-              const elementName = (a.element || '').toLowerCase();
-              const methodBaseLower = methodBase.toLowerCase();
-              return elementName.includes(methodBaseLower) || 
-                     methodBaseLower.includes(elementName.replace(/message|state|list|visible|text/gi, ''));
-            });
-          }
-          
-          if (interpretationMatch) {
-            // Generate selector based on interpretation element name
-            const elementName = interpretationMatch.element || '';
-            const testIdFromElement = elementName
-              .replace(/([A-Z])/g, '-$1')
-              .replace(/^\-/, '')
-              .toLowerCase()
-              .replace(/\s+/g, '-');
-            
-            // Use common patterns for testIds
-            let testId = '';
-            if (elementName.toLowerCase().includes('pastorderstab') || methodUsed.toLowerCase().includes('pastorderstab')) {
-              testId = 'pastorderstab-btn';
-            } else if (elementName.toLowerCase().includes('emptystate') || methodUsed.toLowerCase().includes('emptystate')) {
-              testId = 'empty-state-message';
-            } else if (elementName.toLowerCase().includes('pastorderslist') || methodUsed.toLowerCase().includes('pastorderslist')) {
-              testId = 'past-orders-list';
-            } else {
-              testId = testIdFromElement || elementName.toLowerCase().replace(/\s+/g, '-');
-            }
-            
-            selector = `this.page.getByTestId('${testId}')`;
-            selectorName = elementName;
-            
-            console.log(`✅ Generated fallback selector from interpretation: ${testId} for ${methodUsed}`);
-            console.log(`✅ Interpretation match: ${JSON.stringify({ element: interpretationMatch.element, type: interpretationMatch.type })}`);
-          } else {
-            // Last resort: generate based on method name
-            console.warn(`⚠️ No interpretation match found for ${methodUsed} - generating from method name`);
-            const methodTestId = methodUsed
-              .replace(/^(is|get|clickOn)/, '')
-              .replace(/Visible|Text|Tab|Message$/i, '')
-              .replace(/([A-Z])/g, '-$1')
-              .toLowerCase()
-              .replace(/^\-/, '');
-            
-            // Use specific patterns for known methods
-            let testId = '';
-            if (methodUsed.toLowerCase().includes('pastorderstab')) {
-              testId = 'pastorderstab-btn';
-            } else if (methodUsed.toLowerCase().includes('emptystatemessage')) {
-              testId = 'empty-state-message';
-            } else if (methodUsed.toLowerCase().includes('pastorderslist')) {
-              testId = 'past-orders-list';
-            } else {
-              testId = methodTestId || 'element';
-            }
-            
-            selector = `this.page.getByTestId('${testId}')`;
-            selectorName = methodTestId;
-            
-            console.log(`✅ Generated fallback selector from method name: ${testId} for ${methodUsed}`);
-          }
+          // Skip this method - don't add it to methodsToAdd
+          continue;
         }
         
         // Generate descriptive variable name from selector or element

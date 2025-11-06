@@ -139,7 +139,27 @@ export default function TestGenerator() {
 
     try {
       // Paso: interpretar y llamar al endpoint real
-      setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria...', status: 'info', timestamp: Date.now() }])
+      setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria with Claude AI...', status: 'info', timestamp: Date.now() }])
+      
+      // Simulate dynamic progress updates
+      const progressInterval = setInterval(() => {
+        const messages = [
+          'Analyzing acceptance criteria...',
+          'Identifying test scenarios...',
+          'Determining user context...',
+          'Preparing browser automation...',
+          'Setting up test structure...'
+        ];
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        setProgressLog(prev => {
+          // Only update if last message is still "Interpreting" or "Analyzing"
+          const lastMessage = prev[prev.length - 1]?.message || '';
+          if (lastMessage.includes('Interpreting') || lastMessage.includes('Analyzing') || lastMessage.includes('Identifying') || lastMessage.includes('Determining') || lastMessage.includes('Preparing') || lastMessage.includes('Setting')) {
+            return [...prev.slice(0, -1), { step: 'interpret', message: randomMessage, status: 'info', timestamp: Date.now() }];
+          }
+          return prev;
+        });
+      }, 2000); // Update every 2 seconds
 
       const response = await fetch('/api/playwright-mcp', {
         method: 'POST',
@@ -188,13 +208,16 @@ export default function TestGenerator() {
         throw new Error(`Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
       }
 
+      // Clear progress interval
+      clearInterval(progressInterval);
+      
       // Logs de progreso derivados de la respuesta real
       setProgressLog(prev => [
         ...prev,
         { step: 'browser', message: 'Launching browser for real observation...', status: 'info', timestamp: Date.now() },
         { step: 'navigate', message: `Navigated to ${data.navigation?.url || 'target page'}`, status: data.navigation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.navigation },
-        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions`, status: 'info', timestamp: Date.now(), details: data.behavior },
-        { step: 'generate', message: 'Generating test code...', status: 'info', timestamp: Date.now() },
+        { step: 'observe', message: `Observed ${data.behavior?.interactions?.length || 0} interactions and ${data.behavior?.elements?.length || 0} elements`, status: 'info', timestamp: Date.now(), details: data.behavior },
+        { step: 'generate', message: 'Generating test code and page object methods...', status: 'info', timestamp: Date.now() },
         { step: 'validate', message: data.testValidation?.success ? 'Test structure validated successfully' : 'Test structure validation result', status: data.testValidation?.success ? 'success' : 'info', timestamp: Date.now(), details: data.testValidation },
         { step: 'complete', message: 'Test generation completed successfully!', status: data.success ? 'success' : 'error', timestamp: Date.now() }
       ])
@@ -216,6 +239,10 @@ export default function TestGenerator() {
         await handleFallbackGeneration(criteria)
       }
     } catch (err) {
+      // Clear progress interval on error
+      if (typeof progressInterval !== 'undefined') {
+        clearInterval(progressInterval);
+      }
       setError(err instanceof Error ? err.message : 'An error occurred')
       setShowProgress(false)
       await handleFallbackGeneration(criteria)
@@ -487,8 +514,8 @@ export default function TestGenerator() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          {/* Mode Selector */}
-          {step === 'jira' && (
+          {/* Mode Selector - Only show when not loading and no acceptance criteria */}
+          {step === 'jira' && !loading && !showProgress && !acceptanceCriteria && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
