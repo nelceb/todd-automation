@@ -4047,14 +4047,24 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         }
         
         // Patrones específicos para métodos conocidos de OrdersHubPage (buscar PRIMERO por patrón)
+        // IMPORTANTE: Cada elemento debe tener su propio método para evitar duplicados
         const methodPatterns: { [key: string]: string } = {
-          'emptystatemessage': 'isEmptyPastOrdersStateVisible',
-          'emptyStateMessage': 'isEmptyPastOrdersStateVisible',
+          // Empty state message - use get*Text for text assertions, is*Visible for visibility
+          'emptystatemessage': assertionType === 'text' ? 'getEmptyStatePastOrdersText' : 'isEmptyPastOrdersStateVisible',
+          'emptyStateMessage': assertionType === 'text' ? 'getEmptyStatePastOrdersText' : 'isEmptyPastOrdersStateVisible',
+          // Empty state image/illustration - separate method
+          'emptyStateImage': 'isEmptyStateImageVisible',
+          'emptyStateIllustration': 'isEmptyStateImageVisible',
+          'emptystateimage': 'isEmptyStateImageVisible',
+          'emptystateillustration': 'isEmptyStateImageVisible',
+          // Generic empty state - fallback
           'emptystate': 'isEmptyPastOrdersStateVisible',
           'empty': 'isEmptyPastOrdersStateVisible',
+          // Past orders list
           'pastorderslist': 'isPastOrdersListVisible',
           'pastOrdersList': 'isPastOrdersListVisible',
           'list': 'isPastOrdersListVisible',
+          // Past orders section
           'pastorderssection': 'isPastOrdersSectionVisible',
           'pastOrdersSection': 'isPastOrdersSectionVisible',
           'section': 'isPastOrdersSectionVisible'
@@ -4174,18 +4184,27 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           
           // Mapeos específicos para pastOrders (fallback inteligente)
           if (interpretation.context === 'pastOrders') {
-            if (elementLower.includes('empty') && elementLower.includes('state')) {
-              methodName = 'isEmptyPastOrdersStateVisible'; // Usar método existente conocido
-            } else if (elementLower.includes('empty')) {
-              methodName = 'isEmptyPastOrdersStateVisible';
+            // Generate different methods for different elements
+            if (elementLower.includes('message') && (elementLower.includes('empty') || elementLower.includes('state'))) {
+              // For empty state message - use get*Text for text, is*Visible for visibility
+              methodName = assertion.type === 'text' ? 'getEmptyStatePastOrdersText' : 'isEmptyPastOrdersStateVisible';
+            } else if ((elementLower.includes('image') || elementLower.includes('illustration')) && elementLower.includes('empty')) {
+              // For empty state image/illustration
+              methodName = 'isEmptyStateImageVisible';
+            } else if (elementLower.includes('empty') && elementLower.includes('state')) {
+              methodName = 'isEmptyPastOrdersStateVisible'; // Generic empty state
             } else if (elementLower.includes('list')) {
               methodName = 'isPastOrdersListVisible';
             } else if (elementLower.includes('section')) {
               methodName = 'isPastOrdersSectionVisible';
             } else {
-              // Generar nombre capitalizado estándar
+              // Generar nombre capitalizado estándar basado en el tipo de assertion
               const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-              methodName = `is${capitalizedName}Visible`;
+              if (assertion.type === 'text') {
+                methodName = `get${capitalizedName}Text`;
+              } else {
+                methodName = `is${capitalizedName}Visible`;
+              }
             }
           } else {
             // Para otros contextos, usar capitalización estándar
