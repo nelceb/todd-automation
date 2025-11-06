@@ -2710,18 +2710,28 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           await page.waitForTimeout(2000); // Reduced to 2s
         }
         
-        // Check for content to ensure page is loaded
-        const hasContent = await page.locator('button, a, [data-testid]').count();
+        // Check for content to ensure page is loaded (CRITICAL: must have real content, not just AudioEye)
+        let hasContent = await page.locator('button, a, [data-testid]').count();
         console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
         
-        // Wait only if very few elements (likely still loading)
-        if (hasContent < 5) {
-          console.warn('⚠️ Very few interactive elements found, waiting 2 seconds for dynamic content...');
-          await page.waitForTimeout(2000); // Reduced to 2s
+        // CRITICAL: Wait until we have REAL content (not just AudioEye accessibility elements)
+        // AudioEye typically adds 1-2 elements, so we need at least 10+ elements for real content
+        let retryCount = 0;
+        const maxRetries = 5;
+        while (hasContent < 10 && retryCount < maxRetries) {
+          console.warn(`⚠️ Very few interactive elements found (${hasContent}), waiting for real content to load (attempt ${retryCount + 1}/${maxRetries})...`);
+          await page.waitForTimeout(2000); // Wait 2s
           
           // Check again
-          const retryContent = await page.locator('button, a, [data-testid]').count();
-          console.log(`🔍 After additional wait: Found ${retryContent} interactive elements`);
+          hasContent = await page.locator('button, a, [data-testid]').count();
+          console.log(`🔍 After wait: Found ${hasContent} interactive elements`);
+          retryCount++;
+        }
+        
+        if (hasContent < 10) {
+          console.warn(`⚠️ Still only ${hasContent} elements after ${maxRetries} retries - page may not be fully loaded, but continuing...`);
+        } else {
+          console.log(`✅ STEP 6 SUCCESS: Found ${hasContent} interactive elements - page content is loaded`);
         }
         
         console.log('✅ STEP 6 COMPLETE: Orders Hub content should be loaded');
@@ -2731,10 +2741,22 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
     }
     
+    // 🎯 CRITICAL: Verify we have real content before taking snapshot (not just AudioEye)
+    console.log('🔍 STEP 7: Verifying page has real content before snapshot...');
+    const finalContentCheck = await page.locator('button, a, [data-testid], nav, h1, h2').count();
+    console.log(`🔍 Final content check: ${finalContentCheck} elements found`);
+    
+    if (finalContentCheck < 10) {
+      console.warn('⚠️ Still very few elements, waiting 3 more seconds before snapshot...');
+      await page.waitForTimeout(3000);
+      const retryFinalCheck = await page.locator('button, a, [data-testid], nav, h1, h2').count();
+      console.log(`🔍 After final wait: ${retryFinalCheck} elements found`);
+    }
+    
     // 🎯 NOW capture snapshot AFTER navigation AND content loading (so we see the correct page with content)
-    console.log('📸 STEP 7: Capturing accessibility snapshot AFTER navigation and content loading...');
-      const snapshot = await mcpWrapper.browserSnapshot();
-    console.log('✅ STEP 7 COMPLETE: MCP Snapshot captured');
+    console.log('📸 STEP 8: Capturing accessibility snapshot AFTER navigation and content loading...');
+    const snapshot = await mcpWrapper.browserSnapshot();
+    console.log('✅ STEP 8 COMPLETE: MCP Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
     // NOW we can safely search for tabs since we're on the correct page
