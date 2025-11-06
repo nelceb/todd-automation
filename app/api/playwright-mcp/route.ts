@@ -4869,19 +4869,29 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
     if (pageObjectContext) {
       // Check if methods are missing and add them to existing page object
       // Pass the generated test code to extract all methods used
+      console.log(`🔍 Calling addMissingMethodsToPageObject for context: ${pageObjectContext}`);
+      console.log(`🔍 Test code length: ${testCode?.length || 0}`);
+      console.log(`🔍 Test code preview: ${testCode?.substring(0, 300) || 'N/A'}...`);
+      
       const pageObjectUpdate = await addMissingMethodsToPageObject(pageObjectContext, interpretation, behavior, testCode);
       if (pageObjectUpdate) {
         codeFiles.push(pageObjectUpdate);
         console.log(`✅ Added missing methods to page object: ${pageObjectUpdate.file}`);
         console.log(`✅ Page object type: ${pageObjectUpdate.type}`);
         console.log(`✅ Page object content length: ${pageObjectUpdate.content?.length || 0} characters`);
+        console.log(`✅ Page object will be included in commit`);
       } else {
-        console.log(`⚠️ WARNING: addMissingMethodsToPageObject returned null for context: ${pageObjectContext}`);
-        console.log(`⚠️ This could mean:`);
-        console.log(`⚠️   - All methods already exist (check logs above)`);
-        console.log(`⚠️   - File not found in GitHub`);
-        console.log(`⚠️   - Error during method detection`);
+        console.error(`❌ ERROR: addMissingMethodsToPageObject returned null for context: ${pageObjectContext}`);
+        console.error(`❌ This could mean:`);
+        console.error(`❌   - All methods already exist (check logs above)`);
+        console.error(`❌   - File not found in GitHub`);
+        console.error(`❌   - Error during method detection`);
+        console.error(`❌   - No methods detected in test code`);
+        console.error(`❌   - Methods detected but all already exist`);
+        console.error(`❌ Test code for debugging:`, testCode?.substring(0, 1000));
       }
+    } else {
+      console.warn(`⚠️ No pageObjectContext determined for interpretation.context: ${interpretation.context}`);
     }
     
     // 2. NO generar helpers - ya existen en el código base
@@ -5095,23 +5105,26 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           }
         }
       } else if (pageObjectVar && pageObjectVar !== expectedPageObjectVar) {
-        console.log(`⚠️ Skipping methods from ${pageObjectVar} - belongs to different page object (expected ${expectedPageObjectVar})`);
+        console.log(`⚠️ Detected page object variable ${pageObjectVar} but expected ${expectedPageObjectVar} - will try fallback`);
       }
       
-      // Fallback: Extract methods ONLY if they match the expected page object
-      if (methodsUsedInTest.size === 0) {
-        console.log(`⚠️ No methods found with page object variable, trying fallback patterns...`);
-        // Try patterns but ONLY for the expected page object
-        const expectedPageObjectPattern = expectedPageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const fallbackRegex = new RegExp(`${expectedPageObjectPattern}\\.(\\w+)\\s*\\(`, 'g');
-        let fallbackMatch;
-        while ((fallbackMatch = fallbackRegex.exec(generatedTestCode)) !== null) {
-          const methodName = fallbackMatch[1];
-          if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe', 'waitFor', 'page'].includes(methodName)) {
-            methodsUsedInTest.add(methodName);
-            console.log(`  ✅ Found (fallback): ${expectedPageObjectVar}.${methodName}()`);
-          }
+      // ALWAYS try fallback: Extract methods for the expected page object (even if pageObjectVar was detected)
+      // This ensures we catch all methods even if variable detection failed
+      console.log(`🔍 Extracting methods for expected page object: ${expectedPageObjectVar}`);
+      const expectedPageObjectPattern = expectedPageObjectVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const fallbackRegex = new RegExp(`${expectedPageObjectPattern}\\.(\\w+)\\s*\\(`, 'g');
+      let fallbackMatch;
+      let fallbackCount = 0;
+      while ((fallbackMatch = fallbackRegex.exec(generatedTestCode)) !== null) {
+        const methodName = fallbackMatch[1];
+        if (!['expect', 'toBeTruthy', 'toContain', 'toBeFalsy', 'toEqual', 'toBe', 'test', 'describe', 'waitFor', 'page'].includes(methodName)) {
+          methodsUsedInTest.add(methodName);
+          fallbackCount++;
+          console.log(`  ✅ Found (fallback): ${expectedPageObjectVar}.${methodName}()`);
         }
+      }
+      if (fallbackCount > 0) {
+        console.log(`✅ Fallback extraction found ${fallbackCount} additional methods`);
       }
       
       // Extract from expect statements but verify it's for the correct page object
