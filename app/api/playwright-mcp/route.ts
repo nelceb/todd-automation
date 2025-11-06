@@ -5295,11 +5295,16 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selectorName = toCamelCaseFromTestId(observed.testId) || observed.testId.replace(/[^a-zA-Z0-9]/g, '');
           console.log(`✅ Using REAL observed testId: ${observed.testId} -> selectorName: ${selectorName}`);
         } else if (observed?.locator) {
-          // PRIORITY 2: Use the actual locator observed by MCP
+          // PRIORITY 2: Use the actual locator observed by MCP (can be getByTestId, getByText, etc.)
           const locatorCode = observed.locator.replace(/^page\./, 'this.page.');
           selector = locatorCode;
-          selectorName = selectorName || observed.element || observed.testId || 'element';
-          console.log(`✅ Using observed locator: ${locatorCode}`);
+          // Generate selectorName from text if available, otherwise from element name
+          if (observed.text && observed.text.trim().length > 0 && observed.text.trim().length < 50) {
+            selectorName = observed.text.trim().replace(/[^a-zA-Z0-9]/g, '');
+          } else {
+            selectorName = selectorName || observed.element || 'element';
+          }
+          console.log(`✅ Using observed locator: ${locatorCode} (from text: "${observed.text || 'N/A'}")`);
         } else {
           // 🚫 NO FALLBACK: If no observation is found, skip generating this method
           // We should ONLY generate methods for elements that were actually observed
