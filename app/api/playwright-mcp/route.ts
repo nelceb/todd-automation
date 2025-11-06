@@ -2557,7 +2557,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               if (isVisible) {
                 console.log(`✅ STEP 5 SUCCESS: Found Orders Hub tab with selector: ${selector}`);
                 tabsFound = true;
-                break;
+              break;
               } else {
                 console.log(`⚠️ Tab found but not visible with selector: ${selector}`);
               }
@@ -2626,10 +2626,45 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       await page.waitForTimeout(1000); // Wait for search to be ready
     }
     
-    // 🎯 NOW capture snapshot AFTER navigation (so we see the correct page)
-    console.log('📸 MCP: Capturing accessibility snapshot AFTER navigation...');
-    const snapshot = await mcpWrapper.browserSnapshot();
-    console.log('✅ MCP: Snapshot captured');
+    // 🎯 CRITICAL: Wait for Orders Hub content to be fully loaded before capturing snapshot
+    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
+      console.log('⏳ STEP 6: Waiting for Orders Hub content to be fully visible before snapshot...');
+      
+      // Wait for specific Orders Hub content elements to be visible
+      try {
+        // Try to wait for Orders Hub specific content (tabs, orders, etc.)
+        await page.waitForSelector(
+          '[role="tab"], button[role="tab"], [data-testid*="orders"], h1:has-text("Orders"), .orders-hub, [class*="orders"]',
+          { timeout: 10000 }
+        ).catch(() => {
+          console.warn('⚠️ Orders Hub specific content selector not found, trying generic content...');
+        });
+        
+        // Wait for any interactive content (buttons, links, etc.) to be visible
+        const hasContent = await page.locator('button, a, [data-testid]').count();
+        console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
+        
+        if (hasContent < 5) {
+          console.warn('⚠️ Very few interactive elements found, waiting additional 3 seconds...');
+          await page.waitForTimeout(3000);
+        }
+        
+        // Additional wait for dynamic content
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
+          console.log('⚠️ networkidle timeout, continuing...');
+        });
+        
+        console.log('✅ STEP 6 COMPLETE: Orders Hub content should be loaded');
+      } catch (e) {
+        console.warn(`⚠️ Error waiting for Orders Hub content: ${e}`);
+        // Continue anyway - snapshot will be taken
+      }
+    }
+    
+    // 🎯 NOW capture snapshot AFTER navigation AND content loading (so we see the correct page with content)
+    console.log('📸 STEP 7: Capturing accessibility snapshot AFTER navigation and content loading...');
+      const snapshot = await mcpWrapper.browserSnapshot();
+    console.log('✅ STEP 7 COMPLETE: MCP Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
     // NOW we can safely search for tabs since we're on the correct page
