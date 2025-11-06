@@ -1358,7 +1358,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
   
   try {
     const targetURL = interpretation.targetURL;
-    const context = interpretation.context;
+    const context = interpretation.context || '';
     
     // 🎯 DETECTAR SI REQUIERE LOGIN: Por defecto TODO requiere login EXCEPTO signup/register (nuevos usuarios)
     // Solo contextos de registro/signup no requieren autenticación porque son para nuevos usuarios
@@ -1634,15 +1634,27 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       // - Navegar dinámicamente a OrdersHub, Cart, Menu, etc.
       // - Activar tabs/secciones específicas (Past Orders, Upcoming Orders, etc.)
       
-      const homeURL = page.url();
-      console.log(`✅ Login completado. Home autenticado en: ${homeURL}`);
-      console.log(`🧭 La observación navegará dinámicamente según el acceptance criteria: "${interpretation.context}"`);
+      // 🎯 CRITICAL: For ordersHub/pastOrders context, DO NOT navigate directly to URL
+      // The test expects navigation via CLICKS (homePage.clickOnOrdersHubNavItem())
+      // So we stay on home and let observeBehaviorWithMCP handle navigation via clicks
+      const isOrdersHubContext = context === 'ordersHub' || context === 'pastOrders';
       
-      // No navegar aquí - la observación lo hará inteligentemente según el acceptance criteria
+      const homeURL = page.url();
+      
+      if (isOrdersHubContext) {
+        console.log(`✅ Login completed. Staying on authenticated home: ${homeURL}`);
+        console.log(`🎯 Context is '${context}' - navigation to Orders Hub will be done via CLICKS in observeBehaviorWithMCP (NOT direct URL navigation)`);
+        console.log(`🧭 The test expects: homePage.clickOnOrdersHubNavItem() - NOT page.goto('orders-hub')`);
+      } else {
+      console.log(`✅ Login completado. Home autenticado en: ${homeURL}`);
+        console.log(`🧭 La observación navegará dinámicamente según el acceptance criteria: "${context}"`);
+      }
+      
+      // No navegar aquí - la observación lo hará inteligentemente según el acceptance criteria (via CLICKS, not URL)
       
       return {
         success: true,
-        url: page.url(),
+        url: homeURL, // Return home URL, NOT targetURL - navigation will be done via clicks
         method: 'Playwright MCP (Real Navigation with Auth)',
         timestamp: Date.now()
       };
@@ -2506,7 +2518,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   tabsVisible = true;
                   break;
                 }
-              } catch (e) {
+        } catch (e) {
                 continue;
               }
             }
@@ -2597,10 +2609,13 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       ];
       
       let tabsFound = false;
+      // CRITICAL: Wait longer for tabs to load dynamically (they load AFTER page navigation)
+      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to load dynamically (this can take 5-10 seconds)...');
+      
       for (const selector of ordersHubTabSelectors) {
         try {
           console.log(`🔍 STEP 4: Waiting for tab with selector: "${selector}"...`);
-          await page.waitForSelector(selector, { timeout: 10000, state: 'visible' });
+          await page.waitForSelector(selector, { timeout: 15000, state: 'visible' }); // Increased to 15s
           const count = await page.locator(selector).count();
           if (count > 0) {
             const isVisible = await page.locator(selector).first().isVisible();
@@ -2609,17 +2624,28 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               tabsFound = true;
               break;
             }
-          }
-        } catch (e) {
+            }
+          } catch (e) {
           console.log(`⚠️ Tab selector "${selector}" not found yet, trying next...`);
           continue;
         }
       }
       
       if (!tabsFound) {
-        console.warn('⚠️ STEP 4 WARNING: No tabs found after waiting, but continuing...');
-        // Wait a bit more as fallback
-        await page.waitForTimeout(2000); // Reduced to 2s
+        console.warn('⚠️ STEP 4 WARNING: No tabs found after waiting, trying additional wait...');
+        // Wait longer as fallback - tabs might be loading very slowly
+        await page.waitForTimeout(5000); // Increased to 5s
+        // Try one more time with a more generic selector
+        try {
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 10000, state: 'visible' });
+          const genericTabs = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
+          if (genericTabs > 0) {
+            console.log(`✅ STEP 4 SUCCESS: Found ${genericTabs} generic tabs after additional wait`);
+            tabsFound = true;
+          }
+        } catch (e) {
+          console.warn('⚠️ Still no tabs found after extended wait');
+        }
       }
       
       console.log('✅ STEP 4 COMPLETE: Tabs should be visible now');
@@ -2674,22 +2700,29 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       // Wait for specific Orders Hub content elements to be visible
       try {
         // Try to wait for Orders Hub specific content (tabs, orders, etc.)
-        // Try to find tabs quickly (they should already be visible from previous step)
+        // CRITICAL: Wait for tabs to be visible (they load dynamically)
         try {
-          await page.waitForSelector('[role="tab"], button[role="tab"]', { timeout: 3000, state: 'visible' }); // Reduced to 3s
-          console.log('✅ Orders Hub tabs confirmed visible');
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 10000, state: 'visible' }); // Increased to 10s
+          const tabCount = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
+          console.log(`✅ Orders Hub tabs confirmed visible (${tabCount} tabs found)`);
         } catch (e) {
-          console.warn('⚠️ Tabs not confirmed, but continuing...');
+          console.warn('⚠️ Tabs not confirmed after waiting, but continuing...');
+          // Wait a bit more as fallback
+          await page.waitForTimeout(3000);
         }
         
-        // Quick check for content (no long waits)
+        // Check for content to ensure page is loaded
         const hasContent = await page.locator('button, a, [data-testid]').count();
         console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
         
-        // Only wait if very few elements (likely still loading)
-        if (hasContent < 3) {
-          console.warn('⚠️ Very few interactive elements found, waiting 1 second...');
-          await page.waitForTimeout(1000); // Reduced to 1s
+        // Wait longer if very few elements (likely still loading)
+        if (hasContent < 10) {
+          console.warn('⚠️ Very few interactive elements found, waiting 3 more seconds for dynamic content...');
+          await page.waitForTimeout(3000); // Increased to 3s
+          
+          // Check again
+          const retryContent = await page.locator('button, a, [data-testid]').count();
+          console.log(`🔍 After additional wait: Found ${retryContent} interactive elements`);
         }
         
         console.log('✅ STEP 6 COMPLETE: Orders Hub content should be loaded');
@@ -2701,7 +2734,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // 🎯 NOW capture snapshot AFTER navigation AND content loading (so we see the correct page with content)
     console.log('📸 STEP 7: Capturing accessibility snapshot AFTER navigation and content loading...');
-    const snapshot = await mcpWrapper.browserSnapshot();
+      const snapshot = await mcpWrapper.browserSnapshot();
     console.log('✅ STEP 7 COMPLETE: MCP Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
@@ -2885,28 +2918,32 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               note: `Tab clicked successfully with testId: ${testId || 'unknown'}`
             });
             
-            // Wait for tab content to load
-            console.log('⏳ Waiting for tab content to load after click...');
+            // Wait for tab content to load (CRITICAL: dynamic content takes time)
+            console.log('⏳ Waiting for tab content to load after click (this can take 5-10 seconds)...');
             
             // 🎯 CRITICAL: Verify page is still open before waiting
             if (page.isClosed()) {
               throw new Error('Page was closed before waiting for tab content');
             }
             
-            await page.waitForTimeout(2000); // Reduced to 2s
+            // Wait longer for dynamic content to load after tab click
+            await page.waitForTimeout(5000); // Increased to 5s for dynamic content
             
             // 🎯 CRITICAL: Verify page is still open after wait
             if (page.isClosed()) {
               throw new Error('Page was closed while waiting for tab content');
             }
             
-            // Try to wait for specific content
+            // Try to wait for specific content with longer timeout
             if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
               try {
-                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"]', { timeout: 8000 });
+                // Wait for empty state or past orders content (more flexible selectors)
+                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"], [class*="empty"], [class*="past"], [class*="Empty"]', { timeout: 12000 }); // Increased to 12s
                 console.log('✅ Tab content loaded');
               } catch (e) {
-                console.log('⚠️ Timeout waiting for specific tab content, continuing...');
+                console.log('⚠️ Timeout waiting for specific tab content, but continuing...');
+                // Wait a bit more as fallback
+                await page.waitForTimeout(3000);
               }
             }
           } else {
