@@ -2448,19 +2448,71 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     }
     
     // 🎯 CRITICAL: For pastOrders/ordersHub context, ensure we're on Orders Hub page FIRST
-    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') && !page.url().includes('orders-hub')) {
-      console.log('🧭 Navegando a Orders Hub antes de buscar tabs...');
-      try {
-        // Try to click Orders Hub nav item
-        const ordersHubNav = await page.locator("a[href*='orders-hub'], a:has-text('Orders Hub'), [data-testid*='orders-hub'], [data-testid*='ordershub']").first();
-        if (await ordersHubNav.count() > 0) {
-          await ordersHubNav.click();
-          await page.waitForURL(/orders-hub/, { timeout: 15000 });
-          await page.waitForTimeout(3000); // Wait for page to load
-          console.log('✅ Navegación a Orders Hub completada');
+    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
+      const currentUrl = page.url();
+      const isOnOrdersHub = currentUrl.includes('orders-hub') || currentUrl.includes('ordershub');
+      
+      if (!isOnOrdersHub) {
+        console.log('🧭 Navegando a Orders Hub antes de buscar tabs...');
+        console.log(`📍 URL actual: ${currentUrl}`);
+        
+        try {
+          // Strategy 1: Try to find and click Orders Hub nav item
+          const ordersHubSelectors = [
+            "a[href*='orders-hub']",
+            "a:has-text('Orders Hub')",
+            "[data-testid*='orders-hub']",
+            "[data-testid*='ordershub']",
+            "a:has-text('Orders')",
+            "nav a:has-text('Orders')"
+          ];
+          
+          let ordersHubNav = null;
+          for (const selector of ordersHubSelectors) {
+            try {
+              const nav = page.locator(selector).first();
+              if (await nav.count() > 0 && await nav.isVisible().catch(() => false)) {
+                ordersHubNav = nav;
+                console.log(`✅ Encontrado Orders Hub nav con selector: ${selector}`);
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          if (ordersHubNav) {
+            await ordersHubNav.click();
+            await page.waitForURL(/orders-hub|ordershub/, { timeout: 15000 });
+            await page.waitForTimeout(3000); // Wait for page to load
+            console.log(`✅ Navegación a Orders Hub completada: ${page.url()}`);
+          } else {
+            // Strategy 2: Try direct navigation
+            console.log('⚠️ No se encontró nav item, intentando navegación directa...');
+            try {
+              await page.goto('https://subscription.qa.cookunity.com/orders-hub', { waitUntil: 'domcontentloaded', timeout: 20000 });
+              await page.waitForTimeout(3000);
+              console.log(`✅ Navegación directa completada: ${page.url()}`);
+            } catch (directNavError) {
+              console.warn('⚠️ Navegación directa falló:', directNavError);
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo navegar a Orders Hub automáticamente:', e);
         }
-      } catch (e) {
-        console.warn('⚠️ No se pudo navegar a Orders Hub automáticamente:', e);
+      } else {
+        console.log(`✅ Ya estamos en Orders Hub: ${currentUrl}`);
+      }
+      
+      // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
+      try {
+        // Wait for Orders Hub page title or specific element
+        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
+        console.log('✅ Orders Hub page verified - found page title or header');
+      } catch (verifyError) {
+        console.warn('⚠️ Could not verify Orders Hub page - may not be loaded correctly');
+        // Try to wait a bit more
+        await page.waitForTimeout(2000);
       }
     }
     
@@ -2519,16 +2571,65 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           if (!foundElement) {
             console.log(`🔍 Buscando todos los tabs y filtrando por texto...`);
             try {
-              const allTabs = await page.locator("[role='tab'], button[aria-selected], [data-testid*='tab']").all();
-              for (const tab of allTabs) {
-                const text = await tab.textContent().catch(() => '');
-                if (text && (text.toLowerCase().includes('past') || text.toLowerCase().includes('order'))) {
-                  const isVisible = await tab.isVisible().catch(() => false);
-                  if (isVisible) {
-                    foundElement = tab;
-                    console.log(`✅ Tab encontrado por texto: "${text}"`);
-                    break;
+              // First, wait a bit for tabs to be visible
+              await page.waitForTimeout(2000);
+              
+              // Try multiple tab selectors
+              const tabSelectors = [
+                "[role='tab']",
+                "button[role='tab']",
+                "[data-testid*='tab']",
+                "button[aria-selected]",
+                ".tab",
+                "[class*='tab']",
+                "button:has-text('Past')",
+                "button:has-text('Orders')"
+              ];
+              
+              let allTabs: any[] = [];
+              for (const selector of tabSelectors) {
+                try {
+                  const tabs = await page.locator(selector).all();
+                  allTabs.push(...tabs);
+                } catch (e) {
+                  continue;
+                }
+              }
+              
+              // Remove duplicates
+              const uniqueTabs = Array.from(new Set(allTabs.map(t => t)));
+              
+              console.log(`📋 Encontrados ${uniqueTabs.length} tabs en total`);
+              
+              for (const tab of uniqueTabs) {
+                try {
+                  const text = await tab.textContent().catch(() => '');
+                  const testId = await tab.getAttribute('data-testid').catch(() => '');
+                  const ariaLabel = await tab.getAttribute('aria-label').catch(() => '');
+                  
+                  const textLower = (text || '').toLowerCase();
+                  const testIdLower = (testId || '').toLowerCase();
+                  const ariaLabelLower = (ariaLabel || '').toLowerCase();
+                  
+                  // More flexible matching
+                  const matches = 
+                    textLower.includes('past') || 
+                    textLower.includes('past order') ||
+                    testIdLower.includes('past') ||
+                    testIdLower.includes('pastorder') ||
+                    ariaLabelLower.includes('past') ||
+                    ariaLabelLower.includes('past order');
+                  
+                  if (matches) {
+                    const isVisible = await tab.isVisible().catch(() => false);
+                    if (isVisible) {
+                      foundElement = tab;
+                      console.log(`✅ Tab encontrado por texto/testId/aria-label: text="${text}", testId="${testId}", aria-label="${ariaLabel}"`);
+                      break;
+                    }
                   }
+                } catch (e) {
+                  continue;
                 }
               }
             } catch (e) {
