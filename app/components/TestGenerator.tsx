@@ -137,12 +137,15 @@ export default function TestGenerator() {
     setProgressLog([])
     setShowProgress(true)
 
+    // Declare progressInterval outside try block so it's accessible in catch
+    let progressInterval: NodeJS.Timeout | undefined = undefined;
+
     try {
       // Paso: interpretar y llamar al endpoint real
       setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria with Claude AI...', status: 'info', timestamp: Date.now() }])
       
       // Simulate dynamic progress updates
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         const messages = [
           'Analyzing acceptance criteria...',
           'Identifying test scenarios...',
@@ -240,13 +243,17 @@ export default function TestGenerator() {
       }
     } catch (err) {
       // Clear progress interval on error
-      if (typeof progressInterval !== 'undefined') {
+      if (progressInterval) {
         clearInterval(progressInterval);
       }
       setError(err instanceof Error ? err.message : 'An error occurred')
       setShowProgress(false)
       await handleFallbackGeneration(criteria)
     } finally {
+      // Clear progress interval in finally as well
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       setLoading(false)
     }
   }
