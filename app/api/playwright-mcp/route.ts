@@ -2078,7 +2078,12 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
           
           if (!isActive) {
             const text = await foundElement.textContent().catch(() => '');
-            const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          let generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          if (generatedLocator.startsWith('p.')) {
+            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+            console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+          }
             
             console.log(`🎯 MCP Motor: Sección "${text}" encontrada pero NO activa. Locator: ${generatedLocator}`);
             
@@ -2096,7 +2101,12 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
         } catch (e) {
           // Si no podemos verificar, agregar acción por seguridad
           const text = await foundElement.textContent().catch(() => term);
-          const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          let generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          if (generatedLocator.startsWith('p.')) {
+            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+            console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+          }
           
           console.log(`🎯 MCP Motor: Agregando acción previa para ${context} (no se pudo verificar estado)`);
           interpretation.actions.unshift({
@@ -2553,7 +2563,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
             
             // Generate and store locator
-            const generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            let generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+            if (generatedLocator.startsWith('p.')) {
+              generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+              console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+            }
             action.locator = generatedLocator;
             
             await foundElement.click();
@@ -2606,9 +2621,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             behavior.interactions.push({
               type: action.type,
               element: action.element,
-              observed: false,
-              exists: false,
-              visible: false,
+          observed: false,
+          exists: false,
+          visible: false,
               note: `Tab element not found after all search strategies. URL: ${page.url()}`
             });
           }
@@ -2971,7 +2986,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         if (isVisible || testId) {
           try {
-            const locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
+            let locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
+            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+            if (locator && locator.startsWith('p.')) {
+              locator = locator.replace(/^p\./, 'page.');
+            }
             
             visibleElements.push({ 
               testId: testId || `${tagName}-${visibleElements.length}`, 
@@ -3026,6 +3045,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         if (foundElement) {
           foundBy = 'mcp-snapshot';
           generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          if (generatedLocator.startsWith('p.')) {
+            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+            console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+          }
         } else {
           // Fallback: usar estrategias mejoradas para encontrar elementos reales
           const searchTerms = action.intent || action.description || action.element;
@@ -3045,6 +3069,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                 if (await foundElement.isVisible({ timeout: 2000 })) {
                   foundBy = 'mcp-testid-add-meal';
                   generatedLocator = await mcpWrapper.generateLocator(foundElement);
+                  // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+                  if (generatedLocator.startsWith('p.')) {
+                    generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                    console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+                  }
                   console.log(`✅ Encontrado botón "Add meal" real en la página`);
                 } else {
                   foundElement = null;
@@ -3062,6 +3091,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               if (await foundElement.isVisible({ timeout: 2000 })) {
                 foundBy = 'mcp-testid-cart';
                 generatedLocator = await mcpWrapper.generateLocator(foundElement);
+                // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+                if (generatedLocator.startsWith('p.')) {
+                  generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                  console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+                }
                 console.log(`✅ Encontrado botón "Cart" real en la página`);
               } else {
                 foundElement = null;
@@ -3091,6 +3125,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     if (await foundElement.isVisible({ timeout: 2000 })) {
                       foundBy = 'mcp-from-observed-elements';
                       generatedLocator = visibleElement.locator || await mcpWrapper.generateLocator(foundElement);
+                      // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+                      if (generatedLocator.startsWith('p.')) {
+                        generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                        console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+                      }
                       console.log(`✅ Encontrado elemento desde elementos observados: ${elementText || elementTestId}`);
                       break;
                     }
@@ -3109,6 +3148,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             if (await foundElement.isVisible({ timeout: 2000 })) {
               foundBy = 'mcp-role';
               generatedLocator = await mcpWrapper.generateLocator(foundElement);
+              // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+              if (generatedLocator.startsWith('p.')) {
+                generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+              }
             } else {
               foundElement = null;
             }
