@@ -427,7 +427,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         console.log(`✅ Continuando con ${behavior.observations.length} observaciones de la página`);
         // Continuar con la generación usando el snapshot
       } else {
-        console.log('⚠️ Playwright MCP: No se pudieron observar elementos ni snapshot, pero continuando con generación básica...');
+        console.log('⚠️ Playwright MCP: Could not observe elements or snapshot, but continuing with basic generation...');
         // NO FALLAR - continuar generando el test basado en la interpretación
         console.log('✅ Continuando con generación de test basada en interpretación y métodos existentes del codebase');
       }
@@ -2772,9 +2772,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     }
     
     // 🎯 CRITICAL: Capture NEW snapshot AFTER tab clicks to see the updated DOM
-    console.log('📸 MCP: Capturando snapshot DESPUÉS de interacciones (tabs)...');
+    console.log('📸 MCP: Capturing snapshot AFTER interactions (tabs)...');
     const postInteractionSnapshot = await mcpWrapper.browserSnapshot();
-    console.log('✅ MCP: Snapshot post-interacción capturado');
+    console.log('✅ MCP: Post-interaction snapshot captured');
     
     // Observe visible elements using MCP snapshot (AFTER interactions)
     console.log('🔍 Searching for elements with data-testid (after interactions)...');
