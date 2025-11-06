@@ -5939,7 +5939,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Generate descriptive name from observation (MUST use observed data, not method name)
         let propName = '';
-        if (method.observed.testId) {
+        if (method.observed?.testId) {
           // Use testId as base for property name (convert kebab-case/snake_case to camelCase)
           // Example: 'empty-state-message' -> 'emptyStateMessage', 'past_orders_tab' -> 'pastOrdersTab'
           const toCamelCaseFromTestId = (testId: string): string => {
@@ -5962,7 +5962,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           };
           propName = toCamelCaseFromTestId(method.observed.testId);
           console.log(`📝 Generated property name from testId '${method.observed.testId}': ${propName}`);
-        } else if (method.observed.element) {
+        } else if (method.observed?.element) {
           // Use element name as base (convert to camelCase)
           const toCamelCaseHelper = (str: string): string => {
             if (!str) return 'element';
@@ -5981,10 +5981,31 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           };
           propName = toCamelCaseHelper(method.observed.element);
           console.log(`📝 Generated property name from element '${method.observed.element}': ${propName}`);
+        } else if (method.selectorName) {
+          // Fallback: use selectorName (for methods generated when codebase is empty)
+          const toCamelCaseFromSelector = (str: string): string => {
+            if (!str) return 'element';
+            const parts = str.split(/[-_]/).filter((p: string) => p.length > 0);
+            if (parts.length === 0) return 'element';
+            const camelParts = parts.map((part: string, index: number) => {
+              if (index === 0) return part.toLowerCase();
+              return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+            });
+            let result = camelParts.join('');
+            if (result.length > 0 && /^[A-Z]/.test(result)) result = result.charAt(0).toLowerCase() + result.slice(1);
+            if (/^[0-9]/.test(result)) result = 'element' + result;
+            const keywords = ['is', 'get', 'click', 'async', 'await', 'const', 'let', 'var', 'return', 'text'];
+            if (keywords.includes(result.toLowerCase())) result = 'element' + result.charAt(0).toUpperCase() + result.slice(1);
+            return result || 'element';
+          };
+          propName = toCamelCaseFromSelector(method.selectorName);
+          console.log(`📝 Generated property name from selectorName '${method.selectorName}': ${propName}`);
         } else {
-          // Should not happen - we already skip methods without observations
-          console.error(`❌ ERROR: Method ${method.name} has no observed testId or element - this should not happen`);
-          continue; // Skip this method
+          // Last resort: generate from method name
+          console.warn(`⚠️ WARNING: Method ${method.name} has no observed data or selectorName, generating from method name`);
+          const methodNameWithoutPrefix = method.name.replace(/^(clickOn|is|get)/, '');
+          propName = methodNameWithoutPrefix.charAt(0).toLowerCase() + methodNameWithoutPrefix.slice(1);
+          console.log(`📝 Generated property name from method name: ${propName}`);
         }
         
         // Check if property name already exists
