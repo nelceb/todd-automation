@@ -2371,87 +2371,175 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
     }
     
-    // 🎯 CRITICAL: Navigate to Orders Hub FIRST (before capturing snapshot or detecting tabs)
-    // This ensures we're on the correct page before trying to find tabs
-    // For pastOrders/ordersHub context, ensure we're on Orders Hub page BEFORE detecting tabs
-    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
+    // 🎯 CRITICAL: Navigate to target section using CLICKS (never direct URL navigation)
+    // This ensures we follow the same flow as the generated tests
+    // All navigation must be done via clicks to match real user behavior
+    
+    // Helper function to navigate to a section by clicking nav items
+    const navigateToSectionByClick = async (sectionName: string, selectors: string[], urlPattern: RegExp) => {
       const currentUrl = page.url();
-      const isOnOrdersHub = currentUrl.includes('orders-hub') || currentUrl.includes('ordershub');
+      const isOnSection = urlPattern.test(currentUrl);
       
-      if (!isOnOrdersHub) {
-        console.log('🧭 Navigating to Orders Hub BEFORE detecting tabs...');
-        console.log(`📍 Current URL: ${currentUrl}`);
-        
+      if (isOnSection) {
+        console.log(`✅ Already on ${sectionName}: ${currentUrl}`);
+        return true;
+      }
+      
+      console.log(`🧭 Navigating to ${sectionName} by clicking nav item...`);
+      console.log(`📍 Current URL: ${currentUrl}`);
+      
+      let foundNav = null;
+      for (const selector of selectors) {
         try {
-          // Strategy 1: Try to find and click Orders Hub nav item
-          const ordersHubSelectors = [
-            "a[href*='orders-hub']",
-            "a:has-text('Orders Hub')",
-            "[data-testid*='orders-hub']",
-            "[data-testid*='ordershub']",
-            "a:has-text('Orders')",
-            "nav a:has-text('Orders')"
-          ];
-          
-          let ordersHubNav = null;
-          for (const selector of ordersHubSelectors) {
-            try {
-              const nav = page.locator(selector).first();
-              if (await nav.count() > 0 && await nav.isVisible().catch(() => false)) {
-                ordersHubNav = nav;
-                console.log(`✅ Found Orders Hub nav with selector: ${selector}`);
-                break;
-              }
-            } catch (e) {
-              continue;
-            }
-          }
-          
-          if (ordersHubNav) {
-            await ordersHubNav.click();
-            await page.waitForURL(/orders-hub|ordershub/, { timeout: 15000 });
-            await page.waitForTimeout(3000); // Wait for page to load
-            console.log(`✅ Navigation to Orders Hub completed: ${page.url()}`);
-          } else {
-            // Strategy 2: Try direct navigation
-            console.log('⚠️ Nav item not found, trying direct navigation...');
-            try {
-              await page.goto('https://subscription.qa.cookunity.com/orders-hub', { waitUntil: 'domcontentloaded', timeout: 20000 });
-              await page.waitForTimeout(3000);
-              console.log(`✅ Direct navigation completed: ${page.url()}`);
-            } catch (directNavError) {
-              console.warn('⚠️ Direct navigation failed:', directNavError);
-            }
+          const nav = page.locator(selector).first();
+          if (await nav.count() > 0 && await nav.isVisible().catch(() => false)) {
+            foundNav = nav;
+            console.log(`✅ Found ${sectionName} nav with selector: ${selector}`);
+            break;
           }
         } catch (e) {
-          console.warn('⚠️ Could not navigate to Orders Hub automatically:', e);
+          continue;
         }
-        
-        // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
+      }
+      
+      if (foundNav) {
+        console.log(`🖱️ Clicking on ${sectionName} nav item (as test does)...`);
+        await foundNav.click();
         try {
-          // Wait for Orders Hub page title or specific element
-          await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
-          console.log('✅ Orders Hub page verified - found page title or header');
-        } catch (verifyError) {
-          console.warn('⚠️ Could not verify Orders Hub page - may not be loaded correctly');
-          // Try to wait a bit more
-          await page.waitForTimeout(2000);
+          await page.waitForURL(urlPattern, { timeout: 15000 });
+          await page.waitForTimeout(2000); // Wait for page to load
+          console.log(`✅ Navigation to ${sectionName} completed via click: ${page.url()}`);
+          return true;
+        } catch (e) {
+          console.warn(`⚠️ URL didn't change after clicking ${sectionName} nav, but continuing...`);
+          return false;
         }
-      } else {
-        console.log(`✅ Already on Orders Hub: ${currentUrl}`);
+      }
+      
+      return false;
+    };
+    
+    // Navigate based on context - ALWAYS using clicks, never direct URL navigation
+    if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
+      const ordersHubSelectors = [
+        "a.core-ux-nav-item:has-text('Orders Hub')",
+        "a[href*='orders-hub']",
+        "a:has-text('Orders Hub')",
+        "[data-testid*='orders-hub']",
+        "[data-testid*='ordershub']",
+        "a:has-text('Orders')",
+        "nav a:has-text('Orders')",
+        ".nav-item:has-text('Orders Hub')",
+        "[href='/orders-hub']",
+        "[href*='orders-hub']"
+      ];
+      
+      const navigated = await navigateToSectionByClick('Orders Hub', ordersHubSelectors, /orders-hub|ordershub/);
+      
+      if (!navigated) {
+        throw new Error('Orders Hub nav item not found - cannot navigate as test expects (test uses click, not URL)');
+      }
+      
+      // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
+      try {
+        // Wait for Orders Hub page title or specific element
+        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 10000 });
+        console.log('✅ Orders Hub page verified - found page title or header');
+      } catch (verifyError) {
+        console.warn('⚠️ Could not verify Orders Hub page - may not be loaded correctly');
+        // Try to wait a bit more
+        await page.waitForTimeout(2000);
       }
       
       // 🎯 CRITICAL: Wait for Orders Hub page to fully load and tabs to be visible
       console.log('⏳ Waiting for Orders Hub page to fully load...');
       await page.waitForTimeout(3000); // Wait for dynamic content
       
-      // Wait for tabs to be visible
+      // 🎯 CRITICAL: Wait for Orders Hub specific tabs (Past Orders, Upcoming Orders)
+      // These tabs are specific to Orders Hub, not generic tabs
+      console.log('🔍 Looking for Orders Hub specific tabs (Past Orders, Upcoming Orders)...');
       try {
-        await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 8000 });
-        console.log('✅ Orders Hub tabs are visible');
+        // Try multiple selectors for Orders Hub tabs
+        const ordersHubTabSelectors = [
+          "button:has-text('Past Orders')",
+          "button:has-text('Upcoming Orders')",
+          "[role='tab']:has-text('Past')",
+          "[role='tab']:has-text('Upcoming')",
+          "[data-testid*='past-orders']",
+          "[data-testid*='upcoming-orders']",
+          "[data-testid*='pastOrders']",
+          "[data-testid*='upcomingOrders']",
+          "button[aria-label*='Past Orders']",
+          "button[aria-label*='Upcoming Orders']"
+        ];
+        
+        let tabsFound = false;
+        for (const selector of ordersHubTabSelectors) {
+          try {
+            const count = await page.locator(selector).count();
+            if (count > 0) {
+              const isVisible = await page.locator(selector).first().isVisible().catch(() => false);
+              if (isVisible) {
+                console.log(`✅ Found Orders Hub tab with selector: ${selector}`);
+                tabsFound = true;
+                break;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!tabsFound) {
+          console.warn('⚠️ Orders Hub specific tabs not found, trying generic tab selectors...');
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 5000 });
+          console.log('✅ Generic tabs found');
+        }
       } catch (e) {
-        console.warn('⚠️ Tabs not found immediately, continuing...');
+        console.warn('⚠️ Tabs not found, but continuing...');
       }
+    } else if (interpretation.context === 'cart') {
+      // Navigate to Cart by clicking cart button/icon (cart might be a modal/overlay, not a page)
+      const cartSelectors = [
+        "[data-testid*='cart']",
+        "button:has-text('Cart')",
+        "a:has-text('Cart')",
+        "[aria-label*='cart']",
+        "[aria-label*='Cart']",
+        ".cart-button",
+        ".cart-icon",
+        "button[title*='Cart']"
+      ];
+      
+      // Cart might not change URL, so we just try to open it
+      const cartOpened = await navigateToSectionByClick('Cart', cartSelectors, /cart|basket/);
+      if (!cartOpened) {
+        console.warn('⚠️ Cart nav not found, but cart might be accessible via modal/overlay - continuing...');
+      }
+      await page.waitForTimeout(2000); // Wait for cart to open
+    } else if (interpretation.context === 'menu') {
+      // Menu is usually accessible from home, no specific navigation needed
+      // But if we need to navigate, we'd click on menu/meals link
+      console.log(`✅ Menu is accessible from current page (${page.url()})`);
+    } else if (interpretation.context === 'search') {
+      // Search is usually accessible from home via search bar/icon
+      const searchSelectors = [
+        "[data-testid*='search']",
+        "button:has-text('Search')",
+        "[aria-label*='search']",
+        "[aria-label*='Search']",
+        ".search-button",
+        ".search-icon",
+        "input[type='search']",
+        "input[placeholder*='search']"
+      ];
+      
+      // Search might just focus an input, not navigate
+      const searchOpened = await navigateToSectionByClick('Search', searchSelectors, /search/);
+      if (!searchOpened) {
+        console.warn('⚠️ Search not found, but search might be accessible via input - continuing...');
+      }
+      await page.waitForTimeout(1000); // Wait for search to be ready
     }
     
     // 🎯 NOW capture snapshot AFTER navigation (so we see the correct page)
@@ -2504,7 +2592,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   console.log(`✅ Tab encontrado con selector: ${selector}`);
                   break;
                 }
-              } catch (e) {
+        } catch (e) {
                 // Continue with next selector
               }
             }
@@ -2569,10 +2657,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     if (isVisible) {
                       foundElement = tab;
                       console.log(`✅ Tab encontrado por texto/testId/aria-label: text="${text}", testId="${testId}", aria-label="${ariaLabel}"`);
-                      break;
+              break;
                     }
-                  }
-                } catch (e) {
+            }
+          } catch (e) {
                   continue;
                 }
               }
@@ -2703,7 +2791,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     console.log('⏳ Waiting for content to load after interactions...');
     try {
       await page.waitForTimeout(4000); // Increased wait for dynamic content (4s)
-      await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
       // Also wait for network to be idle if possible
       try {
         await page.waitForLoadState('networkidle', { timeout: 3000 });
@@ -2887,7 +2975,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                             }
                           }
                         }
-                      } catch (e) {
+        } catch (e) {
                         // Continue
                       }
                     }
@@ -2983,8 +3071,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                           }
                         }
                       }
-                    }
-                  } catch (e) {
+            }
+          } catch (e) {
                     // Continue
                   }
                 }
@@ -3084,7 +3172,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     if (existingElem && !alreadyExists) {
                       allElements.push(existingElem);
                     }
-                  } else {
+        } else {
                     // Check parent for data-testid
                     try {
                       const parent = await elem.evaluateHandle((el: any) => el.closest('[data-testid]')).catch(() => null);
@@ -3164,7 +3252,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       allElements = [...buttons, ...links, ...inputs, ...navs, ...tabs, ...divs];
       
       // If still no elements, search by visible text
-      if (allElements.length === 0) {
+    if (allElements.length === 0) {
         console.log('🔍 [OBSERVATION] Searching for elements by visible text...');
         try {
           // Search for elements containing text related to the context
