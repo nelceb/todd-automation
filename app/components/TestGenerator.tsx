@@ -144,7 +144,7 @@ export default function TestGenerator() {
       // Paso: interpretar y llamar al endpoint real
       setProgressLog(prev => [...prev, { step: 'interpret', message: 'Interpreting acceptance criteria with Claude AI...', status: 'info', timestamp: Date.now() }])
       
-      // Simulate dynamic progress updates
+      // Simulate dynamic progress updates with smoother transitions
       progressInterval = setInterval(() => {
         const messages = [
           'Analyzing acceptance criteria...',
@@ -162,7 +162,7 @@ export default function TestGenerator() {
           }
           return prev;
         });
-      }, 2000); // Update every 2 seconds
+      }, 5000); // Update every 5 seconds for smoother transitions
 
       const response = await fetch('/api/playwright-mcp', {
         method: 'POST',
@@ -707,10 +707,10 @@ export default function TestGenerator() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-4 sm:p-6"
+              className="bg-white/20 border border-gray-300/50 rounded-xl shadow-lg p-4 sm:p-6 max-w-2xl mx-auto"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+                <h3 className="text-lg sm:text-xl font-mono font-semibold text-gray-900 flex items-center">
                   <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
                   Generating Test...
                 </h3>
@@ -734,7 +734,7 @@ export default function TestGenerator() {
                       key={`${log.timestamp}-${index}`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
                       className={`flex items-start space-x-3 p-2 rounded-lg ${
                         log.status === 'success' ? 'bg-green-50 border border-green-200' :
                         log.status === 'error' ? 'bg-red-50 border border-red-200' :
@@ -754,14 +754,20 @@ export default function TestGenerator() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-mono ${
-                          log.status === 'success' ? 'text-green-800' :
-                          log.status === 'error' ? 'text-red-800' :
-                          log.status === 'warning' ? 'text-yellow-800' :
-                          'text-blue-800'
-                        }`}>
+                        <motion.p 
+                          key={log.message}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.4, ease: "easeInOut" }}
+                          className={`text-sm font-mono ${
+                            log.status === 'success' ? 'text-green-800' :
+                            log.status === 'error' ? 'text-red-800' :
+                            log.status === 'warning' ? 'text-yellow-800' :
+                            'text-blue-800'
+                          }`}
+                        >
                           {log.message}
-                        </p>
+                        </motion.p>
                         {index === progressLog.length - 1 && log.status === 'info' && (
                           <div className="mt-1 flex items-center space-x-1">
                             <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
