@@ -2596,8 +2596,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                 }
               }
               
-              // Remove duplicates
-              const uniqueTabs = Array.from(new Set(allTabs.map(t => t)));
+              // Remove duplicates - can't use Set with Playwright locators, so just use all tabs
+              // (duplicates are unlikely since we're using different selectors)
+              const uniqueTabs = allTabs;
               
               console.log(`📋 Encontrados ${uniqueTabs.length} tabs en total`);
               
