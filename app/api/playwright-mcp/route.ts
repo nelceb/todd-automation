@@ -2466,7 +2466,48 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           await page.waitForURL(urlPattern, { timeout: 15000 });
           const newUrl = page.url();
           console.log(`✅ [navigateToSectionByClick] URL changed successfully: ${newUrl}`);
-          await page.waitForTimeout(2000); // Wait for page to load
+          
+          // 🎯 CRITICAL: If this is Orders Hub, wait for tabs to appear AFTER the click
+          // The content loads dynamically AFTER clicking, so we must wait for tabs to be visible
+          if (sectionName === 'Orders Hub') {
+            console.log(`⏳ [navigateToSectionByClick] Waiting for Orders Hub tabs to appear after click...`);
+            const tabSelectors = [
+              "button:has-text('Past Orders')",
+              "button:has-text('Upcoming Orders')",
+              "[role='tab']:has-text('Past')",
+              "[role='tab']:has-text('Upcoming')",
+              "[data-testid*='past-orders']",
+              "[data-testid*='upcoming-orders']",
+              "[data-testid*='pastOrders']",
+              "[data-testid*='upcomingOrders']",
+              "[role='tab']",
+              "button[role='tab']"
+            ];
+            
+            let tabsVisible = false;
+            for (const selector of tabSelectors) {
+              try {
+                await page.waitForSelector(selector, { timeout: 10000, state: 'visible' });
+                const count = await page.locator(selector).count();
+                if (count > 0) {
+                  console.log(`✅ [navigateToSectionByClick] Orders Hub tabs are visible (selector: ${selector}, count: ${count})`);
+                  tabsVisible = true;
+                  break;
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+            
+            if (!tabsVisible) {
+              console.warn(`⚠️ [navigateToSectionByClick] Tabs not found after waiting, waiting 3 more seconds as fallback...`);
+              await page.waitForTimeout(3000);
+            }
+          } else {
+            // For other sections, just wait a bit for content to load
+            await page.waitForTimeout(2000);
+          }
+          
           console.log(`✅ [navigateToSectionByClick] Navigation to ${sectionName} completed via click: ${page.url()}`);
           return true;
         } catch (e) {
@@ -2524,64 +2565,52 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         await page.waitForTimeout(2000);
       }
       
-      // 🎯 CRITICAL: Wait for Orders Hub page to fully load and tabs to be visible
-      console.log('⏳ STEP 4: Waiting for Orders Hub page to fully load (3 seconds)...');
-      await page.waitForTimeout(3000); // Wait for dynamic content
-      console.log('✅ STEP 4 COMPLETE: Wait finished');
+      // 🎯 CRITICAL: Wait for Orders Hub tabs to appear AFTER the click
+      // The content loads dynamically AFTER clicking, so we must wait for tabs to be visible
+      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to appear after click...');
       
-      // 🎯 CRITICAL: Wait for Orders Hub specific tabs (Past Orders, Upcoming Orders)
-      // These tabs are specific to Orders Hub, not generic tabs
-      console.log('🔍 STEP 5: Looking for Orders Hub specific tabs (Past Orders, Upcoming Orders)...');
-      try {
-        // Try multiple selectors for Orders Hub tabs
-        const ordersHubTabSelectors = [
-          "button:has-text('Past Orders')",
-          "button:has-text('Upcoming Orders')",
-          "[role='tab']:has-text('Past')",
-          "[role='tab']:has-text('Upcoming')",
-          "[data-testid*='past-orders']",
-          "[data-testid*='upcoming-orders']",
-          "[data-testid*='pastOrders']",
-          "[data-testid*='upcomingOrders']",
-          "button[aria-label*='Past Orders']",
-          "button[aria-label*='Upcoming Orders']"
-        ];
-        
-        let tabsFound = false;
-        for (const selector of ordersHubTabSelectors) {
-          try {
-            const count = await page.locator(selector).count();
-            console.log(`🔍 Checking selector "${selector}": found ${count} elements`);
-            if (count > 0) {
-              const isVisible = await page.locator(selector).first().isVisible().catch(() => false);
-              if (isVisible) {
-                console.log(`✅ STEP 5 SUCCESS: Found Orders Hub tab with selector: ${selector}`);
-                tabsFound = true;
+      const ordersHubTabSelectors = [
+        "button:has-text('Past Orders')",
+        "button:has-text('Upcoming Orders')",
+        "[role='tab']:has-text('Past')",
+        "[role='tab']:has-text('Upcoming')",
+        "[data-testid*='past-orders']",
+        "[data-testid*='upcoming-orders']",
+        "[data-testid*='pastOrders']",
+        "[data-testid*='upcomingOrders']",
+        "button[aria-label*='Past Orders']",
+        "button[aria-label*='Upcoming Orders']",
+        "[role='tab']",
+        "button[role='tab']"
+      ];
+      
+      let tabsFound = false;
+      for (const selector of ordersHubTabSelectors) {
+        try {
+          console.log(`🔍 STEP 4: Waiting for tab with selector: "${selector}"...`);
+          await page.waitForSelector(selector, { timeout: 10000, state: 'visible' });
+          const count = await page.locator(selector).count();
+          if (count > 0) {
+            const isVisible = await page.locator(selector).first().isVisible();
+            if (isVisible) {
+              console.log(`✅ STEP 4 SUCCESS: Found Orders Hub tab with selector: ${selector}`);
+              tabsFound = true;
               break;
-              } else {
-                console.log(`⚠️ Tab found but not visible with selector: ${selector}`);
-              }
             }
-          } catch (e) {
-            console.log(`⚠️ Error checking selector "${selector}": ${e}`);
-            continue;
           }
+        } catch (e) {
+          console.log(`⚠️ Tab selector "${selector}" not found yet, trying next...`);
+          continue;
         }
-        
-        if (!tabsFound) {
-          console.warn('⚠️ STEP 5 WARNING: Orders Hub specific tabs not found, trying generic tab selectors...');
-          try {
-            await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 5000 });
-            console.log('✅ Generic tabs found');
-          } catch (e) {
-            console.warn(`⚠️ Generic tabs also not found: ${e}`);
-          }
-        }
-      } catch (e) {
-        console.warn(`⚠️ STEP 5 ERROR: Error looking for tabs: ${e}`);
       }
       
-      console.log('✅ STEP 5 COMPLETE: Tab search finished');
+      if (!tabsFound) {
+        console.warn('⚠️ STEP 4 WARNING: No tabs found after waiting, but continuing...');
+        // Wait a bit more as fallback
+        await page.waitForTimeout(3000);
+      }
+      
+      console.log('✅ STEP 4 COMPLETE: Tabs should be visible now');
     } else if (interpretation.context === 'cart') {
       // Navigate to Cart by clicking cart button/icon (cart might be a modal/overlay, not a page)
       const cartSelectors = [
@@ -2663,7 +2692,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // 🎯 NOW capture snapshot AFTER navigation AND content loading (so we see the correct page with content)
     console.log('📸 STEP 7: Capturing accessibility snapshot AFTER navigation and content loading...');
-      const snapshot = await mcpWrapper.browserSnapshot();
+    const snapshot = await mcpWrapper.browserSnapshot();
     console.log('✅ STEP 7 COMPLETE: MCP Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
