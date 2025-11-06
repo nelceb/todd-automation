@@ -5768,8 +5768,29 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           if (!methodExistsInOtherPageObject) {
             // Generate method code (will use fallback selectors if no observations)
             const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
-            const selectorName = methodUsed.replace(/^(clickOn|is|get)/, '').replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
-            const selector = `this.page.getByTestId('${selectorName}')`; // Fallback selector
+            
+            // Generate selector name from method name
+            // clickOnPastOrdersTab -> pastOrdersTab
+            // isEmptyPastOrdersStateVisible -> emptyPastOrdersStateVisible
+            // getEmptyStatePastOrdersText -> emptyStatePastOrdersText
+            let selectorName = methodUsed
+              .replace(/^(clickOn|is|get)/, '')
+              .replace(/([A-Z])/g, '-$1')
+              .toLowerCase()
+              .replace(/^-/, '');
+            
+            // Generate testId from selector name (e.g., past-orders-tab -> past-orders-tab)
+            const testId = selectorName;
+            const selector = `this.page.getByTestId('${testId}')`; // Fallback selector
+            
+            // Create a minimal observation object for consistency
+            const fallbackObservation = {
+              element: selectorName,
+              testId: testId,
+              locator: selector,
+              text: null
+            };
+            
             let methodCode = '';
             
             if (methodUsed.startsWith('get')) {
@@ -5795,10 +5816,11 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
               type: methodType,
               selector: selector,
               selectorName: selectorName,
-              observed: null
+              observed: fallbackObservation // Use fallback observation instead of null
             } as any);
             
             console.log(`📝 Added method ${methodUsed} to missingMethods (codebase analysis returned empty)`);
+            console.log(`📝 Method will use fallback selector: ${selector}`);
           }
         }
         
@@ -5895,7 +5917,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
     // Only add if selector doesn't already exist (by code comparison)
     const uniqueSelectors = new Map<string, { selector: string; name: string; normalizedSelector: string; cssSelector?: string }>();
     for (const method of missingMethods as any[]) {
-      if (method.selector && method.observed) {
+      // Include methods with fallback observations (when codebase analysis returned empty)
+      if (method.selector && (method.observed || method.selectorName)) {
         // Normalize selector code for comparison
         const normalizedSelector = method.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
         
