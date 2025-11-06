@@ -5314,6 +5314,40 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         }
         console.log(`📋 Methods extracted with alternative method: ${Array.from(methodsUsedInTest).join(', ')}`);
       }
+      
+      // 🎯 CRITICAL: If still no methods found, extract from interpretation assertions/actions
+      if (methodsUsedInTest.size === 0) {
+        console.warn(`⚠️ Still no methods found, extracting from interpretation...`);
+        
+        // Extract from actions
+        if (interpretation.actions && interpretation.actions.length > 0) {
+          for (const action of interpretation.actions) {
+            if (action.element) {
+              const methodName = `clickOn${action.element.charAt(0).toUpperCase() + action.element.slice(1)}`;
+              methodsUsedInTest.add(methodName);
+              console.log(`📋 Added method from action: ${methodName}`);
+            }
+          }
+        }
+        
+        // Extract from assertions
+        if (interpretation.assertions && interpretation.assertions.length > 0) {
+          for (const assertion of interpretation.assertions) {
+            if (assertion.element) {
+              let methodName = '';
+              if (assertion.type === 'text') {
+                methodName = `get${assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1)}Text`;
+              } else {
+                methodName = `is${assertion.element.charAt(0).toUpperCase() + assertion.element.slice(1)}Visible`;
+              }
+              methodsUsedInTest.add(methodName);
+              console.log(`📋 Added method from assertion: ${methodName}`);
+            }
+          }
+        }
+        
+        console.log(`📋 Total methods extracted from interpretation: ${Array.from(methodsUsedInTest).join(', ')}`);
+      }
     }
     
     // Check if methods exist in OTHER page objects (should not be added to this one)
