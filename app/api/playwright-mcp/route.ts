@@ -2634,19 +2634,22 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         );
         
         // Add tabs to behavior.elements
-        const uniqueTabs = tabsData.filter((tab): tab is { testId: string | null; text: string; locator: string; cssSelector?: string } => 
-          tab !== null && !behavior.elements.some(existing => 
-            existing.testId === tab.testId || 
+        const uniqueTabs = tabsData.filter((tab) => {
+          if (!tab) return false;
+          return !behavior.elements.some(existing => 
+            (existing.testId && tab.testId && existing.testId === tab.testId) || 
             (existing.text && tab.text && existing.text.toLowerCase().trim() === tab.text.toLowerCase().trim())
-          )
-        );
+          );
+        }) as Array<{ testId: string | null; text: string; locator: string; cssSelector?: string }>;
         
         if (uniqueTabs.length > 0) {
           behavior.elements.push(...uniqueTabs);
           console.log(`✅ Added ${uniqueTabs.length} tabs to behavior.elements after Orders Hub click`);
           // Log which tabs were found
           uniqueTabs.forEach(tab => {
-            console.log(`   - Tab: "${tab.text}" (testId: ${tab.testId || 'none'})`);
+            if (tab) {
+              console.log(`   - Tab: "${tab.text}" (testId: ${tab.testId || 'none'})`);
+            }
           });
         }
       }
