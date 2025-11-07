@@ -272,9 +272,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // Detectar si estamos en Vercel serverless
     const isVercel = process.env.VERCEL === '1';
 
-    // 🚀 OPTIMIZACIÓN: Paralelizar operaciones independientes
-    // 1. Interpretar acceptance criteria y analizar codebase EN PARALELO
-    console.log('📚 Playwright MCP: Iniciando interpretación y análisis en paralelo...');
+    // Paralelizar operaciones independientes
     const [interpretationResult, codebaseAnalysisResult] = await Promise.allSettled([
       interpretAcceptanceCriteria(acceptanceCriteria),
       Promise.race([
@@ -291,13 +289,8 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       
       // Combinar análisis de codebase si está disponible
       if (codebaseAnalysisResult.status === 'fulfilled' && codebaseAnalysisResult.value) {
-        const analysis = codebaseAnalysisResult.value as any;
-        const totalMethods = (analysis.methods?.homePage?.length || 0) + 
-                            (analysis.methods?.ordersHubPage?.length || 0);
-        console.log(`✅ Found ${totalMethods} methods and ${analysis.selectors?.length || 0} existing selectors`);
-        interpretation.codebasePatterns = analysis;
+        interpretation.codebasePatterns = codebaseAnalysisResult.value as any;
       } else {
-        console.log('⏱️ Usando patrones estáticos rápidos');
         interpretation.codebasePatterns = getStaticPatterns();
       }
     } else {
@@ -310,34 +303,26 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       throw new Error('Failed to interpret acceptance criteria');
     }
     
-    console.log('🚀 Playwright MCP: Iniciando navegación real...');
-    
-    // 2. ¡NAVEGAR REALMENTE con Playwright!
     // Configurar Chromium para serverless o local
     if (isVercel) {
-      // En Vercel: usar @sparticuz/chromium optimizado para serverless
       browser = await playwright.chromium.launch({
         args: chromium.args,
         executablePath: await chromium.executablePath(),
         headless: true,
       });
-      console.log('✅ Playwright MCP: Usando Chromium optimizado para serverless');
     } else {
-      // Localmente: usar Playwright normal
       try {
         browser = await playwright.chromium.launch({ 
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
       } catch (error: any) {
-        // Si falla, intentar con playwright normal (no playwright-core)
         const { chromium: chromiumLocal } = await import('playwright');
         browser = await chromiumLocal.launch({ 
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
       }
-      console.log('✅ Playwright MCP: Usando Playwright local');
     }
     const context = await browser.newContext();
     const page = await context.newPage();
@@ -385,43 +370,30 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       }
     }
     
-    console.log('👀 Playwright MCP: Observando comportamiento...');
-    
-    // 🎯 Usar wrapper MCP oficial para observación mejorada
+    // Usar wrapper MCP oficial para observación mejorada
     const mcpWrapper = new PlaywrightMCPWrapper(page);
     
-    // 5. Observar comportamiento REAL usando capacidades del MCP
+    // Observar comportamiento REAL usando capacidades del MCP
     const behavior = await observeBehaviorWithMCP(page, interpretation, mcpWrapper);
     
-    // 🎯 CRITICAL: DO NOT update navigation URL after observeBehaviorWithMCP navigates to target section
-    // The navigation URL should remain as the home URL after login (e.g., https://subscription.qa.cookunity.com/)
-    // The click to Orders Hub is part of the behavior observation, not the initial navigation
-    // This matches the test flow: login → home → click Orders Hub → orders-hub
+    // Navigation URL remains as home after login - clicks are registered as interactions
     const finalNavigationURL = page.url();
     if (finalNavigationURL !== navigation.url) {
-      console.log(`📍 Navigation URL remains as home (${navigation.url}), final URL after clicks: ${finalNavigationURL}`);
-      console.log(`✅ Click to Orders Hub is registered as behavior interaction, not navigation`);
       // Keep navigation URL as home - don't update it
     }
-    
-    console.log(`✅ Playwright MCP: Observed ${behavior.elements.length} elements`);
     
     // 6. Generar test con datos reales observados
     const smartTest = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
     
-    // 7. 🎯 VALIDACIÓN: Verificar estructura del test (no bloquear si es menor)
-    console.log('🧪 Playwright MCP: Verificando estructura del test...');
+    // Validar estructura del test
     let testValidation;
     try {
-      // Verificar que la página aún esté abierta antes de validar
       if (!page.isClosed()) {
         testValidation = await validateGeneratedTest(page, smartTest, interpretation);
       } else {
-        console.warn('⚠️ Página cerrada antes de validación, usando validación básica');
         testValidation = { success: true, issues: [] };
       }
     } catch (validationError) {
-      console.warn('⚠️ Error en validación, usando validación básica:', validationError);
       testValidation = { success: true, issues: [] };
     }
     
@@ -434,22 +406,11 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       }
     }
     
-    // ✅ SIEMPRE devolver el test si tenemos observaciones reales - no fallar por validación menor
+    // Devolver el test si tenemos observaciones reales
     if (behavior.observed && behavior.elements.length > 0) {
-      console.log('✅ Playwright MCP: Test generado con observaciones reales');
-      
-      // 8. 🎯 GENERACIÓN DE CÓDIGO: Crear/actualizar page objects, helpers, etc.
-      console.log('📝 Playwright MCP: Generando código completo...');
       const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
       const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle);
-      
-      // 8.5. 🎯 CODE REVIEW AUTOMÁTICO: Deshabilitado temporalmente para evitar timeout
-      // ⚠️ CRÍTICO: Deshabilitado para evitar FUNCTION_INVOCATION_TIMEOUT en Vercel
-      console.log('⚠️ Code review deshabilitado temporalmente para optimizar tiempo de ejecución');
       const codeReview = performBasicCodeReview(testResult.code, interpretation);
-      
-      // 9. 🎯 GIT MANAGEMENT: Crear branch y preparar PR (incluir code review)
-      console.log('🌿 Playwright MCP: Creando branch y preparando PR...');
       const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
       
       return {
