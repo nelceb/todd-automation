@@ -172,13 +172,32 @@ class PlaywrightMCPWrapper {
       const snapshot = await this.browserSnapshot();
       if (!snapshot) return null;
       
+      // 🚫 Roles no clickeables que debemos ignorar
+      const nonClickableRoles = ['WebArea', 'Document', 'RootWebArea', 'Application', 'Main', 'Region', 'Banner', 'Navigation', 'ContentInfo', 'Complementary'];
+      
       // Buscar en el snapshot recursivamente
       const findInSnapshot = (node: any): any => {
         if (!node) return null;
         
+        // 🚫 Ignorar roles no clickeables
+        if (node.role && nonClickableRoles.includes(node.role)) {
+          // Continuar buscando en hijos, pero no devolver este nodo
+          if (node.children) {
+            for (const child of node.children) {
+              const found = findInSnapshot(child);
+              if (found) return found;
+            }
+          }
+          return null;
+        }
+        
         const nodeText = JSON.stringify(node).toLowerCase();
         if (nodeText.includes(searchTerm.toLowerCase())) {
-          return node;
+          // ✅ Solo devolver si es un elemento clickeable o interactivo
+          const clickableRoles = ['button', 'link', 'tab', 'menuitem', 'option', 'checkbox', 'radio', 'textbox', 'combobox', 'listbox'];
+          if (node.role && (clickableRoles.includes(node.role.toLowerCase()) || node.name)) {
+            return node;
+          }
         }
         
         if (node.children) {
@@ -196,6 +215,11 @@ class PlaywrightMCPWrapper {
       
       // Convertir node a locator usando role y name
       if (foundNode.role && foundNode.name) {
+        // 🚫 Double-check: no devolver WebArea u otros roles no clickeables
+        if (nonClickableRoles.includes(foundNode.role)) {
+          console.warn(`⚠️ Skipping non-clickable role: ${foundNode.role}`);
+          return null;
+        }
         return this.page.getByRole(foundNode.role as any, { name: foundNode.name as string });
       }
       
