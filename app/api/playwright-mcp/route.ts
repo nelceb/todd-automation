@@ -2954,6 +2954,14 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           if (!foundElement) {
             console.log(`⚠️ MCP and accessibility tree didn't find element, trying minimal fallback...`);
             try {
+              // Get search terms for fallback (reuse from above or generate)
+              let fallbackSearchTerms = searchTerms || action.intent || action.description || action.element;
+              if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
+                fallbackSearchTerms = 'past orders';
+              } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
+                fallbackSearchTerms = 'upcoming orders';
+              }
+              
               // Minimal fallback: just get all tabs and filter by text
               const allTabs = await page.locator("[role='tab'], button[role='tab']").all();
               console.log(`📋 Found ${allTabs.length} tabs for filtering...`);
@@ -2964,7 +2972,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   const testId = await tab.getAttribute('data-testid').catch(() => '');
                   const ariaLabel = await tab.getAttribute('aria-label').catch(() => '');
                   
-                  const searchLower = searchTerms.toLowerCase();
+                  const searchLower = fallbackSearchTerms.toLowerCase();
                   const textLower = (text || '').toLowerCase();
                   const testIdLower = (testId || '').toLowerCase();
                   const ariaLabelLower = (ariaLabel || '').toLowerCase();
