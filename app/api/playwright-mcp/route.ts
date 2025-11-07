@@ -196,7 +196,7 @@ class PlaywrightMCPWrapper {
           // ✅ Solo devolver si es un elemento clickeable o interactivo
           const clickableRoles = ['button', 'link', 'tab', 'menuitem', 'option', 'checkbox', 'radio', 'textbox', 'combobox', 'listbox'];
           if (node.role && (clickableRoles.includes(node.role.toLowerCase()) || node.name)) {
-            return node;
+          return node;
           }
         }
         
@@ -291,7 +291,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       if (codebaseAnalysisResult.status === 'fulfilled' && codebaseAnalysisResult.value) {
         interpretation.codebasePatterns = codebaseAnalysisResult.value as any;
       } else {
-        interpretation.codebasePatterns = getStaticPatterns();
+      interpretation.codebasePatterns = getStaticPatterns();
       }
     } else {
       throw new Error(`Interpretation failed: ${interpretationResult.reason}`);
@@ -2381,17 +2381,17 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       if (!foundNav && selectors.length > 0) {
         console.log(`⚠️ [navigateToSectionByClick] MCP didn't find element, trying minimal fallback selectors...`);
         for (let i = 0; i < Math.min(selectors.length, 3); i++) { // Only try first 3 as fallback
-          const selector = selectors[i];
-          try {
+        const selector = selectors[i];
+        try {
             console.log(`🔍 [navigateToSectionByClick] Fallback selector ${i + 1}: "${selector}"`);
-            const nav = page.locator(selector).first();
-            const count = await nav.count();
-            
-            if (count > 0) {
-              const isVisible = await nav.isVisible().catch(() => false);
-              if (isVisible) {
-                foundNav = nav;
-                foundSelector = selector;
+          const nav = page.locator(selector).first();
+          const count = await nav.count();
+          
+          if (count > 0) {
+            const isVisible = await nav.isVisible().catch(() => false);
+            if (isVisible) {
+              foundNav = nav;
+              foundSelector = selector;
                 // Generate locator for fallback too
                 try {
                   if (mcpWrapperParam) {
@@ -2404,12 +2404,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   generatedLocator = `page.locator('${selector}')`;
                 }
                 console.log(`✅ [navigateToSectionByClick] Found ${sectionName} nav with fallback selector: ${selector}`);
-                break;
-              }
+              break;
             }
-          } catch (e) {
+          }
+        } catch (e) {
             console.log(`⚠️ [navigateToSectionByClick] Error with fallback selector "${selector}": ${e}`);
-            continue;
+          continue;
           }
         }
       }
@@ -2442,7 +2442,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   tabsVisible = true;
                   break;
                 }
-              } catch (e) {
+        } catch (e) {
                 continue;
               }
             }
@@ -2827,10 +2827,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     if (isVisible) {
                       foundElement = tab;
                       console.log(`✅ Tab found by text/testId/aria-label: text="${text}", testId="${testId}", aria-label="${ariaLabel}"`);
-                      break;
+              break;
                     }
-                  }
-                } catch (e) {
+            }
+          } catch (e) {
                   continue;
                 }
               }
@@ -3581,19 +3581,19 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           ]);
           
           let testId = testIdAttr;
+        
+        // If no data-testid, search by visible text (more reliable than inventing)
+        if (!testId) {
+          const trimmedText = text?.trim();
           
-          // If no data-testid, search by visible text (more reliable than inventing)
-          if (!testId) {
-            const trimmedText = text?.trim();
-            
-            // If it has descriptive text, use it as identifier
-            if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
-              // Use text as identifier (will be used to search by text, not as testId)
-              testId = null; // Keep null to indicate no data-testid
-              // Text will be used to generate a locator by text
-            } else {
-              // If no useful text, try other attributes
-              // Only use real attributes, DO NOT invent
+          // If it has descriptive text, use it as identifier
+          if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
+            // Use text as identifier (will be used to search by text, not as testId)
+            testId = null; // Keep null to indicate no data-testid
+            // Text will be used to generate a locator by text
+          } else {
+            // If no useful text, try other attributes
+            // Only use real attributes, DO NOT invent
               testId = elementId || nameAttr || elementRole || ariaLabelAttr || null;
             }
           }
@@ -3606,107 +3606,107 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           
           let isVisible = isVisibleDirect;
           if (!isVisible && boundingBox) {
-            isVisible = boundingBox !== null && boundingBox.width > 0 && boundingBox.height > 0;
+              isVisible = boundingBox !== null && boundingBox.width > 0 && boundingBox.height > 0;
           }
           if (!isVisible) {
             isVisible = !!testId; // Include if has identifier
-          }
-          
-          if (isVisible || testId) {
-            try {
-              // 🎯 PRIORITY: Generate locator based on what we actually have
-              let locator: string | undefined = undefined;
-              let cssSelector: string | undefined = undefined; // For baseSelectors format
+        }
+        
+        if (isVisible || testId) {
+          try {
+            // 🎯 PRIORITY: Generate locator based on what we actually have
+            let locator: string | undefined = undefined;
+            let cssSelector: string | undefined = undefined; // For baseSelectors format
+            
+            // Capture element attributes for CSS selector generation
+            const elementTag = tagName || 'div';
+            
+            if (testId) {
+              // If we have a real data-testid, use it
+              locator = `page.getByTestId('${testId}')`;
+              cssSelector = `[data-testid='${testId}']`;
+            } else if (text && text.trim().length > 0 && text.trim().length < 100) {
+              // If no testId but we have descriptive text, generate CSS selector with :has-text()
+              const trimmedText = text.trim();
+              const escapedText = trimmedText.replace(/'/g, "\\'");
               
-              // Capture element attributes for CSS selector generation
-              const elementTag = tagName || 'div';
+              // Build CSS selector combining element info with :has-text()
+              let selectorParts: string[] = [];
               
-              if (testId) {
-                // If we have a real data-testid, use it
-                locator = `page.getByTestId('${testId}')`;
-                cssSelector = `[data-testid='${testId}']`;
-              } else if (text && text.trim().length > 0 && text.trim().length < 100) {
-                // If no testId but we have descriptive text, generate CSS selector with :has-text()
-                const trimmedText = text.trim();
-                const escapedText = trimmedText.replace(/'/g, "\\'");
-                
-                // Build CSS selector combining element info with :has-text()
-                let selectorParts: string[] = [];
-                
-                // Add tag if it's not generic
-                if (elementTag && elementTag !== 'div' && elementTag !== 'span') {
-                  selectorParts.push(elementTag);
+              // Add tag if it's not generic
+              if (elementTag && elementTag !== 'div' && elementTag !== 'span') {
+                selectorParts.push(elementTag);
+              }
+              
+              // Add id if available
+              if (elementId) {
+                selectorParts.push(`#${elementId}`);
+              }
+              
+              // Add class if available (take first class)
+              if (elementClass) {
+                const firstClass = elementClass.split(' ')[0];
+                if (firstClass) {
+                  selectorParts.push(`.${firstClass}`);
                 }
-                
-                // Add id if available
-                if (elementId) {
-                  selectorParts.push(`#${elementId}`);
-                }
-                
-                // Add class if available (take first class)
-                if (elementClass) {
-                  const firstClass = elementClass.split(' ')[0];
-                  if (firstClass) {
-                    selectorParts.push(`.${firstClass}`);
-                  }
-                }
-                
-                // Add role if available
-                if (elementRole) {
-                  selectorParts.push(`[role='${elementRole}']`);
-                }
-                
-                // If we have a partial testId (like 'text' or 'button'), use it
+              }
+              
+              // Add role if available
+              if (elementRole) {
+                selectorParts.push(`[role='${elementRole}']`);
+              }
+              
+              // If we have a partial testId (like 'text' or 'button'), use it
                 if (testIdAttr) {
                   selectorParts.push(`[data-testid='${testIdAttr}']`);
-                }
-                
-                // Build final selector with :has-text()
-                if (selectorParts.length > 0) {
-                  cssSelector = `${selectorParts.join('')}:has-text('${escapedText}')`;
-                  locator = `page.locator('${cssSelector}')`;
-                } else {
-                  // Fallback: use tag with :has-text()
-                  cssSelector = `${elementTag}:has-text('${escapedText}')`;
-                  locator = `page.locator('${cssSelector}')`;
-                }
-              } else {
-                // Try to generate locator using MCP (may use role, aria-label, etc.)
-                locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
-                // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
-                if (locator && locator.startsWith('p.')) {
-                  locator = locator.replace(/^p\./, 'page.');
-                }
-                // Try to extract CSS selector from MCP locator
-                if (locator && locator.includes("locator('")) {
-                  const match = locator.match(/locator\('([^']+)'\)/);
-                  if (match) {
-                    cssSelector = match[1];
-                  }
-                }
               }
               
-              return { 
-                testId: testId || null, // null if no testId (don't invent)
-                text: text?.trim() || null, 
-                locator: locator || undefined,
-                cssSelector: cssSelector || undefined // For baseSelectors format
-              };
-            } catch (locatorError) {
-              // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
-              if (testId || (text && text.trim().length > 0 && text.trim().length < 100)) {
-                return { 
-                  testId: testId || null,
-                  text: text?.trim() || null, 
-                  locator: undefined 
-                };
+              // Build final selector with :has-text()
+              if (selectorParts.length > 0) {
+                cssSelector = `${selectorParts.join('')}:has-text('${escapedText}')`;
+                locator = `page.locator('${cssSelector}')`;
+              } else {
+                // Fallback: use tag with :has-text()
+                cssSelector = `${elementTag}:has-text('${escapedText}')`;
+                locator = `page.locator('${cssSelector}')`;
               }
-              return null;
+            } else {
+              // Try to generate locator using MCP (may use role, aria-label, etc.)
+              locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
+              // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+              if (locator && locator.startsWith('p.')) {
+                locator = locator.replace(/^p\./, 'page.');
+              }
+              // Try to extract CSS selector from MCP locator
+              if (locator && locator.includes("locator('")) {
+                const match = locator.match(/locator\('([^']+)'\)/);
+                if (match) {
+                  cssSelector = match[1];
+                }
+              }
             }
+            
+              return { 
+              testId: testId || null, // null if no testId (don't invent)
+              text: text?.trim() || null, 
+              locator: locator || undefined,
+              cssSelector: cssSelector || undefined // For baseSelectors format
+              };
+          } catch (locatorError) {
+            // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
+            if (testId || (text && text.trim().length > 0 && text.trim().length < 100)) {
+                return { 
+                testId: testId || null,
+                text: text?.trim() || null, 
+                locator: undefined 
+                };
+            }
+              return null;
           }
+        }
           return null;
-        } catch (elementError) {
-          console.warn(`⚠️ Error procesando elemento: ${elementError}`);
+      } catch (elementError) {
+        console.warn(`⚠️ Error procesando elemento: ${elementError}`);
           return null;
         }
       })
@@ -3742,18 +3742,80 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         let foundBy: string | undefined = undefined;
         let generatedLocator: string | undefined;
         
-        // Buscar usando snapshot MCP
-        foundElement = await mcpWrapper.findElementBySnapshot(action.element || action.description || action.intent);
+        // 🎯 REUSE EXISTING SELECTORS: Check if we already have a selector for this element
+        const searchTerms = action.intent || action.description || action.element;
+        const searchLower = searchTerms?.toLowerCase() || '';
         
-        if (foundElement) {
-          foundBy = 'mcp-snapshot';
-          generatedLocator = await mcpWrapper.generateLocator(foundElement);
-          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
-          if (generatedLocator.startsWith('p.')) {
-            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
-            console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+        // Try to reuse existing selector from behavior.elements or behavior.interactions
+        let reusedSelector = null;
+        for (const existingElement of behavior.elements) {
+          const elementText = (existingElement.text || '').toLowerCase();
+          const elementTestId = (existingElement.testId || '').toLowerCase();
+          const actionElement = (action.element || '').toLowerCase();
+          
+          // Match if element name, text, or testId matches
+          if (elementText.includes(searchLower) || 
+              elementTestId.includes(searchLower) ||
+              elementText.includes(actionElement) ||
+              (actionElement.includes('tab') && elementText.includes('past order')) ||
+              (actionElement.includes('tab') && elementText.includes('upcoming order'))) {
+            reusedSelector = existingElement;
+            console.log(`♻️ Reusing existing selector for ${action.element}: ${existingElement.testId || existingElement.text}`);
+            break;
           }
-        } else {
+        }
+        
+        // Also check interactions for already clicked elements
+        if (!reusedSelector) {
+          for (const existingInteraction of behavior.interactions) {
+            if (existingInteraction.element === action.element && existingInteraction.locator) {
+              reusedSelector = {
+                testId: existingInteraction.testId,
+                text: null,
+                locator: existingInteraction.locator,
+                cssSelector: existingInteraction.cssSelector
+              };
+              console.log(`♻️ Reusing existing interaction locator for ${action.element}`);
+              break;
+            }
+          }
+        }
+        
+        // If we have a reused selector, use it
+        if (reusedSelector && reusedSelector.locator) {
+          // Convert locator string to actual locator
+          if (reusedSelector.testId) {
+            foundElement = page.getByTestId(reusedSelector.testId).first();
+            foundBy = 'reused-selector';
+            generatedLocator = reusedSelector.locator;
+          } else if (reusedSelector.locator.includes("getByRole")) {
+            // Parse getByRole locator
+            const roleMatch = reusedSelector.locator.match(/getByRole\(['"]([^'"]+)['"]/);
+            const nameMatch = reusedSelector.locator.match(/name:\s*['"]([^'"]+)['"]/);
+            if (roleMatch && nameMatch) {
+              foundElement = page.getByRole(roleMatch[1] as any, { name: nameMatch[1] }).first();
+              foundBy = 'reused-selector';
+              generatedLocator = reusedSelector.locator;
+            }
+          }
+        }
+        
+        // If not reused, search using snapshot MCP
+        if (!foundElement) {
+          foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
+          
+          if (foundElement) {
+            foundBy = 'mcp-snapshot';
+            generatedLocator = await mcpWrapper.generateLocator(foundElement);
+            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+            if (generatedLocator.startsWith('p.')) {
+              generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+              console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+            }
+          }
+        }
+        
+        if (!foundElement) {
           // Fallback: usar estrategias mejoradas para encontrar elementos reales
           const searchTerms = action.intent || action.description || action.element;
           const searchLower = searchTerms?.toLowerCase() || '';
@@ -3897,27 +3959,62 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           if (isVisible && action.type === 'click') {
             try {
               console.log(`🖱️ Clicking on ${action.element}...`);
+              
+              // Capture state BEFORE click for comparison
+              const stateBeforeClick = {
+                url: page.url(),
+                title: await page.title().catch(() => ''),
+                visibleElementsCount: behavior.elements.length
+              };
+              
               await foundElement.click({ timeout: 5000 });
               
               // 🎯 CRITICAL: Wait for page to stabilize after click
               await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
-              await page.waitForTimeout(1000); // Give time for dynamic content
+              await page.waitForTimeout(1500); // Give time for dynamic content
+              
+              // 🎯 CRITICAL: Verify current state after click
+              const stateAfterClick = {
+                url: page.url(),
+                title: await page.title().catch(() => ''),
+                timestamp: Date.now()
+              };
+              
+              console.log(`📍 State after click on ${action.element}:`);
+              console.log(`   URL: ${stateBeforeClick.url} → ${stateAfterClick.url}`);
+              console.log(`   Title: ${stateBeforeClick.title} → ${stateAfterClick.title}`);
               
               // 🎯 CRITICAL: Observe NEW page after click - capture new elements
               console.log(`👀 Observing new page after click on ${action.element}...`);
+              
+              // Capture snapshot FIRST to understand page structure
+              let newSnapshot;
+              try {
+                newSnapshot = await mcpWrapper.browserSnapshot();
+              } catch (snapshotError) {
+                console.warn('⚠️ Could not capture snapshot after click');
+                newSnapshot = null;
+              }
+              
+              // Find ALL elements with data-testid (not just first 30)
               const newPageElements = await page.$$('[data-testid]').catch(() => []);
               console.log(`📋 Found ${newPageElements.length} elements with data-testid on new page`);
               
+              // Also find elements without data-testid but with roles (for accessibility)
+              const roleElements = await page.$$('button, a, [role="button"], [role="link"], [role="tab"]').catch(() => []);
+              console.log(`📋 Found ${roleElements.length} role-based elements on new page`);
+              
               // Process new elements in parallel (optimized)
               const newElementsData = await Promise.all(
-                newPageElements.slice(0, 30).map(async (el) => {
+                newPageElements.map(async (el) => {
                   try {
-                    const [newTestId, newText] = await Promise.all([
+                    const [newTestId, newText, isVisible] = await Promise.all([
                       el.getAttribute('data-testid').catch(() => null),
-                      el.textContent().catch(() => null)
+                      el.textContent().catch(() => null),
+                      el.isVisible().catch(() => false)
                     ]);
                     
-                    if (newTestId) {
+                    if (newTestId && isVisible) {
                       // Check if this element already exists in behavior.elements
                       const alreadyExists = behavior.elements.some(e => e.testId === newTestId);
                       if (!alreadyExists) {
@@ -3936,31 +4033,81 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                 })
               );
               
+              // Process role-based elements (for elements without data-testid)
+              const roleElementsData = await Promise.all(
+                roleElements.slice(0, 20).map(async (el) => {
+                  try {
+                    const [text, role, isVisible, testId] = await Promise.all([
+                      el.textContent().catch(() => null),
+                      el.evaluate((e: any) => e.getAttribute('role') || e.tagName.toLowerCase()).catch(() => null),
+                      el.isVisible().catch(() => false),
+                      el.getAttribute('data-testid').catch(() => null)
+                    ]);
+                    
+                    // Skip if already has testId (processed above) or not visible
+                    if (testId || !isVisible || !text) return null;
+                    
+                    // Check if similar element already exists
+                    const similarExists = behavior.elements.some(e => 
+                      e.text?.toLowerCase().trim() === text?.toLowerCase().trim()
+                    );
+                    
+                    if (!similarExists && text && text.trim().length > 0) {
+                      // Generate locator based on role and text
+                      let locator = '';
+                      if (role === 'button') {
+                        locator = `page.getByRole('button', { name: '${text.trim().substring(0, 50)}' })`;
+                      } else if (role === 'link' || el.tagName?.toLowerCase() === 'a') {
+                        locator = `page.getByRole('link', { name: '${text.trim().substring(0, 50)}' })`;
+                      } else {
+                        locator = `page.locator('${role}:has-text("${text.trim().substring(0, 50)}")')`;
+                      }
+                      
+                      return {
+                        testId: null,
+                        text: text.trim().substring(0, 100),
+                        locator: locator,
+                        cssSelector: undefined // No CSS selector for role-based elements
+                      };
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })
+              );
+              
+              // Combine both data-testid and role-based elements
+              const allNewElements = [...newElementsData, ...roleElementsData].filter(el => el !== null);
+              
               // Add new unique elements to behavior.elements
-              const uniqueNewElements = newElementsData.filter((el): el is { testId: string; text: string | null; locator: string; cssSelector: string } => 
-                el !== null && !behavior.elements.some(existing => existing.testId === el.testId)
+              const uniqueNewElements = allNewElements.filter((el): el is { testId: string | null; text: string | null; locator: string; cssSelector?: string } => 
+                el !== null && !behavior.elements.some(existing => 
+                  existing.testId === el.testId || 
+                  (existing.text && el.text && existing.text.toLowerCase().trim() === el.text.toLowerCase().trim())
+                )
               );
               
               if (uniqueNewElements.length > 0) {
                 behavior.elements.push(...uniqueNewElements);
-                console.log(`✅ Added ${uniqueNewElements.length} new unique elements from new page`);
+                console.log(`✅ Added ${uniqueNewElements.length} new unique elements from new page (${newElementsData.filter(e => e !== null).length} with testId, ${roleElementsData.filter(e => e !== null).length} role-based)`);
               }
               
-              // Capture snapshot of new page state
-              try {
-                const newSnapshot = await mcpWrapper.browserSnapshot();
-                behavior.observations.push({
-                  url: page.url(),
-                  title: await page.title(),
-                  snapshot: newSnapshot,
-                  timestamp: Date.now(),
-                  afterAction: action.element
-                });
-              } catch (snapshotError) {
-                console.warn('⚠️ Could not capture snapshot after click');
-              }
+              // Store observation with state comparison
+              behavior.observations.push({
+                url: stateAfterClick.url,
+                title: stateAfterClick.title,
+                snapshot: newSnapshot,
+                timestamp: stateAfterClick.timestamp,
+                afterAction: action.element,
+                stateChange: {
+                  urlChanged: stateBeforeClick.url !== stateAfterClick.url,
+                  titleChanged: stateBeforeClick.title !== stateAfterClick.title,
+                  newElementsCount: uniqueNewElements.length
+                }
+              });
               
-              console.log(`✅ Click executed and new page observed`);
+              console.log(`✅ Click executed and new page observed (${uniqueNewElements.length} new elements, URL changed: ${stateBeforeClick.url !== stateAfterClick.url})`);
             } catch (clickError) {
               console.error(`❌ Error clicking on ${action.element}:`, clickError);
             }
@@ -6920,7 +7067,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         } else if (m.selector && m.observed) {
           // Find the property name for this selector
           // 🎯 CRITICAL: Try multiple matching strategies to ensure we find the selector
-          const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+            const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
           
           // Strategy 1: Exact match by normalized selector
           let selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
