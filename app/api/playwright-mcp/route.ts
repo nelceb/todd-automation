@@ -2579,18 +2579,11 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           cssSelector: cssSelector, // Add cssSelector for baseSelectors
           note: 'Click on Orders Hub nav item to navigate to Orders Hub section'
         });
-        console.log(`✅ STEP 2.5 SUCCESS: Orders Hub click registered as interaction with cssSelector: ${cssSelector || 'N/A'}`);
       }
       
-      console.log(`✅ STEP 2 SUCCESS: Navigation to Orders Hub completed`);
-      console.log(`📍 URL after navigation: ${page.url()}`);
-      
-      // 🎯 CRITICAL: Verify we're actually on Orders Hub by checking for page title or specific element
-      console.log('🔍 STEP 3: Verifying we are on Orders Hub page...');
+      // Verify we're actually on Orders Hub by checking for page title or specific element
       try {
-        // Wait for Orders Hub page title or specific element
-        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 5000 }); // Reduced to 5s
-        console.log('✅ STEP 3 SUCCESS: Orders Hub page verified - found page title or header');
+        await page.waitForSelector('h1:has-text("Your Orders Hub"), h1:has-text("Orders Hub"), [data-testid*="orders-hub"], .header-container-title', { timeout: 5000 });
       } catch (verifyError) {
         console.warn('⚠️ STEP 3 WARNING: Could not verify Orders Hub page - may not be loaded correctly');
         console.warn(`⚠️ Verification error: ${verifyError}`);
@@ -2598,10 +2591,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         await page.waitForTimeout(1000); // Reduced to 1s
       }
       
-      // 🎯 CRITICAL: Wait for Orders Hub tabs to appear AFTER the click
-      // The content loads dynamically AFTER clicking, so we must wait for tabs to be visible
-      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to appear after click...');
-      
+      // Wait for Orders Hub tabs to appear AFTER the click
       const ordersHubTabSelectors = [
         "button:has-text('Past Orders')",
         "button:has-text('Upcoming Orders')",
@@ -2609,27 +2599,18 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         "[role='tab']:has-text('Upcoming')",
         "[data-testid*='past-orders']",
         "[data-testid*='upcoming-orders']",
-        "[data-testid*='pastOrders']",
-        "[data-testid*='upcomingOrders']",
-        "button[aria-label*='Past Orders']",
-        "button[aria-label*='Upcoming Orders']",
         "[role='tab']",
         "button[role='tab']"
       ];
       
       let tabsFound = false;
-      // CRITICAL: Wait for tabs to load dynamically (they load AFTER page navigation)
-      console.log('⏳ STEP 4: Waiting for Orders Hub tabs to load dynamically...');
-      
-      // Try selectors with shorter timeouts but in sequence (more efficient than parallel)
-      for (const selector of ordersHubTabSelectors.slice(0, 6)) { // Try first 6 selectors only
+      for (const selector of ordersHubTabSelectors.slice(0, 6)) {
         try {
-          await page.waitForSelector(selector, { timeout: 6000, state: 'visible' }); // Reduced to 6s per selector
+          await page.waitForSelector(selector, { timeout: 6000, state: 'visible' });
           const count = await page.locator(selector).count();
           if (count > 0) {
             const isVisible = await page.locator(selector).first().isVisible();
             if (isVisible) {
-              console.log(`✅ STEP 4 SUCCESS: Found Orders Hub tab with selector: ${selector}`);
               tabsFound = true;
               break;
             }
@@ -2640,13 +2621,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
       
       if (!tabsFound) {
-        console.warn('⚠️ STEP 4 WARNING: No tabs found with specific selectors, trying generic selector...');
-        // Try generic selector with shorter timeout
         try {
-          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' }); // Reduced to 6s
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' });
           const genericTabs = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
           if (genericTabs > 0) {
-            console.log(`✅ STEP 4 SUCCESS: Found ${genericTabs} generic tabs`);
             tabsFound = true;
           }
         } catch (e) {
@@ -2656,7 +2634,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         }
       }
       
-      console.log('✅ STEP 4 COMPLETE: Tabs should be visible now');
     } else if (interpretation.context === 'cart') {
       // Navigate to Cart by clicking cart button/icon (cart might be a modal/overlay, not a page)
       const cartSelectors = [
@@ -2729,7 +2706,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     // 🎯 CRITICAL: Wait for Orders Hub content to be fully loaded before capturing snapshot
     if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
-      console.log('⏳ STEP 6: Waiting for Orders Hub content to be fully visible before snapshot...');
       
       // Wait for specific Orders Hub content elements to be visible
       try {
@@ -2737,8 +2713,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // CRITICAL: Wait for tabs to be visible (they load dynamically)
         try {
           await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' }); // Reduced to 6s
-          const tabCount = await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
-          console.log(`✅ Orders Hub tabs confirmed visible (${tabCount} tabs found)`);
+          await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
         } catch (e) {
           console.warn('⚠️ Tabs not confirmed after waiting, but continuing...');
           // Wait shorter as fallback
@@ -2747,7 +2722,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         // Check for content to ensure page is loaded (CRITICAL: must have real content, not just AudioEye)
         let hasContent = await page.locator('button, a, [data-testid]').count();
-        console.log(`🔍 Found ${hasContent} interactive elements on Orders Hub page`);
         
         // CRITICAL: Wait until we have REAL content (not just AudioEye accessibility elements)
         // AudioEye typically adds 1-2 elements, so we need at least 10+ elements for real content
@@ -2759,39 +2733,29 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           
           // Check again
           hasContent = await page.locator('button, a, [data-testid]').count();
-          console.log(`🔍 After wait: Found ${hasContent} interactive elements`);
           retryCount++;
         }
         
         if (hasContent < 10) {
           console.warn(`⚠️ Still only ${hasContent} elements after ${maxRetries} retries - page may not be fully loaded, but continuing...`);
         } else {
-          console.log(`✅ STEP 6 SUCCESS: Found ${hasContent} interactive elements - page content is loaded`);
         }
         
-        console.log('✅ STEP 6 COMPLETE: Orders Hub content should be loaded');
       } catch (e) {
         console.warn(`⚠️ Error waiting for Orders Hub content: ${e}`);
         // Continue anyway - snapshot will be taken
       }
     }
     
-    // 🎯 CRITICAL: Verify we have real content before taking snapshot (not just AudioEye)
-    console.log('🔍 STEP 7: Verifying page has real content before snapshot...');
+    // Verify we have real content before taking snapshot
     const finalContentCheck = await page.locator('button, a, [data-testid], nav, h1, h2').count();
-    console.log(`🔍 Final content check: ${finalContentCheck} elements found`);
     
     if (finalContentCheck < 10) {
-      console.warn('⚠️ Still very few elements, waiting 3 more seconds before snapshot...');
       await page.waitForTimeout(3000);
-      const retryFinalCheck = await page.locator('button, a, [data-testid], nav, h1, h2').count();
-      console.log(`🔍 After final wait: ${retryFinalCheck} elements found`);
     }
     
     // 🎯 NOW capture snapshot AFTER navigation AND content loading (so we see the correct page with content)
-    console.log('📸 STEP 8: Capturing accessibility snapshot AFTER navigation and content loading...');
     const snapshot = await mcpWrapper.browserSnapshot();
-    console.log('✅ STEP 8 COMPLETE: MCP Snapshot captured');
     
     // 🎯 MCP INTELLIGENT DETECTION: Detect and activate specific sections (tabs, etc.)
     // NOW we can safely search for tabs since we're on the correct page
@@ -2805,22 +2769,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     ) || [];
     
     if (tabActions.length > 0) {
-      console.log(`🖱️ Executing ${tabActions.length} tab click(s) using MCP observation...`);
-      
-      // 🎯 CRITICAL: Wait a moment for page to stabilize after navigation
       await page.waitForTimeout(2000);
-      
-      // 🎯 CRITICAL: Capture fresh snapshot AFTER navigation to Orders Hub
-      console.log('📸 Capturing fresh MCP snapshot after navigation to find tabs...');
       const currentSnapshot = await mcpWrapper.browserSnapshot();
-      console.log('✅ Fresh snapshot captured for tab search');
       
       for (const action of tabActions) {
         try {
-          // 🎯 PRIMARY STRATEGY: Use MCP snapshot search (this is what MCP is for!)
           const searchTerms = action.intent || action.description || action.element;
-          console.log(`🔍 MCP: Searching for tab using terms: "${searchTerms}"`);
-          
           let foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
           
           // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
