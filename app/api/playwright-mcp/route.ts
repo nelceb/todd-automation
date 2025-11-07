@@ -2579,6 +2579,76 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           cssSelector: cssSelector, // Add cssSelector for baseSelectors
           note: 'Click on Orders Hub nav item to navigate to Orders Hub section'
         });
+        
+        // 🎯 CRITICAL: Observe page AFTER clicking Orders Hub to find tabs
+        console.log(`👀 Observing page after Orders Hub click to find tabs...`);
+        await page.waitForTimeout(2000);
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+        
+        // Find ALL tabs on the page
+        const allTabs = await page.locator("[role='tab'], button[role='tab'], [data-testid*='tab']").all();
+        console.log(`📋 Found ${allTabs.length} tabs after Orders Hub click`);
+        
+        // Process tabs and add to behavior.elements
+        const tabsData = await Promise.all(
+          allTabs.map(async (tab) => {
+            try {
+              const [text, testId, isVisible] = await Promise.all([
+                tab.textContent().catch(() => null),
+                tab.getAttribute('data-testid').catch(() => null),
+                tab.isVisible().catch(() => false)
+              ]);
+              
+              if (isVisible && text) {
+                // Check if this tab already exists
+                const alreadyExists = behavior.elements.some(e => 
+                  e.testId === testId || 
+                  (e.text && text && e.text.toLowerCase().trim() === text.toLowerCase().trim())
+                );
+                
+                if (!alreadyExists) {
+                  let locator = '';
+                  let tabCssSelector: string | undefined = undefined;
+                  
+                  if (testId) {
+                    locator = `page.getByTestId('${testId}')`;
+                    tabCssSelector = `[data-testid='${testId}']`;
+                  } else {
+                    // Use role-based locator
+                    locator = `page.getByRole('tab', { name: '${text.trim()}' })`;
+                  }
+                  
+                  return {
+                    testId: testId,
+                    text: text.trim(),
+                    locator: locator,
+                    cssSelector: tabCssSelector
+                  };
+                }
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        
+        // Add tabs to behavior.elements
+        const uniqueTabs = tabsData.filter((tab): tab is { testId: string | null; text: string; locator: string; cssSelector?: string } => 
+          tab !== null && !behavior.elements.some(existing => 
+            existing.testId === tab.testId || 
+            (existing.text && tab.text && existing.text.toLowerCase().trim() === tab.text.toLowerCase().trim())
+          )
+        );
+        
+        if (uniqueTabs.length > 0) {
+          behavior.elements.push(...uniqueTabs);
+          console.log(`✅ Added ${uniqueTabs.length} tabs to behavior.elements after Orders Hub click`);
+          // Log which tabs were found
+          uniqueTabs.forEach(tab => {
+            console.log(`   - Tab: "${tab.text}" (testId: ${tab.testId || 'none'})`);
+          });
+        }
       }
       
       // Verify we're actually on Orders Hub by checking for page title or specific element
