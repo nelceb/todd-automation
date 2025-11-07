@@ -3688,163 +3688,157 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     
     console.log(`🔍 [OBSERVATION] Processing ${allElements.length} elements found...`);
     
-    for (const element of allElements) {
-      try {
-        // Try to get data-testid
-        let testId = await element.getAttribute('data-testid').catch(() => null);
-        
-        // If no data-testid, search by visible text (more reliable than inventing)
-        if (!testId) {
-          const text = await element.textContent().catch(() => null);
-          const trimmedText = text?.trim();
-          
-          // If it has descriptive text, use it as identifier
-          if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
-            // Use text as identifier (will be used to search by text, not as testId)
-            testId = null; // Keep null to indicate no data-testid
-            // Text will be used to generate a locator by text
-          } else {
-            // If no useful text, try other attributes
-            const id = await element.getAttribute('id').catch(() => null);
-            const name = await element.getAttribute('name').catch(() => null);
-            const role = await element.getAttribute('role').catch(() => null);
-            const ariaLabel = await element.getAttribute('aria-label').catch(() => null);
-            
-            // Only use real attributes, DO NOT invent
-            testId = id || name || role || ariaLabel || null;
-          }
-        }
-        
-        const text = await element.textContent().catch(() => null);
-        const tagName = await element.evaluate((el: any) => el.tagName?.toLowerCase()).catch(() => 'unknown');
-        
-        // Verificar visibilidad (más permisivo)
-        let isVisible = false;
+    // 🚀 OPTIMIZACIÓN CRÍTICA: Procesar elementos EN PARALELO en lugar de secuencialmente
+    // Esto reduce el tiempo de O(n) a O(1) en términos de tiempo total
+    const processedElements = await Promise.all(
+      allElements.map(async (element) => {
         try {
-          // Verificar visibilidad directamente
-          isVisible = await element.isVisible().catch(() => false);
+          // 🚀 Paralelizar todas las llamadas a getAttribute y textContent
+          const [testIdAttr, text, tagName, elementClass, elementRole, elementId, nameAttr, ariaLabelAttr] = await Promise.all([
+            element.getAttribute('data-testid').catch(() => null),
+            element.textContent().catch(() => null),
+            element.evaluate((el: any) => el.tagName?.toLowerCase()).catch(() => 'unknown'),
+            element.getAttribute('class').catch(() => null),
+            element.getAttribute('role').catch(() => null),
+            element.getAttribute('id').catch(() => null),
+            element.getAttribute('name').catch(() => null),
+            element.getAttribute('aria-label').catch(() => null)
+          ]);
           
-          // Si no es visible, verificar con boundingBox
-          if (!isVisible) {
-            try {
-              const boundingBox = await element.boundingBox();
-              isVisible = boundingBox !== null && boundingBox.width > 0 && boundingBox.height > 0;
-            } catch (bboxError) {
-              // Si no se puede verificar, incluir de todos modos si tiene identificador
-              isVisible = !!testId;
-            }
-          }
-        } catch (visibilityError) {
-          // Si falla, intentar con boundingBox
-          try {
-            const boundingBox = await element.boundingBox();
-            isVisible = boundingBox !== null && boundingBox.width > 0 && boundingBox.height > 0;
-          } catch (bboxError) {
-            // Si no se puede verificar, incluir de todos modos si tiene identificador
-            isVisible = !!testId;
-          }
-        }
-        
-        if (isVisible || testId) {
-          try {
-            // 🎯 PRIORITY: Generate locator based on what we actually have
-            let locator: string | undefined = undefined;
-            let cssSelector: string | undefined = undefined; // For baseSelectors format
+          let testId = testIdAttr;
+          
+          // If no data-testid, search by visible text (more reliable than inventing)
+          if (!testId) {
+            const trimmedText = text?.trim();
             
-            // Capture element attributes for CSS selector generation
-            const elementTag = tagName || 'div';
-            const elementClass = await element.getAttribute('class').catch(() => null);
-            const elementRole = await element.getAttribute('role').catch(() => null);
-            const elementId = await element.getAttribute('id').catch(() => null);
-            
-            if (testId) {
-              // If we have a real data-testid, use it
-              locator = `page.getByTestId('${testId}')`;
-              cssSelector = `[data-testid='${testId}']`;
-            } else if (text && text.trim().length > 0 && text.trim().length < 100) {
-              // If no testId but we have descriptive text, generate CSS selector with :has-text()
-              const trimmedText = text.trim();
-              const escapedText = trimmedText.replace(/'/g, "\\'");
-              
-              // Build CSS selector combining element info with :has-text()
-              let selectorParts: string[] = [];
-              
-              // Add tag if it's not generic
-              if (elementTag && elementTag !== 'div' && elementTag !== 'span') {
-                selectorParts.push(elementTag);
-              }
-              
-              // Add id if available
-              if (elementId) {
-                selectorParts.push(`#${elementId}`);
-              }
-              
-              // Add class if available (take first class)
-              if (elementClass) {
-                const firstClass = elementClass.split(' ')[0];
-                if (firstClass) {
-                  selectorParts.push(`.${firstClass}`);
-                }
-              }
-              
-              // Add role if available
-              if (elementRole) {
-                selectorParts.push(`[role='${elementRole}']`);
-              }
-              
-              // If we have a partial testId (like 'text' or 'button'), use it
-              const partialTestId = await element.getAttribute('data-testid').catch(() => null);
-              if (partialTestId) {
-                selectorParts.push(`[data-testid='${partialTestId}']`);
-              }
-              
-              // Build final selector with :has-text()
-              if (selectorParts.length > 0) {
-                cssSelector = `${selectorParts.join('')}:has-text('${escapedText}')`;
-                locator = `page.locator('${cssSelector}')`;
-              } else {
-                // Fallback: use tag with :has-text()
-                cssSelector = `${elementTag}:has-text('${escapedText}')`;
-                locator = `page.locator('${cssSelector}')`;
-              }
+            // If it has descriptive text, use it as identifier
+            if (trimmedText && trimmedText.length > 0 && trimmedText.length < 100) {
+              // Use text as identifier (will be used to search by text, not as testId)
+              testId = null; // Keep null to indicate no data-testid
+              // Text will be used to generate a locator by text
             } else {
-              // Try to generate locator using MCP (may use role, aria-label, etc.)
-              locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
-              // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
-              if (locator && locator.startsWith('p.')) {
-                locator = locator.replace(/^p\./, 'page.');
-              }
-              // Try to extract CSS selector from MCP locator
-              if (locator && locator.includes("locator('")) {
-                const match = locator.match(/locator\('([^']+)'\)/);
-                if (match) {
-                  cssSelector = match[1];
-                }
-              }
-            }
-            
-            visibleElements.push({ 
-              testId: testId || null, // null if no testId (don't invent)
-              text: text?.trim() || null, 
-              locator: locator || undefined,
-              cssSelector: cssSelector || undefined // For baseSelectors format
-            });
-          } catch (locatorError) {
-            // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
-            if (testId || (text && text.trim().length > 0 && text.trim().length < 100)) {
-              visibleElements.push({ 
-                testId: testId || null,
-                text: text?.trim() || null, 
-                locator: undefined 
-              });
+              // If no useful text, try other attributes
+              // Only use real attributes, DO NOT invent
+              testId = elementId || nameAttr || elementRole || ariaLabelAttr || null;
             }
           }
+          
+          // 🚀 Paralelizar verificación de visibilidad
+          const [isVisibleDirect, boundingBox] = await Promise.all([
+            element.isVisible().catch(() => false),
+            element.boundingBox().catch(() => null)
+          ]);
+          
+          let isVisible = isVisibleDirect;
+          if (!isVisible && boundingBox) {
+            isVisible = boundingBox !== null && boundingBox.width > 0 && boundingBox.height > 0;
+          }
+          if (!isVisible) {
+            isVisible = !!testId; // Include if has identifier
+          }
+          
+          if (isVisible || testId) {
+            try {
+              // 🎯 PRIORITY: Generate locator based on what we actually have
+              let locator: string | undefined = undefined;
+              let cssSelector: string | undefined = undefined; // For baseSelectors format
+              
+              // Capture element attributes for CSS selector generation
+              const elementTag = tagName || 'div';
+              
+              if (testId) {
+                // If we have a real data-testid, use it
+                locator = `page.getByTestId('${testId}')`;
+                cssSelector = `[data-testid='${testId}']`;
+              } else if (text && text.trim().length > 0 && text.trim().length < 100) {
+                // If no testId but we have descriptive text, generate CSS selector with :has-text()
+                const trimmedText = text.trim();
+                const escapedText = trimmedText.replace(/'/g, "\\'");
+                
+                // Build CSS selector combining element info with :has-text()
+                let selectorParts: string[] = [];
+                
+                // Add tag if it's not generic
+                if (elementTag && elementTag !== 'div' && elementTag !== 'span') {
+                  selectorParts.push(elementTag);
+                }
+                
+                // Add id if available
+                if (elementId) {
+                  selectorParts.push(`#${elementId}`);
+                }
+                
+                // Add class if available (take first class)
+                if (elementClass) {
+                  const firstClass = elementClass.split(' ')[0];
+                  if (firstClass) {
+                    selectorParts.push(`.${firstClass}`);
+                  }
+                }
+                
+                // Add role if available
+                if (elementRole) {
+                  selectorParts.push(`[role='${elementRole}']`);
+                }
+                
+                // If we have a partial testId (like 'text' or 'button'), use it
+                if (testIdAttr) {
+                  selectorParts.push(`[data-testid='${testIdAttr}']`);
+                }
+                
+                // Build final selector with :has-text()
+                if (selectorParts.length > 0) {
+                  cssSelector = `${selectorParts.join('')}:has-text('${escapedText}')`;
+                  locator = `page.locator('${cssSelector}')`;
+                } else {
+                  // Fallback: use tag with :has-text()
+                  cssSelector = `${elementTag}:has-text('${escapedText}')`;
+                  locator = `page.locator('${cssSelector}')`;
+                }
+              } else {
+                // Try to generate locator using MCP (may use role, aria-label, etc.)
+                locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
+                // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+                if (locator && locator.startsWith('p.')) {
+                  locator = locator.replace(/^p\./, 'page.');
+                }
+                // Try to extract CSS selector from MCP locator
+                if (locator && locator.includes("locator('")) {
+                  const match = locator.match(/locator\('([^']+)'\)/);
+                  if (match) {
+                    cssSelector = match[1];
+                  }
+                }
+              }
+              
+              return { 
+                testId: testId || null, // null if no testId (don't invent)
+                text: text?.trim() || null, 
+                locator: locator || undefined,
+                cssSelector: cssSelector || undefined // For baseSelectors format
+              };
+            } catch (locatorError) {
+              // Si no se puede generar locator, agregar de todos modos solo si tiene testId o texto útil
+              if (testId || (text && text.trim().length > 0 && text.trim().length < 100)) {
+                return { 
+                  testId: testId || null,
+                  text: text?.trim() || null, 
+                  locator: undefined 
+                };
+              }
+              return null;
+            }
+          }
+          return null;
+        } catch (elementError) {
+          console.warn(`⚠️ Error procesando elemento: ${elementError}`);
+          return null;
         }
-      } catch (elementError) {
-        console.warn(`⚠️ Error procesando elemento: ${elementError}`);
-        continue;
-      }
-    }
+      })
+    );
+    
+    // Filtrar elementos nulos y agregar a visibleElements
+    visibleElements.push(...processedElements.filter((el): el is { testId: string | null; text: string | null; locator?: string; cssSelector?: string } => el !== null));
     
     console.log(`✅ Elementos visibles encontrados: ${visibleElements.length}`);
     behavior.elements = visibleElements;
