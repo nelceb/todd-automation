@@ -406,12 +406,40 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       }
     }
     
+    // 🎯 VALIDATION: Check if all critical actions were observed before creating PR
+    const unobservedActions = behavior.interactions.filter((i: any) => 
+      i.type === 'click' && !i.observed
+    );
+    
+    const hasUnobservedCriticalActions = unobservedActions.length > 0;
+    
+    if (hasUnobservedCriticalActions) {
+      console.warn(`⚠️ CRITICAL: ${unobservedActions.length} actions were not observed:`);
+      unobservedActions.forEach((action: any) => {
+        console.warn(`   - ${action.element}: ${action.note || 'Not found'}`);
+      });
+    }
+    
     // Devolver el test si tenemos observaciones reales
     if (behavior.observed && behavior.elements.length > 0) {
       const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
       const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle);
       const codeReview = performBasicCodeReview(testResult.code, interpretation);
-      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+      
+      // 🎯 CRITICAL: Only create PR if all critical actions were observed
+      let gitManagement = null;
+      if (!hasUnobservedCriticalActions) {
+        gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+      } else {
+        console.warn(`❌ NOT creating PR: ${unobservedActions.length} critical actions were not observed`);
+        gitManagement = {
+          success: false,
+          skipped: true,
+          reason: `Observación incompleta: ${unobservedActions.length} acciones críticas no fueron observadas`,
+          unobservedActions: unobservedActions.map((a: any) => a.element),
+          message: `⚠️ PR no creado: ${unobservedActions.map((a: any) => a.element).join(', ')} no fueron observados`
+        };
+      }
       
       return {
         success: true,
@@ -422,10 +450,12 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         testValidation,
         codeGeneration,
         gitManagement,
-        mode: 'real-validated-with-pr',
-        message: testValidation.success 
+        mode: hasUnobservedCriticalActions ? 'real-observation-incomplete' : 'real-validated-with-pr',
+        message: hasUnobservedCriticalActions
+          ? `Test generado pero observación incompleta: ${unobservedActions.map((a: any) => a.element).join(', ')} no fueron observados`
+          : (testValidation.success 
           ? 'Test generado y validado exitosamente' 
-          : 'Test generado con observaciones reales (validación menor pendiente)'
+              : 'Test generado con observaciones reales (validación menor pendiente)')
       }
     } else {
       // Solo fallar si realmente no pudimos observar nada
@@ -2847,27 +2877,77 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       for (const action of tabActions) {
         try {
-          // 🎯 CRITICAL: Use better search terms for tabs
-          // If element is "pastOrdersTab", search for "past orders" not "pastOrdersTab"
-          let searchTerms = action.intent || action.description || action.element;
+          // 🎯 CRITICAL: First check if tab already exists in behavior.elements (from Orders Hub observation)
+          let foundElement: Locator | null = null;
+          let foundBy: string | undefined = undefined;
+          let generatedLocator: string | undefined = undefined;
           
-          // Convert element names to search terms
-          if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
-            searchTerms = 'past orders';
-          } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
-            searchTerms = 'upcoming orders';
-          } else if (action.element?.toLowerCase().includes('tab')) {
-            // Extract meaningful text from element name
-            searchTerms = action.element.replace(/Tab$/i, '').replace(/([A-Z])/g, ' $1').trim();
+          // Search in behavior.elements first (tabs were added after Orders Hub click)
+          const actionElementLower = (action.element || '').toLowerCase();
+          for (const existingElement of behavior.elements) {
+            const elementText = (existingElement.text || '').toLowerCase();
+            const elementTestId = (existingElement.testId || '').toLowerCase();
+            
+            // Match if element name, text, or testId matches
+            if (actionElementLower.includes('pastorderstab') || actionElementLower.includes('pastorder')) {
+              if (elementText.includes('past order') || elementTestId.includes('past')) {
+                // Found matching tab in behavior.elements
+                if (existingElement.testId) {
+                  foundElement = page.getByTestId(existingElement.testId).first();
+                  foundBy = 'reused-from-orders-hub-observation';
+                  generatedLocator = existingElement.locator;
+                  console.log(`♻️ Found tab "${action.element}" in behavior.elements: "${existingElement.text}" (testId: ${existingElement.testId})`);
+                  break;
+                } else if (existingElement.locator) {
+                  // Parse locator to get actual element
+                  const roleMatch = existingElement.locator.match(/getByRole\(['"]([^'"]+)['"]/);
+                  const nameMatch = existingElement.locator.match(/name:\s*['"]([^'"]+)['"]/);
+                  if (roleMatch && nameMatch) {
+                    foundElement = page.getByRole(roleMatch[1] as any, { name: nameMatch[1] }).first();
+                    foundBy = 'reused-from-orders-hub-observation';
+                    generatedLocator = existingElement.locator;
+                    console.log(`♻️ Found tab "${action.element}" in behavior.elements: "${existingElement.text}"`);
+                  break;
+                }
+                }
+              }
+            } else if (actionElementLower.includes('upcomingorderstab') || actionElementLower.includes('upcomingorder')) {
+              if (elementText.includes('upcoming order') || elementTestId.includes('upcoming')) {
+                if (existingElement.testId) {
+                  foundElement = page.getByTestId(existingElement.testId).first();
+                  foundBy = 'reused-from-orders-hub-observation';
+                  generatedLocator = existingElement.locator;
+                  console.log(`♻️ Found tab "${action.element}" in behavior.elements: "${existingElement.text}" (testId: ${existingElement.testId})`);
+                  break;
+                }
+              }
+            }
           }
           
-          console.log(`🔍 Searching for tab: "${searchTerms}" (from action.element: "${action.element}")`);
-          
-          let foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
-          
-          // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
+          // If not found in behavior.elements, search using MCP
           if (!foundElement) {
-            foundElement = await findElementWithAccessibility(page, searchTerms);
+            // 🎯 CRITICAL: Use better search terms for tabs
+            // If element is "pastOrdersTab", search for "past orders" not "pastOrdersTab"
+            let searchTerms = action.intent || action.description || action.element;
+            
+            // Convert element names to search terms
+            if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
+              searchTerms = 'past orders';
+            } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
+              searchTerms = 'upcoming orders';
+            } else if (action.element?.toLowerCase().includes('tab')) {
+              // Extract meaningful text from element name
+              searchTerms = action.element.replace(/Tab$/i, '').replace(/([A-Z])/g, ' $1').trim();
+            }
+            
+            console.log(`🔍 Searching for tab: "${searchTerms}" (from action.element: "${action.element}")`);
+            
+            foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
+            
+            // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
+            if (!foundElement) {
+              foundElement = await findElementWithAccessibility(page, searchTerms);
+            }
           }
           
           // 🎯 LAST RESORT: If still not found, search all tabs and filter by text (minimal fallback)
