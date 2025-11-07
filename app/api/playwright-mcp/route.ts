@@ -2774,12 +2774,26 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       for (const action of tabActions) {
         try {
-          const searchTerms = action.intent || action.description || action.element;
+          // 🎯 CRITICAL: Use better search terms for tabs
+          // If element is "pastOrdersTab", search for "past orders" not "pastOrdersTab"
+          let searchTerms = action.intent || action.description || action.element;
+          
+          // Convert element names to search terms
+          if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
+            searchTerms = 'past orders';
+          } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
+            searchTerms = 'upcoming orders';
+          } else if (action.element?.toLowerCase().includes('tab')) {
+            // Extract meaningful text from element name
+            searchTerms = action.element.replace(/Tab$/i, '').replace(/([A-Z])/g, ' $1').trim();
+          }
+          
+          console.log(`🔍 Searching for tab: "${searchTerms}" (from action.element: "${action.element}")`);
+          
           let foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
           
           // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
           if (!foundElement) {
-            console.log(`⚠️ MCP snapshot search didn't find element, trying accessibility tree...`);
             foundElement = await findElementWithAccessibility(page, searchTerms);
           }
           
@@ -2872,44 +2886,131 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               throw new Error('Page was closed after tab click');
             }
             
-            // Store interaction in behavior with REAL testId
+            // Extract cssSelector from locator for page object generation
+            let cssSelector: string | undefined = undefined;
+            if (testId) {
+              cssSelector = `[data-testid='${testId}']`;
+            } else if (generatedLocator) {
+              // Try to extract from locator
+              if (generatedLocator.includes("locator('")) {
+                const match = generatedLocator.match(/locator\('([^']+)'\)/);
+                if (match) cssSelector = match[1];
+              } else if (generatedLocator.includes("getByTestId('")) {
+                const match = generatedLocator.match(/getByTestId\('([^']+)'\)/);
+                if (match) {
+                  cssSelector = `[data-testid='${match[1]}']`;
+                }
+              } else if (generatedLocator.includes("getByRole(")) {
+                // For getByRole, try to find the element and get its testId or generate CSS
+                try {
+                  const roleMatch = generatedLocator.match(/getByRole\(['"]([^'"]+)['"]/);
+                  const nameMatch = generatedLocator.match(/name:\s*['"]([^'"]+)['"]/);
+                  if (roleMatch && nameMatch) {
+                    // Try to find element and get its actual selector
+                    const roleElement = page.getByRole(roleMatch[1] as any, { name: nameMatch[1] }).first();
+                    const actualTestId = await roleElement.getAttribute('data-testid').catch(() => null);
+                    if (actualTestId) {
+                      cssSelector = `[data-testid='${actualTestId}']`;
+                    }
+                  }
+                } catch (e) {
+                  // Continue without cssSelector
+                }
+              }
+            }
+            
+            // Also add to behavior.elements for page object generation
+            if (testId || cssSelector) {
+              const tabText = await foundElement.textContent().catch(() => null);
+              behavior.elements.push({
+                testId: testId,
+                text: tabText,
+                locator: generatedLocator,
+                cssSelector: cssSelector
+              });
+            }
+            
+            // Wait for dynamic content to load after tab click
+            await page.waitForTimeout(2000);
+            await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+            
+            // 🎯 CRITICAL: Observe NEW page after tab click - capture new elements
+            console.log(`👀 Observing new page after click on ${action.element} tab...`);
+            const newPageElements = await page.$$('[data-testid]').catch(() => []);
+            console.log(`📋 Found ${newPageElements.length} elements with data-testid on new page after tab click`);
+            
+            // Process new elements in parallel
+            const newElementsData = await Promise.all(
+              newPageElements.slice(0, 50).map(async (el) => {
+                try {
+                  const [newTestId, newText] = await Promise.all([
+                    el.getAttribute('data-testid').catch(() => null),
+                    el.textContent().catch(() => null)
+                  ]);
+                  
+                  if (newTestId) {
+                    // Check if this element already exists in behavior.elements
+                    const alreadyExists = behavior.elements.some(e => e.testId === newTestId);
+                    if (!alreadyExists) {
+                      return {
+                        testId: newTestId,
+                        text: newText?.trim().substring(0, 100) || null,
+                        locator: `page.getByTestId('${newTestId}')`,
+                        cssSelector: `[data-testid='${newTestId}']`
+                      };
+                    }
+                  }
+                  return null;
+                } catch {
+                  return null;
+                }
+              })
+            );
+            
+            // Add new unique elements to behavior.elements
+            const uniqueNewElements = newElementsData.filter((el): el is { testId: string; text: string | null; locator: string; cssSelector: string } => 
+              el !== null && !behavior.elements.some(existing => existing.testId === el.testId)
+            );
+            
+            if (uniqueNewElements.length > 0) {
+              behavior.elements.push(...uniqueNewElements);
+              console.log(`✅ Added ${uniqueNewElements.length} new unique elements from page after tab click`);
+            }
+            
+            // Capture snapshot of new page state after tab click
+            try {
+              const newSnapshot = await mcpWrapper.browserSnapshot();
+              behavior.observations.push({
+                url: page.url(),
+                title: await page.title(),
+                snapshot: newSnapshot,
+                timestamp: Date.now(),
+                afterAction: action.element
+              });
+            } catch (snapshotError) {
+              console.warn('⚠️ Could not capture snapshot after tab click');
+            }
+            
+            // Store interaction in behavior with REAL testId and cssSelector
             behavior.interactions.push({
               type: action.type,
               element: action.element,
               observed: true,
               exists: true,
               visible: true,
+              foundBy: 'tab-click-with-mcp',
               testId: testId,
               locator: generatedLocator,
+              cssSelector: cssSelector,
               note: `Tab clicked successfully with testId: ${testId || 'unknown'}`
             });
-            
-            // Wait for tab content to load (CRITICAL: dynamic content takes time)
-            console.log('⏳ Waiting for tab content to load after click...');
-            
-            // 🎯 CRITICAL: Verify page is still open before waiting
-            if (page.isClosed()) {
-              throw new Error('Page was closed before waiting for tab content');
-            }
-            
-            // Wait for dynamic content to load after tab click (reduced to avoid timeout)
-            await page.waitForTimeout(3000); // Reduced to 3s
-            
-            // 🎯 CRITICAL: Verify page is still open after wait
-            if (page.isClosed()) {
-              throw new Error('Page was closed while waiting for tab content');
-            }
             
             // Try to wait for specific content with shorter timeout
             if (interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub') {
               try {
-                // Wait for empty state or past orders content (more flexible selectors)
-                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"], [class*="empty"], [class*="past"], [class*="Empty"]', { timeout: 8000 }); // Reduced to 8s
-                console.log('✅ Tab content loaded');
+                await page.waitForSelector('[data-testid*="empty"], [data-testid*="past"], [data-testid*="order"], [data-testid*="state"]', { timeout: 5000 });
               } catch (e) {
-                console.log('⚠️ Timeout waiting for specific tab content, but continuing...');
-                // Wait shorter as fallback
-                await page.waitForTimeout(2000); // Reduced to 2s
+                // Continue anyway
               }
             }
           } else {
