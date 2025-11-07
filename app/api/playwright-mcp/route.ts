@@ -2296,8 +2296,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       error?: string;
       locator?: string; // 🎯 Locator generado por MCP
       testId?: string | null; // 🎯 Real testId captured from element
+      cssSelector?: string; // 🎯 CSS selector for baseSelectors format
     }>;
-    elements: Array<{ testId: string | null; text: string | null; locator?: string }>;
+    elements: Array<{ testId: string | null; text: string | null; locator?: string; cssSelector?: string }>;
     observations: any[];
     error?: string;
   } = {
@@ -2434,6 +2435,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // All navigation must be done via clicks to match real user behavior
     
     // Helper function to navigate to a section by clicking nav items
+    // Uses MCP observation to find elements, not hardcoded selectors
     // Returns: { success: boolean, clickInfo?: { element: string, selector: string, locator?: string } }
     const navigateToSectionByClick = async (sectionName: string, selectors: string[], urlPattern: RegExp, mcpWrapperParam: PlaywrightMCPWrapper) => {
       const currentUrl = page.url();
@@ -2448,47 +2450,88 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         return { success: true, clickInfo: null };
       }
       
-      console.log(`🧭 [navigateToSectionByClick] Not on ${sectionName}, navigating by clicking nav item...`);
+      console.log(`🧭 [navigateToSectionByClick] Not on ${sectionName}, using MCP to find nav item...`);
       console.log(`📍 [navigateToSectionByClick] Current URL: ${currentUrl}`);
-      console.log(`🔍 [navigateToSectionByClick] Trying ${selectors.length} selectors...`);
       
+      // 🎯 PRIMARY: Use MCP to find the navigation element
       let foundNav = null;
       let foundSelector = null;
       let generatedLocator = null;
-      for (let i = 0; i < selectors.length; i++) {
-        const selector = selectors[i];
+      
+      // Wait a moment for page to stabilize
+      await page.waitForTimeout(1000);
+      
+      // Capture snapshot for MCP search
+      console.log(`📸 [navigateToSectionByClick] Capturing MCP snapshot to find ${sectionName} nav item...`);
+      const snapshot = await mcpWrapperParam.browserSnapshot();
+      console.log(`✅ [navigateToSectionByClick] Snapshot captured`);
+      
+      // Try MCP snapshot search first
+      const searchTerms = sectionName; // e.g., "Orders Hub"
+      console.log(`🔍 [navigateToSectionByClick] MCP: Searching for "${searchTerms}" using snapshot...`);
+      foundNav = await mcpWrapperParam.findElementBySnapshot(searchTerms);
+      
+      // If MCP doesn't find it, try accessibility tree
+      if (!foundNav) {
+        console.log(`⚠️ [navigateToSectionByClick] MCP snapshot didn't find element, trying accessibility tree...`);
+        foundNav = await findElementWithAccessibility(page, searchTerms);
+      }
+      
+      // If found via MCP/accessibility, generate locator
+      if (foundNav) {
         try {
-          console.log(`🔍 [navigateToSectionByClick] Trying selector ${i + 1}/${selectors.length}: "${selector}"`);
-          const nav = page.locator(selector).first();
-          const count = await nav.count();
-          console.log(`🔍 [navigateToSectionByClick] Selector "${selector}" found ${count} elements`);
-          
-          if (count > 0) {
-            const isVisible = await nav.isVisible().catch(() => false);
-            console.log(`🔍 [navigateToSectionByClick] Selector "${selector}" is visible: ${isVisible}`);
-            
-            if (isVisible) {
-              foundNav = nav;
-              foundSelector = selector;
-              // Generate locator using MCP wrapper if available
-              try {
-                if (mcpWrapperParam) {
-                  generatedLocator = await mcpWrapperParam.generateLocator(nav);
-                  // Fix 'p.locator' to 'page.locator' if needed
-                  if (generatedLocator && generatedLocator.startsWith('p.')) {
-                    generatedLocator = generatedLocator.replace(/^p\./, 'page.');
-                  }
-                }
-              } catch (locatorError) {
-                console.log(`⚠️ Could not generate locator: ${locatorError}`);
-              }
-              console.log(`✅ [navigateToSectionByClick] Found ${sectionName} nav with selector: ${selector}`);
-              break;
-            }
+          generatedLocator = await mcpWrapperParam.generateLocator(foundNav);
+          // Fix 'p.locator' to 'page.locator' if needed
+          if (generatedLocator && generatedLocator.startsWith('p.')) {
+            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
           }
-        } catch (e) {
-          console.log(`⚠️ [navigateToSectionByClick] Error with selector "${selector}": ${e}`);
-          continue;
+          // Extract selector from locator for reporting
+          const locatorMatch = generatedLocator.match(/locator\(['"]([^'"]+)['"]\)/);
+          if (locatorMatch) {
+            foundSelector = locatorMatch[1];
+          } else {
+            foundSelector = generatedLocator;
+          }
+          console.log(`✅ [navigateToSectionByClick] Found ${sectionName} nav using MCP. Locator: ${generatedLocator}`);
+        } catch (locatorError) {
+          console.log(`⚠️ Could not generate locator: ${locatorError}`);
+        }
+      }
+      
+      // 🎯 FALLBACK: Only if MCP fails, try minimal selectors (but this shouldn't happen)
+      if (!foundNav && selectors.length > 0) {
+        console.log(`⚠️ [navigateToSectionByClick] MCP didn't find element, trying minimal fallback selectors...`);
+        for (let i = 0; i < Math.min(selectors.length, 3); i++) { // Only try first 3 as fallback
+          const selector = selectors[i];
+          try {
+            console.log(`🔍 [navigateToSectionByClick] Fallback selector ${i + 1}: "${selector}"`);
+            const nav = page.locator(selector).first();
+            const count = await nav.count();
+            
+            if (count > 0) {
+              const isVisible = await nav.isVisible().catch(() => false);
+              if (isVisible) {
+                foundNav = nav;
+                foundSelector = selector;
+                // Generate locator for fallback too
+                try {
+                  if (mcpWrapperParam) {
+                    generatedLocator = await mcpWrapperParam.generateLocator(nav);
+                    if (generatedLocator && generatedLocator.startsWith('p.')) {
+                      generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                    }
+                  }
+                } catch (locatorError) {
+                  generatedLocator = `page.locator('${selector}')`;
+                }
+                console.log(`✅ [navigateToSectionByClick] Found ${sectionName} nav with fallback selector: ${selector}`);
+                break;
+              }
+            }
+          } catch (e) {
+            console.log(`⚠️ [navigateToSectionByClick] Error with fallback selector "${selector}": ${e}`);
+            continue;
+          }
         }
       }
       
@@ -2569,24 +2612,19 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     };
     
     // Navigate based on context - ALWAYS using clicks, never direct URL navigation
+    // Uses MCP observation to find elements, not hardcoded selectors
     if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
-      console.log('🎯 STEP 1: Starting navigation to Orders Hub...');
+      console.log('🎯 STEP 1: Starting navigation to Orders Hub using MCP observation...');
       console.log(`📍 Current URL before navigation: ${page.url()}`);
       
+      // Minimal fallback selectors (only used if MCP completely fails)
       const ordersHubSelectors = [
-        "a.core-ux-nav-item:has-text('Orders Hub')",
         "a[href*='orders-hub']",
-        "a:has-text('Orders Hub')",
         "[data-testid*='orders-hub']",
-        "[data-testid*='ordershub']",
-        "a:has-text('Orders')",
-        "nav a:has-text('Orders')",
-        ".nav-item:has-text('Orders Hub')",
-        "[href='/orders-hub']",
-        "[href*='orders-hub']"
+        "a:has-text('Orders')"
       ];
       
-      console.log(`🔍 STEP 2: Attempting to find Orders Hub nav item with ${ordersHubSelectors.length} selectors...`);
+      console.log(`🔍 STEP 2: Using MCP to find Orders Hub nav item (fallback selectors only if MCP fails)...`);
       const navigationResult = await navigateToSectionByClick('Orders Hub', ordersHubSelectors, /orders-hub|ordershub/, mcpWrapper);
       
       if (!navigationResult.success) {
@@ -2595,8 +2633,88 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
       
       // 🎯 CRITICAL: Register the click on Orders Hub as a behavior interaction
+      // Also capture element info for page object generation (cssSelector for baseSelectors)
       if (navigationResult.clickInfo) {
         console.log(`📝 STEP 2.5: Registering Orders Hub click as behavior interaction...`);
+        
+        // Extract CSS selector from locator for baseSelectors format
+        let cssSelector: string | undefined = undefined;
+        if (navigationResult.clickInfo.locator) {
+          const locatorStr = navigationResult.clickInfo.locator;
+          
+          // Try to extract CSS selector from locator
+          // Case 1: page.locator('selector')
+          const locatorMatch = locatorStr.match(/locator\(['"]([^'"]+)['"]\)/);
+          if (locatorMatch) {
+            cssSelector = locatorMatch[1];
+          } 
+          // Case 2: page.getByTestId('testid')
+          else if (locatorStr.includes('getByTestId')) {
+            const testIdMatch = locatorStr.match(/getByTestId\(['"]([^'"]+)['"]\)/);
+            if (testIdMatch) {
+              cssSelector = `[data-testid='${testIdMatch[1]}']`;
+            }
+          } 
+          // Case 3: page.getByRole('role', { name: 'text' })
+          else if (locatorStr.includes('getByRole')) {
+            const roleMatch = locatorStr.match(/getByRole\(['"]([^'"]+)['"]/);
+            const nameMatch = locatorStr.match(/name:\s*['"]([^'"]+)['"]/);
+            if (roleMatch && nameMatch) {
+              const role = roleMatch[1];
+              const name = nameMatch[1];
+              const roleToTag: { [key: string]: string } = {
+                'link': 'a',
+                'button': 'button',
+                'textbox': 'input',
+                'checkbox': 'input[type="checkbox"]',
+                'radio': 'input[type="radio"]'
+              };
+              const tag = roleToTag[role] || role;
+              const escapedName = name.replace(/'/g, "\\'");
+              cssSelector = `${tag}:has-text('${escapedName}')`;
+            } else if (roleMatch) {
+              const role = roleMatch[1];
+              const roleToTag: { [key: string]: string } = {
+                'link': 'a',
+                'button': 'button',
+                'textbox': 'input',
+                'checkbox': 'input[type="checkbox"]',
+                'radio': 'input[type="radio"]'
+              };
+              const tag = roleToTag[role] || role;
+              cssSelector = `[role='${role}']`;
+            }
+          }
+          // Case 4: page.locator('internal:role=link[name="Orders Hub"i]') - Playwright internal format
+          else if (locatorStr.includes('internal:role=')) {
+            const internalMatch = locatorStr.match(/internal:role=(\w+)\[name=["']([^"']+)["']/i);
+            if (internalMatch) {
+              const role = internalMatch[1];
+              const name = internalMatch[2];
+              const roleToTag: { [key: string]: string } = {
+                'link': 'a',
+                'button': 'button',
+                'textbox': 'input',
+                'checkbox': 'input[type="checkbox"]',
+                'radio': 'input[type="radio"]'
+              };
+              const tag = roleToTag[role] || role;
+              const escapedName = name.replace(/'/g, "\\'");
+              cssSelector = `${tag}:has-text('${escapedName}')`;
+            }
+          }
+        }
+        
+        // Also add to behavior.elements for page object generation
+        if (cssSelector) {
+          behavior.elements.push({
+            testId: null,
+            text: 'Orders Hub',
+            locator: navigationResult.clickInfo.locator,
+            cssSelector: cssSelector
+          });
+        }
+        
         behavior.interactions.push({
           type: 'click',
           element: navigationResult.clickInfo.element,
@@ -2606,9 +2724,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           visible: true,
           foundBy: 'navigateToSectionByClick',
           locator: navigationResult.clickInfo.locator,
+          cssSelector: cssSelector, // Add cssSelector for baseSelectors
           note: 'Click on Orders Hub nav item to navigate to Orders Hub section'
         });
-        console.log(`✅ STEP 2.5 SUCCESS: Orders Hub click registered as interaction`);
+        console.log(`✅ STEP 2.5 SUCCESS: Orders Hub click registered as interaction with cssSelector: ${cssSelector || 'N/A'}`);
       }
       
       console.log(`✅ STEP 2 SUCCESS: Navigation to Orders Hub completed`);
@@ -2834,113 +2953,69 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     ) || [];
     
     if (tabActions.length > 0) {
-      console.log(`🖱️ Executing ${tabActions.length} tab click(s) before observation...`);
+      console.log(`🖱️ Executing ${tabActions.length} tab click(s) using MCP observation...`);
+      
+      // 🎯 CRITICAL: Wait a moment for page to stabilize after navigation
+      await page.waitForTimeout(2000);
+      
+      // 🎯 CRITICAL: Capture fresh snapshot AFTER navigation to Orders Hub
+      console.log('📸 Capturing fresh MCP snapshot after navigation to find tabs...');
+      const currentSnapshot = await mcpWrapper.browserSnapshot();
+      console.log('✅ Fresh snapshot captured for tab search');
+      
       for (const action of tabActions) {
         try {
-          // 🎯 STRATEGY 1: Try MCP snapshot search
+          // 🎯 PRIMARY STRATEGY: Use MCP snapshot search (this is what MCP is for!)
           const searchTerms = action.intent || action.description || action.element;
+          console.log(`🔍 MCP: Searching for tab using terms: "${searchTerms}"`);
+          
           let foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
           
-          // 🎯 STRATEGY 2: If MCP doesn't find it, search manually for tabs
+          // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
           if (!foundElement) {
-            console.log(`🔍 MCP no encontró el tab, buscando manualmente...`);
-            // Search for tabs by multiple strategies
-            const tabSelectors = [
-              "button[role='tab']:has-text('Past')",
-              "button[role='tab']:has-text('past')",
-              "[role='tab']:has-text('Past Orders')",
-              "[role='tab']:has-text('Past')",
-              "[data-testid*='past']:has-text('Past')",
-              "[data-testid*='past-orders']",
-              "[data-testid*='pastorder']",
-              "button:has-text('Past Orders')",
-              "a:has-text('Past Orders')",
-              "[aria-label*='Past Orders']",
-              "[aria-label*='past orders']"
-            ];
-            
-            for (const selector of tabSelectors) {
-              try {
-                const tabElement = page.locator(selector).first();
-                if (await tabElement.count() > 0 && await tabElement.isVisible().catch(() => false)) {
-                  foundElement = tabElement;
-                  console.log(`✅ Tab encontrado con selector: ${selector}`);
-                  break;
-                }
-        } catch (e) {
-                // Continue with next selector
-              }
-            }
+            console.log(`⚠️ MCP snapshot search didn't find element, trying accessibility tree...`);
+            foundElement = await findElementWithAccessibility(page, searchTerms);
           }
           
-          // 🎯 STRATEGY 3: If still not found, search all tabs and filter by text
+          // 🎯 LAST RESORT: If still not found, search all tabs and filter by text (minimal fallback)
           if (!foundElement) {
-            console.log(`🔍 Buscando todos los tabs y filtrando por texto...`);
+            console.log(`⚠️ MCP and accessibility tree didn't find element, trying minimal fallback...`);
             try {
-              // First, wait a bit for tabs to be visible
-              await page.waitForTimeout(2000);
+              // Minimal fallback: just get all tabs and filter by text
+              const allTabs = await page.locator("[role='tab'], button[role='tab']").all();
+              console.log(`📋 Found ${allTabs.length} tabs for filtering...`);
               
-              // Try multiple tab selectors
-              const tabSelectors = [
-                "[role='tab']",
-                "button[role='tab']",
-                "[data-testid*='tab']",
-                "button[aria-selected]",
-                ".tab",
-                "[class*='tab']",
-                "button:has-text('Past')",
-                "button:has-text('Orders')"
-              ];
-              
-              let allTabs: any[] = [];
-              for (const selector of tabSelectors) {
-                try {
-                  const tabs = await page.locator(selector).all();
-                  allTabs.push(...tabs);
-                } catch (e) {
-                  continue;
-                }
-              }
-              
-              // Remove duplicates - can't use Set with Playwright locators, so just use all tabs
-              // (duplicates are unlikely since we're using different selectors)
-              const uniqueTabs = allTabs;
-              
-              console.log(`📋 Encontrados ${uniqueTabs.length} tabs en total`);
-              
-              for (const tab of uniqueTabs) {
+              for (const tab of allTabs) {
                 try {
                   const text = await tab.textContent().catch(() => '');
                   const testId = await tab.getAttribute('data-testid').catch(() => '');
                   const ariaLabel = await tab.getAttribute('aria-label').catch(() => '');
                   
+                  const searchLower = searchTerms.toLowerCase();
                   const textLower = (text || '').toLowerCase();
                   const testIdLower = (testId || '').toLowerCase();
                   const ariaLabelLower = (ariaLabel || '').toLowerCase();
                   
-                  // More flexible matching
+                  // Match if any field contains search terms
                   const matches = 
-                    textLower.includes('past') || 
-                    textLower.includes('past order') ||
-                    testIdLower.includes('past') ||
-                    testIdLower.includes('pastorder') ||
-                    ariaLabelLower.includes('past') ||
-                    ariaLabelLower.includes('past order');
+                    textLower.includes(searchLower) || 
+                    testIdLower.includes(searchLower) ||
+                    ariaLabelLower.includes(searchLower);
                   
                   if (matches) {
                     const isVisible = await tab.isVisible().catch(() => false);
                     if (isVisible) {
                       foundElement = tab;
-                      console.log(`✅ Tab encontrado por texto/testId/aria-label: text="${text}", testId="${testId}", aria-label="${ariaLabel}"`);
-              break;
+                      console.log(`✅ Tab found by text/testId/aria-label: text="${text}", testId="${testId}", aria-label="${ariaLabel}"`);
+                      break;
                     }
-            }
-          } catch (e) {
+                  }
+                } catch (e) {
                   continue;
                 }
               }
             } catch (e) {
-              console.warn('⚠️ Error buscando tabs:', e);
+              console.warn('⚠️ Error in minimal fallback search:', e);
             }
           }
           
@@ -6000,7 +6075,11 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             } else {
               selectorName = observed.element || 'element';
             }
-            console.log(`✅ Found interaction observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator })}`);
+            // 🎯 CRITICAL: Preserve cssSelector from interaction for baseSelectors
+            if (observed.cssSelector) {
+              console.log(`✅ Found cssSelector in interaction: ${observed.cssSelector}`);
+            }
+            console.log(`✅ Found interaction observation: ${JSON.stringify({ element: observed.element, testId: observed.testId, hasLocator: !!observed.locator, hasCssSelector: !!observed.cssSelector })}`);
           } else {
             console.warn(`⚠️ No interaction found for ${methodUsed}, checking elements...`);
           }
@@ -6012,7 +6091,8 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           console.log(`🔍 Available elements: ${JSON.stringify(behavior.elements?.map((e: any) => ({ 
             testId: e.testId, 
             element: e.element,
-            text: e.text?.substring(0, 50) || null
+            text: e.text?.substring(0, 50) || null,
+            hasCssSelector: !!e.cssSelector
           })) || [])}`);
           
           // Filter out generic observations that are too generic (like "text" testId that matches many elements)
@@ -6264,7 +6344,12 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         const methodType = methodUsed.startsWith('clickOn') ? 'action' : 'assertion';
         
         // If we used fallback, create a minimal observation object for consistency
-        const observationData = observed || {
+        // 🎯 CRITICAL: Preserve cssSelector from observed interaction/element
+        const observationData = observed ? {
+          ...observed,
+          // Ensure cssSelector is preserved if it exists
+          cssSelector: observed.cssSelector || (observed as any).cssSelector
+        } : {
           element: selectorName || methodUsed,
           testId: selector.includes('getByTestId') ? selector.match(/'([^']+)'/)?.[1] : null,
           locator: selector,
@@ -6608,10 +6693,13 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
         
         // Only add if not already present
         if (!uniqueSelectors.has(propName)) {
-          // Try to get cssSelector from observed element if available
+          // 🎯 PRIORITY 1: Get cssSelector directly from method.observed if available (from interaction)
           let cssSelector = undefined;
-          if (method.observed && behavior.elements) {
-            // Find the element that matches this method's observation
+          if (method.observed?.cssSelector) {
+            cssSelector = method.observed.cssSelector;
+            console.log(`✅ Found cssSelector directly in method.observed for ${propName}: ${cssSelector}`);
+          } else if (method.observed && behavior.elements) {
+            // 🎯 PRIORITY 2: Find the element that matches this method's observation
             const matchingElement = behavior.elements.find((e: any) => {
               if (method.observed.testId && e.testId === method.observed.testId) return true;
               if (method.observed.text && e.text === method.observed.text) return true;
@@ -6620,7 +6708,7 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
             });
             if (matchingElement?.cssSelector) {
               cssSelector = matchingElement.cssSelector;
-              console.log(`✅ Found cssSelector for ${propName}: ${cssSelector}`);
+              console.log(`✅ Found cssSelector from matching element for ${propName}: ${cssSelector}`);
             }
           }
           
@@ -6829,13 +6917,38 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
           selectorKey = m.existingSelectorProp;
         } else if (m.selector && m.observed) {
           // Find the property name for this selector
-          const selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
-            const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+          // 🎯 CRITICAL: Try multiple matching strategies to ensure we find the selector
+          const normalized = m.selector.replace(/^this\.page\./, '').replace(/\s+/g, ' ').trim();
+          
+          // Strategy 1: Exact match by normalized selector
+          let selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
             return sel.normalizedSelector === normalized || sel.selector === m.selector;
           });
           
+          // Strategy 2: Match by observed testId/element if exact match failed
+          if (!selectorEntry && m.observed.testId) {
+            selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
+              // Check if the selector uses the same testId
+              return sel.selector.includes(m.observed.testId) || 
+                     sel.cssSelector?.includes(m.observed.testId);
+            });
+          }
+          
+          // Strategy 3: Match by observed element name if still not found
+          if (!selectorEntry && m.observed.element) {
+            selectorEntry = Array.from(uniqueSelectors.entries()).find(([_, sel]) => {
+              const elementLower = m.observed.element.toLowerCase();
+              const nameLower = sel.name.toLowerCase();
+              return nameLower.includes(elementLower) || elementLower.includes(nameLower);
+            });
+          }
+          
           if (selectorEntry) {
             selectorKey = selectorEntry[1].name;
+            console.log(`✅ Found selectorKey '${selectorKey}' for method ${m.name} using ${selectorEntry ? 'matching strategy' : 'fallback'}`);
+          } else {
+            console.warn(`⚠️ Could not find selectorKey for method ${m.name} with selector: ${m.selector}`);
+            console.warn(`⚠️ Available selectors: ${Array.from(uniqueSelectors.keys()).join(', ')}`);
           }
         }
         
