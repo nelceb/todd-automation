@@ -357,15 +357,15 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // 5. Observar comportamiento REAL usando capacidades del MCP
     const behavior = await observeBehaviorWithMCP(page, interpretation, mcpWrapper);
     
-    // 🎯 CRITICAL: Update navigation URL after observeBehaviorWithMCP navigates to target section
-    // observeBehaviorWithMCP may navigate to Orders Hub, Cart, etc. by clicking, so update the URL
+    // 🎯 CRITICAL: DO NOT update navigation URL after observeBehaviorWithMCP navigates to target section
+    // The navigation URL should remain as the home URL after login (e.g., https://subscription.qa.cookunity.com/)
+    // The click to Orders Hub is part of the behavior observation, not the initial navigation
+    // This matches the test flow: login → home → click Orders Hub → orders-hub
     const finalNavigationURL = page.url();
     if (finalNavigationURL !== navigation.url) {
-      console.log(`🔄 Navigation URL updated: ${navigation.url} → ${finalNavigationURL}`);
-      navigation = {
-        ...navigation,
-        url: finalNavigationURL
-      };
+      console.log(`📍 Navigation URL remains as home (${navigation.url}), final URL after clicks: ${finalNavigationURL}`);
+      console.log(`✅ Click to Orders Hub is registered as behavior interaction, not navigation`);
+      // Keep navigation URL as home - don't update it
     }
     
     console.log(`✅ Playwright MCP: Observed ${behavior.elements.length} elements`);
@@ -2434,7 +2434,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // All navigation must be done via clicks to match real user behavior
     
     // Helper function to navigate to a section by clicking nav items
-    const navigateToSectionByClick = async (sectionName: string, selectors: string[], urlPattern: RegExp) => {
+    // Returns: { success: boolean, clickInfo?: { element: string, selector: string, locator?: string } }
+    const navigateToSectionByClick = async (sectionName: string, selectors: string[], urlPattern: RegExp, mcpWrapperParam: PlaywrightMCPWrapper) => {
       const currentUrl = page.url();
       console.log(`🔍 [navigateToSectionByClick] Checking if already on ${sectionName}...`);
       console.log(`📍 [navigateToSectionByClick] Current URL: ${currentUrl}`);
@@ -2444,7 +2445,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       if (isOnSection) {
         console.log(`✅ [navigateToSectionByClick] Already on ${sectionName}: ${currentUrl}`);
-        return true;
+        return { success: true, clickInfo: null };
       }
       
       console.log(`🧭 [navigateToSectionByClick] Not on ${sectionName}, navigating by clicking nav item...`);
@@ -2453,6 +2454,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       let foundNav = null;
       let foundSelector = null;
+      let generatedLocator = null;
       for (let i = 0; i < selectors.length; i++) {
         const selector = selectors[i];
         try {
@@ -2468,6 +2470,18 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             if (isVisible) {
               foundNav = nav;
               foundSelector = selector;
+              // Generate locator using MCP wrapper if available
+              try {
+                if (mcpWrapperParam) {
+                  generatedLocator = await mcpWrapperParam.generateLocator(nav);
+                  // Fix 'p.locator' to 'page.locator' if needed
+                  if (generatedLocator && generatedLocator.startsWith('p.')) {
+                    generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+                  }
+                }
+              } catch (locatorError) {
+                console.log(`⚠️ Could not generate locator: ${locatorError}`);
+              }
               console.log(`✅ [navigateToSectionByClick] Found ${sectionName} nav with selector: ${selector}`);
               break;
             }
@@ -2533,18 +2547,25 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           }
           
           console.log(`✅ [navigateToSectionByClick] Navigation to ${sectionName} completed via click: ${page.url()}`);
-          return true;
+          return { 
+            success: true, 
+            clickInfo: {
+              element: sectionName === 'Orders Hub' ? 'ordersHubNavItem' : sectionName.toLowerCase().replace(/\s+/g, ''),
+              selector: foundSelector || '',
+              locator: generatedLocator || `page.locator('${foundSelector}')`
+            }
+          };
         } catch (e) {
           const finalUrl = page.url();
           console.warn(`⚠️ [navigateToSectionByClick] URL didn't change after clicking ${sectionName} nav`);
           console.warn(`⚠️ [navigateToSectionByClick] Expected pattern: ${urlPattern}, Current URL: ${finalUrl}`);
           console.warn(`⚠️ [navigateToSectionByClick] Error: ${e}`);
-          return false;
+          return { success: false, clickInfo: null };
         }
       }
       
       console.error(`❌ [navigateToSectionByClick] No nav item found for ${sectionName} with any of the ${selectors.length} selectors`);
-      return false;
+      return { success: false, clickInfo: null };
     };
     
     // Navigate based on context - ALWAYS using clicks, never direct URL navigation
@@ -2566,11 +2587,28 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       ];
       
       console.log(`🔍 STEP 2: Attempting to find Orders Hub nav item with ${ordersHubSelectors.length} selectors...`);
-      const navigated = await navigateToSectionByClick('Orders Hub', ordersHubSelectors, /orders-hub|ordershub/);
+      const navigationResult = await navigateToSectionByClick('Orders Hub', ordersHubSelectors, /orders-hub|ordershub/, mcpWrapper);
       
-      if (!navigated) {
+      if (!navigationResult.success) {
         console.error('❌ STEP 2 FAILED: Orders Hub nav item not found');
         throw new Error('Orders Hub nav item not found - cannot navigate as test expects (test uses click, not URL)');
+      }
+      
+      // 🎯 CRITICAL: Register the click on Orders Hub as a behavior interaction
+      if (navigationResult.clickInfo) {
+        console.log(`📝 STEP 2.5: Registering Orders Hub click as behavior interaction...`);
+        behavior.interactions.push({
+          type: 'click',
+          element: navigationResult.clickInfo.element,
+          selector: navigationResult.clickInfo.selector,
+          observed: true,
+          exists: true,
+          visible: true,
+          foundBy: 'navigateToSectionByClick',
+          locator: navigationResult.clickInfo.locator,
+          note: 'Click on Orders Hub nav item to navigate to Orders Hub section'
+        });
+        console.log(`✅ STEP 2.5 SUCCESS: Orders Hub click registered as interaction`);
       }
       
       console.log(`✅ STEP 2 SUCCESS: Navigation to Orders Hub completed`);
@@ -2662,9 +2700,22 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       ];
       
       // Cart might not change URL, so we just try to open it
-      const cartOpened = await navigateToSectionByClick('Cart', cartSelectors, /cart|basket/);
-      if (!cartOpened) {
+      const cartResult = await navigateToSectionByClick('Cart', cartSelectors, /cart|basket/, mcpWrapper);
+      if (!cartResult.success) {
         console.warn('⚠️ Cart nav not found, but cart might be accessible via modal/overlay - continuing...');
+      } else if (cartResult.clickInfo) {
+        // Register cart click as interaction
+        behavior.interactions.push({
+          type: 'click',
+          element: cartResult.clickInfo.element,
+          selector: cartResult.clickInfo.selector,
+          observed: true,
+          exists: true,
+          visible: true,
+          foundBy: 'navigateToSectionByClick',
+          locator: cartResult.clickInfo.locator,
+          note: 'Click on Cart nav item to open cart'
+        });
       }
       await page.waitForTimeout(2000); // Wait for cart to open
     } else if (interpretation.context === 'menu') {
@@ -2685,9 +2736,22 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       ];
       
       // Search might just focus an input, not navigate
-      const searchOpened = await navigateToSectionByClick('Search', searchSelectors, /search/);
-      if (!searchOpened) {
+      const searchResult = await navigateToSectionByClick('Search', searchSelectors, /search/, mcpWrapper);
+      if (!searchResult.success) {
         console.warn('⚠️ Search not found, but search might be accessible via input - continuing...');
+      } else if (searchResult.clickInfo) {
+        // Register search click as interaction
+        behavior.interactions.push({
+          type: 'click',
+          element: searchResult.clickInfo.element,
+          selector: searchResult.clickInfo.selector,
+          observed: true,
+          exists: true,
+          visible: true,
+          foundBy: 'navigateToSectionByClick',
+          locator: searchResult.clickInfo.locator,
+          note: 'Click on Search to open search'
+        });
       }
       await page.waitForTimeout(1000); // Wait for search to be ready
     }
