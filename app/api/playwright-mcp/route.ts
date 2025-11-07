@@ -4016,6 +4016,105 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         
         if (foundElement && generatedLocator) {
           const isVisible = await foundElement.isVisible({ timeout: 2000 });
+          
+          // 🎯 CRITICAL: Extract cssSelector and testId before clicking
+          let cssSelector: string | undefined = undefined;
+          let testId: string | null = null;
+          
+          try {
+            testId = await foundElement.getAttribute('data-testid').catch(() => null);
+            if (testId) {
+              cssSelector = `[data-testid='${testId}']`;
+            } else {
+              // Try to extract from locator
+              if (generatedLocator.includes("locator('")) {
+                const match = generatedLocator.match(/locator\('([^']+)'\)/);
+                if (match) cssSelector = match[1];
+              } else if (generatedLocator.includes("getByTestId('")) {
+                const match = generatedLocator.match(/getByTestId\('([^']+)'\)/);
+                if (match) {
+                  testId = match[1];
+                  cssSelector = `[data-testid='${testId}']`;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not extract cssSelector from element');
+          }
+          
+          // 🎯 EXECUTE CLICK
+          if (isVisible && action.type === 'click') {
+            try {
+              console.log(`🖱️ Clicking on ${action.element}...`);
+              await foundElement.click({ timeout: 5000 });
+              
+              // 🎯 CRITICAL: Wait for page to stabilize after click
+              await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+              await page.waitForTimeout(1000); // Give time for dynamic content
+              
+              // 🎯 CRITICAL: Observe NEW page after click - capture new elements
+              console.log(`👀 Observing new page after click on ${action.element}...`);
+              const newPageElements = await page.$$('[data-testid]').catch(() => []);
+              console.log(`📋 Found ${newPageElements.length} elements with data-testid on new page`);
+              
+              // Process new elements in parallel (optimized)
+              const newElementsData = await Promise.all(
+                newPageElements.slice(0, 30).map(async (el) => {
+                  try {
+                    const [newTestId, newText] = await Promise.all([
+                      el.getAttribute('data-testid').catch(() => null),
+                      el.textContent().catch(() => null)
+                    ]);
+                    
+                    if (newTestId) {
+                      // Check if this element already exists in behavior.elements
+                      const alreadyExists = behavior.elements.some(e => e.testId === newTestId);
+                      if (!alreadyExists) {
+                        return {
+                          testId: newTestId,
+                          text: newText?.trim().substring(0, 100) || null,
+                          locator: `page.getByTestId('${newTestId}')`,
+                          cssSelector: `[data-testid='${newTestId}']`
+                        };
+                      }
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })
+              );
+              
+              // Add new unique elements to behavior.elements
+              const uniqueNewElements = newElementsData.filter((el): el is { testId: string; text: string | null; locator: string; cssSelector: string } => 
+                el !== null && !behavior.elements.some(existing => existing.testId === el.testId)
+              );
+              
+              if (uniqueNewElements.length > 0) {
+                behavior.elements.push(...uniqueNewElements);
+                console.log(`✅ Added ${uniqueNewElements.length} new unique elements from new page`);
+              }
+              
+              // Capture snapshot of new page state
+              try {
+                const newSnapshot = await mcpWrapper.browserSnapshot();
+                behavior.observations.push({
+                  url: page.url(),
+                  title: await page.title(),
+                  snapshot: newSnapshot,
+                  timestamp: Date.now(),
+                  afterAction: action.element
+                });
+              } catch (snapshotError) {
+                console.warn('⚠️ Could not capture snapshot after click');
+              }
+              
+              console.log(`✅ Click executed and new page observed`);
+            } catch (clickError) {
+              console.error(`❌ Error clicking on ${action.element}:`, clickError);
+            }
+          }
+          
           behavior.interactions.push({
             type: action.type,
             element: action.element,
@@ -4025,6 +4124,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             visible: isVisible,
             foundBy: foundBy,
             locator: generatedLocator, // 🎯 Locator generado por MCP
+            testId: testId, // 🎯 Real testId captured
+            cssSelector: cssSelector, // 🎯 CSS selector for baseSelectors
             note: isVisible ? 'Found and visible with MCP' : 'Found but not visible'
           });
         } else {
