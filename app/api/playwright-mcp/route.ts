@@ -2877,6 +2877,19 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       
       for (const action of tabActions) {
         try {
+          // 🎯 CRITICAL: Prepare search terms first (used in multiple places)
+          let searchTerms = action.intent || action.description || action.element;
+          
+          // Convert element names to search terms
+          if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
+            searchTerms = 'past orders';
+          } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
+            searchTerms = 'upcoming orders';
+          } else if (action.element?.toLowerCase().includes('tab')) {
+            // Extract meaningful text from element name
+            searchTerms = action.element.replace(/Tab$/i, '').replace(/([A-Z])/g, ' $1').trim();
+          }
+          
           // 🎯 CRITICAL: First check if tab already exists in behavior.elements (from Orders Hub observation)
           let foundElement: Locator | null = null;
           let foundBy: string | undefined = undefined;
@@ -2907,8 +2920,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     foundBy = 'reused-from-orders-hub-observation';
                     generatedLocator = existingElement.locator;
                     console.log(`♻️ Found tab "${action.element}" in behavior.elements: "${existingElement.text}"`);
-                  break;
-                }
+                    break;
+                  }
                 }
               }
             } else if (actionElementLower.includes('upcomingorderstab') || actionElementLower.includes('upcomingorder')) {
@@ -2926,20 +2939,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           
           // If not found in behavior.elements, search using MCP
           if (!foundElement) {
-            // 🎯 CRITICAL: Use better search terms for tabs
-            // If element is "pastOrdersTab", search for "past orders" not "pastOrdersTab"
-            let searchTerms = action.intent || action.description || action.element;
-            
-            // Convert element names to search terms
-            if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
-              searchTerms = 'past orders';
-            } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
-              searchTerms = 'upcoming orders';
-            } else if (action.element?.toLowerCase().includes('tab')) {
-              // Extract meaningful text from element name
-              searchTerms = action.element.replace(/Tab$/i, '').replace(/([A-Z])/g, ' $1').trim();
-            }
-            
             console.log(`🔍 Searching for tab: "${searchTerms}" (from action.element: "${action.element}")`);
             
             foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
@@ -2954,13 +2953,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           if (!foundElement) {
             console.log(`⚠️ MCP and accessibility tree didn't find element, trying minimal fallback...`);
             try {
-              // Get search terms for fallback (reuse from above or generate)
-              let fallbackSearchTerms = searchTerms || action.intent || action.description || action.element;
-              if (action.element === 'pastOrdersTab' || action.element?.toLowerCase().includes('pastorderstab')) {
-                fallbackSearchTerms = 'past orders';
-              } else if (action.element === 'upcomingOrdersTab' || action.element?.toLowerCase().includes('upcomingorderstab')) {
-                fallbackSearchTerms = 'upcoming orders';
-              }
               
               // Minimal fallback: just get all tabs and filter by text
               const allTabs = await page.locator("[role='tab'], button[role='tab']").all();
