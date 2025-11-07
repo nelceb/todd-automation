@@ -2920,8 +2920,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     foundBy = 'reused-from-orders-hub-observation';
                     generatedLocator = existingElement.locator;
                     console.log(`♻️ Found tab "${action.element}" in behavior.elements: "${existingElement.text}"`);
-                    break;
-                  }
+                  break;
+                }
                 }
               }
             } else if (actionElementLower.includes('upcomingorderstab') || actionElementLower.includes('upcomingorder')) {
@@ -2953,7 +2953,6 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           if (!foundElement) {
             console.log(`⚠️ MCP and accessibility tree didn't find element, trying minimal fallback...`);
             try {
-              
               // Minimal fallback: just get all tabs and filter by text
               const allTabs = await page.locator("[role='tab'], button[role='tab']").all();
               console.log(`📋 Found ${allTabs.length} tabs for filtering...`);
@@ -2964,7 +2963,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                   const testId = await tab.getAttribute('data-testid').catch(() => '');
                   const ariaLabel = await tab.getAttribute('aria-label').catch(() => '');
                   
-                  const searchLower = fallbackSearchTerms.toLowerCase();
+                  const searchLower = searchTerms.toLowerCase();
                   const textLower = (text || '').toLowerCase();
                   const testIdLower = (testId || '').toLowerCase();
                   const ariaLabelLower = (ariaLabel || '').toLowerCase();
