@@ -248,30 +248,42 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // Detectar si estamos en Vercel serverless
     const isVercel = process.env.VERCEL === '1';
 
-    // 1. Interpretar acceptance criteria (con LLM si está disponible)
-    const interpretation = await interpretAcceptanceCriteria(acceptanceCriteria);
-    
-    // 1.5. Analizar tests existentes para aprender patrones y reutilizar métodos (RÁPIDO con timeout corto)
-    console.log('📚 Playwright MCP: Analizando tests existentes para aprender patrones...');
-    try {
-      // Usar Promise.race con timeout de 500ms (ultra rápido para evitar timeout)
-      const codebaseAnalysis = await Promise.race([
+    // 🚀 OPTIMIZACIÓN: Paralelizar operaciones independientes
+    // 1. Interpretar acceptance criteria y analizar codebase EN PARALELO
+    console.log('📚 Playwright MCP: Iniciando interpretación y análisis en paralelo...');
+    const [interpretationResult, codebaseAnalysisResult] = await Promise.allSettled([
+      interpretAcceptanceCriteria(acceptanceCriteria),
+      Promise.race([
         analyzeCodebaseForPatterns(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 500) // 500ms - ultra rápido
+          setTimeout(() => reject(new Error('Timeout')), 2000) // Aumentado a 2s para mejor resultado
         )
-      ]) as any;
+      ]).catch(() => getStaticPatterns()) // Fallback inmediato a patrones estáticos
+    ]);
+    
+    // Procesar resultados
+    if (interpretationResult.status === 'fulfilled') {
+      const interpretation = interpretationResult.value;
       
-    if (codebaseAnalysis) {
-      const totalMethods = (codebaseAnalysis.methods?.homePage?.length || 0) + (codebaseAnalysis.methods?.ordersHubPage?.length || 0);
-      console.log(`✅ Found ${totalMethods} methods and ${codebaseAnalysis.selectors?.length || 0} existing selectors`);
-      // Combinar interpretación con conocimiento del codebase
-      interpretation.codebasePatterns = codebaseAnalysis;
+      // Combinar análisis de codebase si está disponible
+      if (codebaseAnalysisResult.status === 'fulfilled' && codebaseAnalysisResult.value) {
+        const analysis = codebaseAnalysisResult.value as any;
+        const totalMethods = (analysis.methods?.homePage?.length || 0) + 
+                            (analysis.methods?.ordersHubPage?.length || 0);
+        console.log(`✅ Found ${totalMethods} methods and ${analysis.selectors?.length || 0} existing selectors`);
+        interpretation.codebasePatterns = analysis;
+      } else {
+        console.log('⏱️ Usando patrones estáticos rápidos');
+        interpretation.codebasePatterns = getStaticPatterns();
       }
-    } catch (timeoutError) {
-      console.log('⏱️ Análisis de codebase tardó mucho, usando patrones estáticos rápidos');
-      // Usar patrones estáticos (rápidos) en lugar de fallar
-      interpretation.codebasePatterns = getStaticPatterns();
+    } else {
+      throw new Error(`Interpretation failed: ${interpretationResult.reason}`);
+    }
+    
+    // Continuar con interpretation (ya procesado)
+    const interpretation = interpretationResult.status === 'fulfilled' ? interpretationResult.value : null;
+    if (!interpretation) {
+      throw new Error('Failed to interpret acceptance criteria');
     }
     
     console.log('🚀 Playwright MCP: Iniciando navegación real...');
