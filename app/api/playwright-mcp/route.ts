@@ -2240,14 +2240,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       console.log('⚠️ waitForLoadState timeout en observeBehaviorWithMCP, continuando...');
     }
     
-    // 🎯 VALIDAR que la página tiene contenido AUTENTICADO antes de observar
-    console.log('🔍 [PRE-OBSERVATION] Verificando que la página está autenticada...');
+    // Validar que la página tiene contenido autenticado antes de observar
     const preObservationURL = page.url();
-    console.log(`📍 [PRE-OBSERVATION] URL actual: ${preObservationURL}`);
     
     // Verificar que NO estamos en página de login o error
     if (preObservationURL.includes('auth.qa.cookunity.com') || preObservationURL.includes('/login')) {
-      console.error('❌ [PRE-OBSERVATION] Todavía estamos en página de login - el login no fue exitoso');
+      console.error('❌ Still on login page - login was not successful');
       return {
         observed: false,
         interactions: interpretation.actions.map((a: any) => ({
@@ -2255,34 +2253,28 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           observed: false,
           exists: false,
           visible: false,
-          note: 'Login no completado - todavía en página de login'
+          note: 'Login not completed'
         })),
         elements: [],
         observations: [],
-        error: 'Login no completado - todavía en página de login'
+        error: 'Login not completed'
       };
     }
     
     // Verificar que tenemos elementos típicos de página autenticada
-    console.log('🔍 [PRE-OBSERVATION] Verificando elementos de página autenticada...');
     const authElements = await Promise.all([
       page.locator('[data-testid*="add"], [data-testid*="meal"], [data-testid*="cart"], [data-testid*="nav"], nav').count(),
       page.locator('button, a[href*="orders"], a[href*="subscription"]').count()
     ]);
     
     const hasAuthElements = authElements[0] > 0 || authElements[1] > 0;
-    console.log(`🔍 [PRE-OBSERVATION] Elementos de autenticación: ${hasAuthElements ? '✅' : '❌'} (nav/data-testid: ${authElements[0]}, buttons/links: ${authElements[1]})`);
     
     if (!hasAuthElements) {
-      // Tomar snapshot para ver qué hay realmente
       const snapshot = await page.accessibility.snapshot().catch(() => null);
       const snapshotText = snapshot ? JSON.stringify(snapshot).toLowerCase() : '';
-      console.error(`📸 [PRE-OBSERVATION] Contenido de la página detectado:`, snapshotText.substring(0, 500));
       
-      // Verificar si hay texto de error o ayuda
       if (snapshotText.includes('experiencing') || snapshotText.includes('help') || snapshotText.includes('issue')) {
-        console.error('❌ [PRE-OBSERVATION] Página de error/ayuda detectada, no página autenticada');
-        console.error('❌ [PRE-OBSERVATION] El login probablemente falló o hubo redirección a soporte');
+        console.error('❌ Error/help page detected, not authenticated page');
         return {
           observed: false,
           interactions: interpretation.actions.map((a: any) => ({
@@ -2290,21 +2282,20 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             observed: false,
             exists: false,
             visible: false,
-            note: 'Página de error/ayuda detectada - login no exitoso'
+            note: 'Error page detected'
           })),
           elements: [],
           observations: [],
-          error: 'Página de error/ayuda detectada - login no exitoso'
+          error: 'Error page detected'
         };
       }
     }
     
     const bodyText = await page.locator('body').textContent().catch(() => '');
     const bodyLength = bodyText?.trim().length || 0;
-    console.log(`🔍 [PRE-OBSERVATION] Longitud del contenido del body: ${bodyLength} caracteres`);
     
     if (bodyLength < 100) {
-      console.error('❌ [PRE-OBSERVATION] La página parece estar vacía o sin contenido suficiente');
+      console.error('❌ Page appears empty or without sufficient content');
       return {
         observed: false,
         interactions: interpretation.actions.map((a: any) => ({
@@ -2312,42 +2303,24 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
           observed: false,
           exists: false,
           visible: false,
-          note: 'Página sin contenido suficiente'
+          note: 'Page without sufficient content'
         })),
         elements: [],
         observations: [],
-        error: 'Página sin contenido suficiente'
+        error: 'Page without sufficient content'
       };
     }
     
-    // Listar TODOS los data-testid que hay realmente en la página ANTES de observar
+    // Listar data-testid que hay en la página antes de observar
     const allTestIds = await page.locator('[data-testid]').all();
-    console.log(`🔍 [PRE-OBSERVATION] Elementos con data-testid encontrados: ${allTestIds.length}`);
-    if (allTestIds.length > 0) {
-      const testIds = await Promise.all(allTestIds.slice(0, 10).map(async (el) => {
-        return await el.getAttribute('data-testid').catch(() => null);
-      }));
-      console.log(`📋 [PRE-OBSERVATION] Primeros data-testid encontrados:`, testIds.filter(Boolean));
-    } else {
-      console.warn('⚠️ [PRE-OBSERVATION] NO se encontraron elementos con data-testid inicialmente');
-      console.warn('⚠️ [PRE-OBSERVATION] Buscando elementos con otros métodos más agresivos...');
-      
-      // NO FALLAR - buscar elementos con otros métodos y continuar
-      await page.waitForTimeout(2000); // Reduced to 2s
-      
+    if (allTestIds.length === 0) {
+      await page.waitForTimeout(2000);
       const buttonCount = await page.locator('button').count().catch(() => 0);
       const linkCount = await page.locator('a').count().catch(() => 0);
       const navCount = await page.locator('nav').count().catch(() => 0);
-      const inputCount = await page.locator('input:not([type="hidden"])').count().catch(() => 0);
       
-      console.log(`🔍 [PRE-OBSERVATION] Elementos encontrados: ${buttonCount} botones, ${linkCount} links, ${navCount} navs, ${inputCount} inputs`);
-      
-      if (buttonCount > 0 || linkCount > 5 || navCount > 0) {
-        console.log(`✅ [PRE-OBSERVATION] Encontrados elementos interactivos - continuando con observación...`);
-        // Continuar con observación
-      } else {
-        console.warn('⚠️ [PRE-OBSERVATION] Pocos elementos encontrados, pero continuando de todos modos...');
-        // Continuar de todos modos - la observación intentará encontrar elementos de forma más agresiva
+      if (buttonCount === 0 && linkCount < 5 && navCount === 0) {
+        console.warn('⚠️ Few elements found, but continuing anyway...');
       }
     }
     
@@ -2360,41 +2333,26 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // Returns: { success: boolean, clickInfo?: { element: string, selector: string, locator?: string } }
     const navigateToSectionByClick = async (sectionName: string, selectors: string[], urlPattern: RegExp, mcpWrapperParam: PlaywrightMCPWrapper) => {
       const currentUrl = page.url();
-      console.log(`🔍 [navigateToSectionByClick] Checking if already on ${sectionName}...`);
-      console.log(`📍 [navigateToSectionByClick] Current URL: ${currentUrl}`);
-      console.log(`🔍 [navigateToSectionByClick] URL pattern: ${urlPattern}`);
-      
       const isOnSection = urlPattern.test(currentUrl);
       
       if (isOnSection) {
-        console.log(`✅ [navigateToSectionByClick] Already on ${sectionName}: ${currentUrl}`);
         return { success: true, clickInfo: null };
       }
       
-      console.log(`🧭 [navigateToSectionByClick] Not on ${sectionName}, using MCP to find nav item...`);
-      console.log(`📍 [navigateToSectionByClick] Current URL: ${currentUrl}`);
-      
-      // 🎯 PRIMARY: Use MCP to find the navigation element
+      // Use MCP to find the navigation element
       let foundNav = null;
       let foundSelector = null;
       let generatedLocator = null;
       
-      // Wait a moment for page to stabilize
       await page.waitForTimeout(1000);
-      
-      // Capture snapshot for MCP search
-      console.log(`📸 [navigateToSectionByClick] Capturing MCP snapshot to find ${sectionName} nav item...`);
       const snapshot = await mcpWrapperParam.browserSnapshot();
-      console.log(`✅ [navigateToSectionByClick] Snapshot captured`);
       
       // Try MCP snapshot search first
-      const searchTerms = sectionName; // e.g., "Orders Hub"
-      console.log(`🔍 [navigateToSectionByClick] MCP: Searching for "${searchTerms}" using snapshot...`);
+      const searchTerms = sectionName;
       foundNav = await mcpWrapperParam.findElementBySnapshot(searchTerms);
       
       // If MCP doesn't find it, try accessibility tree
       if (!foundNav) {
-        console.log(`⚠️ [navigateToSectionByClick] MCP snapshot didn't find element, trying accessibility tree...`);
         foundNav = await findElementWithAccessibility(page, searchTerms);
       }
       
@@ -2457,21 +2415,13 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       }
       
       if (foundNav) {
-        console.log(`🖱️ [navigateToSectionByClick] Clicking on ${sectionName} nav item (selector: ${foundSelector})...`);
-        console.log(`📍 [navigateToSectionByClick] URL before click: ${page.url()}`);
-        
         await foundNav.click();
-        console.log(`✅ [navigateToSectionByClick] Click executed, waiting for URL change...`);
         
         try {
-          await page.waitForURL(urlPattern, { timeout: 10000 }); // Reduced to 10s
-          const newUrl = page.url();
-          console.log(`✅ [navigateToSectionByClick] URL changed successfully: ${newUrl}`);
+          await page.waitForURL(urlPattern, { timeout: 10000 });
           
-          // 🎯 CRITICAL: If this is Orders Hub, wait for tabs to appear AFTER the click
-          // The content loads dynamically AFTER clicking, so we must wait for tabs to be visible
+          // If this is Orders Hub, wait for tabs to appear AFTER the click
           if (sectionName === 'Orders Hub') {
-            console.log(`⏳ [navigateToSectionByClick] Waiting for Orders Hub tabs to appear after click...`);
             const tabSelectors = [
               "button:has-text('Past Orders')",
               "button:has-text('Upcoming Orders')",
@@ -2479,38 +2429,31 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               "[role='tab']:has-text('Upcoming')",
               "[data-testid*='past-orders']",
               "[data-testid*='upcoming-orders']",
-              "[data-testid*='pastOrders']",
-              "[data-testid*='upcomingOrders']",
               "[role='tab']",
               "button[role='tab']"
             ];
             
             let tabsVisible = false;
-            // Try to find tabs quickly with shorter timeout
             for (const selector of tabSelectors) {
               try {
-                await page.waitForSelector(selector, { timeout: 5000, state: 'visible' }); // Reduced to 5s
+                await page.waitForSelector(selector, { timeout: 5000, state: 'visible' });
                 const count = await page.locator(selector).count();
                 if (count > 0) {
-                  console.log(`✅ [navigateToSectionByClick] Orders Hub tabs are visible (selector: ${selector}, count: ${count})`);
                   tabsVisible = true;
                   break;
                 }
-        } catch (e) {
+              } catch (e) {
                 continue;
               }
             }
             
             if (!tabsVisible) {
-              console.warn(`⚠️ [navigateToSectionByClick] Tabs not found after waiting, waiting 2 more seconds as fallback...`);
-              await page.waitForTimeout(2000); // Reduced to 2s
+              await page.waitForTimeout(2000);
             }
           } else {
-            // For other sections, just wait a bit for content to load
             await page.waitForTimeout(2000);
           }
           
-          console.log(`✅ [navigateToSectionByClick] Navigation to ${sectionName} completed via click: ${page.url()}`);
           return { 
             success: true, 
             clickInfo: {
@@ -2520,43 +2463,31 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             }
           };
         } catch (e) {
-          const finalUrl = page.url();
-          console.warn(`⚠️ [navigateToSectionByClick] URL didn't change after clicking ${sectionName} nav`);
-          console.warn(`⚠️ [navigateToSectionByClick] Expected pattern: ${urlPattern}, Current URL: ${finalUrl}`);
-          console.warn(`⚠️ [navigateToSectionByClick] Error: ${e}`);
+          console.error(`❌ Navigation failed: ${sectionName} - ${e}`);
           return { success: false, clickInfo: null };
         }
       }
       
-      console.error(`❌ [navigateToSectionByClick] No nav item found for ${sectionName} with any of the ${selectors.length} selectors`);
+      console.error(`❌ No nav item found for ${sectionName}`);
       return { success: false, clickInfo: null };
     };
     
     // Navigate based on context - ALWAYS using clicks, never direct URL navigation
-    // Uses MCP observation to find elements, not hardcoded selectors
     if ((interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub')) {
-      console.log('🎯 STEP 1: Starting navigation to Orders Hub using MCP observation...');
-      console.log(`📍 Current URL before navigation: ${page.url()}`);
-      
-      // Minimal fallback selectors (only used if MCP completely fails)
       const ordersHubSelectors = [
         "a[href*='orders-hub']",
         "[data-testid*='orders-hub']",
         "a:has-text('Orders')"
       ];
       
-      console.log(`🔍 STEP 2: Using MCP to find Orders Hub nav item (fallback selectors only if MCP fails)...`);
       const navigationResult = await navigateToSectionByClick('Orders Hub', ordersHubSelectors, /orders-hub|ordershub/, mcpWrapper);
       
       if (!navigationResult.success) {
-        console.error('❌ STEP 2 FAILED: Orders Hub nav item not found');
         throw new Error('Orders Hub nav item not found - cannot navigate as test expects (test uses click, not URL)');
       }
       
-      // 🎯 CRITICAL: Register the click on Orders Hub as a behavior interaction
-      // Also capture element info for page object generation (cssSelector for baseSelectors)
+      // Register the click on Orders Hub as a behavior interaction
       if (navigationResult.clickInfo) {
-        console.log(`📝 STEP 2.5: Registering Orders Hub click as behavior interaction...`);
         
         // Extract CSS selector from locator for baseSelectors format
         let cssSelector: string | undefined = undefined;
