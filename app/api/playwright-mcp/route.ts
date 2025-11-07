@@ -3803,15 +3803,15 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // If not reused, search using snapshot MCP
         if (!foundElement) {
           foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
-          
-          if (foundElement) {
-            foundBy = 'mcp-snapshot';
-            generatedLocator = await mcpWrapper.generateLocator(foundElement);
-            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
-            if (generatedLocator.startsWith('p.')) {
-              generatedLocator = generatedLocator.replace(/^p\./, 'page.');
-              console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
-            }
+        
+        if (foundElement) {
+          foundBy = 'mcp-snapshot';
+          generatedLocator = await mcpWrapper.generateLocator(foundElement);
+          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          if (generatedLocator.startsWith('p.')) {
+            generatedLocator = generatedLocator.replace(/^p\./, 'page.');
+            console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
+          }
           }
         }
         
@@ -4037,12 +4037,15 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               const roleElementsData = await Promise.all(
                 roleElements.slice(0, 20).map(async (el) => {
                   try {
-                    const [text, role, isVisible, testId] = await Promise.all([
+                    const [text, roleAndTag, isVisible, testId] = await Promise.all([
                       el.textContent().catch(() => null),
-                      el.evaluate((e: any) => e.getAttribute('role') || e.tagName.toLowerCase()).catch(() => null),
+                      el.evaluate((e: any) => ({ role: e.getAttribute('role') || null, tagName: e.tagName?.toLowerCase() || null })).catch(() => ({ role: null, tagName: null })),
                       el.isVisible().catch(() => false),
                       el.getAttribute('data-testid').catch(() => null)
                     ]);
+                    
+                    const role = roleAndTag.role || roleAndTag.tagName;
+                    const tagName = roleAndTag.tagName;
                     
                     // Skip if already has testId (processed above) or not visible
                     if (testId || !isVisible || !text) return null;
@@ -4055,12 +4058,14 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
                     if (!similarExists && text && text.trim().length > 0) {
                       // Generate locator based on role and text
                       let locator = '';
-                      if (role === 'button') {
+                      if (role === 'button' || tagName === 'button') {
                         locator = `page.getByRole('button', { name: '${text.trim().substring(0, 50)}' })`;
-                      } else if (role === 'link' || el.tagName?.toLowerCase() === 'a') {
+                      } else if (role === 'link' || tagName === 'a') {
                         locator = `page.getByRole('link', { name: '${text.trim().substring(0, 50)}' })`;
+                      } else if (role) {
+                        locator = `page.getByRole('${role}', { name: '${text.trim().substring(0, 50)}' })`;
                       } else {
-                        locator = `page.locator('${role}:has-text("${text.trim().substring(0, 50)}")')`;
+                        locator = `page.locator('${tagName || 'button'}:has-text("${text.trim().substring(0, 50)}")')`;
                       }
                       
                       return {
@@ -4081,12 +4086,13 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               const allNewElements = [...newElementsData, ...roleElementsData].filter(el => el !== null);
               
               // Add new unique elements to behavior.elements
-              const uniqueNewElements = allNewElements.filter((el): el is { testId: string | null; text: string | null; locator: string; cssSelector?: string } => 
-                el !== null && !behavior.elements.some(existing => 
-                  existing.testId === el.testId || 
+              const uniqueNewElements = allNewElements.filter((el) => {
+                if (!el) return false;
+                return !behavior.elements.some(existing => 
+                  (existing.testId && el.testId && existing.testId === el.testId) || 
                   (existing.text && el.text && existing.text.toLowerCase().trim() === el.text.toLowerCase().trim())
-                )
-              );
+                );
+              }) as Array<{ testId: string | null; text: string | null; locator: string; cssSelector?: string }>;
               
               if (uniqueNewElements.length > 0) {
                 behavior.elements.push(...uniqueNewElements);
