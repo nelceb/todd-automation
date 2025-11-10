@@ -272,6 +272,10 @@ export async function GET(request: NextRequest) {
     const totalFailed = workflowMetrics.reduce((sum, w) => sum + w.failed_runs, 0)
     const overallSuccessRate = totalRuns > 0 ? (totalSuccessful / totalRuns) * 100 : 0
     
+    // Calcular scheduled y manual runs totales
+    const totalScheduledRuns = workflowMetrics.reduce((sum, w) => sum + (w.trigger_breakdown?.schedule || 0), 0)
+    const totalManualRuns = workflowMetrics.reduce((sum, w) => sum + (w.trigger_breakdown?.workflow_dispatch || 0), 0)
+    
     // Calcular promedio ponderado de duración (por cantidad de runs)
     // Esto da más peso a workflows que se ejecutan más frecuentemente
     let weightedAvgDuration = 0
@@ -298,6 +302,8 @@ export async function GET(request: NextRequest) {
         success_rate: overallSuccessRate,
         avg_response_time: weightedAvgDuration, // Promedio ponderado por cantidad de runs
         in_progress_runs: workflowMetrics.reduce((sum, w) => sum + w.in_progress_runs, 0),
+        scheduled_runs: totalScheduledRuns,
+        manual_runs: totalManualRuns,
         most_active_workflow: mostActiveWorkflow ? {
           name: mostActiveWorkflow.workflow_name,
           runs: mostActiveWorkflow.total_runs

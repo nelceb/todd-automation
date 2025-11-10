@@ -56,6 +56,8 @@ interface MetricsData {
     success_rate: number
     avg_response_time: number
     in_progress_runs: number
+    scheduled_runs?: number
+    manual_runs?: number
     most_active_workflow?: {
       name: string
       runs: number
@@ -169,8 +171,11 @@ export default function MetricsDashboard() {
   const getWorkflowChartData = () => {
     if (!metrics?.workflows) return null
 
+    // Filtrar workflows que nunca se ejecutaron (total_runs === 0)
+    const workflowsWithRuns = metrics.workflows.filter(w => w.total_runs > 0)
+    
     // Ordenar workflows por total_runs (mayor a menor) para mejor visualización
-    const sortedWorkflows = [...metrics.workflows].sort((a, b) => b.total_runs - a.total_runs)
+    const sortedWorkflows = [...workflowsWithRuns].sort((a, b) => b.total_runs - a.total_runs)
     
     // Colores tipo GitHub Actions:
     // Verde para workflows exitosos (success rate alto), amarillo para medio, rojo para bajo
@@ -368,7 +373,10 @@ export default function MetricsDashboard() {
           }
         }
       }
-    }
+    },
+    // Hacer las barras más anchas
+    categoryPercentage: 0.8,
+    barPercentage: 0.9
   }
 
   if (loading) {
@@ -453,8 +461,8 @@ export default function MetricsDashboard() {
           <p className="text-base font-mono mb-4" style={{ color: '#6B7280' }}>
             Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
           </p>
-          <div className="flex-1 overflow-y-auto">
-            <div className="h-[800px]">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
+            <div style={{ minHeight: '800px', paddingRight: '8px' }}>
               {getWorkflowChartData() && (
                 <Bar data={getWorkflowChartData()!} options={barChartOptions} />
               )}
@@ -473,6 +481,16 @@ export default function MetricsDashboard() {
             <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
               <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
+              {metrics.summary.scheduled_runs !== undefined && metrics.summary.manual_runs !== undefined && (
+                <div className="mt-2 space-y-1">
+                  <div className="text-xs font-mono" style={{ color: '#9CA3AF' }}>
+                    ⏰ Scheduled: {metrics.summary.scheduled_runs}
+                  </div>
+                  <div className="text-xs font-mono" style={{ color: '#9CA3AF' }}>
+                    🖐️ Manual: {metrics.summary.manual_runs}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
               <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
