@@ -1109,7 +1109,15 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             if (!hasRealTests) return null
                             
                             // Buscar el nombre legible del workflow desde los mensajes
-                            let workflowName = logs.run.name || 'Unknown Workflow'
+                            let workflowName = 'Unknown Workflow'
+                            
+                            // Intentar obtener el nombre desde htmlUrl si está disponible
+                            if (logs.run.htmlUrl) {
+                              const urlParts = logs.run.htmlUrl.split('/')
+                              if (urlParts.length > 6) {
+                                workflowName = urlParts[6]
+                              }
+                            }
                             
                             // Intentar encontrar el workflow correspondiente en los mensajes
                             const workflowMessage = messages.find((msg: any) => {
@@ -1143,7 +1151,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               }
                             }
                             
-                            // Si no se encuentra, intentar extraer desde htmlUrl
+                            // Si aún no se encontró, intentar extraer desde htmlUrl nuevamente (ya lo hicimos arriba, pero por si acaso)
                             if (workflowName === 'Unknown Workflow' && logs.run.htmlUrl) {
                               const urlParts = logs.run.htmlUrl.split('/')
                               if (urlParts.length > 6) {
