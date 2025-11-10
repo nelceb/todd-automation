@@ -136,9 +136,9 @@ const navigation = await navigateToTargetURL(page, interpretation);
 ```typescript
 const mcpWrapper = new PlaywrightMCPWrapper(page);
 // El wrapper encapsula las capacidades MCP:
-// - browserSnapshot()
-// - generateLocator()
-// - findElementBySnapshot()
+// - browserSnapshot() ✅ (replica browser_snapshot del MCP oficial)
+// - generateLocator() ✅ (replica browser_generate_locator del MCP oficial)
+// - findElementBySnapshot() ⚠️ (helper propio, no existe en MCP oficial)
 ```
 
 ### 7. **Observación del Comportamiento**
@@ -184,12 +184,17 @@ Clase que encapsula las capacidades MCP sin requerir el servidor MCP oficial:
 class PlaywrightMCPWrapper {
   private page: Page;
   
-  // Captura el accessibility tree (igual que MCP oficial)
+  // ✅ browser_snapshot - Capacidad OFICIAL del MCP
+  // El servidor MCP oficial (@playwright/mcp) expone esta herramienta como "browser_snapshot"
+  // Internamente usa page.accessibility.snapshot() para capturar el accessibility tree
+  // Nosotros replicamos esta funcionalidad directamente
   async browserSnapshot() {
     return await this.page.accessibility.snapshot();
   }
   
-  // Genera locators robustos con prioridad:
+  // ✅ browser_generate_locator - Capacidad OFICIAL del MCP
+  // El servidor MCP oficial expone esta herramienta como "browser_generate_locator"
+  // Genera locators robustos con prioridad (misma lógica que MCP oficial):
   // 1. data-testid (más robusto)
   // 2. role + accessible name
   // 3. label (para inputs)
@@ -200,12 +205,22 @@ class PlaywrightMCPWrapper {
     // Implementa la misma lógica que @playwright/mcp
   }
   
-  // Busca elementos en el accessibility tree
+  // ⚠️ findElementBySnapshot - NO es capacidad oficial del MCP
+  // Es una función HELPER PROPIA que creamos usando browserSnapshot()
+  // para buscar elementos en el accessibility tree de forma más conveniente
+  // El MCP oficial no tiene esta función específica, pero permite usar
+  // browser_snapshot y luego buscar manualmente en el resultado
   async findElementBySnapshot(searchTerm: string): Promise<Locator | null> {
-    // Usa browserSnapshot() para buscar elementos
+    // Usa browserSnapshot() internamente para buscar elementos
+    // Es un wrapper de conveniencia sobre browser_snapshot
   }
 }
 ```
+
+**Resumen de capacidades**:
+- ✅ `browserSnapshot()` → Replica `browser_snapshot` del MCP oficial
+- ✅ `generateLocator()` → Replica `browser_generate_locator` del MCP oficial
+- ⚠️ `findElementBySnapshot()` → Helper propio (no existe en MCP oficial)
 
 ### observeBehaviorWithMCP
 
@@ -333,14 +348,42 @@ export class OrdersHubPage {
 }
 ```
 
-## 🔍 Diferencias con el MCP Oficial
+## 🔍 Capacidades del MCP Oficial vs Nuestra Implementación
+
+### Capacidades Oficiales del MCP (@playwright/mcp)
+
+El servidor MCP oficial de Playwright expone estas herramientas (tools) a través del protocolo MCP:
+
+1. **`browser_snapshot`** ✅ - Captura el accessibility tree de la página
+2. **`browser_generate_locator`** ✅ - Genera locators robustos para elementos
+3. **`browser_navigate`** - Navega a URLs
+4. **`browser_click`** - Hace click en elementos
+5. **`browser_fill`** - Llena campos de formulario
+6. **`browser_screenshot`** - Captura screenshots
+7. Y otras herramientas de automatización...
+
+### Nuestra Implementación
+
+En Todd, replicamos las capacidades principales del MCP oficial:
+
+| Capacidad MCP Oficial | Nuestra Implementación | Estado |
+|----------------------|------------------------|--------|
+| `browser_snapshot` | `browserSnapshot()` | ✅ Replicada (usa `page.accessibility.snapshot()`) |
+| `browser_generate_locator` | `generateLocator()` | ✅ Replicada (misma lógica de prioridad) |
+| `browser_navigate` | `navigateToTargetURL()` | ✅ Implementada directamente con Playwright |
+| `browser_click` | `element.click()` | ✅ Usamos Playwright directamente |
+| `browser_fill` | `element.fill()` | ✅ Usamos Playwright directamente |
+| `findElementBySnapshot()` | `findElementBySnapshot()` | ⚠️ Helper propio (no existe en MCP oficial) |
+
+### Diferencias Arquitectónicas
 
 | Aspecto | MCP Oficial (@playwright/mcp) | Integración en Todd |
 |---------|------------------------------|---------------------|
 | **Arquitectura** | Servidor MCP separado | Funciones integradas en Next.js |
 | **Protocolo** | MCP (JSON-RPC) | Direct API calls |
 | **Ejecución** | Proceso separado | Mismo proceso (API route) |
-| **Funcionalidad** | ✅ Completa | ✅ Replicada (misma lógica) |
+| **Funcionalidad Core** | ✅ Completa | ✅ Replicada (misma lógica) |
+| **Helpers Adicionales** | Solo herramientas MCP | ✅ + Helpers propios (findElementBySnapshot) |
 | **Performance** | Overhead de protocolo | Más directo y rápido |
 
 ## 🚀 Configuración
