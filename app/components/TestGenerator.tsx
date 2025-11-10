@@ -532,7 +532,7 @@ export default function TestGenerator() {
             Test Generator
           </h1>
           <p className="text-base sm:text-lg font-mono" style={{ color: '#4B5563' }}>
-            Generate automated tests from Jira acceptance criteria
+            Generate automated tests from Jira acceptance criteria or natural language
           </p>
         </motion.div>
 
