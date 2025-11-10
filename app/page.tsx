@@ -141,6 +141,12 @@ export default function Home() {
                 <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
               <span>Generator</span>
+              <span className="ml-1 px-1.5 py-0.5 text-xs font-bold rounded" style={{ 
+                backgroundColor: activeTab === 'generator' ? 'rgba(255, 255, 255, 0.2)' : '#F59E0B',
+                color: activeTab === 'generator' ? 'white' : 'white'
+              }}>
+                BETA
+              </span>
             </button>
             <button 
               onClick={() => handleTabChange('metrics')}

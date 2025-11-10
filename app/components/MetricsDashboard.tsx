@@ -474,11 +474,11 @@ export default function MetricsDashboard() {
         <div className="flex flex-col space-y-6" style={{ height: '900px' }}>
           {/* Summary Cards (Top Right) */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center flex flex-col justify-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Workflows</div>
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center flex flex-col justify-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
               {metrics.summary.scheduled_runs !== undefined && metrics.summary.manual_runs !== undefined && (
@@ -492,11 +492,11 @@ export default function MetricsDashboard() {
                 </div>
               )}
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center flex flex-col justify-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Success Rate</div>
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center flex flex-col justify-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
                 {formatDuration(metrics.summary.avg_response_time)}
               </div>
@@ -513,7 +513,7 @@ export default function MetricsDashboard() {
           <div 
             className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1"
             style={{ 
-              minHeight: '600px',
+              minHeight: '400px',
               backgroundColor: '#AED4E6'
             }}
           >
@@ -538,18 +538,18 @@ export default function MetricsDashboard() {
               >
                 {/* Front of card - Pie Chart */}
                 <div 
-                  className="absolute w-full h-full flex flex-col justify-center items-center p-6 bg-white/20 rounded-xl"
+                  className="absolute w-full h-full flex flex-col justify-center items-center p-4 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(0deg)',
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-xl font-mono font-semibold mb-6 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-xl font-mono font-semibold mb-2 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
                     <span className="ml-2 text-sm opacity-50">(Click for details)</span>
                   </h3>
-                  <div className="flex-1 flex items-center justify-center w-full px-4">
+                  <div className="flex items-center justify-center w-full px-4" style={{ height: '300px' }}>
                     {getSuccessRateChartData() && (
                       <div className="w-full max-w-2xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
