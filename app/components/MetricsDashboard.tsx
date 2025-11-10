@@ -418,8 +418,8 @@ export default function MetricsDashboard() {
   return (
     <div className="space-y-6" style={{ backgroundColor: '#AED4E6' }}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-col items-center space-y-4 max-w-7xl mx-auto">
+        <div className="text-center">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-mono font-bold tracking-wide mb-3" style={{ color: '#344055' }}>
             Workflow Metrics
           </h2>
@@ -454,7 +454,7 @@ export default function MetricsDashboard() {
       </div>
 
       {/* Charts and Summary Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch max-w-7xl mx-auto">
         {/* Left Column: Workflow Distribution (Full Height) */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg flex flex-col" style={{ height: '900px' }}>
           <h3 className="text-xl font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
@@ -474,11 +474,11 @@ export default function MetricsDashboard() {
         <div className="flex flex-col space-y-6" style={{ height: '900px' }}>
           {/* Summary Cards (Top Right) */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Workflows</div>
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Total Runs</div>
               {metrics.summary.scheduled_runs !== undefined && metrics.summary.manual_runs !== undefined && (
@@ -492,11 +492,11 @@ export default function MetricsDashboard() {
                 </div>
               )}
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
               <div className="text-sm font-mono" style={{ color: '#6B7280' }}>Success Rate</div>
             </div>
-            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg">
+            <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg text-center">
               <div className="text-2xl font-mono font-bold" style={{ color: '#F59E0B' }}>
                 {formatDuration(metrics.summary.avg_response_time)}
               </div>
