@@ -1456,8 +1456,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             ease: "easeOut"
                           }}
                           style={{ 
-                            width: '100%', 
-                            height: '100%',
                             top: '50%',
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
@@ -1478,8 +1476,6 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             delay: 0.3
                           }}
                           style={{ 
-                            width: '100%', 
-                            height: '100%',
                             top: '50%',
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
