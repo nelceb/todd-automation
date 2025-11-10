@@ -141,9 +141,10 @@ export default function Home() {
                 <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
               <span>Generator</span>
-              <span className="absolute top-0 right-0 px-1 py-0.5 text-[10px] font-bold rounded-bl rounded-tr-lg" style={{ 
+              <span className="absolute top-0 right-0 px-0.5 py-0 text-[8px] font-bold rounded-bl rounded-tr-lg leading-tight" style={{ 
                 backgroundColor: '#F59E0B',
-                color: 'white'
+                color: 'white',
+                lineHeight: '1.2'
               }}>
                 BETA
               </span>
