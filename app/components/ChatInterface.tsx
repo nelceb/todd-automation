@@ -537,7 +537,83 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [githubToken, setMessages, setIsLoading, clearAllLogs, clearPreview, setWorkflowDurations, previewWorkflows, triggerWorkflow, startPollingLogs, startPollingMultipleLogs, addRunningWorkflowFromTodd, onWorkflowExecuted])
+
+  // Función auxiliar para ejecutar submit con texto directo (útil para reconocimiento de voz)
+  const handleSubmitDirectly = useCallback(async (userMessageText: string) => {
+    if (!userMessageText.trim() || isLoading) return
+
+    const userMessage = userMessageText.trim()
+    setInput('')
+    setIsLoading(true)
+
+    // Continuar con la lógica de handleSubmit...
+    await executeSubmit(userMessage)
+  }, [isLoading, setInput, setIsLoading, executeSubmit])
+
+  // Configure voice recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const recognitionInstance = new SpeechRecognition()
+        recognitionInstance.continuous = false
+        recognitionInstance.interimResults = true
+        recognitionInstance.lang = 'en-US'
+        
+        recognitionInstance.onresult = (event: any) => {
+          const result = event.results[event.results.length - 1]
+          if (result.isFinal) {
+            let transcript = result[0].transcript.trim()
+            
+            const corrections: { [key: string]: string } = {
+              'round': 'run', 'ran': 'run', 'running': 'run',
+              'tested': 'test', 'testing': 'test',
+              'execute': 'run', 'executing': 'run',
+              'android': 'android', 'ios': 'ios',
+              'playwright': 'playwright', 'selenium': 'selenium', 'maestro': 'maestro',
+              'kuwait': 'qa', 'q a': 'qa', 'q. a.': 'qa', 'q&a': 'qa',
+              'production': 'prod', 'prod': 'prod',
+              'staging': 'staging', 'stage': 'staging',
+              'regression': 'regression', 'smoke': 'smoke',
+              'e2e': 'e2e', 'e to e': 'e2e', 'e 2 e': 'e2e', 'end to end': 'e2e',
+              'sign up': 'signup', 'sign-up': 'signup',
+              'landing': 'landings', 'landing page': 'landings', 'landing pages': 'landings',
+              'u s': 'us', 'u. s.': 'us', 'united states': 'us',
+              'c a': 'ca', 'c. a.': 'ca', 'canada': 'ca',
+              'core u x': 'core ux', 'coreux': 'core ux', 'core ux': 'core ux'
+            }
+            
+            Object.entries(corrections).forEach(([wrong, correct]) => {
+              const regex = new RegExp(`\\b${wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
+              transcript = transcript.replace(regex, correct)
+            })
+            
+            transcript = transcript.replace(/\s+/g, ' ').trim()
+            setInput(transcript)
+            setIsListening(false)
+            
+            if (transcript) {
+              setTimeout(() => {
+                handleSubmitDirectly(transcript)
+              }, 200)
+            }
+          }
+        }
+        
+        recognitionInstance.onerror = () => {
+          setIsListening(false)
+          toast.error('Error in voice recognition')
+        }
+        
+        recognitionInstance.onend = () => {
+          setIsListening(false)
+        }
+        
+        setRecognition(recognitionInstance)
+      }
+    }
+  }, [handleSubmitDirectly, setInput, setIsListening])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
