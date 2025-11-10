@@ -118,8 +118,7 @@ export async function POST(request: NextRequest) {
     const workflows = allWorkflows
 
     console.log('📋 Total workflows recibidos de GitHub:', workflows.length)
-    console.log('📋 Nombres de workflows:', workflows.map((w: any) => `${w.name} (state: ${w.state})`).join(', '))
-    console.log('📋 Paths de workflows:', workflows.map((w: any) => w.path).join(', '))
+    console.log('📋 Workflows disponibles:', workflows.map((w: any) => `${w.name} (${w.path}, state: ${w.state})`).join(', '))
     
     // Buscar específicamente "QA US - CORE UX REGRESSION" en la lista (incluso si está deshabilitado)
     const regressionWorkflow = workflows.find((w: any) => {
@@ -185,6 +184,7 @@ export async function POST(request: NextRequest) {
       
       // Si aún no se encuentra, buscar por palabras clave pero siendo más estricto
       if (!workflow) {
+        console.log(`🔍 Búsqueda parcial: Buscando "${workflowId}" (normalizado: "${normalizedWorkflowId}")`)
         workflow = workflows.find((w: any) => {
           const normalizedName = normalizeName(w.name)
           const normalizedPath = w.path.toLowerCase()
@@ -214,11 +214,34 @@ export async function POST(request: NextRequest) {
           const includesMatch = normalizedName.includes(normalizedWorkflowId) ||
                                normalizedWorkflowId.includes(normalizedName)
           
-          // O match por path
-          const pathMatch = normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '_')) ||
-                           normalizedPath.includes(normalizedWorkflowId.replace(/\s+/g, '-'))
+          // O match por path (con variaciones de guiones y guiones bajos)
+          const pathVariations = [
+            normalizedWorkflowId.replace(/\s+/g, '_'),
+            normalizedWorkflowId.replace(/\s+/g, '-'),
+            normalizedWorkflowId.replace(/\s+/g, '').replace(/-/g, '_'),
+            normalizedWorkflowId.replace(/\s+/g, '').replace(/_/g, '-')
+          ]
+          const pathMatch = pathVariations.some(variation => 
+            normalizedPath.includes(variation) || normalizedPath === variation || normalizedPath === `${variation}.yml`
+          )
           
-          return includesMatch || pathMatch || allWordsMatch
+          // Match por palabras clave específicas (qa, ca, us, signup, e2e, etc.)
+          const keyWords = ['qa', 'ca', 'us', 'signup', 'e2e', 'landings', 'growth', 'core', 'ux', 'regression', 'smoke', 'segment']
+          const workflowIdKeyWords = keyWords.filter(kw => normalizedWorkflowId.includes(kw))
+          const nameKeyWords = keyWords.filter(kw => normalizedName.includes(kw) || normalizedPath.includes(kw))
+          // Match si todas las palabras clave del workflowId están presentes en el nombre/path
+          // Y si hay al menos 2 palabras clave coincidentes (para evitar matches muy genéricos)
+          const keyWordsMatch = workflowIdKeyWords.length > 0 && 
+            workflowIdKeyWords.every(kw => nameKeyWords.includes(kw)) &&
+            workflowIdKeyWords.length >= 2
+          
+          const match = includesMatch || pathMatch || allWordsMatch || keyWordsMatch
+          
+          if (match) {
+            console.log(`✅ Match parcial encontrado: "${w.name}" (${w.path}) para "${workflowId}"`)
+          }
+          
+          return match
         })
       }
     }
@@ -237,6 +260,8 @@ export async function POST(request: NextRequest) {
         'QA US - CORE UX SMOKE E2E': ['QA US - CORE UX SMOKE E2E', 'qa_coreux_smoke_e2e.yml'],
         'QA US - E2E': ['QA US - E2E', 'qa-e2e-web.yml'],
         'QA CA - E2E': ['QA CA - E2E', 'qa-ca-e2e-web.yml'],
+        'QA CA - SIGNUP': ['QA CA - SIGNUP', 'qa-ca-signup.yml', 'qa_signup_regression_ca.yml', 'qa-ca-signup-regression.yml'],
+        'QA US - SIGNUP': ['QA US - SIGNUP', 'qa-us-signup.yml', 'qa_signup_regression_us.yml', 'qa-us-signup-regression.yml'],
         'QA E2E Web Regression': ['QA E2E Web Regression', 'qa_e2e_web_regression.yml'],
         'QA Android Regression': ['QA Android Regression', 'qa_android_regression.yml'],
         'QA iOS Regression': ['QA iOS Regression', 'qa_ios_regression.yml'],
