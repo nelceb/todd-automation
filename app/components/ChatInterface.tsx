@@ -1323,69 +1323,72 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                <motion.button
-                  type="button"
-                  onClick={handleMicrophoneClick}
-                  className={`relative transition-colors ${
-                    isListening 
-                      ? 'text-red-500 hover:text-red-400' 
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
-                  animate={isListening ? {
-                    scale: [1, 1.1, 1],
-                  } : {}}
-                  transition={isListening ? {
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  } : {}}
-                >
-                  {/* Anillo de pulso cuando está grabando */}
-                  {isListening && (
-                    <>
-                      <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-red-500"
-                        animate={{
-                          scale: [1, 1.5, 1.5],
-                          opacity: [0.6, 0, 0],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeOut"
-                        }}
-                        style={{ 
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          width: '2.5rem',
-                          height: '2.5rem'
-                        }}
-                      />
-                      <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-red-400"
-                        animate={{
-                          scale: [1, 1.3, 1.3],
-                          opacity: [0.4, 0, 0],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeOut",
-                          delay: 0.3
-                        }}
-                        style={{ 
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          width: '2.5rem',
-                          height: '2.5rem'
-                        }}
-                      />
-                    </>
-                  )}
-                  <MicrophoneIcon className="relative w-5 h-5 z-10" />
-                </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={handleMicrophoneClick}
+                    className={`relative transition-colors flex items-center justify-center ${
+                      isListening 
+                        ? 'text-red-500 hover:text-red-400' 
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                    style={{ width: '2rem', height: '2rem' }}
+                    animate={isListening ? {
+                      scale: [1, 1.05, 1],
+                    } : {}}
+                    transition={isListening ? {
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    } : {}}
+                  >
+                    {/* Anillo de pulso cuando está grabando */}
+                    {isListening && (
+                      <>
+                        <motion.div
+                          className="absolute rounded-full border-2 border-red-500"
+                          animate={{
+                            scale: [1, 2, 2],
+                            opacity: [0.8, 0, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeOut"
+                          }}
+                          style={{ 
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '1.25rem',
+                            height: '1.25rem',
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        <motion.div
+                          className="absolute rounded-full border-2 border-red-400"
+                          animate={{
+                            scale: [1, 1.6, 1.6],
+                            opacity: [0.6, 0, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeOut",
+                            delay: 0.4
+                          }}
+                          style={{ 
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '1.25rem',
+                            height: '1.25rem',
+                            pointerEvents: 'none'
+                          }}
+                        />
+                      </>
+                    )}
+                    <MicrophoneIcon className="relative w-5 h-5 z-10" />
+                  </motion.button>
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
@@ -1427,13 +1430,14 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                   <motion.button
                     type="button"
                     onClick={handleMicrophoneClick}
-                    className={`relative transition-colors ${
+                    className={`relative transition-colors flex items-center justify-center ${
                       isListening 
                         ? 'text-red-500 hover:text-red-400' 
                         : 'text-gray-700 hover:text-gray-900'
                     }`}
+                    style={{ width: '2rem', height: '2rem' }}
                     animate={isListening ? {
-                      scale: [1, 1.1, 1],
+                      scale: [1, 1.05, 1],
                     } : {}}
                     transition={isListening ? {
                       duration: 2,
@@ -1445,10 +1449,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                     {isListening && (
                       <>
                         <motion.div
-                          className="absolute inset-0 rounded-full border-2 border-red-500"
+                          className="absolute rounded-full border-2 border-red-500"
                           animate={{
-                            scale: [1, 1.5, 1.5],
-                            opacity: [0.6, 0, 0],
+                            scale: [1, 2, 2],
+                            opacity: [0.8, 0, 0],
                           }}
                           transition={{
                             duration: 2,
@@ -1459,28 +1463,30 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             top: '50%',
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
-                            width: '2.5rem',
-                            height: '2.5rem'
+                            width: '1.25rem',
+                            height: '1.25rem',
+                            pointerEvents: 'none'
                           }}
                         />
                         <motion.div
-                          className="absolute inset-0 rounded-full border-2 border-red-400"
+                          className="absolute rounded-full border-2 border-red-400"
                           animate={{
-                            scale: [1, 1.3, 1.3],
-                            opacity: [0.4, 0, 0],
+                            scale: [1, 1.6, 1.6],
+                            opacity: [0.6, 0, 0],
                           }}
                           transition={{
                             duration: 2,
                             repeat: Infinity,
                             ease: "easeOut",
-                            delay: 0.3
+                            delay: 0.4
                           }}
                           style={{ 
                             top: '50%',
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
-                            width: '2.5rem',
-                            height: '2.5rem'
+                            width: '1.25rem',
+                            height: '1.25rem',
+                            pointerEvents: 'none'
                           }}
                         />
                       </>
