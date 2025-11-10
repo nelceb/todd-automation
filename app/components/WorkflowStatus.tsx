@@ -543,7 +543,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       icon: GlobeAltIcon,
       color: 'asparagus',
       workflows: [
-        'QA US - CORE UX REGRESSION',
+        'QA US - CORE UX SMOKE E2E',
         'QA CA - SIGNUP',
         'QA US - SIGNUP',
         'QA US - SEGMENT - SIGN UP',
