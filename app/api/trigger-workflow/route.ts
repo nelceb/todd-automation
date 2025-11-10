@@ -368,12 +368,49 @@ export async function POST(request: NextRequest) {
         }
       } else {
         console.log('❌ No se encontraron candidatos con las palabras clave')
+        // Si buscamos "QA US - CORE UX REGRESSION" pero no existe, buscar alternativas similares
+        if (workflowId.includes('CORE UX REGRESSION') || workflowId.includes('core ux regression')) {
+          console.log('🔍 Buscando workflows alternativos con "coreux" y "smoke" (puede ser que el workflow de regression no exista)')
+          const smokeCandidates = workflows.filter((w: any) => {
+            const normalizedName = normalizeName(w.name)
+            const normalizedPath = w.path.toLowerCase()
+            const hasCoreUx = normalizedName.includes('coreux') || normalizedName.includes('core ux') || normalizedPath.includes('coreux')
+            const hasSmoke = normalizedName.includes('smoke') || normalizedPath.includes('smoke')
+            const hasQA = normalizedName.includes('qa') || normalizedPath.includes('qa')
+            const hasUS = normalizedName.includes('us') || normalizedPath.includes('us')
+            
+            return hasCoreUx && hasSmoke && hasQA && hasUS
+          })
+          
+          if (smokeCandidates.length > 0) {
+            const smokeWorkflow = smokeCandidates.find((w: any) => w.state === 'active') || smokeCandidates[0]
+            console.log(`⚠️ Workflow "QA US - CORE UX REGRESSION" no encontrado, pero se encontró alternativa: "${smokeWorkflow.name}"`)
+            // No usar automáticamente, solo informar en el error
+          }
+        }
       }
     }
     
     if (!workflow) {
-      console.log('Available workflows:', workflows.map((w: any) => ({ name: w.name, path: w.path, id: w.id })))
-      throw new Error(`Workflow ${workflowId} no encontrado. Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`)
+      console.log('Available workflows:', workflows.map((w: any) => ({ name: w.name, path: w.path, id: w.id, state: w.state })))
+      
+      // Si buscamos "QA US - CORE UX REGRESSION", sugerir alternativas
+      let errorMessage = `Workflow ${workflowId} no encontrado. Workflows disponibles: ${workflows.map((w: any) => w.name).join(', ')}`
+      
+      if (workflowId.includes('CORE UX REGRESSION') || workflowId.includes('core ux regression')) {
+        const alternatives = workflows.filter((w: any) => {
+          const normalizedName = normalizeName(w.name)
+          return (normalizedName.includes('coreux') || normalizedName.includes('core ux')) &&
+                 (normalizedName.includes('qa') && normalizedName.includes('us'))
+        })
+        
+        if (alternatives.length > 0) {
+          errorMessage += `\n\n⚠️ Workflows alternativos encontrados: ${alternatives.map((w: any) => w.name).join(', ')}`
+          errorMessage += `\n💡 Nota: El workflow "QA US - CORE UX REGRESSION" no existe. ¿Quisiste decir uno de los workflows alternativos?`
+        }
+      }
+      
+      throw new Error(errorMessage)
     }
     
     // Log para debugging - verificar que el workflow encontrado es el correcto
