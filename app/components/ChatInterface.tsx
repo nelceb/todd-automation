@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   PaperAirplaneIcon, 
@@ -341,77 +341,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     }
   }, [githubToken])
 
-  // Configure voice recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (SpeechRecognition) {
-        const recognitionInstance = new SpeechRecognition()
-        recognitionInstance.continuous = false
-        recognitionInstance.interimResults = true // Enable interim results for better accuracy
-        recognitionInstance.lang = 'en-US'
-        
-        recognitionInstance.onresult = (event: any) => {
-          const result = event.results[event.results.length - 1] // Get final result
-          if (result.isFinal) {
-            let transcript = result[0].transcript
-            
-            // Context-aware corrections for testing commands
-            const corrections: { [key: string]: string } = {
-              'round': 'run',
-              'ran': 'run',
-              'running': 'run',
-              'tested': 'test',
-              'testing': 'test',
-              'android': 'android',
-              'ios': 'ios',
-              'playwright': 'playwright',
-              'selenium': 'selenium',
-              'maestro': 'maestro',
-              'production': 'prod',
-              'qa': 'qa',
-              'staging': 'staging',
-              'regression': 'regression',
-              'smoke': 'smoke',
-              'e2e': 'e2e'
-            }
-            
-            // Apply corrections
-            Object.entries(corrections).forEach(([wrong, correct]) => {
-              const regex = new RegExp(`\\b${wrong}\\b`, 'gi')
-              transcript = transcript.replace(regex, correct)
-            })
-            
-            setInput(transcript)
-            setIsListening(false)
-            // Auto-send after voice recognition
-            setTimeout(() => {
-              handleSubmit(new Event('submit') as any)
-            }, 100)
-          }
-        }
-        
-        recognitionInstance.onerror = () => {
-          setIsListening(false)
-          toast.error('Error in voice recognition')
-        }
-        
-        recognitionInstance.onend = () => {
-          setIsListening(false)
-        }
-        
-        setRecognition(recognitionInstance)
-      }
-    }
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
-
-    const userMessage = input.trim()
-    setInput('')
-    setIsLoading(true)
+  // Función auxiliar que contiene la lógica de submit
+  const executeSubmit = useCallback(async (userMessage: string) => {
 
     // Clear previous logs and workflow data when starting a new query
     clearAllLogs()
@@ -606,6 +537,17 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+
+    const userMessage = input.trim()
+    setInput('')
+    setIsLoading(true)
+
+    await executeSubmit(userMessage)
   }
 
   const handleMicrophoneClick = () => {
@@ -1297,17 +1239,69 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                <button
+                <motion.button
                   type="button"
-                onClick={handleMicrophoneClick}
-                className={`transition-colors ${
-                  isListening 
-                        ? 'text-red-500 hover:text-red-400' 
-                        : 'text-gray-700 hover:text-gray-900'
-                }`}
-              >
-                <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                </button>
+                  onClick={handleMicrophoneClick}
+                  className={`relative transition-colors ${
+                    isListening 
+                      ? 'text-red-500 hover:text-red-400' 
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                  animate={isListening ? {
+                    scale: [1, 1.1, 1],
+                  } : {}}
+                  transition={isListening ? {
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  } : {}}
+                >
+                  {/* Anillo de pulso cuando está grabando */}
+                  {isListening && (
+                    <>
+                      <motion.div
+                        className="absolute inset-0 rounded-full border-2 border-red-500"
+                        animate={{
+                          scale: [1, 1.5, 1.5],
+                          opacity: [0.6, 0, 0],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeOut"
+                        }}
+                        style={{ 
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: '2.5rem',
+                          height: '2.5rem'
+                        }}
+                      />
+                      <motion.div
+                        className="absolute inset-0 rounded-full border-2 border-red-400"
+                        animate={{
+                          scale: [1, 1.3, 1.3],
+                          opacity: [0.4, 0, 0],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeOut",
+                          delay: 0.3
+                        }}
+                        style={{ 
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: '2.5rem',
+                          height: '2.5rem'
+                        }}
+                      />
+                    </>
+                  )}
+                  <MicrophoneIcon className="relative w-5 h-5 z-10" />
+                </motion.button>
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
@@ -1346,17 +1340,73 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
                 {/* Botones de la derecha */}
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleMicrophoneClick}
-                    className={`transition-colors ${
+                    className={`relative transition-colors ${
                       isListening 
                         ? 'text-red-500 hover:text-red-400' 
                         : 'text-gray-700 hover:text-gray-900'
                     }`}
+                    animate={isListening ? {
+                      scale: [1, 1.1, 1],
+                    } : {}}
+                    transition={isListening ? {
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    } : {}}
                   >
-                    <MicrophoneIcon className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
-                  </button>
+                    {/* Anillo de pulso cuando está grabando */}
+                    {isListening && (
+                      <>
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-red-500"
+                          animate={{
+                            scale: [1, 1.5, 1.5],
+                            opacity: [0.6, 0, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeOut"
+                          }}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '2.5rem',
+                            height: '2.5rem'
+                          }}
+                        />
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-red-400"
+                          animate={{
+                            scale: [1, 1.3, 1.3],
+                            opacity: [0.4, 0, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeOut",
+                            delay: 0.3
+                          }}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '2.5rem',
+                            height: '2.5rem'
+                          }}
+                        />
+                      </>
+                    )}
+                    <MicrophoneIcon className="relative w-5 h-5 z-10" />
+                  </motion.button>
                   <button
                     type="submit"
                     disabled={!input.trim() || isLoading}
