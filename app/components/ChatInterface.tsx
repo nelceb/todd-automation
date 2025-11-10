@@ -1090,6 +1090,49 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                             
                             if (!hasRealTests) return null
                             
+                            // Buscar el nombre legible del workflow desde los mensajes
+                            let workflowName = logs.run.name || 'Unknown Workflow'
+                            
+                            // Intentar encontrar el workflow correspondiente en los mensajes
+                            const workflowMessage = messages.find((msg: any) => {
+                              if (msg.workflowResult && Array.isArray(msg.workflowResult)) {
+                                return msg.workflowResult.some((result: any) => {
+                                  if (result.runId && logs.run.id) {
+                                    return result.runId.toString() === logs.run.id.toString()
+                                  }
+                                  if (result.run && result.run.htmlUrl && logs.run.htmlUrl) {
+                                    return result.run.htmlUrl === logs.run.htmlUrl
+                                  }
+                                  return false
+                                })
+                              }
+                              return false
+                            })
+                            
+                            if (workflowMessage && workflowMessage.workflowResult) {
+                              const matchingResult = workflowMessage.workflowResult.find((result: any) => {
+                                if (result.runId && logs.run.id) {
+                                  return result.runId.toString() === logs.run.id.toString()
+                                }
+                                if (result.run && result.run.htmlUrl && logs.run.htmlUrl) {
+                                  return result.run.htmlUrl === logs.run.htmlUrl
+                                }
+                                return false
+                              })
+                              
+                              if (matchingResult && matchingResult.workflow && matchingResult.workflow.workflowName) {
+                                workflowName = matchingResult.workflow.workflowName
+                              }
+                            }
+                            
+                            // Si no se encuentra, intentar extraer desde htmlUrl
+                            if (workflowName === 'Unknown Workflow' && logs.run.htmlUrl) {
+                              const urlParts = logs.run.htmlUrl.split('/')
+                              if (urlParts.length > 6) {
+                                workflowName = urlParts[6]
+                              }
+                            }
+                            
                             return (
                               <div className="flex items-start space-x-4 py-2">
                                 <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
@@ -1126,6 +1169,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                       ? 'text-red-800' 
                                       : 'text-gray-800'
                                   }`}>
+                                    <div>→ {workflowName}</div>
                                     <div>→ Tests: {summary.passed} passed, {summary.failed} failed, {summary.skipped} skipped</div>
                                     {summary.failedTests.length > 0 && (
                                       <div className="text-red-400 text-xs">
