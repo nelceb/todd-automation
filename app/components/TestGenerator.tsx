@@ -84,6 +84,8 @@ export default function TestGenerator() {
     setShowProgress
   } = useTestGeneratorStore()
   
+  const reset = useTestGeneratorStore((state) => state.reset)
+  
   const progressContainerRef = React.useRef<HTMLDivElement>(null)
   
   // Restore progress log when component mounts if generation was in progress
@@ -540,6 +542,22 @@ export default function TestGenerator() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          {/* Reset Button - Show when there's data to reset */}
+          {(acceptanceCriteria || generatedTest || jiraConfig.issueKey || naturalLanguageInput) && !loading && (
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={() => {
+                  reset()
+                  setStep('jira')
+                }}
+                className="px-4 py-2 text-sm font-mono border border-gray-300 rounded-lg hover:bg-white/50 transition-colors"
+                style={{ color: '#6B7280' }}
+              >
+                ← Start Over
+              </button>
+            </div>
+          )}
+          
           {/* Mode Selector - Only show when not loading and no acceptance criteria */}
           {step === 'jira' && !loading && !showProgress && !acceptanceCriteria && (
             <motion.div
