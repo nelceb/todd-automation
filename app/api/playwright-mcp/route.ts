@@ -5522,12 +5522,14 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       'add the first item': ['addMeal', 'addMealButton', 'addToCart', 'add'],
       'add the second item': ['addMeal', 'addMealButton', 'addToCart', 'add'],
       'click on add to cart': ['addMeal', 'addMealButton', 'addToCart', 'add'],
-      'go to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
-      'navigate to cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
-      'open cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
-      'view cart': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
-      'click on the cart icon': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon'],
-      'click cart icon': ['cartButton', 'cart', 'navigateToCart', 'viewCart', 'navigateToCartIcon']
+      'go to cart': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'navigate to cart': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'open cart': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'view cart': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'click on the cart icon': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'click cart icon': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'navigate to cart page': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'],
+      'verify added items': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon']
     };
     
     // Primero buscar por intención (más preciso)
