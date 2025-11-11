@@ -8744,25 +8744,18 @@ npm run test:playwright || exit 1
     
     console.log(`✅ Created single commit with ${treeEntries.length} files: ${currentSha.substring(0, 7)}`);
     
-    // 7. 🎯 EJECUTAR TEST ANTES DE CREAR PR
-    console.log('🧪 Ejecutando test antes de crear PR...');
-    const testResult = await runTestBeforePR(REPOSITORY, branchName, specFileInfo, finalTicketId, GITHUB_TOKEN);
+    // 7. 🎯 EJECUTAR TEST DE FORMA ASÍNCRONA (sin bloquear)
+    // El test se ejecutará en GitHub Actions y el PR se creará inmediatamente
+    // El workflow verificará el resultado del test automáticamente
+    console.log('🧪 Triggering test execution asynchronously (will run in GitHub Actions)...');
+    const testTriggerResult = await triggerTestExecution(REPOSITORY, branchName, specFileInfo, finalTicketId, GITHUB_TOKEN);
     
-    if (!testResult.success) {
-      console.error(`❌ Test falló: ${testResult.error}`);
-      return {
-        success: false,
-        branchName,
-        branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
-        prUrl: null,
-        prNumber: null,
-        filesCreated: allFiles.map(f => f.file),
-        testResult: testResult,
-        message: `❌ Test falló antes de crear PR: ${testResult.error}. Branch creado pero PR no se creó.`
-      };
+    if (!testTriggerResult.success) {
+      console.warn(`⚠️ No se pudo triggerear el test: ${testTriggerResult.error}`);
+      console.warn('⚠️ Continuando con la creación del PR de todas formas...');
+    } else {
+      console.log(`✅ Test workflow triggerado: ${testTriggerResult.runId ? `Run ID: ${testTriggerResult.runId}` : 'Workflow iniciado'}`);
     }
-    
-    console.log(`✅ Test pasó exitosamente. Creando PR...`);
     
     // 8. Crear Pull Request (usar título del ticket si está disponible)
     // Normalizar finalTicketId para evitar duplicación (remover QA- o qa- si ya existe)
@@ -8862,8 +8855,8 @@ npm run test:playwright || exit 1
   }
 }
 
-// 🎯 EJECUTAR TEST ANTES DE CREAR PR
-async function runTestBeforePR(
+// 🎯 TRIGGER TEST EXECUTION (asíncrono, sin esperar resultado)
+async function triggerTestExecution(
   repository: string,
   branchName: string,
   specFileInfo: any,
