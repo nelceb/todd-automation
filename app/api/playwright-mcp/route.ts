@@ -5303,26 +5303,55 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
             }
           } else {
             // Para otros contextos, usar capitalización estándar
-            const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-            methodName = `is${capitalizedName}Visible`;
+            // 🎯 MEJORADO: Mapeos específicos para cart items
+            const elementLower = elementName.toLowerCase();
+            if (elementLower.includes('cartitem') && !elementLower.includes('count')) {
+              // Para cart items individuales, usar getCartMealsCount
+              methodName = 'getCartMealsCount';
+            } else if (elementLower.includes('cartitemcount') || elementLower.includes('cartcount')) {
+              methodName = 'getCartMealsCount';
+            } else {
+              const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+              methodName = `is${capitalizedName}Visible`;
+            }
           }
           
           switch (assertion.type) {
             case 'visibility':
-              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              // Para cart items, verificar count > 0
+              if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
+                assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              }
               break;
             case 'text':
-              assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Text(), '${description}').toContain('${expected}');`;
-            break;
-          case 'state':
+              // Para cart count, verificar que el count sea igual al número esperado
+              if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartcount')) {
+                const expectedCount = expected && !isNaN(Number(expected)) ? Number(expected) : 2;
+                assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBe(${expectedCount});`;
+              } else {
+                const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+                assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
+              }
+              break;
+            case 'state':
               // Para state, usar el mismo método que visibility (es más común)
-              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
-            break;
-          case 'value':
+              if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
+                assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              }
+              break;
+            case 'value':
               assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
-            break;
-          default:
-              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              break;
+            default:
+              if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
+                assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              }
           }
         }
         
