@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const { message, preview = false } = await request.json()
 
     // Preparar prompts
-    const { Prompts } = await import('../utils/prompts');
+    const { Prompts } = await import('../../utils/prompts');
     const systemPrompt = Prompts.getWorkflowInterpretationPrompt();
     const userPrompt = preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
 

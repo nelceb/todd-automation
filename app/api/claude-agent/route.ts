@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const toolsData = await toolsResponse.json()
     
     // Preparar prompt del sistema con herramientas
-    const { Prompts } = await import('../utils/prompts');
+    const { Prompts } = await import('../../utils/prompts');
     const systemPrompt = Prompts.getClaudeAgentPrompt(tools ? toolsData.tools : []);
 
     // Llamar a Claude con herramientas - usa helper con fallback automático de modelos

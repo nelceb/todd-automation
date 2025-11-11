@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     try {
       const { callClaudeAPI } = await import('../utils/claude')
       
-      const { Prompts } = await import('../utils/prompts');
+      const { Prompts } = await import('../../utils/prompts');
       const systemPrompt = Prompts.getNaturalLanguageInterpretationPrompt();
 
       const messages = [
