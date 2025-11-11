@@ -1899,31 +1899,76 @@ async function performLoginIfNeeded(page: Page) {
     try {
       console.log('🔍 Buscando botón de Login inicial (páginas OAuth)...');
       
-      // Buscar botones de login con varios selectores
-      const loginButtonSelectors = [
-        'button:has-text("Login")',
-        'button:has-text("Log in")',
-        'button:has-text("Sign in")',
-        'button:has-text("Sign In")',
-        'a:has-text("Login")',
-        'a:has-text("Log in")',
-        '[role="button"]:has-text("Login")',
-        'button[type="button"]:has-text("Login")'
-      ];
-      
+      // Buscar botones de login con varios selectores (misma lógica que en observeBehaviorWithMCP)
+      // Usar getByRole primero (más robusto y accesible)
       let initialLoginButton = null;
-      for (const selector of loginButtonSelectors) {
-        try {
-          const button = page.locator(selector).first();
-          const isVisible = await button.isVisible({ timeout: 3000 }).catch(() => false);
-          if (isVisible) {
-            const buttonText = await button.textContent().catch(() => '');
-            console.log(`✅ Botón de Login inicial encontrado: "${buttonText}" (selector: ${selector})`);
-            initialLoginButton = button;
-            break;
+      
+      // Estrategia 1: getByRole (más accesible)
+      try {
+        const loginByRole = page.getByRole('button', { name: /login|sign in|log in/i }).first();
+        const isVisible = await loginByRole.isVisible({ timeout: 3000 }).catch(() => false);
+        if (isVisible) {
+          const buttonText = await loginByRole.textContent().catch(() => '');
+          console.log(`✅ Botón de Login inicial encontrado por getByRole: "${buttonText}"`);
+          initialLoginButton = loginByRole;
+        }
+      } catch (roleError) {
+        // Continuar con otras estrategias
+      }
+      
+      // Estrategia 2: Buscar por selectores específicos si getByRole no funcionó
+      if (!initialLoginButton) {
+        const loginButtonSelectors = [
+          'button:has-text("Login")',
+          'button:has-text("Log in")',
+          'button:has-text("Sign in")',
+          'button:has-text("Sign In")',
+          'a:has-text("Login")',
+          'a:has-text("Log in")',
+          '[role="button"]:has-text("Login")',
+          'button[type="button"]:has-text("Login")',
+          'button[type="submit"]:has-text("Login")',
+          'a[href*="login"]',
+          'a[href*="signin"]'
+        ];
+        
+        for (const selector of loginButtonSelectors) {
+          try {
+            const button = page.locator(selector).first();
+            const isVisible = await button.isVisible({ timeout: 3000 }).catch(() => false);
+            if (isVisible) {
+              const buttonText = await button.textContent().catch(() => '');
+              console.log(`✅ Botón de Login inicial encontrado: "${buttonText}" (selector: ${selector})`);
+              initialLoginButton = button;
+              break;
+            }
+          } catch (e) {
+            // Continuar con siguiente selector
           }
-        } catch (e) {
-          // Continuar con siguiente selector
+        }
+      }
+      
+      // Estrategia 3: Buscar cualquier botón o link visible que contenga "login" en el texto
+      if (!initialLoginButton) {
+        try {
+          const allButtons = await page.locator('button, a, [role="button"]').all();
+          for (const button of allButtons) {
+            try {
+              const isVisible = await button.isVisible({ timeout: 2000 }).catch(() => false);
+              if (isVisible) {
+                const buttonText = (await button.textContent().catch(() => '') || '').toLowerCase().trim();
+                if (buttonText.includes('login') || buttonText.includes('log in') || buttonText.includes('sign in')) {
+                  console.log(`✅ Botón de Login inicial encontrado por búsqueda exhaustiva: "${buttonText}"`);
+                  initialLoginButton = button;
+                  break;
+                }
+              }
+            } catch (e) {
+              // Continuar con siguiente botón
+            }
+          }
+        } catch (exhaustiveError) {
+          // Si falla, continuar sin botón inicial
         }
       }
       
