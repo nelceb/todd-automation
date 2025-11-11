@@ -8756,6 +8756,198 @@ npm run test:playwright || exit 1
   }
 }
 
+// 🎯 EJECUTAR TEST ANTES DE CREAR PR
+async function runTestBeforePR(
+  repository: string,
+  branchName: string,
+  specFileInfo: any,
+  ticketId: string | null,
+  githubToken: string
+): Promise<{ success: boolean; error?: string; runId?: string; htmlUrl?: string }> {
+  try {
+    console.log('🧪 Iniciando ejecución de test antes de crear PR...');
+    
+    // Determinar el spec file path
+    const contextToSpecMap: Record<string, string> = {
+      'pastOrders': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',
+      'ordersHub': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts',
+      'homepage': 'tests/frontend/desktop/subscription/coreUx/homePage.spec.ts',
+      'cart': 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts'
+    };
+    
+    const specFilePath = specFileInfo?.file || 'tests/frontend/desktop/subscription/coreUx/ordersHub.spec.ts';
+    const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : null;
+    
+    // Buscar el workflow "QA US - CORE UX SMOKE E2E"
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows`,
+      {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+    
+    if (!workflowsResponse.ok) {
+      throw new Error(`Failed to fetch workflows: ${workflowsResponse.statusText}`);
+    }
+    
+    const workflowsData = await workflowsResponse.json();
+    const workflow = workflowsData.workflows?.find((w: any) => 
+      w.name === 'QA US - CORE UX SMOKE E2E' || 
+      w.path.includes('qa_coreux_smoke_e2e') ||
+      w.path.includes('coreux_smoke')
+    );
+    
+    if (!workflow) {
+      throw new Error('Workflow "QA US - CORE UX SMOKE E2E" no encontrado');
+    }
+    
+    console.log(`✅ Workflow encontrado: ${workflow.name} (ID: ${workflow.id})`);
+    
+    // Preparar inputs para el workflow
+    // Necesitamos pasar el spec file y el ticket ID como inputs
+    const inputs: Record<string, string> = {
+      environment: 'qa',
+      groups: '@coreUx'
+    };
+    
+    // Si el workflow acepta test_file o spec_file como input, pasarlo
+    // Esto depende de cómo esté configurado el workflow
+    
+    // Triggerear el workflow en el branch recién creado
+    const triggerUrl = `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/dispatches`;
+    console.log(`🚀 Triggering workflow en branch: ${branchName}`);
+    
+    const triggerResponse = await fetch(triggerUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: branchName,
+        inputs: inputs
+      }),
+    });
+    
+    if (!triggerResponse.ok) {
+      const errorText = await triggerResponse.text();
+      throw new Error(`Failed to trigger workflow: ${triggerResponse.status} - ${errorText}`);
+    }
+    
+    console.log('✅ Workflow triggerado, esperando ejecución...');
+    
+    // Esperar un momento para que se cree el run
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Obtener el run más reciente
+    const runsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1&branch=${branchName}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+    
+    if (!runsResponse.ok) {
+      throw new Error(`Failed to fetch workflow runs: ${runsResponse.statusText}`);
+    }
+    
+    const runsData = await runsResponse.json();
+    if (!runsData.workflow_runs || runsData.workflow_runs.length === 0) {
+      throw new Error('No se encontró el run del workflow');
+    }
+    
+    const run = runsData.workflow_runs[0];
+    const runId = run.id.toString();
+    const htmlUrl = run.html_url;
+    
+    console.log(`✅ Workflow run creado: ${runId} - ${htmlUrl}`);
+    console.log(`⏳ Esperando que el test termine (esto puede tomar varios minutos)...`);
+    
+    // Esperar a que el workflow termine (polling)
+    const maxWaitTime = 15 * 60 * 1000; // 15 minutos máximo
+    const pollInterval = 30 * 1000; // 30 segundos
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWaitTime) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      const runStatusResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/runs/${runId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      if (!runStatusResponse.ok) {
+        throw new Error(`Failed to check run status: ${runStatusResponse.statusText}`);
+      }
+      
+      const runStatus = await runStatusResponse.json();
+      const status = runStatus.status;
+      const conclusion = runStatus.conclusion;
+      
+      console.log(`📊 Estado del test: ${status}${conclusion ? ` (${conclusion})` : ''}`);
+      
+      if (status === 'completed') {
+        if (conclusion === 'success') {
+          console.log('✅ Test pasó exitosamente!');
+          return {
+            success: true,
+            runId,
+            htmlUrl
+          };
+        } else {
+          console.error(`❌ Test falló con conclusión: ${conclusion}`);
+          return {
+            success: false,
+            error: `Test falló con conclusión: ${conclusion}`,
+            runId,
+            htmlUrl
+          };
+        }
+      }
+      
+      // Si está en progreso, continuar esperando
+      if (status === 'in_progress' || status === 'queued') {
+        continue;
+      }
+      
+      // Si hay otro estado, considerar como fallo
+      return {
+        success: false,
+        error: `Test terminó con estado inesperado: ${status} (${conclusion || 'sin conclusión'})`,
+        runId,
+        htmlUrl
+      };
+    }
+    
+    // Timeout
+    return {
+      success: false,
+      error: `Timeout esperando que el test termine (más de 15 minutos)`,
+      runId,
+      htmlUrl
+    };
+    
+  } catch (error) {
+    console.error('❌ Error ejecutando test antes de PR:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido ejecutando test'
+    };
+  }
+}
+
 // Función de respaldo para cuando no hay GITHUB_TOKEN
 function createFeatureBranchAndPRSimulated(interpretation: any, codeGeneration: any, ticketId?: string, ticketTitle?: string) {
   const finalTicketId = ticketId || extractTicketId(interpretation);
@@ -8779,19 +8971,16 @@ npm run test:playwright || exit 1
     commands: [
       `git checkout -b ${branchName}`,
       `git add tests/`,
-      `git add .github/workflows/`,
       `git add .husky/`,
       `git commit -m "feat: Add ${interpretation.context} test with Playwright MCP
 
 - Generated test with real browser observation
-- Added GitHub Actions workflow for automated testing
 - Added Husky pre-commit hooks for test validation"`,
       `git push origin ${branchName}`,
       `# Luego crear PR manualmente en GitHub`
     ],
     files: [
       ...codeGeneration.files.map((f: any) => f.file),
-      workflowFile.file,
       huskyConfig.file
     ],
     message: `Commands prepared for: ${branchName} (GitHub API not configured)`
