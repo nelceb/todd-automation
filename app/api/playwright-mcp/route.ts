@@ -765,7 +765,7 @@ async function interpretWithLLM(criteria: string) {
   console.log('📋 [LLM] Acceptance criteria recibido:', criteria);
   
   const architectureRules = getArchitectureRules();
-  const { Prompts } = await import('../utils/prompts');
+  const { Prompts } = await import('@/app/utils/prompts');
   const systemPrompt = Prompts.getAcceptanceCriteriaInterpretationPrompt(architectureRules);
 
   // Intentar con Claude si está disponible
@@ -7973,7 +7973,7 @@ async function performCodeReview(testCode: string, interpretation: any, codeGene
 
     const { callClaudeAPI } = await import('../utils/claude');
     
-    const { Prompts } = await import('../utils/prompts');
+    const { Prompts } = await import('@/app/utils/prompts');
     let systemPrompt = Prompts.getCodeReviewPrompt();
     
     // Agregar información adicional del codebase si está disponible
