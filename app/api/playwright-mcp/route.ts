@@ -8820,7 +8820,7 @@ npm run test:playwright || exit 1
       prUrl,
       prNumber,
       filesCreated: allFiles.map(f => f.file),
-      testResult: testResult,
+      testTriggerResult: testTriggerResult,
       message: prUrl 
         ? `✅ Test pasó y PR creado exitosamente: ${prUrl}` 
         : `✅ Test pasó pero PR falló: ${branchName}`
