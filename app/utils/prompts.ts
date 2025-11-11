@@ -611,3 +611,6 @@ Always provide clear, actionable responses and use the appropriate tools when ne
   }
 }
 
+// Export default for better compatibility
+export default Prompts;
+
