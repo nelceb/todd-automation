@@ -8638,7 +8638,27 @@ npm run test:playwright || exit 1
     
     console.log(`✅ Created single commit with ${treeEntries.length} files: ${currentSha.substring(0, 7)}`);
     
-    // 7. Crear Pull Request (usar título del ticket si está disponible)
+    // 7. 🎯 EJECUTAR TEST ANTES DE CREAR PR
+    console.log('🧪 Ejecutando test antes de crear PR...');
+    const testResult = await runTestBeforePR(REPOSITORY, branchName, specFileInfo, finalTicketId, GITHUB_TOKEN);
+    
+    if (!testResult.success) {
+      console.error(`❌ Test falló: ${testResult.error}`);
+      return {
+        success: false,
+        branchName,
+        branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
+        prUrl: null,
+        prNumber: null,
+        filesCreated: allFiles.map(f => f.file),
+        testResult: testResult,
+        message: `❌ Test falló antes de crear PR: ${testResult.error}. Branch creado pero PR no se creó.`
+      };
+    }
+    
+    console.log(`✅ Test pasó exitosamente. Creando PR...`);
+    
+    // 8. Crear Pull Request (usar título del ticket si está disponible)
     // Normalizar finalTicketId para evitar duplicación (remover QA- o qa- si ya existe)
     const normalizedPRTicketId = finalTicketId 
       ? (finalTicketId.startsWith('QA-') || finalTicketId.startsWith('qa-') 
