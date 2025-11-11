@@ -5690,42 +5690,19 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       let methodCall = '';
       
       if (existingMethod) {
-        // 🎯 REUTILIZAR MÉTODO EXISTENTE
-        methodCall = `await ${pageVarName}.${existingMethod}();`;
-        console.log(`✅ REUTILIZANDO método existente: ${existingMethod} (en lugar de generar nuevo método para ${elementName})`);
-      } else if (locator) {
-        // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
-        // Validar y corregir el locator si es necesario
-        const locatorCode = locator.trim();
-        let correctedLocator = locatorCode;
-        
-        // Corregir si empieza con 'p.' en lugar de 'page.'
-        if (locatorCode.startsWith('p.')) {
-          correctedLocator = locatorCode.replace(/^p\./, 'page.');
-          console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
-        } else if (!locatorCode.startsWith('page.')) {
-          // Si no empieza con 'page.', agregarlo
-          correctedLocator = `page.${locatorCode}`;
-          console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
-        }
-        
+        // 🎯 REUTILIZAR MÉTODO EXISTENTE (prioridad máxima)
         switch (action.type) {
           case 'click':
           case 'tap':
-            methodCall = `await ${correctedLocator}.click();`;
+            methodCall = `await ${pageVarName}.${existingMethod}();`;
             break;
           case 'fill':
-            methodCall = `await ${correctedLocator}.fill('test-value');`;
-            break;
-          case 'navigate':
-            methodCall = `await ${correctedLocator}.click();`;
-            break;
-          case 'scroll':
-            methodCall = `await ${correctedLocator}.scrollIntoViewIfNeeded();`;
+            methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
             break;
           default:
-            methodCall = `await ${correctedLocator}.click();`;
+            methodCall = `await ${pageVarName}.${existingMethod}();`;
         }
+        console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}`);
       } else {
         // Fallback: Generar método específico basado en el tipo de acción
         const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
