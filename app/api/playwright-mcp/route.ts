@@ -294,7 +294,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         interpretation.codebasePatterns = codebaseAnalysisResult.value as any;
       } else {
       interpretation.codebasePatterns = getStaticPatterns();
-      }
+    }
     } else {
       throw new Error(`Interpretation failed: ${interpretationResult.reason}`);
     }
@@ -765,7 +765,7 @@ async function interpretWithLLM(criteria: string) {
   console.log('📋 [LLM] Acceptance criteria recibido:', criteria);
   
   const architectureRules = getArchitectureRules();
-  const { Prompts } = await import('../../utils/prompts');
+  const { Prompts } = await import('../utils/prompts');
   const systemPrompt = Prompts.getAcceptanceCriteriaInterpretationPrompt(architectureRules);
 
   // Intentar con Claude si está disponible
@@ -2999,7 +2999,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             console.log(`🔍 Searching for tab: "${searchTerms}" (from action.element: "${action.element}")`);
             
             foundElement = await mcpWrapper.findElementBySnapshot(searchTerms);
-            
+              
             // 🎯 FALLBACK: If MCP doesn't find it, try using accessibility tree directly
             if (!foundElement) {
               foundElement = await findElementWithAccessibility(page, searchTerms);
@@ -3776,7 +3776,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
     // Esto reduce el tiempo de O(n) a O(1) en términos de tiempo total
     const processedElements = await Promise.all(
       allElements.map(async (element) => {
-        try {
+      try {
           // 🚀 Paralelizar todas las llamadas a getAttribute y textContent
           const [testIdAttr, text, tagName, elementClass, elementRole, elementId, nameAttr, ariaLabelAttr] = await Promise.all([
             element.getAttribute('data-testid').catch(() => null),
@@ -3804,9 +3804,9 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             // If no useful text, try other attributes
             // Only use real attributes, DO NOT invent
               testId = elementId || nameAttr || elementRole || ariaLabelAttr || null;
-            }
           }
-          
+        }
+        
           // 🚀 Paralelizar verificación de visibilidad
           const [isVisibleDirect, boundingBox] = await Promise.all([
             element.isVisible().catch(() => false),
@@ -3917,7 +3917,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
       } catch (elementError) {
         console.warn(`⚠️ Error procesando elemento: ${elementError}`);
           return null;
-        }
+      }
       })
     );
     
@@ -7973,7 +7973,7 @@ async function performCodeReview(testCode: string, interpretation: any, codeGene
 
     const { callClaudeAPI } = await import('../utils/claude');
     
-    const { Prompts } = await import('../../utils/prompts');
+    const { Prompts } = await import('../utils/prompts');
     let systemPrompt = Prompts.getCodeReviewPrompt();
     
     // Agregar información adicional del codebase si está disponible

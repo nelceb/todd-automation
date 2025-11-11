@@ -372,7 +372,7 @@ async function generateMethodWithAI(missingMethod: any, context: any) {
   try {
     const { callClaudeAPI } = await import('../utils/claude')
     
-    const { Prompts } = await import('../../utils/prompts');
+    const { Prompts } = await import('../utils/prompts');
     const systemPrompt = Prompts.getPageObjectMethodGenerationPrompt();
     
     const userMessage = `Generate a Playwright page object method for:
@@ -430,7 +430,7 @@ async function generateSmartTestFromSynapse(synapse: any, generatedMethods: any[
   try {
     const { callClaudeAPI } = await import('../utils/claude')
     
-    const { Prompts } = await import('../../utils/prompts');
+    const { Prompts } = await import('../utils/prompts');
     const systemPrompt = Prompts.getTestGenerationFromSynapsePrompt();
 
     const userMessage = `Generate a Playwright test based on this synapse:
