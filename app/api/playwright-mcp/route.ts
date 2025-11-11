@@ -7973,36 +7973,13 @@ async function performCodeReview(testCode: string, interpretation: any, codeGene
 
     const { callClaudeAPI } = await import('../utils/claude');
     
-    const systemPrompt = `You are an expert Playwright test automation code reviewer. Analyze the generated test code and provide structured feedback.
-
-Review the test for:
-1. **Code Quality**: Proper structure, readability, best practices
-2. **Method Reuse**: Are existing page object methods being reused? (Check if methods like clickOnAddMealButton exist but aren't used)
-3. **Assertions**: Are assertions comprehensive and meaningful?
-4. **Error Handling**: Are there proper waits and error handling?
-5. **Playwright Best Practices**: Following Playwright patterns and conventions
-6. **Test Structure**: GIVEN/WHEN/THEN structure is clear
-7. **Potential Issues**: Hardcoded values, missing waits, incorrect selectors
-
-Available codebase patterns:
-${JSON.stringify(interpretation.codebasePatterns?.methods || {}, null, 2)}
-
-Respond with a JSON object containing:
-{
-  "issues": [
-    {
-      "severity": "error|warning|info",
-      "message": "Description of the issue",
-      "line": "optional line reference",
-      "suggestion": "How to fix it"
+    const { Prompts } = await import('../utils/prompts');
+    let systemPrompt = Prompts.getCodeReviewPrompt();
+    
+    // Agregar información adicional del codebase si está disponible
+    if (interpretation.codebasePatterns?.methods) {
+      systemPrompt += `\n\nAvailable codebase patterns:\n${JSON.stringify(interpretation.codebasePatterns.methods, null, 2)}`;
     }
-  ],
-  "suggestions": [
-    "Positive suggestions for improvement"
-  ],
-  "score": 0-100,
-  "summary": "Overall assessment"
-}`;
 
     const userMessage = `Review this Playwright test code:
 

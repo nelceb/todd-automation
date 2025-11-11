@@ -48,14 +48,6 @@ export async function POST(request: NextRequest) {
     // Preparar prompts
     const { Prompts } = await import('../utils/prompts');
     const systemPrompt = Prompts.getWorkflowInterpretationPrompt();
-
-1. MAESTRO TESTS (Cook-Unity/maestro-test)
-   - Technology: iOS Maestro Tests
-   - Workflow: iOS Maestro Tests (ios-maestro-tests.yml)
-   - Inputs: test_suite, user_email, user_password
-   - Test suites: all, login, signup, smoke, regression, cart, completeOrder, menu, search, home
-
-2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
    - Workflows: 
      * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux" (when smoke is NOT mentioned, or when explicitly mentioned)

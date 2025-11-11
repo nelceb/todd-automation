@@ -374,16 +374,7 @@ async function generateMethodWithAI(missingMethod: any, context: any) {
     
     const { Prompts } = await import('../utils/prompts');
     const systemPrompt = Prompts.getPageObjectMethodGenerationPrompt();
-
-The method should:
-1. Use proper TypeScript/Playwright syntax
-2. Follow existing patterns from the codebase
-3. Use appropriate selectors (prefer data-testid when available)
-4. Return proper types (Promise<boolean>, Promise<void>, etc.)
-5. Include proper error handling
-
-Generate ONLY the method code, no comments or explanations.`
-
+    
     const userMessage = `Generate a Playwright page object method for:
 - Method name: ${missingMethod.name}
 - Context: ${missingMethod.context}
@@ -439,18 +430,8 @@ async function generateSmartTestFromSynapse(synapse: any, generatedMethods: any[
   try {
     const { callClaudeAPI } = await import('../utils/claude')
     
-    const systemPrompt = `You are a Playwright test automation expert for CookUnity ecommerce. Generate a complete Playwright test based on the synapse information provided.
-
-Requirements:
-1. Use proper Playwright/TypeScript syntax
-2. Follow the GIVEN/WHEN/THEN structure
-3. Use usersHelper methods for user setup
-4. Use page object methods (HomePage, OrdersHubPage) - NO hardcoded selectors
-5. Include proper tags (@qa, @e2e, @subscription, etc.)
-6. Use expect.soft() for assertions
-7. Follow existing test patterns from the codebase
-
-Generate ONLY the test code, no explanations or markdown.`
+    const { Prompts } = await import('../utils/prompts');
+    const systemPrompt = Prompts.getTestGenerationFromSynapsePrompt();
 
     const userMessage = `Generate a Playwright test based on this synapse:
 - Keywords: ${JSON.stringify(synapse.keywords, null, 2)}
