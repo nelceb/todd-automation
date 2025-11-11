@@ -5079,7 +5079,10 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           'cartitemcount': ['getCartMealsCount', 'getCartItemCount'],
           'cartcount': ['getCartMealsCount', 'getCartItemCount'],
           'items': ['getCartMealsCount', 'getCartItemCount'],
-          'itemcount': ['getCartMealsCount', 'getCartItemCount']
+          'itemcount': ['getCartMealsCount', 'getCartItemCount'],
+          'cartitemslist': ['getCartMealsCount', 'getCartItemCount'], // cartItemsList → getCartMealsCount
+          'firstmealincart': ['getCartMealsCount', 'getCartItemCount'], // firstMealInCart → getCartMealsCount (verificar count > 0)
+          'secondmealincart': ['getCartMealsCount', 'getCartItemCount'] // secondMealInCart → getCartMealsCount (verificar count > 0)
         };
         
         // Buscar primero por mapeos específicos de cart
