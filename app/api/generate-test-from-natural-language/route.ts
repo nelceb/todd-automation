@@ -40,87 +40,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 1: Use Claude API to interpret natural language and extract acceptance criteria
-    // The helper function will automatically try multiple models until one works
-    let claudeText: string
-    try {
-      const { callClaudeAPI } = await import('../utils/claude')
-      
-      const { Prompts } = await import('@/app/utils/prompts');
-      const systemPrompt = Prompts.getNaturalLanguageInterpretationPrompt();
-
-      const messages = [
-        ...(chatHistory.map((msg: { role: string, content: string }) => ({
-          role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content
-        }))),
-        {
-          role: 'user',
-          content: `Please convert this test request into structured acceptance criteria:\n\n"${userRequest}"`
-        }
-      ]
-
-      const { response: claudeData } = await callClaudeAPI(apiKey, systemPrompt, '', {
-        messages
-      })
-      
-      claudeText = claudeData.content?.[0]?.text || ''
-    } catch (claudeError) {
-      console.error('❌ Error calling Claude API:', claudeError)
-      throw new Error(
-        `Failed to call Claude API: ${claudeError instanceof Error ? claudeError.message : String(claudeError)}. ` +
-        `Please check your CLAUDE_API_KEY in Vercel environment variables.`
-      )
-    }
-
-    // Extract JSON from Claude response (may be wrapped in markdown code blocks)
-    let claudeInterpretation
-    try {
-      // Try to parse as JSON first
-      claudeInterpretation = JSON.parse(claudeText)
-    } catch (e) {
-      // If that fails, try to extract JSON from markdown code blocks
-      const jsonMatch = claudeText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/)?.[1] || 
-                       claudeText.match(/\{[\s\S]*\}/)?.[0]
-      if (jsonMatch) {
-        claudeInterpretation = JSON.parse(jsonMatch)
-      } else {
-        throw new Error('Could not extract JSON from Claude response')
-      }
-    }
-
-    console.log('✅ Claude Interpretation:', claudeInterpretation)
-
-    // Step 2: Call Playwright MCP endpoint (same as Jira flow)
-    // Use the same endpoint that Jira uses to ensure consistent behavior
+    // Step 1: Call Playwright MCP directly with natural language input
+    // Same flow as Jira - interpret the input directly and generate the test
+    // No need to generate acceptance criteria first - executePlaywrightMCP will interpret it
     let playwrightMCPData: any
     try {
-      // 🎯 Asegurar que claudeInterpretation tenga targetURL si no está definido
-      if (!claudeInterpretation.targetURL && claudeInterpretation.context) {
-        // Fallback: determinar URL basado en contexto
-        const contextToURL: Record<string, string> = {
-          'cart': 'https://subscription.qa.cookunity.com/',
-          'homepage': 'https://subscription.qa.cookunity.com/',
-          'home': 'https://subscription.qa.cookunity.com/',
-          'ordersHub': 'https://subscription.qa.cookunity.com/',
-          'pastOrders': 'https://subscription.qa.cookunity.com/',
-          'checkout': 'https://subscription.qa.cookunity.com/',
-          'menu': 'https://subscription.qa.cookunity.com/menu',
-          'signup': 'https://qa.cookunity.com/',
-          'register': 'https://qa.cookunity.com/'
-        }
-        claudeInterpretation.targetURL = contextToURL[claudeInterpretation.context] || 'https://subscription.qa.cookunity.com/'
-        console.log(`✅ targetURL determinado para contexto '${claudeInterpretation.context}': ${claudeInterpretation.targetURL}`)
-      }
-      
       // Importar y llamar directamente la función (mismo flujo que Jira)
-      // Esto evita problemas de timeout y mantiene consistencia
+      // executePlaywrightMCP interpretará el input directamente usando interpretAcceptanceCriteria
       const { executePlaywrightMCP } = await import('../playwright-mcp/route')
       
       playwrightMCPData = await executePlaywrightMCP(
-        claudeInterpretation.acceptanceCriteria || userRequest,
+        userRequest, // Pass natural language directly - it will be interpreted
         `NL-${Date.now()}`, // Natural Language ticket ID
-        claudeInterpretation.acceptanceCriteria || userRequest // ticketTitle
+        userRequest // ticketTitle
       )
     } catch (mcpError) {
       console.error('❌ Error calling Playwright MCP:', mcpError)
@@ -129,11 +61,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Combine results and return
+    // Step 2: Return results (same format as Jira flow)
     return NextResponse.json({
       success: playwrightMCPData.success,
-      claudeResponse: `I've interpreted your request and generated a test for: "${claudeInterpretation.acceptanceCriteria || userRequest}". The test will verify ${claudeInterpretation.assertions?.join(', ') || 'the expected behavior'}.`,
-      claudeInterpretation,
       ...playwrightMCPData, // Include all Playwright MCP data (interpretation, navigation, behavior, smartTest, etc.)
       mode: 'natural-language-claude-mcp'
     })
