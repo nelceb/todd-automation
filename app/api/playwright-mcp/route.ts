@@ -429,9 +429,25 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       const codeReview = performBasicCodeReview(testResult.code, interpretation);
       
       // 🎯 CRITICAL: Only create PR if all critical actions were observed
+      // ⚡ OPTIMIZACIÓN: Crear PR de forma asíncrona para no bloquear la respuesta
       let gitManagement = null;
       if (!hasUnobservedCriticalActions) {
-        gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+        // Ejecutar creación de PR en background (no bloquear respuesta)
+        createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview)
+          .then((result) => {
+            console.log('✅ PR creado en background:', result);
+          })
+          .catch((error) => {
+            console.error('❌ Error creando PR en background:', error);
+          });
+        
+        // Devolver respuesta inmediata indicando que el PR se está creando
+        gitManagement = {
+          success: true,
+          pending: true,
+          message: 'PR creation started in background',
+          branchName: generateBranchName(ticketId || extractTicketId(interpretation), interpretation, ticketTitle)
+        };
       } else {
         console.warn(`❌ NOT creating PR: ${unobservedActions.length} critical actions were not observed`);
         gitManagement = {
@@ -1734,7 +1750,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
         throw new Error('Page was closed before navigation');
       }
       
-      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 12000 }); // Increased to 12s
+      await page.goto(targetURL, { waitUntil: 'domcontentloaded', timeout: 10000 }); // Reducido a 10s
       // Wait flexibly (don't block if networkidle fails)
       try {
         if (!page.isClosed()) {
@@ -1755,7 +1771,7 @@ async function navigateToTargetURL(page: Page, interpretation: any) {
       }
       
       console.log('⚠️ Error con domcontentloaded, intentando con load...');
-      await page.goto(targetURL, { waitUntil: 'load', timeout: 12000 }); // Increased to 12s
+      await page.goto(targetURL, { waitUntil: 'load', timeout: 10000 }); // Reducido a 10s
     }
     
     // Esperar activamente a que redirija al login si es necesario (ej: subscription.qa.cookunity.com redirige automáticamente)
@@ -1884,11 +1900,11 @@ async function performLoginIfNeeded(page: Page) {
     // Esperar a que la página cargue completamente antes de buscar campos
     console.log('⏳ Esperando a que la página de login cargue completamente...');
     try {
-      await page.waitForLoadState('domcontentloaded', { timeout: 15000 }); // Increased to 15s
-      await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => { // Increased to 8s
+      await page.waitForLoadState('domcontentloaded', { timeout: 8000 }); // Reducido a 8s
+      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { // Reducido a 5s
         console.log('⚠️ networkidle timeout, continuando...');
       });
-      await page.waitForTimeout(2000); // Dar tiempo adicional para elementos dinámicos
+      await page.waitForTimeout(1000); // Reducido a 1s
     } catch (loadError) {
       console.log('⚠️ waitForLoadState timeout, continuando con búsqueda...');
     }
@@ -2267,7 +2283,7 @@ async function performLoginIfNeeded(page: Page) {
         const isNotLogin = !urlStr.includes('auth.qa.cookunity.com') && !urlStr.includes('/login');
         console.log(`🔍 Checking URL: ${urlStr} - isNotLogin: ${isNotLogin}`);
         return isNotLogin;
-      }, { timeout: 15000 }); // 15 segundos para el redirect
+      }, { timeout: 10000 }); // Reducido a 10s
       
       const urlAfterRedirect = page.url();
       console.log(`✅ Redirect completed: ${urlAfterRedirect}`);
@@ -2978,12 +2994,12 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // Try to wait for Orders Hub specific content (tabs, orders, etc.)
         // CRITICAL: Wait for tabs to be visible (they load dynamically)
         try {
-          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 6000, state: 'visible' }); // Reduced to 6s
+          await page.waitForSelector('[role="tab"], button[role="tab"], [data-testid*="tab"]', { timeout: 4000, state: 'visible' }); // Reducido a 4s
           await page.locator('[role="tab"], button[role="tab"], [data-testid*="tab"]').count();
         } catch (e) {
           console.warn('⚠️ Tabs not confirmed after waiting, but continuing...');
           // Wait shorter as fallback
-          await page.waitForTimeout(2000); // Reduced to 2s
+          await page.waitForTimeout(1000); // Reducido a 1s
         }
         
         // Check for content to ensure page is loaded (CRITICAL: must have real content, not just AudioEye)
@@ -2992,10 +3008,10 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         // CRITICAL: Wait until we have REAL content (not just AudioEye accessibility elements)
         // AudioEye typically adds 1-2 elements, so we need at least 10+ elements for real content
         let retryCount = 0;
-        const maxRetries = 5;
+        const maxRetries = 3; // Reducido de 5 a 3
         while (hasContent < 10 && retryCount < maxRetries) {
           console.warn(`⚠️ Very few interactive elements found (${hasContent}), waiting for real content to load (attempt ${retryCount + 1}/${maxRetries})...`);
-          await page.waitForTimeout(2000); // Wait 2s
+          await page.waitForTimeout(1000); // Reducido a 1s
           
           // Check again
           hasContent = await page.locator('button, a, [data-testid]').count();
@@ -4285,8 +4301,8 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               await foundElement.click({ timeout: 5000 });
               
               // 🎯 CRITICAL: Wait for page to stabilize after click
-              await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
-              await page.waitForTimeout(1500); // Give time for dynamic content
+              await page.waitForLoadState('domcontentloaded', { timeout: 3000 }).catch(() => {}); // Reducido a 3s
+              await page.waitForTimeout(1000); // Reducido a 1s
               
               // 🎯 CRITICAL: Verify current state after click
               const stateAfterClick = {
@@ -4994,53 +5010,53 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         const description = action.description || `Click on ${elementName}`;
         
         // 🎯 PRIORIDAD 1: Buscar método existente ANTES de usar locators o generar nuevos
-        const codebasePatterns = interpretation.codebasePatterns;
+          const codebasePatterns = interpretation.codebasePatterns;
         const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
-        const existingMethod = findExistingMethod(
-          elementName,
-          action.type,
-          interpretation.context,
-          action.intent,
-          interaction?.testId
-        );
+          const existingMethod = findExistingMethod(
+            elementName,
+            action.type,
+            interpretation.context,
+            action.intent,
+            interaction?.testId
+          );
         
         let methodCall = '';
-        
-        if (existingMethod) {
+          
+          if (existingMethod) {
           // 🎯 REUTILIZAR MÉTODO EXISTENTE (prioridad máxima)
-          switch (action.type) {
-            case 'click':
-            case 'tap':
-              methodCall = `await ${pageVarName}.${existingMethod}();`;
-              break;
-            case 'fill':
-              methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
-              break;
-            default:
-              methodCall = `await ${pageVarName}.${existingMethod}();`;
-          }
+            switch (action.type) {
+              case 'click':
+              case 'tap':
+                methodCall = `await ${pageVarName}.${existingMethod}();`;
+                break;
+              case 'fill':
+                methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
+                break;
+              default:
+                methodCall = `await ${pageVarName}.${existingMethod}();`;
+            }
           console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}`);
-        } else {
+          } else {
           // 🎯 PRIORIDAD 2: Generar método en page object (NO usar locator directamente)
           // El método se generará en addMissingMethodsToPageObject y se usará aquí
           const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-              methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
+                methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
               break;
             case 'navigate':
-              methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
               break;
             case 'scroll':
-              methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
+                methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
               break;
             default:
               methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
-          }
+            }
           console.log(`📝 Generando método en page object: ${pageVarName}.clickOn${capitalizedName}() para ${elementName}`);
         }
         
@@ -5241,8 +5257,8 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         if (existingMethod) {
           // Usar método existente
           const elementLower = elementName.toLowerCase();
-          switch (assertion.type) {
-            case 'visibility':
+        switch (assertion.type) {
+          case 'visibility':
             case 'state':
               // Para cart items, verificar que el count sea mayor a 0
               if (elementLower.includes('cartitem') && existingMethod.toLowerCase().includes('count')) {
@@ -5252,16 +5268,16 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
                 const expectedCount = expected && !isNaN(Number(expected)) ? Number(expected) : 2;
                 assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe(${expectedCount});`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
               }
-              break;
-            case 'text':
+            break;
+          case 'text':
               // Para cart count, verificar que contenga el número esperado
               if (elementLower.includes('cartitemcount') || elementLower.includes('cartcount')) {
                 const expectedCount = expected && !isNaN(Number(expected)) ? Number(expected) : 2;
                 assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe(${expectedCount});`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
               }
               break;
             case 'value':
@@ -5271,7 +5287,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
               if (elementLower.includes('cartitem') && existingMethod.toLowerCase().includes('count')) {
                 assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeGreaterThan(0);`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
               }
           }
         } else {
@@ -5314,8 +5330,8 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
             } else if (elementLower.includes('cartitemcount') || elementLower.includes('cartcount')) {
               methodName = 'getCartMealsCount';
             } else {
-              const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
-              methodName = `is${capitalizedName}Visible`;
+            const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+            methodName = `is${capitalizedName}Visible`;
             }
           }
           
@@ -5325,7 +5341,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
               if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
                 assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
               }
               break;
             case 'text':
@@ -5337,23 +5353,23 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
                 const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
                 assertionCode = `expect(await ${assertionsPageVar}.get${capitalizedName}Text(), '${description}').toContain('${expected}');`;
               }
-              break;
-            case 'state':
+            break;
+          case 'state':
               // Para state, usar el mismo método que visibility (es más común)
               if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
                 assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
               }
-              break;
-            case 'value':
+            break;
+          case 'value':
               assertionCode = `expect(await ${assertionsPageVar}.get${elementName.charAt(0).toUpperCase() + elementName.slice(1)}Value(), '${description}').toBe('${expected}');`;
-              break;
-            default:
+            break;
+          default:
               if (methodName === 'getCartMealsCount' || elementName.toLowerCase().includes('cartitem')) {
                 assertionCode = `expect(await ${assertionsPageVar}.getCartMealsCount(), '${description}').toBeGreaterThan(0);`;
               } else {
-                assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
+              assertionCode = `expect(await ${assertionsPageVar}.${methodName}(), '${description}').toBeTruthy();`;
               }
           }
         }
@@ -6995,9 +7011,9 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
                 }
               } else {
                 // Use observed locator (already formatted) - it's robust
-                selector = observed.locator.replace(/^page\./, 'this.page.');
-                selectorName = 'element';
-                console.log(`✅ Using REAL locator: ${observed.locator}`);
+              selector = observed.locator.replace(/^page\./, 'this.page.');
+              selectorName = 'element';
+              console.log(`✅ Using REAL locator: ${observed.locator}`);
               }
             } else {
               console.warn(`⚠️ SKIPPING method ${methodUsed}: Observation found but no usable data`);
@@ -8273,13 +8289,14 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       // Continuar de todos modos, puede ser un error de red
     }
     
-    // 2. Verificar acceso al repositorio específico
+    // 2. Verificar acceso al repositorio específico (con timeout)
     console.log(`🔍 Verificando acceso al repositorio ${REPOSITORY}...`);
     const repoAccessResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}`, {
       headers: {
         'Authorization': `Bearer ${GITHUB_TOKEN}`,
         'Accept': 'application/vnd.github.v3+json'
-      }
+      },
+      signal: AbortSignal.timeout(5000) // Timeout de 5s para verificación
     });
     
     if (!repoAccessResponse.ok) {
