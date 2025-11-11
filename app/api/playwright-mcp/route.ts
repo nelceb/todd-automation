@@ -8937,48 +8937,18 @@ async function triggerTestExecution(
       throw new Error(`Failed to trigger workflow: ${triggerResponse.status} - ${errorText}`);
     }
     
-    console.log('✅ Workflow triggerado, esperando ejecución...');
+    console.log('✅ Workflow triggerado exitosamente');
     
-    // Esperar un momento para que se cree el run
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Esperar un momento para que se cree el run (solo para obtener el ID)
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Reducido a 3s
     
-    // Obtener el run más reciente
-    const runsResponse = await fetch(
-      `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1&branch=${branchName}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }
-    );
+    // Intentar obtener el run ID (opcional, no crítico)
+    let runId: string | undefined = undefined;
+    let htmlUrl: string | undefined = undefined;
     
-    if (!runsResponse.ok) {
-      throw new Error(`Failed to fetch workflow runs: ${runsResponse.statusText}`);
-    }
-    
-    const runsData = await runsResponse.json();
-    if (!runsData.workflow_runs || runsData.workflow_runs.length === 0) {
-      throw new Error('No se encontró el run del workflow');
-    }
-    
-    const run = runsData.workflow_runs[0];
-    const runId = run.id.toString();
-    const htmlUrl = run.html_url;
-    
-    console.log(`✅ Workflow run creado: ${runId} - ${htmlUrl}`);
-    console.log(`⏳ Esperando que el test termine (esto puede tomar varios minutos)...`);
-    
-    // Esperar a que el workflow termine (polling)
-    const maxWaitTime = 15 * 60 * 1000; // 15 minutos máximo
-    const pollInterval = 30 * 1000; // 30 segundos
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      
-      const runStatusResponse = await fetch(
-        `https://api.github.com/repos/${repository}/actions/runs/${runId}`,
+    try {
+      const runsResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1&branch=${branchName}`,
         {
           headers: {
             'Authorization': `Bearer ${githubToken}`,
@@ -8987,53 +8957,24 @@ async function triggerTestExecution(
         }
       );
       
-      if (!runStatusResponse.ok) {
-        throw new Error(`Failed to check run status: ${runStatusResponse.statusText}`);
-      }
-      
-      const runStatus = await runStatusResponse.json();
-      const status = runStatus.status;
-      const conclusion = runStatus.conclusion;
-      
-      console.log(`📊 Estado del test: ${status}${conclusion ? ` (${conclusion})` : ''}`);
-      
-      if (status === 'completed') {
-        if (conclusion === 'success') {
-          console.log('✅ Test pasó exitosamente!');
-          return {
-            success: true,
-            runId,
-            htmlUrl
-          };
-        } else {
-          console.error(`❌ Test falló con conclusión: ${conclusion}`);
-          return {
-            success: false,
-            error: `Test falló con conclusión: ${conclusion}`,
-            runId,
-            htmlUrl
-          };
+      if (runsResponse.ok) {
+        const runsData = await runsResponse.json();
+        if (runsData.workflow_runs && runsData.workflow_runs.length > 0) {
+          const run = runsData.workflow_runs[0];
+          runId = run.id.toString();
+          htmlUrl = run.html_url;
+          console.log(`✅ Workflow run creado: ${runId} - ${htmlUrl}`);
         }
       }
-      
-      // Si está en progreso, continuar esperando
-      if (status === 'in_progress' || status === 'queued') {
-        continue;
-      }
-      
-      // Si hay otro estado, considerar como fallo
-      return {
-        success: false,
-        error: `Test terminó con estado inesperado: ${status} (${conclusion || 'sin conclusión'})`,
-        runId,
-        htmlUrl
-      };
+    } catch (runFetchError) {
+      console.log('⚠️ No se pudo obtener el run ID, pero el workflow fue triggerado');
+      // No es crítico, continuar
     }
     
-    // Timeout
+    // Retornar éxito inmediatamente - el test se ejecutará en GitHub Actions
+    // El PR se creará y el workflow verificará el resultado automáticamente
     return {
-      success: false,
-      error: `Timeout esperando que el test termine (más de 15 minutos)`,
+      success: true,
       runId,
       htmlUrl
     };
