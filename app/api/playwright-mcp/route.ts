@@ -5592,14 +5592,21 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         'addtocartbutton': ['addMeal', 'addMealButton', 'add'], // addToCartButton → clickOnAddMealButton
         'addtocartbutton1': ['addMeal', 'addMealButton', 'add'], // addToCartButton1 → clickOnAddMealButton (primer elemento)
         'addtocartbutton2': ['addMeal', 'addMealButton', 'add'], // addToCartButton2 → clickOnAddMealButton (segundo elemento)
+        'firstmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // firstMealAddToCartButton → clickOnAddMealButton
+        'secondmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // secondMealAddToCartButton → clickOnAddMealButton
+        'firstmeal': ['addMeal', 'addMealButton', 'add'], // firstMeal → clickOnAddMealButton
+        'secondmeal': ['addMeal', 'addMealButton', 'add'], // secondMeal → clickOnAddMealButton
         'addtocart': ['addMeal', 'addMealButton', 'add'],
         'cartpage': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
         'cart': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
-        'carticon': ['cartButton', 'cart', 'viewCart', 'navigateToCart', 'navigateToCartIcon'], // cartIcon → clickOnCartButton o navigateToCartIcon
+        'carticon': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'], // cartIcon → clickOnViewCartButton (prioridad)
         'cartitem': ['cartItem', 'cartItem1', 'cartItem2'], // Para assertions
         'cartitem1': ['cartItem1', 'cartItem'], // Para assertions
         'cartitem2': ['cartItem2', 'cartItem'], // Para assertions
-        'cartitemcount': ['cartItemCount', 'cartCount'] // Para assertions
+        'cartitemcount': ['cartItemCount', 'cartCount', 'cartMealsCount'], // Para assertions - usar getCartMealsCount
+        'cartitemslist': ['cartMealsCount', 'cartItemCount'], // Para assertions - usar getCartMealsCount
+        'firstmealincart': ['cartMealsCount', 'cartItemCount'], // Para assertions - verificar count > 0
+        'secondmealincart': ['cartMealsCount', 'cartItemCount'] // Para assertions - verificar count > 0
       };
       
       for (const [elemKey, methodPatterns] of Object.entries(elementMappings)) {
@@ -6959,10 +6966,34 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
               selectorName = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
               console.log(`✅ Using REAL text: ${text.substring(0, 30)}...`);
             } else if (observed.locator) {
-              // Use observed locator (already formatted)
-              selector = observed.locator.replace(/^page\./, 'this.page.');
-              selectorName = 'element';
-              console.log(`✅ Using REAL locator: ${observed.locator}`);
+              // 🎯 CRITICAL: Filter out hardcoded internal:role locators
+              // These are not robust and should not be used in page objects
+              if (observed.locator.includes('internal:role=')) {
+                console.warn(`⚠️ SKIPPING method ${methodUsed}: Locator uses internal:role (not robust)`);
+                // Try to find a better selector from observed testId or text
+                if (observed.testId) {
+                  selector = `this.page.getByTestId('${observed.testId}')`;
+                  selectorName = observed.testId.replace(/[-_]/g, '').replace(/([A-Z])/g, '$1').replace(/^./, (c: string) => c.toLowerCase());
+                  console.log(`✅ Using testId instead of internal:role locator: ${observed.testId}`);
+                } else if (observed.text && observed.text.trim().length > 0) {
+                  const text = observed.text.trim();
+                  if (methodUsed.toLowerCase().includes('button') || methodUsed.toLowerCase().includes('click')) {
+                    selector = `this.page.getByRole('button', { name: '${text.replace(/'/g, "\\'")}' })`;
+                  } else {
+                    selector = `this.page.getByText('${text.replace(/'/g, "\\'")}')`;
+                  }
+                  selectorName = text.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  console.log(`✅ Using text instead of internal:role locator: ${text.substring(0, 30)}...`);
+                } else {
+                  console.warn(`⚠️ SKIPPING method ${methodUsed}: Only internal:role locator available and no testId/text fallback`);
+                  continue; // Skip - no robust selector available
+                }
+              } else {
+                // Use observed locator (already formatted) - it's robust
+                selector = observed.locator.replace(/^page\./, 'this.page.');
+                selectorName = 'element';
+                console.log(`✅ Using REAL locator: ${observed.locator}`);
+              }
             } else {
               console.warn(`⚠️ SKIPPING method ${methodUsed}: Observation found but no usable data`);
               continue; // Skip - no usable observation data
