@@ -8260,14 +8260,15 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       };
     }
     
-    // 1. Validar token primero con una llamada simple a la API
+    // 1. Validar token primero con una llamada simple a la API (con timeout)
     console.log('🔍 Validando token de GitHub...');
     try {
       const tokenValidationResponse = await fetch('https://api.github.com/user', {
         headers: {
           'Authorization': `Bearer ${GITHUB_TOKEN}`,
           'Accept': 'application/vnd.github.v3+json'
-        }
+        },
+        signal: AbortSignal.timeout(5000) // Timeout de 5s para validación
       });
       
       if (!tokenValidationResponse.ok) {
