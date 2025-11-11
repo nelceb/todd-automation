@@ -5237,19 +5237,39 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         let assertionCode = '';
         if (existingMethod) {
           // Usar método existente
-        switch (assertion.type) {
-          case 'visibility':
+          const elementLower = elementName.toLowerCase();
+          switch (assertion.type) {
+            case 'visibility':
             case 'state':
-              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
-            break;
-          case 'text':
-              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
+              // Para cart items, verificar que el count sea mayor a 0
+              if (elementLower.includes('cartitem') && existingMethod.toLowerCase().includes('count')) {
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeGreaterThan(0);`;
+              } else if (elementLower.includes('cartitemcount') || elementLower.includes('cartcount')) {
+                // Para cart count, verificar que sea igual al número esperado
+                const expectedCount = expected && !isNaN(Number(expected)) ? Number(expected) : 2;
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe(${expectedCount});`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              }
+              break;
+            case 'text':
+              // Para cart count, verificar que contenga el número esperado
+              if (elementLower.includes('cartitemcount') || elementLower.includes('cartcount')) {
+                const expectedCount = expected && !isNaN(Number(expected)) ? Number(expected) : 2;
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe(${expectedCount});`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toContain('${expected}');`;
+              }
               break;
             case 'value':
               assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBe('${expected}');`;
               break;
             default:
-              assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              if (elementLower.includes('cartitem') && existingMethod.toLowerCase().includes('count')) {
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeGreaterThan(0);`;
+              } else {
+                assertionCode = `expect(await ${assertionsPageVar}.${existingMethod}(), '${description}').toBeTruthy();`;
+              }
           }
         } else {
           // Fallback: generar método nuevo
