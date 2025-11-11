@@ -21,21 +21,8 @@ export async function POST(request: NextRequest) {
     const toolsData = await toolsResponse.json()
     
     // Preparar prompt del sistema con herramientas
-    const systemPrompt = `You are a Playwright test automation assistant powered by Claude Agent SDK.
-
-You have access to the following tools for Playwright MCP integration:
-
-${tools ? toolsData.tools.map((tool: any) => 
-  `- ${tool.name}: ${tool.description}`
-).join('\n') : 'No tools available'}
-
-When a user asks you to:
-1. Interpret acceptance criteria → use playwright_mcp_interpret
-2. Generate test code → use playwright_mcp_generate_test  
-3. Validate tests → use playwright_mcp_validate_test
-4. Create pull requests → use playwright_mcp_create_pr
-
-Always provide clear, actionable responses and use the appropriate tools when needed.`
+    const { Prompts } = await import('../utils/prompts');
+    const systemPrompt = Prompts.getClaudeAgentPrompt(tools ? toolsData.tools : []);
 
     // Llamar a Claude con herramientas - usa helper con fallback automático de modelos
     const { callClaudeAPI } = await import('../utils/claude')

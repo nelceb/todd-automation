@@ -372,7 +372,8 @@ async function generateMethodWithAI(missingMethod: any, context: any) {
   try {
     const { callClaudeAPI } = await import('../utils/claude')
     
-    const systemPrompt = `You are a Playwright test automation expert. Generate page object methods based on the context provided.
+    const { Prompts } = await import('../utils/prompts');
+    const systemPrompt = Prompts.getPageObjectMethodGenerationPrompt();
 
 The method should:
 1. Use proper TypeScript/Playwright syntax

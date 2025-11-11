@@ -3,6 +3,8 @@ import { Browser, Page, Locator } from 'playwright';
 import chromium from '@sparticuz/chromium';
 import playwright from 'playwright-core';
 import { createConnection } from '@playwright/mcp';
+import fs from 'fs';
+import path from 'path';
 
 // Configurar timeout extendido para Vercel Pro (permite hasta 300 segundos)
 export const maxDuration = 300; // 5 minutos para Vercel Pro
@@ -594,11 +596,177 @@ async function interpretAcceptanceCriteria(criteria: string) {
   };
 }
 
+// Leer architecture rules desde archivo local
+function getArchitectureRules(): string {
+  try {
+    const rulesPath = path.join(process.cwd(), 'docs', 'pw-cookunity-automation-architecture-rules.md');
+    if (fs.existsSync(rulesPath)) {
+      const rulesContent = fs.readFileSync(rulesPath, 'utf8');
+      console.log('✅ Architecture rules cargadas desde archivo local');
+      return rulesContent;
+    } else {
+      console.log('⚠️ Architecture rules no encontradas, usando reglas básicas');
+      return '';
+    }
+  } catch (error) {
+    console.warn('⚠️ Error leyendo architecture rules:', error);
+    return '';
+  }
+}
+
+// Extraer reglas específicas de tags desde architecture rules
+function getTagRules(): { environment: string[]; category: string[]; feature: string[] } {
+  const rules = getArchitectureRules();
+  if (!rules) {
+    return {
+      environment: ['@qa', '@prod'],
+      category: ['@e2e', '@subscription'],
+      feature: []
+    };
+  }
+  
+  const environmentTags: string[] = [];
+  const categoryTags: string[] = [];
+  const featureTags: string[] = [];
+  
+  // Extraer environment tags
+  const envMatch = rules.match(/### 4\.1\. Environment Tags \(Required\)([\s\S]*?)(?=###|$)/);
+  if (envMatch) {
+    const envSection = envMatch[1];
+    const envTagRegex = /\*\*`(@[\w-]+)`\*\*/g;
+    let match;
+    while ((match = envTagRegex.exec(envSection)) !== null) {
+      environmentTags.push(match[1]);
+    }
+  }
+  
+  // Extraer category tags
+  const catMatch = rules.match(/### 4\.2\. Category Tags \(Required\)([\s\S]*?)(?=###|$)/);
+  if (catMatch) {
+    const catSection = catMatch[1];
+    const catTagRegex = /\*\*`(@[\w-]+)`\*\*/g;
+    let match;
+    while ((match = catTagRegex.exec(catSection)) !== null) {
+      categoryTags.push(match[1]);
+    }
+  }
+  
+  // Extraer feature tags
+  const featMatch = rules.match(/### 4\.3\. Feature-Specific Tags([\s\S]*?)(?=###|$)/);
+  if (featMatch) {
+    const featSection = featMatch[1];
+    const featTagRegex = /\*\*`(@[\w-]+)`\*\*/g;
+    let match;
+    while ((match = featTagRegex.exec(featSection)) !== null) {
+      featureTags.push(match[1]);
+    }
+  }
+  
+  return {
+    environment: environmentTags.length > 0 ? environmentTags : ['@qa', '@prod'],
+    category: categoryTags.length > 0 ? categoryTags : ['@e2e', '@subscription'],
+    feature: featureTags
+  };
+}
+
+// Validar y corregir tags según architecture rules
+function validateAndCorrectTags(tags: string[], context: string, isProduction: boolean): string[] {
+  const tagRules = getTagRules();
+  const validatedTags: string[] = [];
+  
+  // 1. Environment tag (required)
+  if (isProduction) {
+    if (tagRules.environment.includes('@prod')) {
+      validatedTags.push('@prod');
+    } else if (!tags.includes('@prod')) {
+      validatedTags.push('@prod'); // Fallback
+    }
+  } else {
+    if (tagRules.environment.includes('@qa')) {
+      validatedTags.push('@qa');
+    } else if (!tags.includes('@qa')) {
+      validatedTags.push('@qa'); // Fallback
+    }
+  }
+  
+  // 2. Category tags basados en contexto
+  if (context === 'pastOrders' || context === 'ordersHub') {
+    if (tagRules.category.includes('@subscription')) {
+      validatedTags.push('@subscription');
+    }
+  }
+  
+  if (tagRules.category.includes('@e2e')) {
+    validatedTags.push('@e2e');
+  }
+  
+  // 3. Feature tags basados en contexto
+  if (context === 'homepage' && tagRules.feature.includes('@home')) {
+    validatedTags.push('@home');
+  }
+  if ((context === 'ordersHub' || context === 'pastOrders') && tagRules.feature.includes('@orders')) {
+    validatedTags.push('@orders');
+  }
+  
+  // 4. Mantener tags válidos que ya estaban
+  const allValidTags = [...tagRules.environment, ...tagRules.category, ...tagRules.feature];
+  tags.forEach(tag => {
+    if (allValidTags.includes(tag) && !validatedTags.includes(tag)) {
+      validatedTags.push(tag);
+    }
+  });
+  
+  // Eliminar duplicados
+  return Array.from(new Set(validatedTags));
+}
+
+// Validar naming convention según architecture rules
+function validateTestNaming(ticketId: string, ticketTitle: string): string {
+  const rules = getArchitectureRules();
+  if (!rules) {
+    // Fallback: formato básico
+    const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : `QA-${Date.now()}`;
+    return ticketTitle ? `${normalizedTicketId} - ${ticketTitle}` : `${normalizedTicketId} - Test`;
+  }
+  
+  // Según las reglas: QA-XXXX - Description, GTT-XXXX - Description, o CXXXXX - Description
+  let normalizedTicketId = ticketId || '';
+  
+  if (normalizedTicketId) {
+    // Normalizar formato
+    if (normalizedTicketId.startsWith('QA-') || normalizedTicketId.startsWith('qa-')) {
+      normalizedTicketId = normalizedTicketId.toUpperCase();
+    } else if (normalizedTicketId.startsWith('GTT-') || normalizedTicketId.startsWith('gtt-')) {
+      normalizedTicketId = normalizedTicketId.toUpperCase();
+    } else if (/^C\d+/.test(normalizedTicketId)) {
+      normalizedTicketId = normalizedTicketId.toUpperCase();
+    } else {
+      // Asumir formato QA por defecto
+      normalizedTicketId = `QA-${normalizedTicketId.toUpperCase()}`;
+    }
+  } else {
+    normalizedTicketId = `QA-${Date.now()}`;
+  }
+  
+  // Construir título
+  if (ticketTitle) {
+    // Si el título ya incluye el ID, no duplicar
+    if (ticketTitle.startsWith(`${normalizedTicketId} - `)) {
+      return ticketTitle;
+    }
+    return `${normalizedTicketId} - ${ticketTitle}`;
+  }
+  
+  return `${normalizedTicketId} - Test`;
+}
+
 // Interpretar usando LLM de forma abstracta
 async function interpretWithLLM(criteria: string) {
   console.log('📋 [LLM] Acceptance criteria recibido:', criteria);
   
-  const systemPrompt = `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity), actuando como GitHub Copilot para maximizar reutilización de código.
+  const architectureRules = getArchitectureRules();
+  const { Prompts } = await import('../utils/prompts');
+  const systemPrompt = Prompts.getAcceptanceCriteriaInterpretationPrompt(architectureRules);
 
 🎯 INSTRUCCIÓN CRÍTICA: LEE TODO EL ACCEPTANCE CRITERIA COMPLETO ANTES DE RESPONDER.
 No ignores ninguna parte del texto. Extrae TODAS las acciones y assertions mencionadas.
@@ -1883,26 +2051,28 @@ async function performLoginIfNeeded(page: Page) {
     // Estrategia 1: Usar getByLabel (más accesible y robusto)
     try {
       const emailByLabel = page.getByLabel(/email/i).first();
-      if (await emailByLabel.isVisible({ timeout: 5000 })) {
+      const isVisible = await emailByLabel.isVisible({ timeout: 5000 }).catch(() => false);
+      if (isVisible) {
         emailInputFound = true;
         emailInputLocator = emailByLabel;
         console.log('✅ Campo de email encontrado por getByLabel');
       }
     } catch (labelError) {
-      console.log('⚠️ getByLabel no encontró campo de email');
+      console.log('⚠️ getByLabel no encontró campo de email:', labelError instanceof Error ? labelError.message : String(labelError));
     }
     
     // Estrategia 2: Usar getByPlaceholder
     if (!emailInputFound) {
       try {
         const emailByPlaceholder = page.getByPlaceholder(/email/i).first();
-        if (await emailByPlaceholder.isVisible({ timeout: 5000 })) {
+        const isVisible = await emailByPlaceholder.isVisible({ timeout: 5000 }).catch(() => false);
+        if (isVisible) {
           emailInputFound = true;
           emailInputLocator = emailByPlaceholder;
           console.log('✅ Campo de email encontrado por getByPlaceholder');
         }
       } catch (placeholderError) {
-        console.log('⚠️ getByPlaceholder no encontró campo de email');
+        console.log('⚠️ getByPlaceholder no encontró campo de email:', placeholderError instanceof Error ? placeholderError.message : String(placeholderError));
       }
     }
     
@@ -1913,8 +2083,8 @@ async function performLoginIfNeeded(page: Page) {
         emailInputFound = true;
         emailInputLocator = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[autocomplete="email"]').first();
         console.log('✅ Campo de email encontrado por selector específico');
-    } catch (selectorError) {
-        console.log('⚠️ Selector específico no encontró campo de email');
+      } catch (selectorError) {
+        console.log('⚠️ Selector específico no encontró campo de email:', selectorError instanceof Error ? selectorError.message : String(selectorError));
       }
     }
     
@@ -1981,20 +2151,58 @@ async function performLoginIfNeeded(page: Page) {
     
     if (!emailInputFound) {
       console.error('❌ No se encontró campo de email después de todas las estrategias');
-      // Capturar screenshot y HTML para debug
+      
+      // 🎯 MEJORADO: Intentar una estrategia adicional - buscar cualquier input que pueda ser email
       try {
-        await page.screenshot({ path: '/tmp/login-page-error.png', fullPage: true });
-        const html = await page.content();
-        console.log('📸 Screenshot guardado en /tmp/login-page-error.png');
-        console.log(`📄 HTML de la página (primeros 500 caracteres): ${html.substring(0, 500)}`);
-      } catch (screenshotError) {
-        console.error('⚠️ No se pudo tomar screenshot');
+        console.log('🔍 Intentando estrategia adicional: buscar cualquier input visible...');
+        const allInputs = await page.locator('input[type="text"], input[type="email"], input:not([type])').all();
+        console.log(`📋 Encontrados ${allInputs.length} inputs en la página`);
+        
+        for (const input of allInputs) {
+          try {
+            const isVisible = await input.isVisible({ timeout: 2000 }).catch(() => false);
+            if (isVisible) {
+              const placeholder = await input.getAttribute('placeholder').catch(() => '');
+              const name = await input.getAttribute('name').catch(() => '');
+              const id = await input.getAttribute('id').catch(() => '');
+              
+              console.log(`🔍 Input encontrado: placeholder="${placeholder}", name="${name}", id="${id}"`);
+              
+              // Si tiene placeholder/name/id relacionado con email, usarlo
+              if (placeholder?.toLowerCase().includes('email') || 
+                  name?.toLowerCase().includes('email') || 
+                  id?.toLowerCase().includes('email')) {
+                emailInputFound = true;
+                emailInputLocator = input;
+                console.log('✅ Campo de email encontrado por búsqueda exhaustiva de inputs');
+                break;
+              }
+            }
+          } catch (inputError) {
+            // Continuar con siguiente input
+          }
+        }
+      } catch (exhaustiveError) {
+        console.log('⚠️ Búsqueda exhaustiva también falló:', exhaustiveError instanceof Error ? exhaustiveError.message : String(exhaustiveError));
       }
       
-      return {
-        success: false,
-        error: 'No se encontró campo de email en la página después de múltiples intentos'
-      };
+      if (!emailInputFound) {
+        // Capturar screenshot y HTML para debug
+        try {
+          await page.screenshot({ path: '/tmp/login-page-error.png', fullPage: true }).catch(() => {});
+          const html = await page.content();
+          console.log('📸 Screenshot guardado en /tmp/login-page-error.png');
+          console.log(`📄 HTML de la página (primeros 1000 caracteres): ${html.substring(0, 1000)}`);
+          console.log(`📄 URL actual: ${page.url()}`);
+        } catch (screenshotError) {
+          console.error('⚠️ No se pudo tomar screenshot');
+        }
+        
+        return {
+          success: false,
+          error: 'No se encontró campo de email en la página después de múltiples intentos. URL: ' + page.url()
+        };
+      }
     }
     
     // Llenar email usando el locator encontrado
@@ -4631,23 +4839,10 @@ async function simulateBehavior(interpretation: any) {
 
 // Generar test desde observaciones reales
 function generateTestFromObservations(interpretation: any, navigation: any, behavior: any, ticketId?: string, ticketTitle?: string) {
-  // Normalizar ticketId (evitar duplicar "QA-")
-  const normalizedTicketId = ticketId ? (ticketId.startsWith('QA-') || ticketId.startsWith('qa-') ? ticketId.toUpperCase() : `QA-${ticketId.toUpperCase()}`) : `QA-${Date.now()}`;
+  // 🎯 Validar y normalizar nombre del test según architecture rules
+  const testTitle = validateTestNaming(ticketId || '', ticketTitle || '');
+  console.log(`✅ Test title validado según architecture rules: ${testTitle}`);
   
-  // 🎯 Usar título del ticket de Jira si está disponible, sino usar formato por defecto
-  let testTitle: string;
-  if (ticketTitle) {
-    // Limpiar el título: remover prefijo de ticket si ya está incluido (ej: "QA-2315 - Automate Orders HUB..." → "QA-2315 - Automate Orders HUB...")
-    const cleanTitle = ticketTitle.startsWith(`${normalizedTicketId} - `) 
-      ? ticketTitle 
-      : `${normalizedTicketId} - ${ticketTitle}`;
-    testTitle = cleanTitle;
-    console.log(`✅ Usando título del ticket de Jira: ${testTitle}`);
-  } else {
-    // Fallback al formato anterior si no hay título
-    testTitle = `${normalizedTicketId} - ${interpretation.context} Test`;
-    console.log(`⚠️ No hay título de ticket disponible, usando formato por defecto: ${testTitle}`);
-  }
   // Determinar si es ambiente de producción basándose en ticketTitle, ticketId o acceptance criteria
   const isProduction = ticketTitle?.toLowerCase().includes('prod') || 
                        ticketTitle?.toLowerCase().includes('production') ||
@@ -4655,21 +4850,23 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
                        interpretation.originalCriteria?.toLowerCase().includes('prod') ||
                        interpretation.originalCriteria?.toLowerCase().includes('production');
   
-  const tags = [];
-  
-  // Agregar tag de ambiente (@qa o @prod)
+  // 🎯 Validar y corregir tags según architecture rules
+  const initialTags: string[] = [];
   if (isProduction) {
-    tags.push('@prod');
+    initialTags.push('@prod');
     console.log('🏭 Ambiente detectado: PRODUCTION - agregando tag @prod');
   } else {
-    tags.push('@qa');
+    initialTags.push('@qa');
     console.log('🧪 Ambiente detectado: QA - agregando tag @qa');
   }
   
-  tags.push('@e2e');
+  initialTags.push('@e2e');
   
-  if (interpretation.context === 'homepage') tags.push('@home');
-  if (interpretation.context === 'ordersHub' || interpretation.context === 'pastOrders') tags.push('@subscription');
+  if (interpretation.context === 'homepage') initialTags.push('@home');
+  if (interpretation.context === 'ordersHub' || interpretation.context === 'pastOrders') initialTags.push('@subscription');
+  
+  const tags = validateAndCorrectTags(initialTags, interpretation.context, isProduction);
+  console.log(`✅ Tags validados según architecture rules: ${tags.join(', ')}`);
   
   // Determinar qué página usar según el contexto
   const pageVarName = interpretation.context === 'pastOrders' || interpretation.context === 'ordersHub' 
@@ -5851,6 +6048,26 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   };
 }
 
+// Validar estructura GIVEN/WHEN/THEN según architecture rules
+function validateGivenWhenThenStructure(testCode: string): { hasGiven: boolean; hasWhen: boolean; hasThen: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const hasGiven = /\/\/\s*GIVEN/i.test(testCode);
+  const hasWhen = /\/\/\s*WHEN/i.test(testCode);
+  const hasThen = /\/\/\s*THEN/i.test(testCode);
+  
+  if (!hasGiven) {
+    warnings.push('Missing GIVEN section - architecture rules recommend GIVEN/WHEN/THEN structure');
+  }
+  if (!hasWhen) {
+    warnings.push('Missing WHEN section - architecture rules recommend GIVEN/WHEN/THEN structure');
+  }
+  if (!hasThen) {
+    warnings.push('Missing THEN section - architecture rules recommend GIVEN/WHEN/THEN structure');
+  }
+  
+  return { hasGiven, hasWhen, hasThen, warnings };
+}
+
 // 🎯 VALIDAR TEST GENERADO: Verificar estructura básica (no bloqueante)
 async function validateGeneratedTest(page: Page, smartTest: any, interpretation: any) {
   try {
@@ -5860,15 +6077,22 @@ async function validateGeneratedTest(page: Page, smartTest: any, interpretation:
     
     // Validación más permisiva - solo verificar que tenga estructura básica
     const hasTestFunction = testCode.includes('test(') || testCode.includes('it(');
-    const hasGiven = testCode.includes('//GIVEN') || testCode.includes('GIVEN');
     const hasPageSetup = testCode.includes('page') || testCode.includes('Page');
+    
+    // 🎯 Validar estructura GIVEN/WHEN/THEN según architecture rules
+    const structureValidation = validateGivenWhenThenStructure(testCode);
+    const hasGiven = structureValidation.hasGiven;
+    const hasWhen = structureValidation.hasWhen;
+    const hasThen = structureValidation.hasThen;
+    
+    if (structureValidation.warnings.length > 0) {
+      console.warn('⚠️ Estructura GIVEN/WHEN/THEN:', structureValidation.warnings.join(', '));
+    }
     
     // Validación mínima - si tiene función de test y setup, es válido
     const isValid = hasTestFunction && hasPageSetup;
     
     // Detalles adicionales (no bloqueantes)
-    const hasWhen = testCode.includes('//WHEN') || testCode.includes('WHEN');
-    const hasThen = testCode.includes('//THEN') || testCode.includes('THEN');
     const hasActions = testCode.includes('await ');
     const hasAssertions = testCode.includes('expect(');
     
@@ -5895,7 +6119,9 @@ async function validateGeneratedTest(page: Page, smartTest: any, interpretation:
         assertions: smartTest.assertions || 0,
         description: smartTest.description
       },
-      warnings: isValid ? [] : ['Test structure may need improvements, but generated from real observations']
+      warnings: isValid 
+        ? structureValidation.warnings 
+        : ['Test structure may need improvements, but generated from real observations', ...structureValidation.warnings]
     };
   } catch (error) {
     // No fallar por errores de validación - el test se generó de observaciones reales

@@ -1,53 +1,204 @@
-import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
+/**
+ * Centralized prompts for Claude API calls
+ * This class organizes all system prompts used across the application
+ */
+export class Prompts {
+  /**
+   * Prompt for interpreting acceptance criteria into structured test requirements
+   */
+  static getAcceptanceCriteriaInterpretationPrompt(architectureRules?: string): string {
+    const architectureRulesSection = architectureRules 
+      ? `\n\n📐 ARCHITECTURE RULES (CookUnity Playwright Framework):\n${architectureRules}\n\nIMPORTANTE: Debes seguir estas reglas estrictamente al generar tests.`
+      : '';
+    
+    return `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity), actuando como GitHub Copilot para maximizar reutilización de código.
+${architectureRulesSection}
 
-export const dynamic = 'force-dynamic' // Fix for Next.js static generation
+🎯 INSTRUCCIÓN CRÍTICA: LEE TODO EL ACCEPTANCE CRITERIA COMPLETO ANTES DE RESPONDER.
+No ignores ninguna parte del texto. Extrae TODAS las acciones y assertions mencionadas.
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+🤖 MODO COPILOT: Tu objetivo es maximizar la reutilización de métodos existentes en el codebase.
+- Si el acceptance criteria menciona "add to cart" → pensar en métodos como "clickOnAddMealButton" o "addToCart"
+- Si menciona "cart" → pensar en métodos como "navigateToCartIcon" o "clickOnCartButton"
+- Si menciona "orders hub" → pensar en métodos como "clickOnOrdersHubNavItem"
+- PRIORIZA siempre métodos existentes sobre crear nuevos métodos
 
-async function chatWithClaude(systemPrompt: string, userMessage: string) {
-  const apiKey = process.env.CLAUDE_API_KEY
-  if (!apiKey) return null
-  
-  try {
-    const { callClaudeAPI } = await import('../utils/claude')
-    const { response: data } = await callClaudeAPI(apiKey, systemPrompt, userMessage)
-    const content = data?.content?.[0]?.text
-    return content || null
-  } catch (error) {
-    console.error('❌ [Claude] Error in chatWithClaude:', error)
-    throw error
+Tu tarea es extraer de forma abstracta:
+1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
+2. ACCIONES: Qué acciones debe realizar el usuario EN ORDEN CORRECTO (click, tap, fill, navigate, etc.)
+3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.) - SIEMPRE incluir assertions del "Expected" o "So that"
+4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, load more button, etc.)
+
+🔍 LEE ATENTAMENTE:
+- Si dice "As a QA/Developer, I want to validate X" → X es lo que se debe testear
+- Si dice "Action: User taps/clicks X" → X es una acción
+- Si dice "Expected: X should happen" → X es una assertion
+- Si dice "So that X" → X puede ser una assertion o el propósito
+
+IMPORTANTE: Si el acceptance criteria menciona "Expected:", "So that", o "Verificar que" → SIEMPRE debe generar assertions.
+
+🎯 IMPORTANTE - INTERPRETAR ACCIONES ESPECÍFICAS:
+- Si menciona "Load More", "Load more", "Load additional" → acción es click/tap en botón "Load More" o "loadMoreButton"
+- Si menciona "taps", "clicks", "user taps X" → acción es click/tap en ese elemento específico
+- Si menciona "user wants to validate X" → extraer la acción específica mencionada
+
+🎯 IMPORTANTE - INTERPRETAR ASSERTIONS ESPECÍFICAS:
+- Si dice "More orders are displayed" → assertion debe verificar que el número de órdenes aumentó o que hay más órdenes visibles
+- Si dice "X is displayed" → assertion debe verificar que X está visible/presente
+- Si dice "X correctly" → assertion debe verificar el estado correcto de X
+
+IMPORTANTE: Las acciones deben estar en el orden correcto según el acceptance criteria. 
+Por ejemplo: "User taps invoice icon on past order" significa:
+1. Primero: click en past order item
+2. Segundo: click en invoice icon
+
+CRÍTICO - ACTIVACIÓN DE SECCIONES:
+Si el acceptance criteria menciona una sección específica (como "Past Orders", "Upcoming Orders", etc.), 
+debes INFERIR que primero necesita ACTIVAR esa sección antes de interactuar con sus elementos.
+Las secciones web pueden estar VISIBLES pero NO ACTIVAS/SELECCIONADAS.
+
+Ejemplos:
+- Si menciona "Past Orders" → agregar acción previa para click en tab/botón "Past Orders" (order: 0 o antes)
+- Si menciona "Upcoming Orders" → agregar acción previa para click en tab/botón "Upcoming Orders"
+- Si menciona "Cart" o "Shopping Cart" → verificar si necesita navegar/activar esa sección primero
+
+Para CookUnity ecommerce, los contextos comunes son:
+- homepage: página principal
+- ordersHub: hub de órdenes (tiene tabs: Past Orders, Upcoming Orders)
+- pastOrders: órdenes pasadas (requiere activar tab "Past Orders" en ordersHub)
+- search: página de búsqueda
+- cart: carrito de compras
+- menu: menú de comidas
+
+        EJEMPLO 1 - Load More:
+        Acceptance criteria: "User taps Load More in Past Orders. Expected: More orders are displayed"
+        {
+          "context": "pastOrders",
+          "actions": [
+            {
+              "type": "click",
+              "element": "pastOrdersTab",
+              "description": "Click on Past Orders tab to activate Past Orders section",
+              "intent": "Navigate to and activate Past Orders section",
+              "order": 1
+            },
+            {
+              "type": "click",
+              "element": "loadMoreButton",
+              "description": "Click on Load More button to fetch additional past orders",
+              "intent": "Load more past orders",
+              "order": 2
+            }
+          ],
+          "assertions": [
+            {
+              "type": "visibility",
+              "element": "additionalPastOrders",
+              "description": "More orders should be displayed in the list",
+              "expected": "more orders visible"
+            },
+            {
+              "type": "text",
+              "element": "pastOrdersList",
+              "description": "Past orders list should show increased number of orders",
+              "expected": "increased count"
+            }
+          ]
+        }
+        
+        EJEMPLO 2 - Click en elemento específico:
+        Acceptance criteria: "User clicks invoice icon on past order. Expected: Invoice modal opens"
+        {
+          "context": "pastOrders",
+          "actions": [
+            {
+              "type": "click",
+              "element": "pastOrdersTab",
+              "description": "Click on Past Orders tab",
+              "intent": "Navigate to Past Orders section",
+              "order": 1
+            },
+            {
+              "type": "click",
+              "element": "pastOrderItem",
+              "description": "Click on a past order item",
+              "intent": "Select a past order",
+              "order": 2
+            },
+            {
+              "type": "click",
+              "element": "invoiceIcon",
+              "description": "Click on invoice icon",
+              "intent": "Open invoice modal",
+              "order": 3
+            }
+          ],
+          "assertions": [
+            {
+              "type": "visibility",
+              "element": "invoiceModal",
+              "description": "Invoice modal should be visible",
+              "expected": "visible"
+            }
+          ]
+        }
+
+Responde SOLO con JSON válido en este formato:
+{
+  "context": "homepage|ordersHub|pastOrders|search|cart|menu",
+  "actions": [
+    {
+      "type": "click|tap|fill|navigate|scroll",
+      "element": "nombreDescriptivoDelElemento",
+      "description": "descripción clara de qué elemento es",
+      "intent": "qué intenta hacer el usuario",
+      "order": 1
+    }
+  ],
+  "assertions": [
+    {
+      "type": "visibility|state|text|value",
+      "element": "nombreDelElementoAVerificar",
+      "description": "qué se debe verificar",
+      "expected": "qué se espera"
+    }
+  ]
+}`;
   }
-}
 
-// Mapeo de comandos a workflows
-const WORKFLOW_MAPPING = {
-  'mobile-tests': {
-    workflowId: 'mobile-tests.yml',
-    name: 'Mobile Tests',
-    description: 'Ejecuta tests en dispositivos móviles iOS o Android'
-  },
-  'web-tests': {
-    workflowId: 'web-tests.yml', 
-    name: 'Web Tests',
-    description: 'Ejecuta tests web usando Playwright'
-  },
-  'api-tests': {
-    workflowId: 'api-tests.yml',
-    name: 'API Tests', 
-    description: 'Ejecuta tests de API usando RestAssured'
+  /**
+   * Prompt for interpreting natural language test requests
+   */
+  static getNaturalLanguageInterpretationPrompt(): string {
+    return `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
+
+You should extract:
+1. **Context**: What part of the application (e.g., "pastOrders", "cart", "checkout", "ordersHub", "home")
+2. **Actions**: Specific user actions needed (e.g., "click on Load More button", "add item to cart")
+3. **Assertions**: What should be verified (e.g., "verify additional orders appear", "verify cart total updates")
+4. **UsersHelper**: What type of user is needed (e.g., "getActiveUserEmailWithHomeOnboardingViewed", "getNewUserEmail")
+5. **Tags**: Appropriate test tags (e.g., ["@qa", "@e2e", "@subscription"])
+
+IMPORTANT:
+- Be specific about UI elements and actions
+- Focus on user-visible behaviors, not implementation details
+- If the request mentions a feature (e.g., "Load More", "Invoice Icon"), make sure to include it in actions
+- Return valid JSON in this format:
+{
+  "acceptanceCriteria": "A clear description of what needs to be tested",
+  "context": "pastOrders|cart|checkout|ordersHub|home|signup",
+  "actions": ["action1", "action2"],
+  "assertions": ["assertion1", "assertion2"],
+  "usersHelper": "getActiveUserEmailWithHomeOnboardingViewed|getNewUserEmail|...",
+  "tags": ["@qa", "@e2e", "@subscription"]
+}`;
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const { message, preview = false } = await request.json()
-
-    // Preparar prompts
-    const { Prompts } = await import('../utils/prompts');
-    const systemPrompt = Prompts.getWorkflowInterpretationPrompt();
+  /**
+   * Prompt for workflow interpretation (chat interface)
+   */
+  static getWorkflowInterpretationPrompt(): string {
+    return `You are a multi-repository test automation assistant that can execute tests across different frameworks using natural language commands.
 
 AVAILABLE REPOSITORIES AND WORKFLOWS:
 
@@ -378,52 +529,85 @@ IMPORTANT: The iOS Maestro Tests workflow accepts these test_suite values:
 - "menu" → only menu tests
 - "search" → only search tests
 - "smoke" → basic tests
-- "regression" → full regression tests`
-    const userPrompt = preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
+- "regression" → full regression tests`;
+  }
 
-    // Intentar con Claude si está disponible
-    let responseText: string | null = null
-    if (process.env.CLAUDE_API_KEY) {
-      responseText = await chatWithClaude(systemPrompt, userPrompt)
+  /**
+   * Prompt for code review
+   */
+  static getCodeReviewPrompt(): string {
+    return `You are an expert Playwright test automation code reviewer. Analyze the generated test code and provide structured feedback.
+
+Your review should focus on:
+1. **Structure**: Does it follow GIVEN/WHEN/THEN pattern?
+2. **Best Practices**: Are assertions appropriate? Are waits used correctly?
+3. **Maintainability**: Is the code readable? Are selectors robust?
+4. **Completeness**: Does it cover all acceptance criteria?
+
+Return JSON in this format:
+{
+  "success": true,
+  "issues": [
+    {
+      "type": "warning|error|suggestion",
+      "message": "Description of the issue",
+      "line": 10,
+      "severity": "low|medium|high"
     }
+  ],
+  "suggestions": ["suggestion1", "suggestion2"]
+}`;
+  }
 
-    // Fallback a OpenAI
-    if (!responseText) {
-      const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.3,
-      })
-      responseText = completion.choices[0]?.message?.content || null
-    }
+  /**
+   * Prompt for generating page object methods
+   */
+  static getPageObjectMethodGenerationPrompt(): string {
+    return `You are a Playwright test automation expert. Generate page object methods based on the context provided.
 
-    const response = responseText
-    if (!response) {
-      throw new Error('No response from OpenAI')
-    }
+The methods should:
+1. Use robust selectors (prefer data-testid, then role, then CSS)
+2. Follow the existing codebase patterns
+3. Return appropriate values (boolean for visibility checks, strings for text, etc.)
+4. Include proper error handling
 
-    // Parsear la respuesta JSON
-    let parsedResponse
-    try {
-      parsedResponse = JSON.parse(response)
-    } catch (error) {
-      // Si no es JSON válido, devolver como respuesta simple
-      parsedResponse = { response }
-    }
+Return the method code in a format that can be directly inserted into a page object class.`;
+  }
 
-    return NextResponse.json(parsedResponse)
+  /**
+   * Prompt for generating complete tests from synapse
+   */
+  static getTestGenerationFromSynapsePrompt(): string {
+    return `You are a Playwright test automation expert for CookUnity ecommerce. Generate a complete Playwright test based on the synapse information provided.
 
-  } catch (error) {
-    console.error('Error in chat API:', error)
-    return NextResponse.json(
-      { 
-        response: 'Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo.',
-        error: error instanceof Error ? error.message : 'Error desconocido'
-      },
-      { status: 500 }
-    )
+The test should:
+1. Follow GIVEN/WHEN/THEN structure
+2. Use existing page object methods when available
+3. Include proper assertions
+4. Follow CookUnity test patterns and conventions
+
+Return the complete test code.`;
+  }
+
+  /**
+   * Prompt for Claude Agent
+   */
+  static getClaudeAgentPrompt(tools: any[]): string {
+    return `You are a Playwright test automation assistant powered by Claude Agent SDK.
+
+You have access to the following tools for Playwright MCP integration:
+
+${tools.map((tool: any) => 
+  `- ${tool.name}: ${tool.description}`
+).join('\n')}
+
+When a user asks you to:
+1. Interpret acceptance criteria → use playwright_mcp_interpret
+2. Generate test code → use playwright_mcp_generate_test  
+3. Validate tests → use playwright_mcp_validate_test
+4. Create pull requests → use playwright_mcp_create_pr
+
+Always provide clear, actionable responses and use the appropriate tools when needed.`;
   }
 }
+

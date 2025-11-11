@@ -46,28 +46,8 @@ export async function POST(request: NextRequest) {
     try {
       const { callClaudeAPI } = await import('../utils/claude')
       
-      const systemPrompt = `You are a test automation expert. Your job is to interpret natural language test requests and convert them into structured acceptance criteria for Playwright E2E tests.
-
-You should extract:
-1. **Context**: What part of the application (e.g., "pastOrders", "cart", "checkout", "ordersHub", "home")
-2. **Actions**: Specific user actions needed (e.g., "click on Load More button", "add item to cart")
-3. **Assertions**: What should be verified (e.g., "verify additional orders appear", "verify cart total updates")
-4. **UsersHelper**: What type of user is needed (e.g., "getActiveUserEmailWithHomeOnboardingViewed", "getNewUserEmail")
-5. **Tags**: Appropriate test tags (e.g., ["@qa", "@e2e", "@subscription"])
-
-IMPORTANT:
-- Be specific about UI elements and actions
-- Focus on user-visible behaviors, not implementation details
-- If the request mentions a feature (e.g., "Load More", "Invoice Icon"), make sure to include it in actions
-- Return valid JSON in this format:
-{
-  "acceptanceCriteria": "A clear description of what needs to be tested",
-  "context": "pastOrders|cart|checkout|ordersHub|home|signup",
-  "actions": ["action1", "action2"],
-  "assertions": ["assertion1", "assertion2"],
-  "usersHelper": "getActiveUserEmailWithHomeOnboardingViewed|getNewUserEmail|...",
-  "tags": ["@qa", "@e2e", "@subscription"]
-}`
+      const { Prompts } = await import('../utils/prompts');
+      const systemPrompt = Prompts.getNaturalLanguageInterpretationPrompt();
 
       const messages = [
         ...(chatHistory.map((msg: { role: string, content: string }) => ({
@@ -117,9 +97,28 @@ IMPORTANT:
       // Importar y llamar directamente la función (sin fetch HTTP)
       const { executePlaywrightMCP } = await import('../playwright-mcp/route')
       
+      // 🎯 Asegurar que claudeInterpretation tenga targetURL si no está definido
+      if (!claudeInterpretation.targetURL && claudeInterpretation.context) {
+        // Fallback: determinar URL basado en contexto (determineURL no está exportado)
+        const contextToURL: Record<string, string> = {
+          'cart': 'https://subscription.qa.cookunity.com/',
+          'homepage': 'https://subscription.qa.cookunity.com/',
+          'home': 'https://subscription.qa.cookunity.com/',
+          'ordersHub': 'https://subscription.qa.cookunity.com/',
+          'pastOrders': 'https://subscription.qa.cookunity.com/',
+          'checkout': 'https://subscription.qa.cookunity.com/',
+          'menu': 'https://subscription.qa.cookunity.com/menu',
+          'signup': 'https://qa.cookunity.com/',
+          'register': 'https://qa.cookunity.com/'
+        }
+        claudeInterpretation.targetURL = contextToURL[claudeInterpretation.context] || 'https://subscription.qa.cookunity.com/'
+        console.log(`✅ targetURL determinado para contexto '${claudeInterpretation.context}': ${claudeInterpretation.targetURL}`)
+      }
+      
       playwrightMCPData = await executePlaywrightMCP(
         claudeInterpretation.acceptanceCriteria || userRequest,
-        `NL-${Date.now()}` // Natural Language ticket ID
+        `NL-${Date.now()}`, // Natural Language ticket ID
+        claudeInterpretation.acceptanceCriteria || userRequest // ticketTitle
       )
     } catch (mcpError) {
       console.error('❌ Error calling Playwright MCP:', mcpError)
