@@ -10,8 +10,8 @@ import { NextRequest, NextResponse } from 'next/server'
  * 4. Generate test code based on observations
  */
 
-// Configurar timeout extendido para Vercel
-export const maxDuration = 60; // 60 segundos (máximo en plan Pro)
+// Configurar timeout extendido para Vercel (mismo que playwright-mcp)
+export const maxDuration = 300; // 5 minutos para Vercel Pro (mismo que playwright-mcp)
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
@@ -91,15 +91,13 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Claude Interpretation:', claudeInterpretation)
 
-    // Step 2: Call Playwright MCP directly (no HTTP fetch to avoid 401 errors in Vercel)
+    // Step 2: Call Playwright MCP endpoint (same as Jira flow)
+    // Use the same endpoint that Jira uses to ensure consistent behavior
     let playwrightMCPData: any
     try {
-      // Importar y llamar directamente la función (sin fetch HTTP)
-      const { executePlaywrightMCP } = await import('../playwright-mcp/route')
-      
       // 🎯 Asegurar que claudeInterpretation tenga targetURL si no está definido
       if (!claudeInterpretation.targetURL && claudeInterpretation.context) {
-        // Fallback: determinar URL basado en contexto (determineURL no está exportado)
+        // Fallback: determinar URL basado en contexto
         const contextToURL: Record<string, string> = {
           'cart': 'https://subscription.qa.cookunity.com/',
           'homepage': 'https://subscription.qa.cookunity.com/',
@@ -114,6 +112,10 @@ export async function POST(request: NextRequest) {
         claudeInterpretation.targetURL = contextToURL[claudeInterpretation.context] || 'https://subscription.qa.cookunity.com/'
         console.log(`✅ targetURL determinado para contexto '${claudeInterpretation.context}': ${claudeInterpretation.targetURL}`)
       }
+      
+      // Importar y llamar directamente la función (mismo flujo que Jira)
+      // Esto evita problemas de timeout y mantiene consistencia
+      const { executePlaywrightMCP } = await import('../playwright-mcp/route')
       
       playwrightMCPData = await executePlaywrightMCP(
         claudeInterpretation.acceptanceCriteria || userRequest,
