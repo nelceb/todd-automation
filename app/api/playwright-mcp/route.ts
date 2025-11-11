@@ -1893,6 +1893,67 @@ async function performLoginIfNeeded(page: Page) {
       console.log('⚠️ waitForLoadState timeout, continuando con búsqueda...');
     }
     
+    // 🎯 NUEVO: Detectar y hacer click en botón de Login inicial si existe (páginas OAuth)
+    // Algunas páginas OAuth muestran primero un botón "Login" que necesita ser clickeado
+    // antes de mostrar el formulario con el campo de email
+    try {
+      console.log('🔍 Buscando botón de Login inicial (páginas OAuth)...');
+      
+      // Buscar botones de login con varios selectores
+      const loginButtonSelectors = [
+        'button:has-text("Login")',
+        'button:has-text("Log in")',
+        'button:has-text("Sign in")',
+        'button:has-text("Sign In")',
+        'a:has-text("Login")',
+        'a:has-text("Log in")',
+        '[role="button"]:has-text("Login")',
+        'button[type="button"]:has-text("Login")'
+      ];
+      
+      let initialLoginButton = null;
+      for (const selector of loginButtonSelectors) {
+        try {
+          const button = page.locator(selector).first();
+          const isVisible = await button.isVisible({ timeout: 3000 }).catch(() => false);
+          if (isVisible) {
+            const buttonText = await button.textContent().catch(() => '');
+            console.log(`✅ Botón de Login inicial encontrado: "${buttonText}" (selector: ${selector})`);
+            initialLoginButton = button;
+            break;
+          }
+        } catch (e) {
+          // Continuar con siguiente selector
+        }
+      }
+      
+      // Si encontramos un botón de Login inicial, hacer click
+      if (initialLoginButton) {
+        console.log('🖱️ Haciendo click en botón de Login inicial...');
+        await initialLoginButton.click({ timeout: 5000 });
+        console.log('✅ Click en botón de Login inicial realizado');
+        
+        // Esperar a que aparezca el formulario de email después del click
+        console.log('⏳ Esperando a que aparezca el formulario de email...');
+        await page.waitForTimeout(2000); // Dar tiempo para que aparezca el formulario
+        
+        // Verificar que ahora tenemos el formulario visible
+        const emailFormVisible = await page.getByLabel(/email/i).first().isVisible({ timeout: 5000 }).catch(() => false) ||
+                                 await page.locator('input[type="email"], input[name*="email"], input[id*="email"]').first().isVisible({ timeout: 5000 }).catch(() => false);
+        
+        if (emailFormVisible) {
+          console.log('✅ Formulario de email apareció después del click en Login');
+        } else {
+          console.log('⚠️ Formulario de email no apareció inmediatamente, continuando con búsqueda normal...');
+        }
+      } else {
+        console.log('ℹ️ No se encontró botón de Login inicial, continuando con búsqueda normal del formulario...');
+      }
+    } catch (loginButtonError) {
+      console.log('⚠️ Error buscando botón de Login inicial:', loginButtonError instanceof Error ? loginButtonError.message : String(loginButtonError));
+      // Continuar con el flujo normal de búsqueda del formulario
+    }
+    
     console.log('🔍 Buscando campo de email con múltiples estrategias...');
     let emailInputFound = false;
     let emailInputLocator: any = null;
