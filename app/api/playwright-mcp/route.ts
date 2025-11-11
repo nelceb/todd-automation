@@ -4993,91 +4993,55 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         
         const description = action.description || `Click on ${elementName}`;
         
-        // 🎯 Buscar locator generado por MCP en behavior.interactions
+        // 🎯 PRIORIDAD 1: Buscar método existente ANTES de usar locators o generar nuevos
+        const codebasePatterns = interpretation.codebasePatterns;
         const interaction = behavior.interactions?.find((i: any) => i.element === action.element);
-        const locator = interaction?.locator || action.locator;
+        const existingMethod = findExistingMethod(
+          elementName,
+          action.type,
+          interpretation.context,
+          action.intent,
+          interaction?.testId
+        );
         
         let methodCall = '';
-        if (locator) {
-          // 🎯 Usar locator generado por MCP directamente (usa 'page' del fixture)
-          // Validar que el locator esté bien formado (debe empezar con 'page.')
-          const locatorCode = locator.trim();
-          let correctedLocator = locatorCode;
-          
-          // Corregir si empieza con 'p.' en lugar de 'page.'
-          if (locatorCode.startsWith('p.')) {
-            correctedLocator = locatorCode.replace(/^p\./, 'page.');
-            console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
-          } else if (!locatorCode.startsWith('page.')) {
-            // Si no empieza con 'page.', agregarlo
-            correctedLocator = `page.${locatorCode}`;
-            console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
-          }
-          
+        
+        if (existingMethod) {
+          // 🎯 REUTILIZAR MÉTODO EXISTENTE (prioridad máxima)
           switch (action.type) {
             case 'click':
             case 'tap':
-              methodCall = `await ${correctedLocator}.click();`;
+              methodCall = `await ${pageVarName}.${existingMethod}();`;
               break;
             case 'fill':
-              methodCall = `await ${correctedLocator}.fill('test-value');`;
-              break;
-            case 'navigate':
-              methodCall = `await ${correctedLocator}.click();`; // Navigate usually means click
-              break;
-            case 'scroll':
-              methodCall = `await ${correctedLocator}.scrollIntoViewIfNeeded();`;
+              methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
               break;
             default:
-              methodCall = `await ${correctedLocator}.click();`;
+              methodCall = `await ${pageVarName}.${existingMethod}();`;
           }
+          console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}`);
         } else {
-          // 🎯 MEJORADO: Buscar método existente ANTES de generar uno nuevo
-          const codebasePatterns = interpretation.codebasePatterns;
-          const existingMethod = findExistingMethod(
-            elementName,
-            action.type,
-            interpretation.context,
-            action.intent,
-            interaction?.testId
-          );
-          
-          if (existingMethod) {
-            // Usar método existente encontrado
-            const capitalizedMethod = existingMethod.charAt(0).toUpperCase() + existingMethod.slice(1);
-            switch (action.type) {
-              case 'click':
-              case 'tap':
-                methodCall = `await ${pageVarName}.${existingMethod}();`;
-                break;
-              case 'fill':
-                methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
-                break;
-              default:
-                methodCall = `await ${pageVarName}.${existingMethod}();`;
-            }
-            console.log(`✅ Reutilizando método existente: ${existingMethod} para ${elementName}`);
-          } else {
-            // Fallback: Generar método específico solo si no existe uno
+          // 🎯 PRIORIDAD 2: Generar método en page object (NO usar locator directamente)
+          // El método se generará en addMissingMethodsToPageObject y se usará aquí
           const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
           switch (action.type) {
             case 'click':
             case 'tap':
-                methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-                methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
+              methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
               break;
             case 'navigate':
-                methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
               break;
             case 'scroll':
-                methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
+              methodCall = `await ${pageVarName}.scrollTo${capitalizedName}();`;
               break;
             default:
-                methodCall = `await ${pageVarName}.interactWith${capitalizedName}();`;
-            }
+              methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
           }
+          console.log(`📝 Generando método en page object: ${pageVarName}.clickOn${capitalizedName}() para ${elementName}`);
         }
         
         testCode += `\n  ${methodCall}`;
@@ -5106,6 +5070,32 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         const pageKey = context === 'pastOrders' || context === 'ordersHub' ? 'ordersHubPage' : 'homePage';
         const methods = availableMethods[pageKey] || [];
         const elementLower = elementName.toLowerCase();
+        
+        // 🎯 Mapeos específicos para cart items y cart count
+        const cartMappings: { [key: string]: string[] } = {
+          'cartitem': ['getCartMealsCount', 'isCartItemVisible', 'getCartItemCount'],
+          'cartitem1': ['getCartMealsCount', 'isCartItemVisible', 'getCartItemCount'],
+          'cartitem2': ['getCartMealsCount', 'isCartItemVisible', 'getCartItemCount'],
+          'cartitemcount': ['getCartMealsCount', 'getCartItemCount'],
+          'cartcount': ['getCartMealsCount', 'getCartItemCount'],
+          'items': ['getCartMealsCount', 'getCartItemCount'],
+          'itemcount': ['getCartMealsCount', 'getCartItemCount']
+        };
+        
+        // Buscar primero por mapeos específicos de cart
+        for (const [key, methodPatterns] of Object.entries(cartMappings)) {
+          if (elementLower.includes(key)) {
+            for (const pattern of methodPatterns) {
+              const foundMethod = methods.find((m: string) => 
+                m.toLowerCase().includes(pattern.toLowerCase())
+              );
+              if (foundMethod) {
+                console.log(`✅ Reutilizando método de assertion por mapeo cart: ${foundMethod} para elemento ${elementName}`);
+                return foundMethod;
+              }
+            }
+          }
+        }
         
         // Buscar métodos de assertion que coincidan
         for (const method of methods) {
