@@ -8272,25 +8272,8 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       }
     }
     
-    // Verificar si workflow ya existe antes de agregarlo
-    let workflowFile = null;
-    try {
-      const workflowResponse = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/.github/workflows/auto-test-pr.yml?ref=${baseBranch}`, {
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      });
-      if (!workflowResponse.ok) {
-        // Workflow no existe, generarlo
-        workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
-      } else {
-        console.log('✅ Workflow ya existe, no se generará');
-      }
-    } catch (e) {
-      // Si hay error, asumir que no existe y generarlo
-      workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
-    }
+    // 🎯 NO CREAR WORKFLOW: El test se ejecutará directamente usando workflow existente
+    console.log('ℹ️ No se creará workflow auto-test-pr.yml - el test se ejecutará directamente después del PR');
     
     // Verificar si husky pre-commit ya existe antes de agregarlo
     let huskyConfig = null;
@@ -8488,7 +8471,6 @@ npm run test:playwright || exit 1
     
     const allFiles = [
       ...filesToCommit,
-      ...(workflowFile ? [workflowFile] : []),
       ...(huskyConfig ? [huskyConfig] : [])
     ];
     
@@ -8497,7 +8479,6 @@ npm run test:playwright || exit 1
     console.log(`📦 Files breakdown:`);
     console.log(`   - Test files: ${filesToCommit.filter((f: any) => f.type === 'test').length}`);
     console.log(`   - Page object files: ${filesToCommit.filter((f: any) => f.type === 'page-object').length}`);
-    console.log(`   - Workflow file: ${workflowFile ? 'yes' : 'no'}`);
     console.log(`   - Husky config: ${huskyConfig ? 'yes' : 'no'}`);
     
     // Log each file that will be committed
@@ -8720,7 +8701,10 @@ npm run test:playwright || exit 1
       prUrl,
       prNumber,
       filesCreated: allFiles.map(f => f.file),
-      message: prUrl ? `✅ PR creado exitosamente: ${prUrl}` : `✅ Branch creado pero PR falló: ${branchName}`
+      testResult: testResult,
+      message: prUrl 
+        ? `✅ Test pasó y PR creado exitosamente: ${prUrl}` 
+        : `✅ Test pasó pero PR falló: ${branchName}`
     };
     
   } catch (error) {
