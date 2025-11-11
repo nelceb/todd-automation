@@ -768,157 +768,6 @@ async function interpretWithLLM(criteria: string) {
   const { Prompts } = await import('../utils/prompts');
   const systemPrompt = Prompts.getAcceptanceCriteriaInterpretationPrompt(architectureRules);
 
-🎯 INSTRUCCIÓN CRÍTICA: LEE TODO EL ACCEPTANCE CRITERIA COMPLETO ANTES DE RESPONDER.
-No ignores ninguna parte del texto. Extrae TODAS las acciones y assertions mencionadas.
-
-🤖 MODO COPILOT: Tu objetivo es maximizar la reutilización de métodos existentes en el codebase.
-- Si el acceptance criteria menciona "add to cart" → pensar en métodos como "clickOnAddMealButton" o "addToCart"
-- Si menciona "cart" → pensar en métodos como "navigateToCartIcon" o "clickOnCartButton"
-- Si menciona "orders hub" → pensar en métodos como "clickOnOrdersHubNavItem"
-- PRIORIZA siempre métodos existentes sobre crear nuevos métodos
-
-Tu tarea es extraer de forma abstracta:
-1. CONTEXTO: Dónde ocurre la acción (homepage, ordersHub, pastOrders, search, cart, etc.)
-2. ACCIONES: Qué acciones debe realizar el usuario EN ORDEN CORRECTO (click, tap, fill, navigate, etc.)
-3. ASSERTIONS: Qué se debe verificar (visible, displayed, correct, updated, etc.) - SIEMPRE incluir assertions del "Expected" o "So that"
-4. ELEMENTOS: Qué elementos UI están involucrados (invoice icon, modal, cart button, load more button, etc.)
-
-🔍 LEE ATENTAMENTE:
-- Si dice "As a QA/Developer, I want to validate X" → X es lo que se debe testear
-- Si dice "Action: User taps/clicks X" → X es una acción
-- Si dice "Expected: X should happen" → X es una assertion
-- Si dice "So that X" → X puede ser una assertion o el propósito
-
-IMPORTANTE: Si el acceptance criteria menciona "Expected:", "So that", o "Verificar que" → SIEMPRE debe generar assertions.
-
-🎯 IMPORTANTE - INTERPRETAR ACCIONES ESPECÍFICAS:
-- Si menciona "Load More", "Load more", "Load additional" → acción es click/tap en botón "Load More" o "loadMoreButton"
-- Si menciona "taps", "clicks", "user taps X" → acción es click/tap en ese elemento específico
-- Si menciona "user wants to validate X" → extraer la acción específica mencionada
-
-🎯 IMPORTANTE - INTERPRETAR ASSERTIONS ESPECÍFICAS:
-- Si dice "More orders are displayed" → assertion debe verificar que el número de órdenes aumentó o que hay más órdenes visibles
-- Si dice "X is displayed" → assertion debe verificar que X está visible/presente
-- Si dice "X correctly" → assertion debe verificar el estado correcto de X
-
-IMPORTANTE: Las acciones deben estar en el orden correcto según el acceptance criteria. 
-Por ejemplo: "User taps invoice icon on past order" significa:
-1. Primero: click en past order item
-2. Segundo: click en invoice icon
-
-CRÍTICO - ACTIVACIÓN DE SECCIONES:
-Si el acceptance criteria menciona una sección específica (como "Past Orders", "Upcoming Orders", etc.), 
-debes INFERIR que primero necesita ACTIVAR esa sección antes de interactuar con sus elementos.
-Las secciones web pueden estar VISIBLES pero NO ACTIVAS/SELECCIONADAS.
-
-Ejemplos:
-- Si menciona "Past Orders" → agregar acción previa para click en tab/botón "Past Orders" (order: 0 o antes)
-- Si menciona "Upcoming Orders" → agregar acción previa para click en tab/botón "Upcoming Orders"
-- Si menciona "Cart" o "Shopping Cart" → verificar si necesita navegar/activar esa sección primero
-
-Para CookUnity ecommerce, los contextos comunes son:
-- homepage: página principal
-- ordersHub: hub de órdenes (tiene tabs: Past Orders, Upcoming Orders)
-- pastOrders: órdenes pasadas (requiere activar tab "Past Orders" en ordersHub)
-- search: página de búsqueda
-- cart: carrito de compras
-- menu: menú de comidas
-
-        EJEMPLO 1 - Load More:
-        Acceptance criteria: "User taps Load More in Past Orders. Expected: More orders are displayed"
-        {
-          "context": "pastOrders",
-          "actions": [
-            {
-              "type": "click",
-              "element": "pastOrdersTab",
-              "description": "Click on Past Orders tab to activate Past Orders section",
-              "intent": "Navigate to and activate Past Orders section",
-              "order": 1
-            },
-            {
-              "type": "click",
-              "element": "loadMoreButton",
-              "description": "Click on Load More button to fetch additional past orders",
-              "intent": "Load more past orders",
-              "order": 2
-            }
-          ],
-          "assertions": [
-            {
-              "type": "visibility",
-              "element": "additionalPastOrders",
-              "description": "More orders should be displayed in the list",
-              "expected": "more orders visible"
-            },
-            {
-              "type": "text",
-              "element": "pastOrdersList",
-              "description": "Past orders list should show increased number of orders",
-              "expected": "increased count"
-            }
-          ]
-        }
-        
-        EJEMPLO 2 - Click en elemento específico:
-        Acceptance criteria: "User clicks invoice icon on past order. Expected: Invoice modal opens"
-        {
-          "context": "pastOrders",
-          "actions": [
-            {
-              "type": "click",
-              "element": "pastOrdersTab",
-              "description": "Click on Past Orders tab",
-              "intent": "Navigate to Past Orders section",
-              "order": 1
-            },
-            {
-              "type": "click",
-              "element": "pastOrderItem",
-              "description": "Click on a past order item",
-              "intent": "Select a past order",
-              "order": 2
-            },
-            {
-              "type": "click",
-              "element": "invoiceIcon",
-              "description": "Click on invoice icon",
-              "intent": "Open invoice modal",
-              "order": 3
-            }
-          ],
-          "assertions": [
-            {
-              "type": "visibility",
-              "element": "invoiceModal",
-              "description": "Invoice modal should be visible",
-              "expected": "visible"
-            }
-          ]
-        }
-
-Responde SOLO con JSON válido en este formato:
-{
-  "context": "homepage|ordersHub|pastOrders|search|cart|menu",
-  "actions": [
-    {
-      "type": "click|tap|fill|navigate|scroll",
-      "element": "nombreDescriptivoDelElemento",
-      "description": "descripción clara de qué elemento es",
-      "intent": "qué intenta hacer el usuario",
-      "order": 1
-    }
-  ],
-  "assertions": [
-    {
-      "type": "visibility|state|text|value",
-      "element": "nombreDelElementoAVerificar",
-      "description": "qué se debe verificar",
-      "expected": "qué se espera"
-    }
-  ]
-}`;
-
   // Intentar con Claude si está disponible
   if (process.env.CLAUDE_API_KEY) {
     try {
@@ -2083,7 +1932,7 @@ async function performLoginIfNeeded(page: Page) {
         emailInputFound = true;
         emailInputLocator = page.locator('input[name="email"], input[type="email"], input[id*="email"], input[id*="Email"], input[autocomplete="email"]').first();
         console.log('✅ Campo de email encontrado por selector específico');
-      } catch (selectorError) {
+    } catch (selectorError) {
         console.log('⚠️ Selector específico no encontró campo de email:', selectorError instanceof Error ? selectorError.message : String(selectorError));
       }
     }
@@ -2187,21 +2036,21 @@ async function performLoginIfNeeded(page: Page) {
       }
       
       if (!emailInputFound) {
-        // Capturar screenshot y HTML para debug
-        try {
+      // Capturar screenshot y HTML para debug
+      try {
           await page.screenshot({ path: '/tmp/login-page-error.png', fullPage: true }).catch(() => {});
-          const html = await page.content();
-          console.log('📸 Screenshot guardado en /tmp/login-page-error.png');
+        const html = await page.content();
+        console.log('📸 Screenshot guardado en /tmp/login-page-error.png');
           console.log(`📄 HTML de la página (primeros 1000 caracteres): ${html.substring(0, 1000)}`);
           console.log(`📄 URL actual: ${page.url()}`);
-        } catch (screenshotError) {
-          console.error('⚠️ No se pudo tomar screenshot');
-        }
-        
-        return {
-          success: false,
+      } catch (screenshotError) {
+        console.error('⚠️ No se pudo tomar screenshot');
+      }
+      
+      return {
+        success: false,
           error: 'No se encontró campo de email en la página después de múltiples intentos. URL: ' + page.url()
-        };
+      };
       }
     }
     

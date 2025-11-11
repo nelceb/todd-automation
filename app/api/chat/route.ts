@@ -49,8 +49,6 @@ export async function POST(request: NextRequest) {
     const { Prompts } = await import('../utils/prompts');
     const systemPrompt = Prompts.getWorkflowInterpretationPrompt();
 
-AVAILABLE REPOSITORIES AND WORKFLOWS:
-
 1. MAESTRO TESTS (Cook-Unity/maestro-test)
    - Technology: iOS Maestro Tests
    - Workflow: iOS Maestro Tests (ios-maestro-tests.yml)
