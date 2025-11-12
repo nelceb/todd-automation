@@ -198,8 +198,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     )
   }
 
-  const extractEnvironmentFromName = (workflowName: string): string => {
-    const name = workflowName.toLowerCase()
+  const extractEnvironmentFromName = (workflowName: string | any): string => {
+    // Handle both string and object inputs
+    const nameStr = typeof workflowName === 'string' ? workflowName : (workflowName?.name || String(workflowName))
+    const name = nameStr.toLowerCase()
     if (name.includes('prod')) return 'prod'
     if (name.includes('qa')) return 'qa'
     if (name.includes('staging')) return 'staging'
@@ -208,8 +210,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     return 'default'
   }
 
-  const isScheduledWorkflow = (workflowName: string): boolean => {
-    const name = workflowName.toLowerCase()
+  const isScheduledWorkflow = (workflowName: string | any): boolean => {
+    // Handle both string and object inputs
+    const nameStr = typeof workflowName === 'string' ? workflowName : (workflowName?.name || String(workflowName))
+    const name = nameStr.toLowerCase()
     // Detect common scheduled workflow patterns
     return name.includes('regression') || 
            name.includes('nightly') || 
@@ -643,8 +647,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                       <h3 className="font-medium font-mono" style={{ color: '#344055' }}>{repo.name}</h3>
                       {(() => {
                         const toddRunningCount = getRunningWorkflowsForRepository(repo.name).length
-                        const scheduledRunningCount = repo.workflows.filter(workflow => 
-                          isScheduledWorkflowRunning(workflow, repo.name)
+                        const scheduledRunningCount = repo.workflows.filter((workflow: any) => 
+                          isScheduledWorkflowRunning(workflow.name || workflow, repo.name)
                         ).length
                         const totalRunning = toddRunningCount + scheduledRunningCount
                         
