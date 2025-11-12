@@ -832,7 +832,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   Cancel Run
                                 </button>
                               )}
-                              {workflowState?.reportUrl && workflowState?.reportIsViewable && (
+                              {workflowState?.reportUrl && (
                                 <a
                                   href={workflowState.reportUrl}
                                   target="_blank"
@@ -841,7 +841,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <span className="mr-1.5">📊</span>
-                                  View Report
+                                  {workflowState.reportIsViewable ? 'View Report' : 'View Report (Download)'}
                                 </a>
                               )}
                               {workflowState?.htmlUrl && (
