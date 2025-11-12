@@ -227,9 +227,12 @@ export async function GET(request: NextRequest) {
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/index\.html[^\s\n]*/gi,  // index.html (most common)
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*report[^\/]*\.html[^\s\n]*/gi,  // any report*.html
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*playwright[^\/]*\.html[^\s\n]*/gi,  // playwright*.html
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*\.html[^\s\n]*/gi,  // any .html file in reports folder
       /Report\s+URL[:\s]+(https:\/\/[^\s\n]+)/gi,  // "Report URL: https://..."
       /View\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "View Report: https://..."
       /HTML\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "HTML Report: https://..."
+      /Report\s+available\s+at[:\s]+(https:\/\/[^\s\n]+)/gi,  // "Report available at: https://..."
+      /(https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+)[^\s\n]*/gi,  // Any S3 reports URL (base path)
     ]
     
     let s3HtmlReportUrl = null
