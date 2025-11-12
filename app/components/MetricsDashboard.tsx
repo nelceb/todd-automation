@@ -112,34 +112,6 @@ export default function MetricsDashboard() {
     fetchMetrics()
   }, [timeRange])
 
-  // Solo recargar cuando cambia timeRange, no en cada mount
-  useEffect(() => {
-    // Este efecto solo se ejecuta cuando timeRange cambia
-    // No recargamos automáticamente en cada mount si ya hay datos
-    if (metrics && metrics.time_range === timeRange) {
-      return // Ya tenemos datos para este rango
-    }
-    
-    const cachedData = localStorage.getItem(`metrics-${timeRange}`)
-    const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
-    
-    if (cachedData && cachedTimestamp) {
-      const timestamp = parseInt(cachedTimestamp, 10)
-      const now = Date.now()
-      if (now - timestamp < 5 * 60 * 1000) {
-        try {
-          const parsedData = JSON.parse(cachedData)
-          setMetrics(parsedData)
-          setLoading(false)
-          return
-        } catch (e) {
-          console.error('Error parsing cached metrics:', e)
-        }
-      }
-    }
-    
-    fetchMetrics()
-  }, [timeRange])
 
   const fetchMetrics = async () => {
     try {
