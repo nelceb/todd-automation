@@ -32,6 +32,7 @@ interface WorkflowState {
     runId?: string
     htmlUrl?: string
     reportUrl?: string
+    reportIsViewable?: boolean
     aiErrorsSummary?: string
     startTime?: Date
     canCancel?: boolean
