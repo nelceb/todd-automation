@@ -781,7 +781,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 <PlayIcon className="w-4 h-4" />
                               </button>
                             )}
-                            {getWorkflowStateIcon(workflowId)}
+                            {/* Only show state icon if workflow is running or has a state (not idle) */}
+                            {(state !== 'idle' || isRunning) && getWorkflowStateIcon(workflowId)}
                           </div>
                         </div>
                         
