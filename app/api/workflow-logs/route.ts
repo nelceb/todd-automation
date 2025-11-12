@@ -181,6 +181,50 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching artifacts:', error)
     }
 
+    // Also try to find S3 URL for HTML report in logs (always check, even if artifact found, as S3 URL is better)
+    const allLogsText = logs.map((log: any) => log.logs).join('\n')
+    
+    // Look for S3 HTML report URLs - multiple patterns
+    const htmlReportUrlPatterns = [
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/index\.html[^\s\n]*/gi,  // index.html (most common)
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*report[^\/]*\.html[^\s\n]*/gi,  // any report*.html
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*playwright[^\/]*\.html[^\s\n]*/gi,  // playwright*.html
+      /Report\s+URL[:\s]+(https:\/\/[^\s\n]+)/gi,  // "Report URL: https://..."
+      /View\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "View Report: https://..."
+      /HTML\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "HTML Report: https://..."
+    ]
+    
+    let s3HtmlReportUrl = null
+    for (const pattern of htmlReportUrlPatterns) {
+      const match = allLogsText.match(pattern)
+      if (match && match.length > 0) {
+        // Use the last match (most recent)
+        const url = match[match.length - 1].trim()
+        // Extract URL from capture group if pattern has one, otherwise use the full match
+        s3HtmlReportUrl = url.includes('http') ? url : (match[1] || url)
+        console.log('✅ Found S3 URL for HTML report:', s3HtmlReportUrl.substring(0, 100) + '...')
+        break
+      }
+    }
+    
+    // If we found S3 URL, use it (it's better than GitHub artifact which requires download)
+    if (s3HtmlReportUrl) {
+      reportArtifact = {
+        id: 's3-report',
+        name: 'HTML Report (S3)',
+        size_in_bytes: 0,
+        htmlUrl: s3HtmlReportUrl
+      }
+      console.log('✅ Using S3 HTML report URL instead of GitHub artifact')
+    } else if (reportArtifact) {
+      // If we have GitHub artifact but no S3 URL, we can't view it directly
+      // GitHub artifacts are ZIP files that need to be downloaded
+      // So we'll only show the link if we have a viewable URL
+      console.log('⚠️ GitHub artifact found but no S3 URL - artifact requires download, not viewable')
+      // Don't set reportArtifact to null, but note that htmlUrl will point to GitHub artifact page
+      // which will show download option, not direct view
+    }
+
     // Extract AI Errors Summary from logs
     let aiErrorsSummary = null
     const allLogsText = logs.map((log: any) => log.logs).join('\n')
