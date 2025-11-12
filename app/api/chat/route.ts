@@ -67,12 +67,39 @@ async function fetchAllWorkflows(token: string): Promise<Record<string, any[]>> 
         
         if (workflowsResponse.ok) {
           const workflowsData = await workflowsResponse.json()
+          const allWorkflows = workflowsData.workflows || []
+          
+          // Log ALL workflows received (including disabled ones)
+          console.log(`📋 [${repo}] Total workflows from GitHub: ${allWorkflows.length}`)
+          console.log(`📋 [${repo}] All workflows:`, allWorkflows.map((w: any) => 
+            `${w.name} (${w.path}, state: ${w.state})`
+          ).join(', '))
+          
+          // Check specifically for qa_us_coreux_regression
+          const regressionWorkflow = allWorkflows.find((w: any) => 
+            w.path.includes('qa_us_coreux_regression') || 
+            w.path.includes('qa-us-coreux-regression') ||
+            w.name.toLowerCase().includes('qa us - core ux regression')
+          )
+          if (regressionWorkflow) {
+            console.log(`✅ [${repo}] ENCONTRADO qa_us_coreux_regression:`, {
+              name: regressionWorkflow.name,
+              path: regressionWorkflow.path,
+              state: regressionWorkflow.state,
+              id: regressionWorkflow.id
+            })
+          } else {
+            console.log(`❌ [${repo}] NO encontrado qa_us_coreux_regression en la lista`)
+          }
+          
           // Filter only active workflows for the prompt (but keep all for reference)
-          workflowsByRepo[repo] = (workflowsData.workflows || []).filter((w: any) => 
+          workflowsByRepo[repo] = allWorkflows.filter((w: any) => 
             w.state === 'active' && 
             !w.name.toLowerCase().includes('template') &&
             !w.path.toLowerCase().includes('template')
           )
+          
+          console.log(`📋 [${repo}] Active workflows (after filter): ${workflowsByRepo[repo].length}`)
         }
       } catch (error) {
         console.error(`Error fetching workflows for ${repo}:`, error)

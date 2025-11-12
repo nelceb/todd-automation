@@ -139,6 +139,33 @@ export async function GET(request: NextRequest) {
 
     console.log(`📋 Total workflows recibidos de GitHub: ${workflows.length}`)
     console.log(`📋 Workflows (todos los estados):`, workflows.map((w: any) => `${w.name} (${w.path}, state: ${w.state})`).join(', '))
+    
+    // Check specifically for qa_us_coreux_regression
+    const regressionWorkflow = workflows.find((w: any) => 
+      w.path.includes('qa_us_coreux_regression') || 
+      w.path.includes('qa-us-coreux-regression') ||
+      w.name.toLowerCase().includes('qa us - core ux regression')
+    )
+    if (regressionWorkflow) {
+      console.log(`✅ ENCONTRADO qa_us_coreux_regression en /api/workflows:`, {
+        name: regressionWorkflow.name,
+        path: regressionWorkflow.path,
+        state: regressionWorkflow.state,
+        id: regressionWorkflow.id
+      })
+    } else {
+      console.log(`❌ NO encontrado qa_us_coreux_regression en /api/workflows`)
+      console.log(`🔍 Buscando variaciones del path...`)
+      const similarWorkflows = workflows.filter((w: any) => 
+        w.path.toLowerCase().includes('coreux') && 
+        w.path.toLowerCase().includes('regression')
+      )
+      if (similarWorkflows.length > 0) {
+        console.log(`🔍 Workflows similares encontrados:`, similarWorkflows.map((w: any) => 
+          `${w.name} (${w.path}, state: ${w.state})`
+        ).join(', '))
+      }
+    }
 
     // Obtener información detallada de cada workflow
     const workflowsWithInputs: WorkflowInfo[] = []
