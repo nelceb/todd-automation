@@ -451,8 +451,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         return <CheckCircleIcon className="w-4 h-4 text-green-500" />
       case 'error':
         return <XCircleIcon className="w-4 h-4 text-red-500" />
+      case 'cancelled':
+        return <ExclamationTriangleIcon className="w-4 h-4 text-orange-500" />
       default:
-        return <PlayIcon className="w-4 h-4 text-gray-400" />
+        // Don't show icon for idle state - the green play button handles that
+        return null
     }
   }
 
