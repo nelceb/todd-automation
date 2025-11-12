@@ -447,7 +447,7 @@ export default function MetricsDashboard() {
       <div className="bg-red-50/20 border border-red-200/50 rounded-xl p-4" style={{ backgroundColor: '#AED4E6' }}>
         <p className="font-mono text-red-600" style={{ color: '#DC2626' }}>Error loading metrics: {error}</p>
         <button 
-          onClick={fetchMetrics}
+          onClick={() => fetchMetrics(true)}
           className="mt-2 px-4 py-2 font-mono bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
         >
           Retry
