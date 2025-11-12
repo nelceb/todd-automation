@@ -144,6 +144,44 @@ export async function GET(request: NextRequest) {
     if (failedJobs.length > 0) {
       console.log('🚨 FAILED JOBS DETECTED:', failedJobs.map((job: any) => ({ name: job.name, status: job.status, conclusion: job.conclusion })))
     }
+    
+    // 🎯 CRITICAL: Determine actual test status based on test job, not overall workflow conclusion
+    // If the test job passed, consider the workflow successful even if other jobs (like notify) failed
+    const testJobNames = ['test', 'run-tests', 'run-tests-on', 'tests', 'e2e', 'playwright-test']
+    const testJob = jobsData.jobs.find((job: any) => {
+      const jobNameLower = job.name.toLowerCase()
+      return testJobNames.some(testName => jobNameLower.includes(testName)) &&
+             !jobNameLower.includes('notify') &&
+             !jobNameLower.includes('upload') &&
+             !jobNameLower.includes('summary') &&
+             !jobNameLower.includes('prepare') &&
+             !jobNameLower.includes('register')
+    })
+    
+    let effectiveConclusion = runData.conclusion
+    let effectiveStatus = runData.status
+    
+    if (testJob) {
+      console.log('🎯 Test job found:', testJob.name, 'Status:', testJob.status, 'Conclusion:', testJob.conclusion)
+      
+      // If test job completed successfully, override workflow conclusion to success
+      if (testJob.status === 'completed' && testJob.conclusion === 'success') {
+        console.log('✅ Test job passed - overriding workflow conclusion to success')
+        effectiveConclusion = 'success'
+        // Only update status if workflow is completed
+        if (runData.status === 'completed') {
+          effectiveStatus = 'completed'
+        }
+      } else if (testJob.status === 'completed' && testJob.conclusion === 'failure') {
+        console.log('❌ Test job failed - keeping workflow conclusion as failure')
+        effectiveConclusion = 'failure'
+      } else if (testJob.status === 'in_progress' || testJob.status === 'queued') {
+        console.log('⏳ Test job still running - keeping current status')
+        // Keep current status
+      }
+    } else {
+      console.log('⚠️ No test job found - using workflow conclusion as-is')
+    }
 
     // Get artifacts for this run (for HTML reports)
     let reportArtifact = null
