@@ -240,9 +240,26 @@ export async function GET(request: NextRequest) {
       const match = allLogsText.match(pattern)
       if (match && match.length > 0) {
         // Use the last match (most recent)
-        const url = match[match.length - 1].trim()
+        let url = match[match.length - 1].trim()
         // Extract URL from capture group if pattern has one, otherwise use the full match
-        s3HtmlReportUrl = url.includes('http') ? url : (match[1] || url)
+        url = url.includes('http') ? url : (match[1] || url)
+        
+        // Clean up URL - remove query parameters if present (but keep them if they're part of S3 signed URL)
+        // S3 signed URLs have query params that are important, so we only remove trailing whitespace/newlines
+        url = url.trim()
+        
+        // If URL doesn't end with .html and looks like a base S3 path, try to append index.html
+        if (url.includes('s3.') && !url.endsWith('.html') && !url.includes('?')) {
+          // Check if it's a base path (ends with / or just a folder path)
+          if (url.endsWith('/')) {
+            url = url + 'index.html'
+          } else if (!url.match(/\.(html|zip|json|txt)$/i)) {
+            // If it doesn't have a file extension, it's likely a folder path
+            url = url + '/index.html'
+          }
+        }
+        
+        s3HtmlReportUrl = url
         console.log('✅ Found S3 URL for HTML report:', s3HtmlReportUrl.substring(0, 100) + '...')
         break
       }
