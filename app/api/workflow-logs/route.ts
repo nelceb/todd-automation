@@ -163,10 +163,13 @@ export async function GET(request: NextRequest) {
         const artifactsData = await artifactsResponse.json()
         allArtifacts = artifactsData.artifacts || []
         
-        // Find HTML report artifact
+        // Find HTML report artifact - prioritize playwright-report
         reportArtifact = allArtifacts.find((artifact: any) => 
-          artifact.name.toLowerCase().includes('report') ||
+          artifact.name.toLowerCase().includes('playwright-report') ||
           artifact.name.toLowerCase().includes('playwright') ||
+          artifact.name.toLowerCase().includes('html-report')
+        ) || allArtifacts.find((artifact: any) => 
+          artifact.name.toLowerCase().includes('report') ||
           artifact.name.toLowerCase().includes('html')
         )
         
@@ -243,8 +246,8 @@ export async function GET(request: NextRequest) {
       reportArtifact: reportArtifact ? {
         id: reportArtifact.id,
         name: reportArtifact.name,
-        size: reportArtifact.size_in_bytes,
-        htmlUrl: `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`
+        size: reportArtifact.size_in_bytes || 0,
+        htmlUrl: reportArtifact.htmlUrl || `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`
       } : null,
       aiErrorsSummary: aiErrorsSummary ? aiErrorsSummary.substring(0, 10000) : null // Limit size to 10KB
     })
