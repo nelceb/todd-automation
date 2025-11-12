@@ -425,22 +425,41 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
     // Devolver el test si tenemos observaciones reales
     if (behavior.observed && behavior.elements.length > 0) {
       const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
-      const codeGeneration = await generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle);
-      const codeReview = performBasicCodeReview(testResult.code, interpretation);
+      
+      // ⚡ OPTIMIZACIÓN CRÍTICA: Generar código completo en background para no bloquear respuesta
+      // Devolver respuesta inmediata con el test básico
+      const basicCodeGeneration = {
+        success: true,
+        files: [{
+          file: testResult.code ? 'test-generated.spec.ts' : 'test-pending.spec.ts',
+          content: testResult.code || '// Test generation in progress...',
+          type: 'test'
+        }],
+        pending: true,
+        message: 'Complete code generation in progress'
+      };
+      
+      // Ejecutar generación completa y creación de PR en background
+      Promise.all([
+        generateCompleteCode(interpretation, behavior, testValidation, testResult.code, ticketId, ticketTitle),
+        Promise.resolve(performBasicCodeReview(testResult.code, interpretation))
+      ]).then(([codeGeneration, codeReview]) => {
+        // Una vez que el código completo está listo, crear el PR
+        if (!hasUnobservedCriticalActions) {
+          return createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+        }
+        return null;
+      }).then((prResult) => {
+        if (prResult) {
+          console.log('✅ PR creado en background:', prResult);
+        }
+      }).catch((error) => {
+        console.error('❌ Error en generación completa o PR en background:', error);
+      });
       
       // 🎯 CRITICAL: Only create PR if all critical actions were observed
-      // ⚡ OPTIMIZACIÓN: Crear PR de forma asíncrona para no bloquear la respuesta
       let gitManagement = null;
       if (!hasUnobservedCriticalActions) {
-        // Ejecutar creación de PR en background (no bloquear respuesta)
-        createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview)
-          .then((result) => {
-            console.log('✅ PR creado en background:', result);
-          })
-          .catch((error) => {
-            console.error('❌ Error creando PR en background:', error);
-          });
-        
         // Devolver respuesta inmediata indicando que el PR se está creando
         gitManagement = {
           success: true,
@@ -466,7 +485,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         behavior,
         smartTest,
         testValidation,
-        codeGeneration,
+        codeGeneration: basicCodeGeneration,
         gitManagement,
         mode: hasUnobservedCriticalActions ? 'real-observation-incomplete' : 'real-validated-with-pr',
         message: hasUnobservedCriticalActions
