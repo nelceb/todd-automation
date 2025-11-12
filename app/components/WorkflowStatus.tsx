@@ -826,7 +826,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                     e.stopPropagation()
                                     handleCancelWorkflow(workflowId, workflowState.runId!, repo.fullName)
                                   }}
-                                  className="text-sm font-semibold text-white flex items-center px-4 py-2 rounded-lg border-2 border-redwood-600 hover:border-redwood-500 bg-redwood-500 hover:bg-redwood-600 shadow-md transition-colors"
+                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-redwood-600 hover:border-redwood-500 bg-redwood-500 hover:bg-redwood-600 shadow-md transition-colors min-h-[44px]"
                                 >
                                   <XCircleIcon className="w-4 h-4 mr-1.5" />
                                   Cancel Run
