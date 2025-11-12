@@ -818,9 +818,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                     e.stopPropagation()
                                     handleCancelWorkflow(workflowId, workflowState.runId!, repo.fullName)
                                   }}
-                                  className="text-xs text-red-400 hover:text-red-300 flex items-center px-2 py-1 rounded border border-red-500/30 hover:border-red-500/50 transition-colors"
+                                  className="text-sm font-medium text-red-300 hover:text-red-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-red-500/60 hover:border-red-500/80 bg-red-900/20 hover:bg-red-900/30 transition-colors"
                                 >
-                                  <XCircleIcon className="w-3 h-3 mr-1" />
+                                  <XCircleIcon className="w-4 h-4 mr-1.5" />
                                   Cancel Run
                                 </button>
                               )}
@@ -829,10 +829,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.reportUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-green-400 hover:text-green-300 flex items-center px-2 py-1 rounded border border-green-500/30 hover:border-green-500/50 transition-colors"
+                                  className="text-sm font-medium text-green-300 hover:text-green-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-green-500/60 hover:border-green-500/80 bg-green-900/20 hover:bg-green-900/30 transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <span className="mr-1">📊</span>
+                                  <span className="mr-1.5">📊</span>
                                   View Report
                                 </a>
                               )}
@@ -841,10 +841,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
+                                  className="text-sm font-medium text-blue-300 hover:text-blue-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-blue-500/60 hover:border-blue-500/80 bg-blue-900/20 hover:bg-blue-900/30 transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                  <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
                                   View on GitHub
                                 </a>
                               )}

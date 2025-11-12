@@ -1237,16 +1237,16 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
 
                           {/* Actions */}
                           {(logs.run.htmlUrl || logs.reportArtifact) && (
-                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-2">
+                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-3">
                               {logs.reportArtifact && (
                                 <a
                                   href={logs.reportArtifact.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-1 text-sm text-green-400 hover:text-green-300 transition-colors px-2 py-1 border border-green-400/30 rounded-md hover:border-green-400/50"
+                                  className="inline-flex items-center space-x-2 text-base font-medium text-green-300 hover:text-green-200 transition-colors px-4 py-2.5 border-2 border-green-500/60 rounded-lg hover:border-green-500/80 bg-green-900/20 hover:bg-green-900/30"
                                 >
                                   <span>📊 View Test Report</span>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                   </svg>
                                 </a>
@@ -1256,10 +1256,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   href={logs.run.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 border border-blue-400/30 rounded-md hover:border-blue-400/50"
+                                  className="inline-flex items-center space-x-2 text-base font-medium text-blue-300 hover:text-blue-200 transition-colors px-4 py-2.5 border-2 border-blue-500/60 rounded-lg hover:border-blue-500/80 bg-blue-900/20 hover:bg-blue-900/30"
                                 >
                                   <span>View on GitHub</span>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                   </svg>
                                 </a>
@@ -1298,9 +1298,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 return (
                                   <button
                                     onClick={() => handleCancelWorkflow(logs.run.id.toString(), repoName!)}
-                                    className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
+                                    className="inline-flex items-center space-x-2 text-base font-medium text-red-300 hover:text-red-200 transition-colors px-4 py-2.5 border-2 border-red-500/60 rounded-lg hover:border-red-500/80 bg-red-900/20 hover:bg-red-900/30"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                     <span>Cancel Run</span>
