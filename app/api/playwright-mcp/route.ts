@@ -510,9 +510,38 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       // 🎯 CRITICAL: Always return a response, even if observations are limited
       console.log('📝 Playwright MCP: Generating test with available data...');
       const testResult = generateTestFromObservations(interpretation, navigation, behavior, ticketId, ticketTitle);
-      const codeGeneration = await generateCompleteCode(interpretation, behavior, { success: true, issues: [] }, testResult.code, ticketId, ticketTitle);
-      const codeReview = performBasicCodeReview(testResult.code, interpretation);
-      const gitManagement = await createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+      
+      // ⚡ OPTIMIZACIÓN CRÍTICA: Generar código completo en background para no bloquear respuesta
+      const basicCodeGeneration = {
+        success: true,
+        files: [{
+          file: testResult.code ? 'test-generated.spec.ts' : 'test-pending.spec.ts',
+          content: testResult.code || '// Test generation in progress...',
+          type: 'test'
+        }],
+        pending: true,
+        message: 'Complete code generation in progress'
+      };
+      
+      // Ejecutar generación completa y creación de PR en background
+      Promise.all([
+        generateCompleteCode(interpretation, behavior, { success: true, issues: [] }, testResult.code, ticketId, ticketTitle),
+        Promise.resolve(performBasicCodeReview(testResult.code, interpretation))
+      ]).then(([codeGeneration, codeReview]) => {
+        return createFeatureBranchAndPR(interpretation, codeGeneration, ticketId, ticketTitle, codeReview);
+      }).then((result) => {
+        console.log('✅ PR creado en background:', result);
+      }).catch((error) => {
+        console.error('❌ Error en generación completa o PR en background:', error);
+      });
+      
+      // Devolver respuesta inmediata indicando que el PR se está creando
+      const gitManagement = {
+        success: true,
+        pending: true,
+        message: 'PR creation started in background',
+        branchName: generateBranchName(ticketId || extractTicketId(interpretation), interpretation, ticketTitle)
+      };
       
       return {
         success: true,
@@ -521,7 +550,7 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
         behavior,
         smartTest: testResult,
         testValidation: { success: true, issues: [] },
-        codeGeneration,
+        codeGeneration: basicCodeGeneration,
         gitManagement,
         mode: 'basic-generation',
         message: 'Test generado con información disponible (observaciones limitadas)'
