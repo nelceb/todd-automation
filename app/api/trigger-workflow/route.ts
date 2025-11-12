@@ -96,28 +96,47 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Workflow ID recibido:', workflowId)
     console.log('🔍 Tipo de workflowId:', typeof workflowId)
 
-    // Obtener workflows dinámicamente desde GitHub
-    const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${fullRepoName}/actions/workflows`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
+    // Obtener workflows dinámicamente desde GitHub con paginación
+    let allWorkflows: any[] = []
+    let page = 1
+    const perPage = 100
+    
+    while (true) {
+      const workflowsResponse = await fetch(
+        `https://api.github.com/repos/${fullRepoName}/actions/workflows?page=${page}&per_page=${perPage}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+
+      if (!workflowsResponse.ok) {
+        throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
       }
-    )
 
-    if (!workflowsResponse.ok) {
-      throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
+      const workflowsData = await workflowsResponse.json()
+      const pageWorkflows = workflowsData.workflows || []
+      
+      if (pageWorkflows.length === 0) {
+        break // No hay más páginas
+      }
+      
+      allWorkflows = [...allWorkflows, ...pageWorkflows]
+      
+      // Si recibimos menos workflows que perPage, es la última página
+      if (pageWorkflows.length < perPage) {
+        break
+      }
+      
+      page++
     }
-
-    const workflowsData = await workflowsResponse.json()
-    const allWorkflows = workflowsData.workflows || []
     
     // NO filtrar workflows - incluir todos (activos, deshabilitados, etc.)
     const workflows = allWorkflows
 
-    console.log('📋 Total workflows recibidos de GitHub:', workflows.length)
+    console.log('📋 Total workflows recibidos de GitHub (con paginación):', workflows.length)
     console.log('📋 Workflows disponibles:', workflows.map((w: any) => `${w.name} (${w.path}, state: ${w.state})`).join(', '))
     
     // Buscar específicamente "QA US - CORE UX REGRESSION" en la lista (incluso si está deshabilitado)
