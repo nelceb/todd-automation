@@ -137,6 +137,9 @@ export async function GET(request: NextRequest) {
     const workflowsData = await workflowsResponse.json()
     const workflows = workflowsData.workflows || []
 
+    console.log(`📋 Total workflows recibidos de GitHub: ${workflows.length}`)
+    console.log(`📋 Workflows (todos los estados):`, workflows.map((w: any) => `${w.name} (${w.path}, state: ${w.state})`).join(', '))
+
     // Obtener información detallada de cada workflow
     const workflowsWithInputs: WorkflowInfo[] = []
     
