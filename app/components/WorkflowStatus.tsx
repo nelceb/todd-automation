@@ -253,7 +253,22 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
   // Use the hook's getWorkflowInputs function which gets real inputs from YAML
 
-  const handleWorkflowClick = async (workflowName: string, repository: string) => {
+  // Open workflow in GitHub when clicking on the workflow card
+  const handleWorkflowClick = (workflow: any, repository: string) => {
+    // Open workflow page in GitHub
+    if (workflow.html_url) {
+      window.open(workflow.html_url, '_blank', 'noopener,noreferrer')
+    } else {
+      // Fallback: construct URL from repository and workflow path
+      const workflowPath = workflow.path || ''
+      const workflowFileName = workflowPath.split('/').pop() || ''
+      const workflowUrl = `https://github.com/${repository}/actions/workflows/${workflowFileName}`
+      window.open(workflowUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  // Execute workflow when clicking the play button
+  const handleWorkflowExecute = async (workflowName: string, repository: string) => {
     const workflowId = `${repository}-${workflowName}`
     
     // Check if workflow is already running from TODD
@@ -279,7 +294,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       const inputs = getWorkflowInputs(workflowName, repository)
       
       // Trigger workflow with specific inputs
-        const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
+      const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
       
       if (result && result.runId) {
         // Update with real run information
@@ -558,7 +573,9 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           technology: repo.technology,
           icon: config.icon,
           color: config.color,
-          workflows: repo.workflows.map((w: any) => w.name).sort() // Use real workflow names from API
+          workflows: repo.workflows
+            .map((w: any) => ({ ...w, name: w.name })) // Keep full workflow object
+            .sort((a: any, b: any) => a.name.localeCompare(b.name)) // Sort by name
         }
       })
     : [
@@ -707,14 +724,27 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   SCHEDULED
                                 </span>
                               )}
-                              {isWorkflowRunningFromTodd(workflowName, repo.name) && (
+                              {isRunning && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800 whitespace-nowrap">
                                   MANUALLY TRIGGERED
                                 </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2 mt-1">
+                          <div className="flex-shrink-0 ml-2 mt-1 flex items-center space-x-2">
+                            {/* Play button to execute workflow */}
+                            {!isRunning && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleWorkflowExecute(workflowName, repo.fullName)
+                                }}
+                                className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-600 hover:text-green-500 transition-colors"
+                                title="Execute workflow"
+                              >
+                                <PlayIcon className="w-4 h-4" />
+                              </button>
+                            )}
                             {getWorkflowStateIcon(workflowId)}
                           </div>
                         </div>
