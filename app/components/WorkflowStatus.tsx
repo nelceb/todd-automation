@@ -256,11 +256,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   // Open workflow in GitHub when clicking on the workflow card
   const handleWorkflowClick = (workflow: any, repository: string) => {
     // Open workflow page in GitHub
-    if (workflow.html_url) {
-      window.open(workflow.html_url, '_blank', 'noopener,noreferrer')
+    const htmlUrl = (typeof workflow === 'object' && workflow.html_url) || workflow.html_url
+    if (htmlUrl) {
+      window.open(htmlUrl, '_blank', 'noopener,noreferrer')
     } else {
       // Fallback: construct URL from repository and workflow path
-      const workflowPath = workflow.path || ''
+      const workflowPath = (typeof workflow === 'object' ? workflow.path : '') || ''
       const workflowFileName = workflowPath.split('/').pop() || ''
       const workflowUrl = `https://github.com/${repository}/actions/workflows/${workflowFileName}`
       window.open(workflowUrl, '_blank', 'noopener,noreferrer')
@@ -679,22 +680,36 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                     
                     return (
                       <>
-                        {workflowsToShow.map((workflowName) => {
+                        {workflowsToShow.map((workflow: any) => {
+                          const workflowName = workflow.name || workflow
                           const workflowId = `${repo.fullName}-${workflowName}`
                           const workflowState = workflowStates[workflowId]
                           const state = workflowState?.status || 'idle'
+                          const isRunning = isWorkflowRunningFromTodd(workflowName, repo.fullName)
+                          
+                          // Use YAML-based flags if available, otherwise fallback to name-based detection
+                          const hasSchedule = workflow.hasSchedule !== undefined 
+                            ? workflow.hasSchedule 
+                            : isScheduledWorkflow(workflowName)
+                          const canExecute = workflow.canExecute !== undefined 
+                            ? workflow.canExecute 
+                            : !hasSchedule && !workflow.isDependabot
+                          
+                          // Only show environment tag if it's QA or PROD (not DEFAULT or TEST)
+                          const environment = extractEnvironmentFromName(workflowName)
+                          const showEnvironmentTag = environment === 'qa' || environment === 'prod'
                           
                           return (
                             <div
                               key={workflowName}
                               className={`border rounded-xl p-4 transition-all duration-200 bg-white/20 hover:bg-white/30 hover:shadow-lg ${getWorkflowStateColor(workflowId)} ${
-                                isWorkflowRunningFromTodd(workflowName, repo.fullName) 
+                                isRunning 
                                   ? 'cursor-default opacity-75' 
                                   : 'cursor-pointer'
                               }`}
                               onClick={() => {
-                                if (!isWorkflowRunningFromTodd(workflowName, repo.fullName)) {
-                                  handleWorkflowClick(workflowName, repo.fullName)
+                                if (!isRunning) {
+                                  handleWorkflowClick(workflow, repo.fullName)
                                 }
                               }}
                             >
@@ -706,34 +721,30 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                               </p>
                             </div>
                             <div className="flex items-center flex-wrap gap-1.5">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                                extractEnvironmentFromName(workflowName) === 'prod' 
-                                  ? 'bg-red-200 text-red-800' 
-                                  : extractEnvironmentFromName(workflowName) === 'qa'
-                                  ? 'bg-blue-200 text-blue-800'
-                                  : extractEnvironmentFromName(workflowName) === 'mobile'
-                                  ? 'bg-purple-300 text-purple-900'
-                                  : extractEnvironmentFromName(workflowName) === 'test'
-                                  ? 'bg-green-200 text-green-800'
-                                  : 'bg-gray-200 text-gray-800'
-                              }`}>
-                                {extractEnvironmentFromName(workflowName).toUpperCase()}
-                              </span>
-                              {isScheduledWorkflow(workflowName) && (
+                              {showEnvironmentTag && (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                                  environment === 'prod' 
+                                    ? 'bg-red-200 text-red-800' 
+                                    : 'bg-blue-200 text-blue-800'
+                                }`}>
+                                  {environment.toUpperCase()}
+                                </span>
+                              )}
+                              {hasSchedule && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 whitespace-nowrap">
                                   SCHEDULED
                                 </span>
                               )}
                               {isRunning && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-800 whitespace-nowrap">
-                                  MANUALLY TRIGGERED
+                                  RUNNING
                                 </span>
                               )}
                             </div>
                           </div>
                           <div className="flex-shrink-0 ml-2 mt-1 flex items-center space-x-2">
-                            {/* Play button to execute workflow */}
-                            {!isRunning && (
+                            {/* Play button to execute workflow - only show if canExecute */}
+                            {!isRunning && canExecute && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
