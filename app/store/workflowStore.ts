@@ -471,6 +471,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
       
       if (allWorkflowsFinished) {
         console.log('🛑 Stopping multiple logs polling - all workflows and jobs completed')
+        // Force a final update to ensure UI reflects the final state
+        set(state => ({ multipleLogs: state.multipleLogs }))
         get().stopPollingLogs()
       }
     }, 5000) // Poll every 5 seconds

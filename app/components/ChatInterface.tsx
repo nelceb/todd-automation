@@ -1235,6 +1235,48 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
           </div>
                           )}
 
+                          {/* Final Status Display - Show when workflow is completed */}
+                          {(logs.run.status === 'completed' || logs.run.status === 'failed' || logs.run.status === 'cancelled') && (
+                            <div className="flex items-start space-x-4 py-2">
+                              <div className="flex-shrink-0 text-xs text-gray-700 font-mono mt-1 w-[60px] sm:w-[120px] text-right">
+                                {typeof window !== 'undefined' ? formatDistanceToNow(new Date(logs.run.updatedAt || logs.run.createdAt), { addSuffix: true, locale: enUS }) : 'now'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-3 mb-1">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    logs.run.conclusion === 'success' 
+                                      ? 'bg-green-400' 
+                                      : logs.run.conclusion === 'failure' 
+                                      ? 'bg-red-400' 
+                                      : logs.run.status === 'cancelled'
+                                      ? 'bg-gray-400'
+                                      : 'bg-yellow-400'
+                                  }`}></div>
+                                  <span className="text-xs font-medium text-gray-800 uppercase tracking-wide">
+                                    STATUS
+                                  </span>
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    logs.run.conclusion === 'success' 
+                                      ? 'bg-green-100 text-green-800 border border-green-200' 
+                                      : logs.run.conclusion === 'failure' 
+                                      ? 'bg-red-100 text-red-800 border border-red-200' 
+                                      : logs.run.status === 'cancelled'
+                                      ? 'bg-gray-100 text-gray-800 border border-gray-200'
+                                      : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                  }`}>
+                                    {logs.run.conclusion === 'success' 
+                                      ? 'COMPLETED' 
+                                      : logs.run.conclusion === 'failure' 
+                                      ? 'FAILED' 
+                                      : logs.run.status === 'cancelled'
+                                      ? 'CANCELLED'
+                                      : logs.run.status.toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Actions */}
                           {(logs.run.htmlUrl || logs.reportArtifact) && (
                             <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-3">
