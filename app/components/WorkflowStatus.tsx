@@ -837,7 +837,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.reportUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-medium text-green-300 hover:text-green-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-green-500/60 hover:border-green-500/80 bg-green-900/20 hover:bg-green-900/30 transition-colors"
+                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-asparagus-600 hover:border-asparagus-500 bg-asparagus-500 hover:bg-asparagus-600 shadow-md transition-colors min-h-[44px]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <span className="mr-1.5">📊</span>
@@ -849,7 +849,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-semibold text-white hover:text-blue-100 flex items-center px-4 py-2 rounded-lg border-2 border-blue-400 hover:border-blue-300 bg-blue-600 hover:bg-blue-500 shadow-md transition-colors"
+                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-airforce-600 hover:border-airforce-500 bg-airforce-500 hover:bg-airforce-600 shadow-md transition-colors min-h-[44px]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
