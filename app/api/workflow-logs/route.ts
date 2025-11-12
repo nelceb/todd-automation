@@ -182,19 +182,50 @@ export async function GET(request: NextRequest) {
     let aiErrorsSummary = null
     const allLogsText = logs.map((log: any) => log.logs).join('\n')
     
-    // Look for AI Errors Summary patterns
-    const aiSummaryPatterns = [
-      /(?:AI\s+Errors?\s+Summary|Link\s+to\s+AI\s+Errors?\s+Summary)[:\s]*([^\s\n]+)/i,
-      /(?:##\s*)?(?:AI\s+)?(?:Error|Failure)\s+Summary[\s\S]*?(?=\n\n##|\n---|$)/i,
-      /AI\s+Errors?\s+Summary[\s\S]{0,2000}/i
-    ]
+    // First, try to find S3 URL for openai_summary.txt (the actual AI Errors Summary file)
+    const s3UrlPattern = /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/openai_summary\.txt[^\s\n]*/gi
+    const s3UrlMatch = allLogsText.match(s3UrlPattern)
     
-    for (const pattern of aiSummaryPatterns) {
-      const match = allLogsText.match(pattern)
-      if (match) {
-        aiErrorsSummary = match[1] || match[0]
-        console.log('✅ Found AI Errors Summary in logs')
-        break
+    if (s3UrlMatch && s3UrlMatch.length > 0) {
+      // Use the first (most recent) URL found
+      const s3Url = s3UrlMatch[s3UrlMatch.length - 1].trim()
+      console.log('🔍 Found S3 URL for AI Errors Summary:', s3Url.substring(0, 100) + '...')
+      
+      try {
+        // Fetch the content from S3
+        const summaryResponse = await fetch(s3Url, {
+          headers: {
+            'Accept': 'text/plain, text/*, */*'
+          }
+        })
+        
+        if (summaryResponse.ok) {
+          const summaryText = await summaryResponse.text()
+          aiErrorsSummary = summaryText.trim()
+          console.log('✅ Successfully fetched AI Errors Summary from S3:', aiErrorsSummary.length, 'characters')
+        } else {
+          console.warn('⚠️ Failed to fetch AI Errors Summary from S3:', summaryResponse.status)
+        }
+      } catch (error) {
+        console.error('❌ Error fetching AI Errors Summary from S3:', error)
+      }
+    }
+    
+    // Fallback: Look for AI Errors Summary patterns in logs if S3 URL not found
+    if (!aiErrorsSummary) {
+      const aiSummaryPatterns = [
+        /(?:AI\s+Errors?\s+Summary|Link\s+to\s+AI\s+Errors?\s+Summary)[:\s]*([^\s\n]+)/i,
+        /(?:##\s*)?(?:AI\s+)?(?:Error|Failure)\s+Summary[\s\S]*?(?=\n\n##|\n---|$)/i,
+        /AI\s+Errors?\s+Summary[\s\S]{0,2000}/i
+      ]
+      
+      for (const pattern of aiSummaryPatterns) {
+        const match = allLogsText.match(pattern)
+        if (match) {
+          aiErrorsSummary = match[1] || match[0]
+          console.log('✅ Found AI Errors Summary pattern in logs')
+          break
+        }
       }
     }
 
@@ -215,7 +246,7 @@ export async function GET(request: NextRequest) {
         size: reportArtifact.size_in_bytes,
         htmlUrl: `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`
       } : null,
-      aiErrorsSummary: aiErrorsSummary ? aiErrorsSummary.substring(0, 5000) : null // Limit size
+      aiErrorsSummary: aiErrorsSummary ? aiErrorsSummary.substring(0, 10000) : null // Limit size to 10KB
     })
 
   } catch (error) {
