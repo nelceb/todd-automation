@@ -212,7 +212,7 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
    - Technology: Playwright E2E Web Tests
    - Workflows: 
      * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux" (when smoke is NOT mentioned, or when explicitly mentioned)
-     * NOTE: "QA US - CORE UX REGRESSION" workflow does not exist. Use "QA US - CORE UX SMOKE E2E" instead.
+     * If "QA US - CORE UX REGRESSION" exists, use it. Otherwise, use "QA US - CORE UX SMOKE E2E" as fallback.
      * QA CA - SIGNUP (qa_signup_regression_ca.yml)
      * QA US - SIGNUP (qa_signup_regression.yml)
      * QA US - SEGMENT - SIGN UP (qa_segment_regression.yml)
@@ -412,7 +412,7 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
 - If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
 - If user mentions "coreux" or "core ux" (with or without "smoke") → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation) - DEFAULT
-- NOTE: "QA US - CORE UX REGRESSION" workflow does not exist. Always use "QA US - CORE UX SMOKE E2E" for core ux tests.
+- If "QA US - CORE UX REGRESSION" exists, use it. Otherwise, use "QA US - CORE UX SMOKE E2E" as fallback.
 - Examples of smoke core ux detection: "smoke core ux", "core ux smoke", "coreux smoke", "smoke test de core ux", "smoke tests core ux", "core ux smoke test", "smoke coreux", "smoke core ux tests", "run smoke core ux"
 - If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)
 - If user mentions "segment" → use Playwright (pw-cookunity-automation)
