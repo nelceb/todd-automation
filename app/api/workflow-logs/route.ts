@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
 
     // Extract AI Errors Summary from logs
     let aiErrorsSummary = null
-    const allLogsText = logs.map((log: any) => log.logs).join('\n')
+    // allLogsText already defined above for S3 HTML report search
     
     // First, try to find S3 URL for openai_summary.txt (the actual AI Errors Summary file)
     const s3UrlPattern = /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/openai_summary\.txt[^\s\n]*/gi
