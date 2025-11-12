@@ -958,7 +958,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   const runStatus = correspondingLog.run.status
                                   const runConclusion = correspondingLog.run.conclusion
                                   
-                                  // Show TESTS RUNNING if workflow is in progress or queued
+                                  // IMPORTANT: If workflow is completed, don't show TESTS RUNNING - show final status or nothing
+                                  // Show TESTS RUNNING ONLY if workflow is actively in progress or queued
                                   if (runStatus === 'in_progress' || runStatus === 'queued') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
@@ -967,22 +968,28 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS PASSED if workflow completed successfully
-                                  if (runStatus === 'completed' && runConclusion === 'success') {
-                                    return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-900 border border-green-400 shadow-sm">
-                                        TESTS PASSED
-                                      </span>
-                                    )
-                                  }
-                                  
-                                  // Show TESTS FAILED if workflow failed
-                                  if (runStatus === 'completed' && runConclusion === 'failure') {
-                                    return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 shadow-sm">
-                                        TESTS FAILED
-                                      </span>
-                                    )
+                                  // If workflow is completed, show final status (don't show TESTS RUNNING)
+                                  if (runStatus === 'completed') {
+                                    if (runConclusion === 'success') {
+                                      return (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-900 border border-green-400 shadow-sm">
+                                          TESTS PASSED
+                                        </span>
+                                      )
+                                    } else if (runConclusion === 'failure') {
+                                      return (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 shadow-sm">
+                                          TESTS FAILED
+                                        </span>
+                                      )
+                                    } else {
+                                      // Other completed states
+                                      return (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-900 border border-yellow-400 shadow-sm">
+                                          {runConclusion?.toUpperCase() || 'COMPLETED'}
+                                        </span>
+                                      )
+                                    }
                                   }
                                   
                                   // Show TESTS CANCELLED if workflow was cancelled
@@ -994,16 +1001,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Fallback: Show status as-is for other completed states
-                                  if (runStatus === 'completed') {
-                                    return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-900 border border-yellow-400 shadow-sm">
-                                        {runConclusion?.toUpperCase() || 'COMPLETED'}
-                                      </span>
-                                    )
-                                  }
-                                  
-                                  // If no matching status, don't show any tag here (it will be shown in RESULTS section)
+                                  // If no matching status and workflow is not in progress, don't show any tag
+                                  // (it will be shown in RESULTS section if available)
                                   return null
                                 })()}
                               </div>
@@ -1376,11 +1375,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           
                           {/* AI Errors Summary - Show when workflow failed */}
                           {logs.run.conclusion === 'failure' && logs.aiErrorsSummary && (
-                            <div className="mt-4 p-6 bg-red-900/30 border-2 border-redwood-500 rounded-lg shadow-md">
+                            <div className="mt-4 p-6 bg-gray-900 border-2 border-gray-700 rounded-lg shadow-lg">
                               <div className="flex items-center space-x-2 mb-4">
                                 <span className="text-white font-mono font-bold text-base">🤖 AI Errors Summary</span>
                               </div>
-                              <div className="text-sm text-white font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto bg-gray-900/40 p-4 rounded border border-gray-700/50">
+                              <div className="text-sm text-gray-100 font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto bg-black/60 p-4 rounded border border-gray-800">
                                 {logs.aiErrorsSummary}
                               </div>
                             </div>
