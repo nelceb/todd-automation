@@ -166,6 +166,62 @@ export async function GET(request: NextRequest) {
         ).join(', '))
       }
     }
+    
+    // 🔍 NUEVO: Verificar si el archivo existe directamente en GitHub
+    try {
+      const fileCheckResponse = await fetch(
+        `https://api.github.com/repos/${fullRepoName}/contents/.github/workflows/qa_us_coreux_regression.yml`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+      
+      if (fileCheckResponse.ok) {
+        const fileData = await fileCheckResponse.json()
+        console.log(`✅ El archivo qa_us_coreux_regression.yml EXISTE en GitHub:`, {
+          path: fileData.path,
+          sha: fileData.sha,
+          size: fileData.size,
+          url: fileData.html_url
+        })
+        console.log(`⚠️ PERO NO aparece en la lista de workflows de la API. Esto puede indicar:`)
+        console.log(`   - El workflow tiene errores de sintaxis YAML`)
+        console.log(`   - El workflow está en un estado inválido`)
+        console.log(`   - GitHub no ha procesado el workflow aún`)
+      } else if (fileCheckResponse.status === 404) {
+        console.log(`❌ El archivo qa_us_coreux_regression.yml NO existe en .github/workflows/`)
+        
+        // Intentar buscar el archivo con variaciones del nombre
+        console.log(`🔍 Buscando archivos similares en .github/workflows/...`)
+        const workflowsDirResponse = await fetch(
+          `https://api.github.com/repos/${fullRepoName}/contents/.github/workflows`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        )
+        
+        if (workflowsDirResponse.ok) {
+          const workflowsDirData = await workflowsDirResponse.json()
+          const allFiles = workflowsDirData.filter((item: any) => item.type === 'file')
+          const coreuxFiles = allFiles.filter((file: any) => 
+            file.name.toLowerCase().includes('coreux') || 
+            file.name.toLowerCase().includes('core-ux')
+          )
+          
+          console.log(`📁 Archivos en .github/workflows/ que contienen 'coreux':`, coreuxFiles.map((f: any) => f.name).join(', '))
+        }
+      } else {
+        console.log(`⚠️ Error al verificar archivo: ${fileCheckResponse.status} - ${await fileCheckResponse.text()}`)
+      }
+    } catch (fileError) {
+      console.error(`❌ Error verificando archivo:`, fileError)
+    }
 
     // Obtener información detallada de cada workflow
     const workflowsWithInputs: WorkflowInfo[] = []
