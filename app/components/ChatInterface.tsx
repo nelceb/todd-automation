@@ -990,7 +990,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Fallback: Show status as-is
+                                  // Fallback: Show status as-is for other completed states
                                   if (correspondingLog.run.status === 'completed') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-900 border border-yellow-400 shadow-sm">
@@ -999,16 +999,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS CANCELLED if workflow was cancelled
-                                  if (correspondingLog.run.status === 'cancelled') {
-                                    return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-900 border border-gray-400 animate-pulse shadow-sm">
-                                        TESTS CANCELLED
-                                      </span>
-                                    )
-                                  }
-                                  
-                                  // If completed successfully, don't show any tag here (it will be shown in RESULTS section)
+                                  // If no matching status, don't show any tag here (it will be shown in RESULTS section)
                                   return null
                                 })()}
                               </div>
