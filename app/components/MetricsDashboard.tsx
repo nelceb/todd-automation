@@ -113,8 +113,30 @@ export default function MetricsDashboard() {
   }, [timeRange])
 
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = async (forceRefresh: boolean = false) => {
     try {
+      // Si no es un refresh forzado, verificar cache primero
+      if (!forceRefresh) {
+        const cachedData = localStorage.getItem(`metrics-${timeRange}`)
+        const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
+        
+        if (cachedData && cachedTimestamp) {
+          const timestamp = parseInt(cachedTimestamp, 10)
+          const now = Date.now()
+          // Cache válido por 5 minutos
+          if (now - timestamp < 5 * 60 * 1000) {
+            try {
+              const parsedData = JSON.parse(cachedData)
+              setMetrics(parsedData)
+              setLoading(false)
+              return
+            } catch (e) {
+              console.error('Error parsing cached metrics:', e)
+            }
+          }
+        }
+      }
+      
       setLoading(true)
       setLoadingMessage('🔌 Connecting to GitHub API...')
       await new Promise(resolve => setTimeout(resolve, 200))
@@ -137,6 +159,10 @@ export default function MetricsDashboard() {
       
       setLoadingMessage('🎨 Preparing charts and visualizations...')
       setMetrics(data)
+      
+      // Guardar en cache
+      localStorage.setItem(`metrics-${timeRange}`, JSON.stringify(data))
+      localStorage.setItem(`metrics-${timeRange}-timestamp`, Date.now().toString())
       
       // Pequeño delay para mostrar el último mensaje
       await new Promise(resolve => setTimeout(resolve, 200))
