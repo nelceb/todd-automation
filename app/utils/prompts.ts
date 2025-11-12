@@ -197,7 +197,46 @@ IMPORTANT:
   /**
    * Prompt for workflow interpretation (chat interface)
    */
-  static getWorkflowInterpretationPrompt(): string {
+  static getWorkflowInterpretationPrompt(workflowsByRepo?: Record<string, any[]>): string {
+    // Construir sección de workflows dinámicamente si se proporcionan
+    let playwrightWorkflowsSection = ''
+    let seleniumWorkflowsSection = ''
+    
+    if (workflowsByRepo) {
+      // Playwright workflows
+      const playwrightWorkflows = workflowsByRepo['Cook-Unity/pw-cookunity-automation'] || []
+      if (playwrightWorkflows.length > 0) {
+        playwrightWorkflowsSection = '   - Workflows:\n'
+        playwrightWorkflows.forEach((w: any) => {
+          const stateIndicator = w.state === 'active' ? '' : ` [${w.state}]`
+          playwrightWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`
+        })
+      }
+      
+      // Selenium workflows
+      const seleniumWorkflows = workflowsByRepo['Cook-Unity/automation-framework'] || []
+      if (seleniumWorkflows.length > 0) {
+        seleniumWorkflowsSection = '   - Workflows:\n'
+        seleniumWorkflows.forEach((w: any) => {
+          const stateIndicator = w.state === 'active' ? '' : ` [${w.state}]`
+          seleniumWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`
+        })
+      }
+    } else {
+      // Fallback a lista estática si no hay workflows dinámicos
+      playwrightWorkflowsSection = `   - Workflows: 
+     * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux"
+     * QA CA - SIGNUP (qa_signup_regression_ca.yml)
+     * QA US - SIGNUP (qa_signup_regression.yml)
+     * ... (and many more - use dynamic workflows when available)`
+      
+      seleniumWorkflowsSection = `   - Workflows:
+     * Prod Android Regression
+     * Prod iOS Regression
+     * QA E2E Web Regression
+     * ... (use dynamic workflows when available)`
+    }
+    
     return `You are a multi-repository test automation assistant that can execute tests across different frameworks using natural language commands.
 
 AVAILABLE REPOSITORIES AND WORKFLOWS:
@@ -210,49 +249,15 @@ AVAILABLE REPOSITORIES AND WORKFLOWS:
 
 2. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
-   - Workflows: 
-     * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux" (when smoke is NOT mentioned, or when explicitly mentioned)
-     * If "QA US - CORE UX REGRESSION" exists, use it. Otherwise, use "QA US - CORE UX SMOKE E2E" as fallback.
-     * QA CA - SIGNUP (qa_signup_regression_ca.yml)
-     * QA US - SIGNUP (qa_signup_regression.yml)
-     * QA US - SEGMENT - SIGN UP (qa_segment_regression.yml)
-     * QA US - LANDINGS (qa_landings_regression.yml)
-     * QA US - GROWTH (qa_growth_regression.yml)
-     * QA US - E2E (qa_e2e_regression.yml)
-     * QA E2E - DYN ENV (qa_e2e_dyn_env.yml)
-     * QA CA - LANDINGS (qa_ca_landings_regression.yml)
-     * QA CA - E2E (qa_ca_e2e_regression.yml)
-     * QA US - ACTIVATION (qa_activation_regression.yml)
-     * PROD CA - SIGNUP (prod_signup_regression_ca.yml)
-     * PROD US - SIGNUP (prod_signup_regression.yml)
-     * PROD US - LCP Lighthouse (prod_scripting_lcp_chrome.yml)
-     * PROD CHEFS IMAGES (prod_scripting_images_chefs.yml)
-     * PROD US - SCRIPT LANDINGS ALL (prod_script_landing_all_regression.yml)
-     * PROD SANITY (prod_sanity_regression.yml)
-     * PROD US - MOBILE - LANDINGS (prod_mobile_landings_regression.yml)
-     * PROD VISUAL REGRESSION (prod_landings_visual_regression.yml)
-     * PROD US - SEGMENT - LANDINGS (prod_landings_segment_regression.yml)
-     * PROD US - LANDINGS (prod_landings_regression.yml)
-     * PROD US - GROWTH (prod_growth_regression.yml)
-     * PROD US - E2E (prod_e2e_regression.yml)
-     * PROD US - E2E Tests Chrome Specific (prod_e2e_chrome_specific.yml)
-     * PROD CA - SANITY (prod_ca_sanity_regression.yml)
-     * PROD CA - LANDINGS (prod_ca_landings_regression.yml)
-     * PROD CA - E2E (prod_ca_e2e_regression.yml)
+${playwrightWorkflowsSection || '   - Workflows: (dynamically loaded from GitHub)'}
    - Inputs: environment, groups, base-url (for DYN ENV)
    - Environments: qa, qa-ca, prod, prod-ca
    - Groups: @e2e, @landings, @signup, @growth, @visual, @lighthouse, @coreUx, @activation, @segment, @sanity, @chefs, @scripting, @landingPage, @mobile, @lcpLighthouse, @cvrChrome
+   - IMPORTANT: Use the exact workflow name from the list above. If a workflow is marked as [disabled_manually], it may not be executable.
 
 3. SELENIUM TESTS (Cook-Unity/automation-framework)
    - Technology: Java + TestNG + Selenium
-   - Workflows:
-     * Prod Android Regression
-     * Prod iOS Regression
-     * QA E2E Web Regression
-     * QA Android Regression
-     * QA iOS Regression
-     * QA API Kitchen Regression
-     * QA Logistics Regression
+${seleniumWorkflowsSection || '   - Workflows: (dynamically loaded from GitHub)'}
    - Inputs: environment, groups, excludedGroups
    - Environments: qa, prod
    - Groups: e2e, api, mobile, regression, logistics, menu, kitchen

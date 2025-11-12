@@ -41,13 +41,72 @@ const WORKFLOW_MAPPING = {
   }
 }
 
+// Helper function to fetch workflows from GitHub for all repositories
+async function fetchAllWorkflows(token: string): Promise<Record<string, any[]>> {
+  const repositories = [
+    'Cook-Unity/pw-cookunity-automation',
+    'Cook-Unity/automation-framework',
+    'Cook-Unity/maestro-test'
+  ]
+  
+  const workflowsByRepo: Record<string, any[]> = {}
+  
+  // Fetch workflows for each repository in parallel
+  await Promise.all(
+    repositories.map(async (repo) => {
+      try {
+        const workflowsResponse = await fetch(
+          `https://api.github.com/repos/${repo}/actions/workflows`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        )
+        
+        if (workflowsResponse.ok) {
+          const workflowsData = await workflowsResponse.json()
+          // Filter only active workflows for the prompt (but keep all for reference)
+          workflowsByRepo[repo] = (workflowsData.workflows || []).filter((w: any) => 
+            w.state === 'active' && 
+            !w.name.toLowerCase().includes('template') &&
+            !w.path.toLowerCase().includes('template')
+          )
+        }
+      } catch (error) {
+        console.error(`Error fetching workflows for ${repo}:`, error)
+        workflowsByRepo[repo] = []
+      }
+    })
+  )
+  
+  return workflowsByRepo
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { message, preview = false } = await request.json()
 
-    // Preparar prompts
+    // Obtener token de GitHub
+    const token = process.env.GITHUB_TOKEN
+    let workflowsByRepo: Record<string, any[]> = {}
+    
+    // Fetch workflows dinámicamente si hay token
+    if (token) {
+      try {
+        workflowsByRepo = await fetchAllWorkflows(token)
+        console.log('📋 Workflows dinámicos cargados:', Object.keys(workflowsByRepo).map(repo => 
+          `${repo}: ${workflowsByRepo[repo].length} workflows`
+        ).join(', '))
+      } catch (error) {
+        console.error('Error fetching workflows, usando fallback estático:', error)
+      }
+    }
+
+    // Preparar prompts con workflows dinámicos
     const { Prompts } = await import('@/app/utils/prompts');
-    const systemPrompt = Prompts.getWorkflowInterpretationPrompt();
+    const systemPrompt = Prompts.getWorkflowInterpretationPrompt(workflowsByRepo);
     const userPrompt = preview ? `${message}\n\nGenerate a preview of workflows that will be executed.` : message
 
     // Intentar con Claude si está disponible
