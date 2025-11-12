@@ -55,6 +55,7 @@ async function fetchAllWorkflows(token: string): Promise<Record<string, any[]>> 
   await Promise.all(
     repositories.map(async (repo) => {
       try {
+        // Try to get workflows - GitHub API should return all workflows regardless of branch
         const workflowsResponse = await fetch(
           `https://api.github.com/repos/${repo}/actions/workflows`,
           {
@@ -64,6 +65,23 @@ async function fetchAllWorkflows(token: string): Promise<Record<string, any[]>> 
             },
           }
         )
+        
+        // Also try to check if the file exists directly
+        const regressionFileCheck = await fetch(
+          `https://api.github.com/repos/${repo}/contents/.github/workflows/qa_us_coreux_regression.yml`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        ).catch(() => null)
+        
+        if (regressionFileCheck?.ok) {
+          console.log(`✅ [${repo}] El archivo qa_us_coreux_regression.yml EXISTE en el repositorio`)
+        } else {
+          console.log(`❌ [${repo}] El archivo qa_us_coreux_regression.yml NO existe o no es accesible`)
+        }
         
         if (workflowsResponse.ok) {
           const workflowsData = await workflowsResponse.json()
