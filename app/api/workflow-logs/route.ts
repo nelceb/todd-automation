@@ -317,8 +317,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       run: {
         id: runData.id,
-        status: runData.status,
-        conclusion: runData.conclusion,
+        status: effectiveStatus,
+        conclusion: effectiveConclusion,
         createdAt: runData.created_at,
         updatedAt: runData.updated_at,
         htmlUrl: runData.html_url
