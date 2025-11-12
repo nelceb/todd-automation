@@ -116,15 +116,89 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Using token:', token ? `${token.substring(0, 10)}...` : 'NO TOKEN')
     
     // Obtener workflows del repositorio usando el nombre completo
-    const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${fullRepoName}/actions/workflows`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
+    // GitHub API puede paginar resultados, así que obtenemos todos
+    let allWorkflowsFromAPI: any[] = []
+    let page = 1
+    const perPage = 100
+    
+    while (true) {
+      const workflowsResponse = await fetch(
+        `https://api.github.com/repos/${fullRepoName}/actions/workflows?page=${page}&per_page=${perPage}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+      
+      if (!workflowsResponse.ok) {
+        if (page === 1) {
+          // Si falla en la primera página, lanzar error
+          const errorText = await workflowsResponse.text()
+          console.log('🔍 Error response body:', errorText)
+          throw new Error(`Error al obtener workflows: ${workflowsResponse.status} - ${errorText}`)
+        }
+        break // Si falla en páginas siguientes, asumimos que terminamos
       }
-    )
+      
+      const workflowsData = await workflowsResponse.json()
+      const workflowsPage = workflowsData.workflows || []
+      
+      if (workflowsPage.length === 0) {
+        break // No hay más workflows
+      }
+      
+      allWorkflowsFromAPI = allWorkflowsFromAPI.concat(workflowsPage)
+      console.log(`📋 Página ${page}: ${workflowsPage.length} workflows`)
+      
+      // Si recibimos menos de perPage, es la última página
+      if (workflowsPage.length < perPage) {
+        break
+      }
+      
+      page++
+    }
+    
+    console.log(`📋 Total workflows obtenidos (todas las páginas): ${allWorkflowsFromAPI.length}`)
+    
+    // También intentar obtener el workflow específico directamente por su path
+    try {
+      const specificWorkflowResponse = await fetch(
+        `https://api.github.com/repos/${fullRepoName}/actions/workflows/qa_us_coreux_regression.yml`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+      
+      if (specificWorkflowResponse.ok) {
+        const specificWorkflow = await specificWorkflowResponse.json()
+        console.log(`✅ Workflow obtenido directamente por path:`, {
+          id: specificWorkflow.id,
+          name: specificWorkflow.name,
+          path: specificWorkflow.path,
+          state: specificWorkflow.state
+        })
+        
+        // Agregarlo a la lista si no está ya
+        if (!allWorkflowsFromAPI.find((w: any) => w.id === specificWorkflow.id)) {
+          console.log(`⚠️ El workflow existe pero NO estaba en la lista paginada. Agregándolo.`)
+          allWorkflowsFromAPI.push(specificWorkflow)
+        }
+      } else {
+        console.log(`❌ No se pudo obtener workflow directamente: ${specificWorkflowResponse.status}`)
+      }
+    } catch (error) {
+      console.error(`❌ Error obteniendo workflow directamente:`, error)
+    }
+    
+    const workflowsResponse = {
+      ok: true,
+      json: async () => ({ workflows: allWorkflowsFromAPI, total_count: allWorkflowsFromAPI.length })
+    } as any
 
     console.log('🔍 Response status:', workflowsResponse.status)
 
