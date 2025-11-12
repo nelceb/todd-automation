@@ -6221,10 +6221,24 @@ async function generateCompleteCode(interpretation: any, behavior: any, testVali
 }
 
 // Verificar si se necesitan generar métodos de page object (solo si no existen en el código base)
-async function checkIfPageObjectMethodsNeeded(interpretation: any, behavior: any): Promise<boolean> {
-  // Obtener los métodos disponibles del código base
-  const codebasePatterns = await analyzeCodebaseForPatterns();
-  if (!codebasePatterns || !codebasePatterns.methodsWithTestIds) {
+async function checkIfPageObjectMethodsNeeded(interpretation: any, behavior: any, codebasePatterns?: any): Promise<boolean> {
+  // ⚡ OPTIMIZACIÓN: Usar patrones ya analizados o fallback rápido
+  let patterns = codebasePatterns;
+  if (!patterns) {
+    // Si no se pasaron patrones, intentar análisis rápido con timeout corto
+    try {
+      patterns = await Promise.race([
+        analyzeCodebaseForPatterns(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 1000) // Timeout de 1s
+        )
+      ]).catch(() => getStaticPatterns());
+    } catch {
+      patterns = getStaticPatterns();
+    }
+  }
+  
+  if (!patterns || !patterns.methodsWithTestIds) {
     return true; // Si no hay código base analizado, generar page object
   }
   
@@ -6322,8 +6336,23 @@ async function addMissingMethodsToPageObject(context: string, interpretation: an
       return null;
     }
     
-    // Use codebase patterns to check existing methods (already analyzed by analyzeCodebaseForPatterns)
-    const codebasePatterns = await analyzeCodebaseForPatterns();
+    // ⚡ OPTIMIZACIÓN: Usar patrones ya analizados o fallback rápido
+    // Los patrones ya deberían estar en interpretation.codebasePatterns
+    let codebasePatterns = interpretation?.codebasePatterns;
+    if (!codebasePatterns) {
+      // Si no están disponibles, intentar análisis rápido con timeout corto
+      try {
+        codebasePatterns = await Promise.race([
+          analyzeCodebaseForPatterns(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 1000) // Timeout de 1s
+          )
+        ]).catch(() => getStaticPatterns());
+      } catch {
+        codebasePatterns = getStaticPatterns();
+      }
+    }
+    
     if (!codebasePatterns || !codebasePatterns.methodsWithTestIds) {
       console.log('⚠️ No codebase patterns available, skipping page object update');
       return null;
