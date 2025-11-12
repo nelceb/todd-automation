@@ -227,6 +227,7 @@ export async function GET(request: NextRequest) {
         state: regressionWorkflow.state,
         id: regressionWorkflow.id
       })
+      console.log(`✅ El workflow está en la posición ${workflows.indexOf(regressionWorkflow) + 1} de ${workflows.length} workflows totales`)
     } else {
       console.log(`❌ NO encontrado qa_us_coreux_regression en /api/workflows`)
       console.log(`🔍 Buscando variaciones del path...`)
@@ -240,6 +241,10 @@ export async function GET(request: NextRequest) {
         ).join(', '))
       }
     }
+    
+    // Verificar que NO hay filtros aplicados
+    console.log(`📊 Resumen de workflows: Total=${workflows.length}, Active=${workflows.filter((w: any) => w.state === 'active').length}, Disabled=${workflows.filter((w: any) => w.state === 'disabled_manually').length}`)
+    console.log(`📊 NO se aplican filtros - todos los workflows se devuelven`)
     
     // 🔍 NUEVO: Verificar si el archivo existe directamente en GitHub
     try {
