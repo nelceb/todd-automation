@@ -389,12 +389,14 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             }))
             clearInterval(pollInterval)
           } else if (data.run.status === 'in_progress' || data.run.status === 'queued') {
-            // Still running, keep polling
+            // Still running, keep polling - update with latest info including report URL if available
             setWorkflowStates(prev => ({ 
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
                 status: 'in_progress',
+                htmlUrl: data.run.htmlUrl,
+                reportUrl: data.reportArtifact?.htmlUrl,
                 canCancel: true
               } 
             }))
