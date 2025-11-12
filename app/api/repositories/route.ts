@@ -125,9 +125,44 @@ export async function GET(request: NextRequest) {
             console.log(`❌ [${repoName}] NO encontrado qa_us_coreux_regression en /api/repositories`)
           }
 
-          // Classify workflows by technology and purpose
-          const classifiedWorkflows = activeWorkflows.map((workflow: any) => {
+          // Classify workflows by technology and purpose, and check YAML for schedule and workflow_dispatch
+          const classifiedWorkflows = await Promise.all(activeWorkflows.map(async (workflow: any) => {
             const classification = REPO_CLASSIFICATION[repoName as keyof typeof REPO_CLASSIFICATION]
+            
+            // Check YAML for schedule and workflow_dispatch
+            let hasSchedule = false
+            let hasWorkflowDispatch = false
+            let isDependabot = false
+            
+            try {
+              const yamlResponse = await fetch(
+                `https://api.github.com/repos/${repoName}/contents/${workflow.path}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                  },
+                }
+              )
+              
+              if (yamlResponse.ok) {
+                const yamlData = await yamlResponse.json()
+                if (yamlData.content) {
+                  const yamlContent = Buffer.from(yamlData.content, 'base64').toString('utf-8')
+                  
+                  // Check for schedule
+                  hasSchedule = /schedule:\s*\n/.test(yamlContent) || /on:\s*\n\s*-\s*schedule/.test(yamlContent)
+                  
+                  // Check for workflow_dispatch
+                  hasWorkflowDispatch = /workflow_dispatch:/.test(yamlContent)
+                  
+                  // Check if it's a dependabot workflow
+                  isDependabot = workflow.path.includes('dependabot') || workflow.name.toLowerCase().includes('dependabot')
+                }
+              }
+            } catch (error) {
+              console.error(`Error checking YAML for workflow ${workflow.name}:`, error)
+            }
             
             return {
               id: workflow.id,
@@ -141,9 +176,14 @@ export async function GET(request: NextRequest) {
               // Add specific categorization based on workflow name
               category: categorizeWorkflow(workflow.name, classification.technology),
               environment: extractEnvironment(workflow.name),
-              region: extractRegion(workflow.name)
+              region: extractRegion(workflow.name),
+              // Add YAML-based flags
+              hasSchedule,
+              hasWorkflowDispatch,
+              isDependabot,
+              canExecute: hasWorkflowDispatch && !isDependabot
             }
-          })
+          }))
 
           return {
             id: repo.id,

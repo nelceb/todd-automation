@@ -621,7 +621,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       {/* Workflow Analysis - Removido por problemas de API */}
 
       {/* 3 Repository Columns */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32 items-start">
         {repositoryData.map((repo) => {
           const isExpanded = expandedRepositories.has(repo.name)
           const IconComponent = repo.icon
