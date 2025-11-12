@@ -1309,6 +1309,18 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               })()}
                             </div>
                           )}
+                          
+                          {/* AI Errors Summary - Show when workflow failed */}
+                          {logs.run.conclusion === 'failure' && logs.aiErrorsSummary && (
+                            <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-red-400 font-semibold text-sm">🤖 AI Errors Summary</span>
+                              </div>
+                              <div className="text-xs text-red-300 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                                {logs.aiErrorsSummary}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </motion.div>
