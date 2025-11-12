@@ -1236,19 +1236,34 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           )}
 
                           {/* Actions */}
-                          {logs.run.htmlUrl && (
-                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4">
-                              <a
-                                href={logs.run.htmlUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 border border-blue-400/30 rounded-md hover:border-blue-400/50"
-                              >
-                                <span>View on GitHub</span>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </a>
+                          {(logs.run.htmlUrl || logs.reportArtifact) && (
+                            <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-2">
+                              {logs.reportArtifact && (
+                                <a
+                                  href={logs.reportArtifact.htmlUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center space-x-1 text-sm text-green-400 hover:text-green-300 transition-colors px-2 py-1 border border-green-400/30 rounded-md hover:border-green-400/50"
+                                >
+                                  <span>📊 View Test Report</span>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              )}
+                              {logs.run.htmlUrl && (
+                                <a
+                                  href={logs.run.htmlUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 border border-blue-400/30 rounded-md hover:border-blue-400/50"
+                                >
+                                  <span>View on GitHub</span>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              )}
                               
                               {/* Cancel button - only show for in_progress workflows and if we can determine repository */}
                               {logs.run.status === 'in_progress' && logs.run.id && (() => {

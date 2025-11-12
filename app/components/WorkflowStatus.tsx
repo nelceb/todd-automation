@@ -793,7 +793,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 flex-wrap gap-1">
                               {workflowState?.canCancel && workflowState?.runId && (
                                 <button
                                   onClick={(e) => {
@@ -805,6 +805,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   <XCircleIcon className="w-3 h-3 mr-1" />
                                   Cancel Run
                                 </button>
+                              )}
+                              {workflowState?.reportUrl && (
+                                <a
+                                  href={workflowState.reportUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-green-400 hover:text-green-300 flex items-center px-2 py-1 rounded border border-green-500/30 hover:border-green-500/50 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span className="mr-1">📊</span>
+                                  View Report
+                                </a>
                               )}
                               {workflowState?.htmlUrl && (
                                 <a
@@ -818,6 +830,18 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   View on GitHub
                                 </a>
                               )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Show AI Errors Summary when workflow failed */}
+                        {state === 'error' && workflowState?.aiErrorsSummary && (
+                          <div className="mt-3 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-red-400 font-semibold text-xs">🤖 AI Errors Summary</span>
+                            </div>
+                            <div className="text-xs text-red-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                              {workflowState.aiErrorsSummary}
                             </div>
                           </div>
                         )}

@@ -64,6 +64,13 @@ export interface WorkflowLogs {
     startedAt: string
     completedAt?: string
   }>
+  reportArtifact?: {
+    id: number
+    name: string
+    size: number
+    htmlUrl: string
+  } | null
+  aiErrorsSummary?: string | null
 }
 
 export interface WorkflowPreview {

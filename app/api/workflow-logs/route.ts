@@ -145,6 +145,59 @@ export async function GET(request: NextRequest) {
       console.log('🚨 FAILED JOBS DETECTED:', failedJobs.map((job: any) => ({ name: job.name, status: job.status, conclusion: job.conclusion })))
     }
 
+    // Get artifacts for this run (for HTML reports)
+    let reportArtifact = null
+    let allArtifacts: any[] = []
+    try {
+      const artifactsResponse = await fetch(
+        `https://api.github.com/repos/${fullRepoName}/actions/runs/${runId}/artifacts`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      )
+
+      if (artifactsResponse.ok) {
+        const artifactsData = await artifactsResponse.json()
+        allArtifacts = artifactsData.artifacts || []
+        
+        // Find HTML report artifact
+        reportArtifact = allArtifacts.find((artifact: any) => 
+          artifact.name.toLowerCase().includes('report') ||
+          artifact.name.toLowerCase().includes('playwright') ||
+          artifact.name.toLowerCase().includes('html')
+        )
+        
+        if (reportArtifact) {
+          console.log('✅ Found report artifact:', reportArtifact.name, 'Size:', reportArtifact.size_in_bytes)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching artifacts:', error)
+    }
+
+    // Extract AI Errors Summary from logs
+    let aiErrorsSummary = null
+    const allLogsText = logs.map((log: any) => log.logs).join('\n')
+    
+    // Look for AI Errors Summary patterns
+    const aiSummaryPatterns = [
+      /(?:AI\s+Errors?\s+Summary|Link\s+to\s+AI\s+Errors?\s+Summary)[:\s]*([^\s\n]+)/i,
+      /(?:##\s*)?(?:AI\s+)?(?:Error|Failure)\s+Summary[\s\S]*?(?=\n\n##|\n---|$)/i,
+      /AI\s+Errors?\s+Summary[\s\S]{0,2000}/i
+    ]
+    
+    for (const pattern of aiSummaryPatterns) {
+      const match = allLogsText.match(pattern)
+      if (match) {
+        aiErrorsSummary = match[1] || match[0]
+        console.log('✅ Found AI Errors Summary in logs')
+        break
+      }
+    }
+
     return NextResponse.json({
       run: {
         id: runData.id,
@@ -155,7 +208,14 @@ export async function GET(request: NextRequest) {
         htmlUrl: runData.html_url
       },
       jobs: jobsData.jobs,
-      logs: logs
+      logs: logs,
+      reportArtifact: reportArtifact ? {
+        id: reportArtifact.id,
+        name: reportArtifact.name,
+        size: reportArtifact.size_in_bytes,
+        htmlUrl: `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`
+      } : null,
+      aiErrorsSummary: aiErrorsSummary ? aiErrorsSummary.substring(0, 5000) : null // Limit size
     })
 
   } catch (error) {
