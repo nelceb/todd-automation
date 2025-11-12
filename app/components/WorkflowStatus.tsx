@@ -534,78 +534,60 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     )
   }
 
-  // Define the 3 repositories with their workflows
-  const repositoryData = [
-    {
-      name: 'pw-cookunity-automation',
-      fullName: 'Cook-Unity/pw-cookunity-automation',
-      technology: 'playwright',
-      icon: GlobeAltIcon,
-      color: 'asparagus',
-      workflows: [
-        'QA US - CORE UX SMOKE E2E',
-        'QA CA - SIGNUP',
-        'QA US - SIGNUP',
-        'QA US - SEGMENT - SIGN UP',
-        'QA US - LANDINGS',
-        'QA US - GROWTH',
-        'QA US - E2E',
-        'QA E2E - DYN ENV',
-        'QA CA - LANDINGS',
-        'QA CA - E2E',
-        'QA US - ACTIVATION',
-        'PROD CA - SIGNUP',
-        'PROD US - SIGNUP',
-        'PROD US - LCP Lighthouse',
-        'PROD CHEFS IMAGES',
-        'PROD US - SCRIPT LANDINGS ALL',
-        'PROD SANITY',
-        'PROD US - MOBILE - LANDINGS',
-        'PROD VISUAL REGRESSION',
-        'PROD US - SEGMENT - LANDINGS',
-        'PROD US - LANDINGS',
-        'PROD US - GROWTH',
-        'PROD US - E2E',
-        'PROD US - E2E Tests Chrome Specific',
-        'PROD CA - SANITY',
-        'PROD CA - LANDINGS',
-        'PROD CA - E2E',
-        'Automated E2E'
-      ]
-    },
-    {
-      name: 'maestro-test',
-      fullName: 'Cook-Unity/maestro-test',
-      technology: 'maestro',
-      icon: DevicePhoneMobileIcon,
-      color: 'airforce',
-      workflows: [
-        'iOS Maestro Cloud Tests',
-        'Run BS iOS Maestro Test (Minimal Zip)',
-        'iOS Gauge Tests on LambdaTest',
-        'Maestro Mobile Tests - iOS and Android',
-        'Run Maestro Test on BrowserStack (iOS)',
-        'Run Maestro Test on BrowserStack',
-        'Maestro iOS Tests'
-      ]
-    },
-    {
-      name: 'automation-framework',
-      fullName: 'Cook-Unity/automation-framework',
-      technology: 'selenium',
-      icon: CodeBracketIcon,
-      color: 'earth',
-      workflows: [
-        'Prod Android Regression',
-        'Prod iOS Regression',
-        'QA E2E Web Regression',
-        'QA Android Regression',
-        'QA iOS Regression',
-        'QA API Kitchen Regression',
-        'QA Logistics Regression'
-      ]
+  // Map repository technology to icon and color
+  const getRepositoryConfig = (technology: string) => {
+    switch (technology) {
+      case 'playwright':
+        return { icon: GlobeAltIcon, color: 'asparagus' }
+      case 'maestro':
+        return { icon: DevicePhoneMobileIcon, color: 'airforce' }
+      case 'selenium':
+        return { icon: CodeBracketIcon, color: 'earth' }
+      default:
+        return { icon: CodeBracketIcon, color: 'gray' }
     }
-  ]
+  }
+
+  // Use real data from store, with fallback to hardcoded structure if not loaded yet
+  const repositoryData = repositories.length > 0 
+    ? repositories.map((repo) => {
+        const config = getRepositoryConfig(repo.technology)
+        return {
+          name: repo.name,
+          fullName: repo.full_name,
+          technology: repo.technology,
+          icon: config.icon,
+          color: config.color,
+          workflows: repo.workflows.map((w: any) => w.name).sort() // Use real workflow names from API
+        }
+      })
+    : [
+        // Fallback structure while loading (only shown briefly)
+        {
+          name: 'pw-cookunity-automation',
+          fullName: 'Cook-Unity/pw-cookunity-automation',
+          technology: 'playwright',
+          icon: GlobeAltIcon,
+          color: 'asparagus',
+          workflows: []
+        },
+        {
+          name: 'maestro-test',
+          fullName: 'Cook-Unity/maestro-test',
+          technology: 'maestro',
+          icon: DevicePhoneMobileIcon,
+          color: 'airforce',
+          workflows: []
+        },
+        {
+          name: 'automation-framework',
+          fullName: 'Cook-Unity/automation-framework',
+          technology: 'selenium',
+          icon: CodeBracketIcon,
+          color: 'earth',
+          workflows: []
+        }
+      ]
 
   return (
     <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
