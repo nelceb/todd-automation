@@ -417,10 +417,10 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "growth" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
 - If user mentions "lighthouse" + "performance" → use Playwright PROD US - LCP Lighthouse (pw-cookunity-automation)
-- If user mentions "coreux" + "regression" OR "core ux" + "regression" → use Playwright QA US - CORE UX REGRESSION (pw-cookunity-automation) if it exists, otherwise fallback to QA US - CORE UX SMOKE E2E
+- If user mentions "coreux" + "regression" OR "core ux" + "regression" → use Playwright QA US - CORE UX REGRESSION (pw-cookunity-automation) - REQUIRED
 - If user mentions "coreux" or "core ux" (without "regression", with or without "smoke") → use Playwright QA US - CORE UX SMOKE E2E (pw-cookunity-automation) - DEFAULT
-- PRIORITY: "regression" keyword takes precedence over "smoke" - if user says "regression", always try to find QA US - CORE UX REGRESSION first
-- If "QA US - CORE UX REGRESSION" exists, use it when user mentions "regression". Otherwise, use "QA US - CORE UX SMOKE E2E" as fallback.
+- CRITICAL PRIORITY: "regression" keyword ALWAYS maps to "QA US - CORE UX REGRESSION" - NEVER use SMOKE E2E when user says "regression"
+- If user says "regression", you MUST use "QA US - CORE UX REGRESSION" - do not fallback to SMOKE E2E
 - Examples of regression core ux detection: "core ux regression", "coreux regression", "regression core ux", "run core ux regression tests", "execute core ux regression"
 - Examples of smoke core ux detection: "smoke core ux", "core ux smoke", "coreux smoke", "smoke test de core ux", "smoke tests core ux", "core ux smoke test", "smoke coreux", "smoke core ux tests", "run smoke core ux"
 - If user mentions "activation" → use Playwright QA US - ACTIVATION (pw-cookunity-automation)

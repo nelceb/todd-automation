@@ -826,7 +826,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                     e.stopPropagation()
                                     handleCancelWorkflow(workflowId, workflowState.runId!, repo.fullName)
                                   }}
-                                  className="text-sm font-medium text-red-300 hover:text-red-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-red-500/60 hover:border-red-500/80 bg-red-900/20 hover:bg-red-900/30 transition-colors"
+                                  className="text-sm font-semibold text-white hover:text-red-100 flex items-center px-4 py-2 rounded-lg border-2 border-red-500 hover:border-red-400 bg-red-600 hover:bg-red-500 shadow-md transition-colors"
                                 >
                                   <XCircleIcon className="w-4 h-4 mr-1.5" />
                                   Cancel Run
@@ -849,7 +849,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-medium text-blue-300 hover:text-blue-200 flex items-center px-3 py-1.5 rounded-lg border-2 border-blue-500/60 hover:border-blue-500/80 bg-blue-900/20 hover:bg-blue-900/30 transition-colors"
+                                  className="text-sm font-semibold text-white hover:text-blue-100 flex items-center px-4 py-2 rounded-lg border-2 border-blue-400 hover:border-blue-300 bg-blue-600 hover:bg-blue-500 shadow-md transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />

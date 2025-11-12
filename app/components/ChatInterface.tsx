@@ -1243,7 +1243,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   href={logs.reportArtifact.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-2 text-base font-medium text-green-300 hover:text-green-200 transition-colors px-4 py-2.5 border-2 border-green-500/60 rounded-lg hover:border-green-500/80 bg-green-900/20 hover:bg-green-900/30"
+                                  className="inline-flex items-center space-x-2 text-base font-semibold text-white hover:text-green-100 transition-colors px-5 py-3 border-2 border-green-500 rounded-lg hover:border-green-400 bg-green-600 hover:bg-green-500 shadow-md"
                                 >
                                   <span>📊 View Test Report</span>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1256,7 +1256,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   href={logs.run.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-2 text-base font-medium text-blue-300 hover:text-blue-200 transition-colors px-4 py-2.5 border-2 border-blue-500/60 rounded-lg hover:border-blue-500/80 bg-blue-900/20 hover:bg-blue-900/30"
+                                  className="inline-flex items-center space-x-2 text-base font-semibold text-white hover:text-blue-100 transition-colors px-5 py-3 border-2 border-blue-400 rounded-lg hover:border-blue-300 bg-blue-600 hover:bg-blue-500 shadow-md"
                                 >
                                   <span>View on GitHub</span>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1298,7 +1298,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 return (
                                   <button
                                     onClick={() => handleCancelWorkflow(logs.run.id.toString(), repoName!)}
-                                    className="inline-flex items-center space-x-2 text-base font-medium text-red-300 hover:text-red-200 transition-colors px-4 py-2.5 border-2 border-red-500/60 rounded-lg hover:border-red-500/80 bg-red-900/20 hover:bg-red-900/30"
+                                    className="inline-flex items-center space-x-2 text-base font-semibold text-white hover:text-red-100 transition-colors px-5 py-3 border-2 border-red-500 rounded-lg hover:border-red-400 bg-red-600 hover:bg-red-500 shadow-md"
                                   >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
