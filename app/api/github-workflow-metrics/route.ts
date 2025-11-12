@@ -113,20 +113,45 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    // Obtener workflows del repositorio
-    const workflowsResponse = await fetch(`https://api.github.com/repos/${repo}/actions/workflows`, {
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+    // Obtener workflows del repositorio con paginación para obtener TODOS los workflows
+    let allWorkflows: any[] = []
+    let page = 1
+    const perPage = 100
+    
+    while (true) {
+      const workflowsResponse = await fetch(
+        `https://api.github.com/repos/${repo}/actions/workflows?page=${page}&per_page=${perPage}`,
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          }
+        }
+      )
+
+      if (!workflowsResponse.ok) {
+        throw new Error(`GitHub API error: ${workflowsResponse.statusText}`)
       }
-    })
 
-    if (!workflowsResponse.ok) {
-      throw new Error(`GitHub API error: ${workflowsResponse.statusText}`)
+      const workflowsData = await workflowsResponse.json()
+      const pageWorkflows = workflowsData.workflows || []
+      
+      if (pageWorkflows.length === 0) {
+        break // No hay más páginas
+      }
+      
+      allWorkflows = [...allWorkflows, ...pageWorkflows]
+      
+      // Si recibimos menos workflows que perPage, es la última página
+      if (pageWorkflows.length < perPage) {
+        break
+      }
+      
+      page++
     }
-
-    const workflowsData = await workflowsResponse.json()
-    const workflows = workflowsData.workflows || []
+    
+    const workflows = allWorkflows
+    console.log(`📊 Metrics: Total workflows obtenidos (con paginación) para ${repo}: ${workflows.length}`)
 
     // Obtener runs para cada workflow
     const workflowMetrics: WorkflowMetrics[] = []
