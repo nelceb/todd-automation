@@ -31,6 +31,8 @@ interface WorkflowState {
     status: 'idle' | 'in_progress' | 'success' | 'error' | 'cancelled'
     runId?: string
     htmlUrl?: string
+    reportUrl?: string
+    aiErrorsSummary?: string
     startTime?: Date
     canCancel?: boolean
   }
@@ -334,45 +336,59 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     const pollInterval = setInterval(async () => {
       try {
         const repoName = repository.split('/').pop() || 'maestro-test'
-        const response = await fetch(`/api/workflow-status?runId=${runId}&repository=${repoName}`)
+        // Use workflow-logs endpoint to get artifacts and AI Errors Summary
+        const response = await fetch(`/api/workflow-logs?runId=${runId}&repository=${repoName}`, {
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
         
         if (response.ok) {
           const data = await response.json()
           
-          if (data.status === 'completed') {
+          if (data.run.status === 'completed') {
             // Workflow completed successfully
             setWorkflowStates(prev => ({ 
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
-                status: 'success',
+                status: data.run.conclusion === 'success' ? 'success' : 'error',
+                htmlUrl: data.run.htmlUrl,
+                reportUrl: data.reportArtifact?.htmlUrl,
+                aiErrorsSummary: data.aiErrorsSummary,
                 canCancel: false
               } 
             }))
             clearInterval(pollInterval)
-          } else if (data.status === 'failed') {
+          } else if (data.run.status === 'failed') {
             // Workflow failed
             setWorkflowStates(prev => ({ 
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
                 status: 'error',
+                htmlUrl: data.run.htmlUrl,
+                reportUrl: data.reportArtifact?.htmlUrl,
+                aiErrorsSummary: data.aiErrorsSummary,
                 canCancel: false
               } 
             }))
             clearInterval(pollInterval)
-          } else if (data.status === 'cancelled') {
+          } else if (data.run.status === 'cancelled') {
             // Workflow was cancelled
             setWorkflowStates(prev => ({ 
               ...prev, 
               [workflowId]: { 
                 ...prev[workflowId],
                 status: 'cancelled',
+                htmlUrl: data.run.htmlUrl,
+                reportUrl: data.reportArtifact?.htmlUrl,
                 canCancel: false
               } 
             }))
             clearInterval(pollInterval)
-          } else if (data.status === 'in_progress' || data.status === 'queued') {
+          } else if (data.run.status === 'in_progress' || data.run.status === 'queued') {
             // Still running, keep polling
             setWorkflowStates(prev => ({ 
               ...prev, 
