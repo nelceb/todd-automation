@@ -65,10 +65,11 @@ export interface WorkflowLogs {
     completedAt?: string
   }>
   reportArtifact?: {
-    id: number
+    id: number | string
     name: string
     size: number
     htmlUrl: string
+    isViewable?: boolean
   } | null
   aiErrorsSummary?: string | null
 }

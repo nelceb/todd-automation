@@ -243,11 +243,15 @@ export async function GET(request: NextRequest) {
       },
       jobs: jobsData.jobs,
       logs: logs,
+      // Only return reportArtifact if we have a viewable URL (S3) or if it's a GitHub artifact (user can download)
+      // For GitHub artifacts, the URL points to the artifact page where user can download
       reportArtifact: reportArtifact ? {
         id: reportArtifact.id,
         name: reportArtifact.name,
         size: reportArtifact.size_in_bytes || 0,
-        htmlUrl: reportArtifact.htmlUrl || `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`
+        // If htmlUrl is set (S3), use it. Otherwise, use GitHub artifact page URL
+        htmlUrl: reportArtifact.htmlUrl || `https://github.com/${fullRepoName}/actions/runs/${runId}/artifacts/${reportArtifact.id}`,
+        isViewable: !!reportArtifact.htmlUrl // S3 URLs are directly viewable, GitHub artifacts require download
       } : null,
       aiErrorsSummary: aiErrorsSummary ? aiErrorsSummary.substring(0, 10000) : null // Limit size to 10KB
     })

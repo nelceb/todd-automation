@@ -356,6 +356,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 status: data.run.conclusion === 'success' ? 'success' : 'error',
                 htmlUrl: data.run.htmlUrl,
                 reportUrl: data.reportArtifact?.htmlUrl,
+                reportIsViewable: data.reportArtifact?.isViewable || false,
                 aiErrorsSummary: data.aiErrorsSummary,
                 canCancel: false
               } 
@@ -370,6 +371,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 status: 'error',
                 htmlUrl: data.run.htmlUrl,
                 reportUrl: data.reportArtifact?.htmlUrl,
+                reportIsViewable: data.reportArtifact?.isViewable || false,
                 aiErrorsSummary: data.aiErrorsSummary,
                 canCancel: false
               } 
@@ -397,6 +399,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 status: 'in_progress',
                 htmlUrl: data.run.htmlUrl,
                 reportUrl: data.reportArtifact?.htmlUrl,
+                reportIsViewable: data.reportArtifact?.isViewable || false,
                 canCancel: true
               } 
             }))
@@ -824,7 +827,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   Cancel Run
                                 </button>
                               )}
-                              {workflowState?.reportUrl && (
+                              {workflowState?.reportUrl && workflowState?.reportIsViewable && (
                                 <a
                                   href={workflowState.reportUrl}
                                   target="_blank"

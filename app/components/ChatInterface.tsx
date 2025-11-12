@@ -1238,7 +1238,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           {/* Actions */}
                           {(logs.run.htmlUrl || logs.reportArtifact) && (
                             <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-3">
-                              {logs.reportArtifact && (
+                              {logs.reportArtifact && logs.reportArtifact.isViewable && (
                                 <a
                                   href={logs.reportArtifact.htmlUrl}
                                   target="_blank"
