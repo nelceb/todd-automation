@@ -955,7 +955,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   }
                                   
                                   // Show TESTS RUNNING if workflow is in progress
-                                  if (correspondingLog.run.status === 'in_progress') {
+                                  if (correspondingLog.run.status === 'in_progress' || correspondingLog.run.status === 'queued') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
                                         TESTS RUNNING
@@ -963,11 +963,38 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS FAILED if workflow failed
-                                  if (correspondingLog.run.status === 'failed') {
+                                  // Show TESTS PASSED if workflow completed successfully
+                                  if (correspondingLog.run.status === 'completed' && correspondingLog.run.conclusion === 'success') {
                                     return (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 animate-pulse shadow-sm">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-900 border border-green-400 shadow-sm">
+                                        TESTS PASSED
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // Show TESTS FAILED if workflow failed
+                                  if (correspondingLog.run.status === 'completed' && correspondingLog.run.conclusion === 'failure') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 shadow-sm">
                                         TESTS FAILED
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // Show TESTS CANCELLED if workflow was cancelled
+                                  if (correspondingLog.run.status === 'cancelled' || correspondingLog.run.conclusion === 'cancelled') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-900 border border-gray-400 shadow-sm">
+                                        TESTS CANCELLED
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  // Fallback: Show status as-is
+                                  if (correspondingLog.run.status === 'completed') {
+                                    return (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-900 border border-yellow-400 shadow-sm">
+                                        {correspondingLog.run.conclusion?.toUpperCase() || 'COMPLETED'}
                                       </span>
                                     )
                                   }
