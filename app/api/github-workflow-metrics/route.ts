@@ -150,8 +150,16 @@ export async function GET(request: NextRequest) {
       page++
     }
     
-    const workflows = allWorkflows
-    console.log(`📊 Metrics: Total workflows obtenidos (con paginación) para ${repo}: ${workflows.length}`)
+    // Filtrar workflows activos y excluir templates (igual que en /api/repositories)
+    const activeWorkflows = allWorkflows.filter((workflow: any) => 
+      workflow.state === 'active' && 
+      !workflow.name.toLowerCase().includes('template') &&
+      !workflow.path.toLowerCase().includes('template')
+    )
+    
+    const workflows = activeWorkflows
+    console.log(`📊 Metrics: Total workflows obtenidos (con paginación) para ${repo}: ${allWorkflows.length}`)
+    console.log(`📊 Metrics: Active workflows (después de filtro) para ${repo}: ${workflows.length}`)
 
     // Obtener runs para cada workflow
     const workflowMetrics: WorkflowMetrics[] = []
