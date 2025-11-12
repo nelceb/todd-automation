@@ -62,26 +62,68 @@ export async function GET(request: NextRequest) {
 
           const repo = await repoResponse.json()
 
-          // Get workflows
-          const workflowsResponse = await fetch(`https://api.github.com/repos/${repoName}/actions/workflows`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/vnd.github.v3+json'
-            }
-          })
-
-          if (!workflowsResponse.ok) {
-            throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status}`)
-          }
-
-          const workflowsData = await workflowsResponse.json()
+          // Get workflows with pagination to get ALL workflows
+          let allWorkflowsFromAPI: any[] = []
+          let page = 1
+          const perPage = 100
           
-          // Filter active workflows only
-          const activeWorkflows = workflowsData.workflows.filter((workflow: any) => 
+          while (true) {
+            const workflowsResponse = await fetch(
+              `https://api.github.com/repos/${repoName}/actions/workflows?page=${page}&per_page=${perPage}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/vnd.github.v3+json'
+                }
+              }
+            )
+
+            if (!workflowsResponse.ok) {
+              throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status}`)
+            }
+
+            const workflowsData = await workflowsResponse.json()
+            const workflows = workflowsData.workflows || []
+            
+            if (workflows.length === 0) {
+              break
+            }
+            
+            allWorkflowsFromAPI.push(...workflows)
+            
+            // Si recibimos menos de perPage, significa que es la última página
+            if (workflows.length < perPage) {
+              break
+            }
+            
+            page++
+          }
+          
+          console.log(`📋 [${repoName}] Total workflows obtenidos (con paginación): ${allWorkflowsFromAPI.length}`)
+          
+          // Filter active workflows only (excluding templates)
+          const activeWorkflows = allWorkflowsFromAPI.filter((workflow: any) => 
             workflow.state === 'active' && 
-            !workflow.name.includes('template') &&
-            !workflow.name.includes('Template')
+            !workflow.name.toLowerCase().includes('template') &&
+            !workflow.path.toLowerCase().includes('template')
           )
+          
+          console.log(`📋 [${repoName}] Active workflows (después de filtro): ${activeWorkflows.length}`)
+          
+          // Verificar específicamente si qa_us_coreux_regression está en la lista
+          const regressionWorkflow = allWorkflowsFromAPI.find((w: any) => 
+            w.path.includes('qa_us_coreux_regression') || 
+            w.name.toLowerCase().includes('qa us - core ux regression')
+          )
+          if (regressionWorkflow) {
+            console.log(`✅ [${repoName}] ENCONTRADO qa_us_coreux_regression en /api/repositories:`, {
+              name: regressionWorkflow.name,
+              path: regressionWorkflow.path,
+              state: regressionWorkflow.state
+            })
+          } else {
+            console.log(`❌ [${repoName}] NO encontrado qa_us_coreux_regression en /api/repositories`)
+          }
 
           // Classify workflows by technology and purpose
           const classifiedWorkflows = activeWorkflows.map((workflow: any) => {
