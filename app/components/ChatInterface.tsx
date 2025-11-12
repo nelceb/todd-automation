@@ -954,8 +954,12 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     )
                                   }
                                   
-                                  // Show TESTS RUNNING if workflow is in progress
-                                  if (correspondingLog.run.status === 'in_progress' || correspondingLog.run.status === 'queued') {
+                                  // Check status - use effectiveStatus from backend (mapped to run.status)
+                                  const runStatus = correspondingLog.run.status
+                                  const runConclusion = correspondingLog.run.conclusion
+                                  
+                                  // Show TESTS RUNNING if workflow is in progress or queued
+                                  if (runStatus === 'in_progress' || runStatus === 'queued') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-200 text-blue-900 border border-blue-400 animate-pulse shadow-sm">
                                         TESTS RUNNING
@@ -964,7 +968,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   }
                                   
                                   // Show TESTS PASSED if workflow completed successfully
-                                  if (correspondingLog.run.status === 'completed' && correspondingLog.run.conclusion === 'success') {
+                                  if (runStatus === 'completed' && runConclusion === 'success') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-900 border border-green-400 shadow-sm">
                                         TESTS PASSED
@@ -973,7 +977,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   }
                                   
                                   // Show TESTS FAILED if workflow failed
-                                  if (correspondingLog.run.status === 'completed' && correspondingLog.run.conclusion === 'failure') {
+                                  if (runStatus === 'completed' && runConclusion === 'failure') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 shadow-sm">
                                         TESTS FAILED
@@ -982,7 +986,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   }
                                   
                                   // Show TESTS CANCELLED if workflow was cancelled
-                                  if (correspondingLog.run.status === 'cancelled' || correspondingLog.run.conclusion === 'cancelled') {
+                                  if (runStatus === 'cancelled' || runConclusion === 'cancelled') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-900 border border-gray-400 shadow-sm">
                                         TESTS CANCELLED
@@ -991,10 +995,10 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   }
                                   
                                   // Fallback: Show status as-is for other completed states
-                                  if (correspondingLog.run.status === 'completed') {
+                                  if (runStatus === 'completed') {
                                     return (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-900 border border-yellow-400 shadow-sm">
-                                        {correspondingLog.run.conclusion?.toUpperCase() || 'COMPLETED'}
+                                        {runConclusion?.toUpperCase() || 'COMPLETED'}
                                       </span>
                                     )
                                   }
@@ -1298,14 +1302,14 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           {/* Actions */}
                           {(logs.run.htmlUrl || logs.reportArtifact) && (
                             <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-center space-x-4 flex-wrap gap-3">
-                              {logs.reportArtifact && logs.reportArtifact.isViewable && (
+                              {logs.reportArtifact && logs.reportArtifact.htmlUrl && (
                                 <a
                                   href={logs.reportArtifact.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center space-x-2 text-sm sm:text-base font-mono text-white transition-colors px-3 py-2 sm:px-4 sm:py-2 border-2 border-asparagus-600 rounded-lg hover:border-asparagus-500 bg-asparagus-500 hover:bg-asparagus-600 shadow-md min-h-[44px]"
                                 >
-                                  <span>📊 View Test Report</span>
+                                  <span>📊 {logs.reportArtifact.isViewable ? 'View Test Report' : 'View Test Report (Download)'}</span>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                   </svg>
@@ -1372,11 +1376,11 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                           
                           {/* AI Errors Summary - Show when workflow failed */}
                           {logs.run.conclusion === 'failure' && logs.aiErrorsSummary && (
-                            <div className="mt-4 p-5 bg-red-900/20 border-2 border-red-500/50 rounded-lg">
-                              <div className="flex items-center space-x-2 mb-3">
-                                <span className="text-red-300 font-bold text-lg">🤖 AI Errors Summary</span>
+                            <div className="mt-4 p-6 bg-red-900/30 border-2 border-redwood-500 rounded-lg shadow-md">
+                              <div className="flex items-center space-x-2 mb-4">
+                                <span className="text-white font-mono font-bold text-base">🤖 AI Errors Summary</span>
                               </div>
-                              <div className="text-sm text-red-200 font-sans leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+                              <div className="text-sm text-white font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto bg-gray-900/40 p-4 rounded border border-gray-700/50">
                                 {logs.aiErrorsSummary}
                               </div>
                             </div>
