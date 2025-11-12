@@ -857,11 +857,11 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                         
                         {/* Show AI Errors Summary when workflow failed */}
                         {state === 'error' && workflowState?.aiErrorsSummary && (
-                          <div className="mt-3 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-red-400 font-semibold text-xs">🤖 AI Errors Summary</span>
+                          <div className="mt-3 p-4 bg-red-900/20 border-2 border-red-500/50 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-3">
+                              <span className="text-red-300 font-bold text-base">🤖 AI Errors Summary</span>
                             </div>
-                            <div className="text-xs text-red-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                            <div className="text-sm text-red-200 font-sans leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
                               {workflowState.aiErrorsSummary}
                             </div>
                           </div>
