@@ -37,6 +37,8 @@ class PlaywrightMCPWrapper {
   // 6. CSS selector fallback
   async generateLocator(element: Locator, description?: string): Promise<string> {
     try {
+      let locatorCode = '';
+      
       // Intentar usar función interna de Playwright si está disponible
       // Esto replica lo que hace el MCP oficial internamente
       try {
@@ -46,21 +48,48 @@ class PlaywrightMCPWrapper {
         if (resolvedSelector?.resolvedSelector) {
           // Convertir selector resuelto a código JavaScript como hace el MCP
           // El MCP oficial usa asLocator para convertir a código
-          const locatorCode = this.selectorToLocatorCode(resolvedSelector.resolvedSelector);
+          locatorCode = this.selectorToLocatorCode(resolvedSelector.resolvedSelector);
           console.log(`✅ MCP-style: Locator generado desde selector resuelto: ${locatorCode}`);
-          return locatorCode;
         }
       } catch (resolveError) {
         // Continuar con estrategias manuales (misma lógica que el MCP)
         console.log('🔧 MCP-style: Usando estrategias manuales (misma lógica que @playwright/mcp)');
       }
       
-      // Usar estrategias manuales que replican exactamente la lógica del MCP oficial
-      return await this.generateLocatorManual(element);
+      // Si no se generó con selector resuelto, usar estrategias manuales
+      if (!locatorCode) {
+        locatorCode = await this.generateLocatorManual(element);
+      }
+      
+      // 🎯 CRITICAL: Normalizar siempre a 'page.' - nunca devolver 'p.'
+      return this.normalizeLocator(locatorCode);
     } catch (error) {
       console.error('❌ Error generando locator:', error);
-      return await this.generateLocatorManual(element);
+      const fallbackLocator = await this.generateLocatorManual(element);
+      return this.normalizeLocator(fallbackLocator);
     }
+  }
+  
+  // Normalizar locator para asegurar que siempre use 'page.' en lugar de 'p.'
+  private normalizeLocator(locator: string): string {
+    if (!locator) return 'page.locator(\'body\')';
+    
+    // Reemplazar cualquier 'p.' al inicio con 'page.'
+    if (locator.startsWith('p.')) {
+      locator = locator.replace(/^p\./, 'page.');
+      console.log(`🔧 Normalizado locator de 'p.' a 'page.': ${locator}`);
+    }
+    
+    // Asegurar que siempre empiece con 'page.'
+    if (!locator.startsWith('page.')) {
+      // Si no empieza con 'page.', intentar agregarlo (solo si no es código complejo)
+      if (!locator.includes('(') && !locator.includes('await')) {
+        locator = `page.${locator}`;
+        console.log(`🔧 Agregado 'page.' al locator: ${locator}`);
+      }
+    }
+    
+    return locator;
   }
   
   // Convertir selector resuelto a código de locator (como hace el MCP oficial)
@@ -586,14 +615,23 @@ export async function executePlaywrightMCP(acceptanceCriteria: string, ticketId?
       // Si todo falla, entonces sí devolver error
       return {
         success: false, 
-        error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
+        error: `Error en Playwright MCP: ${error instanceof Error ? error.message : String(error)}`,
         fallback: true
       }
     }
     
+    // Detectar error específico de 'p' antes de inicialización
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    let finalError = `Error en Playwright MCP: ${errorMessage}`;
+    
+    if (errorMessage.includes("Cannot access 'p' before initialization") || errorMessage.includes("Cannot access") && errorMessage.includes("before initialization")) {
+      finalError = `Error en la generación del locator: se detectó un locator inválido. Por favor, intenta nuevamente o revisa los logs del servidor.`;
+      console.error('❌ ERROR CRÍTICO: Locator con "p." detectado:', errorMessage);
+    }
+    
     return {
       success: false, 
-      error: `Playwright MCP error: ${error instanceof Error ? error.message : String(error)}`,
+      error: finalError,
       fallback: true
     }
   }
@@ -2411,7 +2449,7 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
           if (!isActive) {
             const text = await foundElement.textContent().catch(() => '');
           let generatedLocator = await mcpWrapper.generateLocator(foundElement);
-          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          // 🎯 generateLocator ya normaliza a 'page.', pero asegurémonos
           if (generatedLocator.startsWith('p.')) {
             generatedLocator = generatedLocator.replace(/^p\./, 'page.');
             console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
@@ -2425,7 +2463,7 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
               description: `Click on ${text || term} tab/section to activate ${context} section`,
               intent: `Activate ${context} section`,
               order: 0,
-              locator: generatedLocator // 🎯 Guardar locator generado
+              locator: generatedLocator // 🎯 Guardar locator generado (ya normalizado)
             });
             
             return; // Solo agregar una acción por sección
@@ -2434,7 +2472,7 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
           // Si no podemos verificar, agregar acción por seguridad
           const text = await foundElement.textContent().catch(() => term);
           let generatedLocator = await mcpWrapper.generateLocator(foundElement);
-          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          // 🎯 generateLocator ya normaliza a 'page.', pero asegurémonos
           if (generatedLocator.startsWith('p.')) {
             generatedLocator = generatedLocator.replace(/^p\./, 'page.');
             console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
@@ -2447,7 +2485,7 @@ async function detectAndActivateSectionWithMCP(page: Page, interpretation: any, 
             description: `Click on ${text || term} tab/section to activate ${context} section`,
             intent: `Activate ${context} section`,
             order: 0,
-            locator: generatedLocator
+            locator: generatedLocator // 🎯 Guardar locator generado (ya normalizado)
           });
           return;
         }
@@ -3244,14 +3282,14 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
               console.log(`✅ Captured testId for tab "${action.element}": ${testId}`);
             }
             
-            // Generate and store locator
+            // Generate and store locator (ya normalizado por generateLocator)
             let generatedLocator = await mcpWrapper.generateLocator(foundElement);
-            // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+            // 🎯 generateLocator ya normaliza a 'page.', pero asegurémonos como doble verificación
             if (generatedLocator.startsWith('p.')) {
               generatedLocator = generatedLocator.replace(/^p\./, 'page.');
               console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
             }
-            action.locator = generatedLocator;
+            action.locator = generatedLocator; // Guardar locator normalizado
             
             // 🎯 CRITICAL: Verify page is still open before clicking
             if (page.isClosed()) {
@@ -4052,7 +4090,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
             } else {
               // Try to generate locator using MCP (may use role, aria-label, etc.)
               locator = await mcpWrapper.generateLocator(element as any).catch(() => undefined);
-              // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+              // 🎯 generateLocator ya normaliza a 'page.', pero asegurémonos como doble verificación
               if (locator && locator.startsWith('p.')) {
                 locator = locator.replace(/^p\./, 'page.');
               }
@@ -4186,7 +4224,7 @@ async function observeBehaviorWithMCP(page: Page, interpretation: any, mcpWrappe
         if (foundElement) {
           foundBy = 'mcp-snapshot';
           generatedLocator = await mcpWrapper.generateLocator(foundElement);
-          // 🎯 CRITICAL: Fix 'p.locator' to 'page.locator' if needed
+          // 🎯 generateLocator ya normaliza a 'page.', pero asegurémonos como doble verificación
           if (generatedLocator.startsWith('p.')) {
             generatedLocator = generatedLocator.replace(/^p\./, 'page.');
             console.log(`🔧 Fixed locator from 'p.' to 'page.': ${generatedLocator}`);
@@ -4978,19 +5016,39 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           if (action.locator) {
             // Los locators MCP usan 'page' del fixture de Playwright directamente
             // Validar que el locator esté bien formado (debe empezar con 'page.')
+            // 🎯 CRITICAL: Normalizar locator ANTES de usarlo para prevenir "Cannot access 'p' before initialization"
             const locatorCode = action.locator.trim();
-            if (locatorCode.startsWith('page.') || locatorCode.startsWith('p.')) {
-              // Si empieza con 'p.' en lugar de 'page.', corregirlo
-              const correctedLocator = locatorCode.startsWith('p.') ? locatorCode.replace(/^p\./, 'page.') : locatorCode;
-              testCode += `\n  await ${correctedLocator}.click();`;
+            let correctedLocator = locatorCode;
+            
+            // Normalizar: reemplazar cualquier 'p.' con 'page.'
+            if (locatorCode.includes('p.') && !locatorCode.includes('page.')) {
+              correctedLocator = locatorCode.replace(/\bp\./g, 'page.');
+              console.warn(`⚠️ Corrigiendo locator: reemplazado 'p.' con 'page.': ${locatorCode} → ${correctedLocator}`);
+            } else if (locatorCode.startsWith('p.')) {
+              correctedLocator = locatorCode.replace(/^p\./, 'page.');
+              console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
+            } else if (!locatorCode.startsWith('page.')) {
+              // Si no empieza con 'page.', agregarlo solo si no es código complejo
+              if (!locatorCode.includes('(') && !locatorCode.includes('await')) {
+                correctedLocator = `page.${locatorCode}`;
+                console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
             } else {
-              // Si no empieza con 'page.', agregarlo o usar fallback
-              console.warn(`⚠️ Locator mal formado: ${locatorCode}, usando fallback a método de page object`);
-              // Usar fallback a método de page object
+                correctedLocator = locatorCode;
+              }
+            }
+            
+            // 🎯 Validación final: asegurar que no quede ningún 'p.' sin 'page.'
+            if (correctedLocator.includes('p.') && !correctedLocator.includes('page.')) {
+              console.error(`❌ ERROR CRÍTICO: Locator aún contiene 'p.' sin 'page.': ${correctedLocator}`);
+              // Fallback seguro: usar método de page object
               if (elementName) {
                 const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
                 testCode += `\n  await ${pageVarName}.clickOn${capitalizedName}();`;
+              } else {
+                testCode += `\n  // ⚠️ Locator inválido omitido: ${locatorCode}`;
               }
+            } else {
+              testCode += `\n  await ${correctedLocator}.click();`;
             }
           } else {
             // Fallback a método de page object
@@ -5069,6 +5127,31 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
           );
         
         let methodCall = '';
+        
+        // 🎯 Extraer valor real para acciones 'fill' desde la descripción o intent
+        const extractFillValue = (action: any): string => {
+          // Intentar extraer de la descripción (ej: "Enter 'pizza' in the search input field")
+          const descMatch = action.description?.match(/['"]([^'"]+)['"]/);
+          if (descMatch && descMatch[1]) {
+            return descMatch[1];
+          }
+          // Intentar extraer del intent (ej: "Search for pizza meals")
+          const intentMatch = action.intent?.match(/(?:for|with|using)\s+['"]?([^'"]+)/i);
+          if (intentMatch && intentMatch[1]) {
+            return intentMatch[1];
+          }
+          // Fallback: buscar palabras clave comunes en la descripción
+          const descLower = (action.description || '').toLowerCase();
+          if (descLower.includes('pizza')) return 'pizza';
+          if (descLower.includes('search')) {
+            // Extraer lo que viene después de "search for"
+            const searchMatch = descLower.match(/search\s+for\s+['"]?([^'"]+)/i);
+            if (searchMatch && searchMatch[1]) return searchMatch[1];
+          }
+          return 'test-value'; // Fallback final
+        };
+        
+        const fillValue = action.type === 'fill' ? extractFillValue(action) : '';
           
           if (existingMethod) {
           // 🎯 REUTILIZAR MÉTODO EXISTENTE (prioridad máxima)
@@ -5078,12 +5161,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
                 methodCall = `await ${pageVarName}.${existingMethod}();`;
                 break;
               case 'fill':
-                methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
+                methodCall = `await ${pageVarName}.${existingMethod}('${fillValue}');`;
                 break;
               default:
                 methodCall = `await ${pageVarName}.${existingMethod}();`;
             }
-          console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}`);
+          console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}${action.type === 'fill' ? ` con valor '${fillValue}'` : ''}`);
           } else {
           // 🎯 PRIORIDAD 2: Generar método en page object (NO usar locator directamente)
           // El método se generará en addMissingMethodsToPageObject y se usará aquí
@@ -5094,7 +5177,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
                 methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
               break;
             case 'fill':
-                methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
+                methodCall = `await ${pageVarName}.fill${capitalizedName}('${fillValue}');`;
               break;
             case 'navigate':
                 methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
@@ -5794,6 +5877,31 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       
       let methodCall = '';
       
+      // 🎯 Extraer valor real para acciones 'fill' desde la descripción o intent
+      const extractFillValue = (action: any): string => {
+        // Intentar extraer de la descripción (ej: "Enter 'pizza' in the search input field")
+        const descMatch = action.description?.match(/['"]([^'"]+)['"]/);
+        if (descMatch && descMatch[1]) {
+          return descMatch[1];
+        }
+        // Intentar extraer del intent (ej: "Search for pizza meals")
+        const intentMatch = action.intent?.match(/(?:for|with|using)\s+['"]?([^'"]+)/i);
+        if (intentMatch && intentMatch[1]) {
+          return intentMatch[1];
+        }
+        // Fallback: buscar palabras clave comunes en la descripción
+        const descLower = (action.description || '').toLowerCase();
+        if (descLower.includes('pizza')) return 'pizza';
+        if (descLower.includes('search')) {
+          // Extraer lo que viene después de "search for"
+          const searchMatch = descLower.match(/search\s+for\s+['"]?([^'"]+)/i);
+          if (searchMatch && searchMatch[1]) return searchMatch[1];
+        }
+        return 'test-value'; // Fallback final
+      };
+      
+      const fillValue = action.type === 'fill' ? extractFillValue(action) : '';
+      
       if (existingMethod) {
         // 🎯 REUTILIZAR MÉTODO EXISTENTE (prioridad máxima)
         switch (action.type) {
@@ -5802,12 +5910,12 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
             methodCall = `await ${pageVarName}.${existingMethod}();`;
             break;
           case 'fill':
-            methodCall = `await ${pageVarName}.${existingMethod}('test-value');`;
+            methodCall = `await ${pageVarName}.${existingMethod}('${fillValue}');`;
             break;
           default:
             methodCall = `await ${pageVarName}.${existingMethod}();`;
         }
-        console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}`);
+        console.log(`✅ REUTILIZANDO método existente: ${existingMethod} para ${elementName}${action.type === 'fill' ? ` con valor '${fillValue}'` : ''}`);
       } else {
         // Fallback: Generar método específico basado en el tipo de acción
         const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
@@ -5817,7 +5925,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
             methodCall = `await ${pageVarName}.clickOn${capitalizedName}();`;
             break;
           case 'fill':
-            methodCall = `await ${pageVarName}.fill${capitalizedName}('test-value');`;
+            methodCall = `await ${pageVarName}.fill${capitalizedName}('${fillValue}');`;
             break;
           case 'navigate':
             methodCall = `await ${pageVarName}.navigateTo${capitalizedName}();`;
@@ -5843,21 +5951,41 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       // 🎯 Usar locator MCP si está disponible
       if (interaction.locator) {
         // MCP locators usan 'page' directamente del test fixture
-        // Validar y corregir el locator si es necesario
+        // 🎯 CRITICAL: Validar y normalizar el locator ANTES de usarlo para prevenir "Cannot access 'p' before initialization"
         const locatorCode = interaction.locator.trim();
         let correctedLocator = locatorCode;
         
-        // Corregir si empieza con 'p.' en lugar de 'page.'
-        if (locatorCode.startsWith('p.')) {
+        // Normalizar: reemplazar cualquier 'p.' con 'page.'
+        if (locatorCode.includes('p.') && !locatorCode.includes('page.')) {
+          // Reemplazar todas las ocurrencias de 'p.' que no sean parte de 'page.'
+          correctedLocator = locatorCode.replace(/\bp\./g, 'page.');
+          console.warn(`⚠️ Corrigiendo locator: reemplazado 'p.' con 'page.': ${locatorCode} → ${correctedLocator}`);
+        } else if (locatorCode.startsWith('p.')) {
           correctedLocator = locatorCode.replace(/^p\./, 'page.');
           console.warn(`⚠️ Corrigiendo locator de 'p.' a 'page.': ${locatorCode} → ${correctedLocator}`);
         } else if (!locatorCode.startsWith('page.')) {
-          // Si no empieza con 'page.', agregarlo
+          // Si no empieza con 'page.', agregarlo solo si no es código complejo
+          if (!locatorCode.includes('(') && !locatorCode.includes('await')) {
           correctedLocator = `page.${locatorCode}`;
           console.warn(`⚠️ Agregando 'page.' al locator: ${locatorCode} → ${correctedLocator}`);
+          } else {
+            correctedLocator = locatorCode;
+          }
         }
         
+        // 🎯 Validación final: asegurar que no quede ningún 'p.' sin 'page.'
+        if (correctedLocator.includes('p.') && !correctedLocator.includes('page.')) {
+          console.error(`❌ ERROR CRÍTICO: Locator aún contiene 'p.' sin 'page.': ${correctedLocator}`);
+          // Fallback seguro: usar método de page object
+          if (elementName) {
+            const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);
+            testCode += `\n  await ${pageVarName}.clickOn${capitalizedName}();`;
+          } else {
+            testCode += `\n  // ⚠️ Locator inválido omitido: ${locatorCode}`;
+          }
+        } else {
         testCode += `\n  await ${correctedLocator}.click();`;
+        }
       } else if (elementName) {
         // Fallback a método genérico
         const capitalizedName = elementName.charAt(0).toUpperCase() + elementName.slice(1);

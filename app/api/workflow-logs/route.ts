@@ -64,11 +64,15 @@ export async function GET(request: NextRequest) {
 
     const jobsData = await jobsResponse.json()
 
-    // Get logs for each job
+    // Get logs for each job (with timeout to prevent function timeout)
     const logs = []
-    for (const job of jobsData.jobs) {
+    const logPromises = jobsData.jobs.map(async (job: any) => {
       if (job.status === 'completed' || job.status === 'in_progress') {
         try {
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout per log fetch
+          
           const logsResponse = await fetch(
             `https://api.github.com/repos/${fullRepoName}/actions/jobs/${job.id}/logs`,
             {
@@ -76,19 +80,27 @@ export async function GET(request: NextRequest) {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github.v3+json',
               },
+              signal: controller.signal,
             }
           )
+          
+          clearTimeout(timeoutId)
 
           if (logsResponse.ok) {
             const logText = await logsResponse.text()
-            logs.push({
+            // Limit log size to prevent memory issues (keep last 500KB)
+            const limitedLogText = logText.length > 500000 
+              ? logText.slice(-500000) 
+              : logText
+            
+            return {
               jobName: job.name,
               status: job.status,
               conclusion: job.conclusion,
-              logs: logText,
+              logs: limitedLogText,
               startedAt: job.started_at,
               completedAt: job.completed_at
-            })
+            }
           } else {
             // If logs are not available yet, show job status with more accurate message
             let statusMessage = ''
@@ -102,38 +114,65 @@ export async function GET(request: NextRequest) {
               statusMessage = `Job ${job.name} is ${job.status}.`
             }
             
-            logs.push({
+            return {
               jobName: job.name,
               status: job.status,
               conclusion: job.conclusion,
               logs: statusMessage,
               startedAt: job.started_at,
               completedAt: job.completed_at
-            })
+            }
           }
-        } catch (error) {
-          console.error(`Error fetching logs for job ${job.id}:`, error)
+        } catch (error: any) {
+          if (error.name === 'AbortError') {
+            console.warn(`⏱️ Timeout fetching logs for job ${job.id} (${job.name})`)
+          } else {
+            console.error(`Error fetching logs for job ${job.id}:`, error)
+          }
           // Show job info even if logs fail
-          logs.push({
+          return {
             jobName: job.name,
             status: job.status,
             conclusion: job.conclusion,
             logs: `Job ${job.name} is ${job.status}. Logs not available yet.`,
             startedAt: job.started_at,
             completedAt: job.completed_at
-          })
+          }
         }
       } else {
         // Show queued jobs
-        logs.push({
+        return {
           jobName: job.name,
           status: job.status,
           conclusion: job.conclusion,
           logs: `Job ${job.name} is ${job.status}. Waiting in queue...`,
           startedAt: job.started_at,
           completedAt: job.completed_at
-        })
+        }
       }
+    })
+    
+    // Execute all log fetches in parallel with timeout
+    try {
+      const logResults = await Promise.allSettled(logPromises)
+      logs.push(...logResults.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        } else {
+          // Fallback for failed promises
+          const job = jobsData.jobs[index]
+          return {
+            jobName: job?.name || 'Unknown',
+            status: job?.status || 'unknown',
+            conclusion: job?.conclusion || null,
+            logs: `Error fetching logs for job: ${result.reason}`,
+            startedAt: job?.started_at,
+            completedAt: job?.completed_at
+          }
+        }
+      }))
+    } catch (error) {
+      console.error('Error in parallel log fetching:', error)
     }
 
     console.log('🔍 Workflow logs API - Run status:', runData.status, 'Conclusion:', runData.conclusion)
@@ -222,8 +261,11 @@ export async function GET(request: NextRequest) {
     // Also try to find S3 URL for HTML report in logs (always check, even if artifact found, as S3 URL is better)
     const allLogsText = logs.map((log: any) => log.logs).join('\n')
     
-    // Look for S3 HTML report URLs - multiple patterns
+    // Look for S3 HTML report URLs - multiple patterns (prioritize "View Playwright Report" pattern)
     const htmlReportUrlPatterns = [
+      /View\s+Playwright\s+Report[:\s]*\(?(https:\/\/[^\s\)\n]+)/gi,  // "View Playwright Report: https://..." or "[View Playwright Report](https://...)"
+      /\[View\s+Playwright\s+Report\]\(https:\/\/[^\s\)\n]+\)/gi,  // Markdown link format
+      /View\s+Playwright\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "View Playwright Report: https://..."
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/index\.html[^\s\n]*/gi,  // index.html (most common)
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*report[^\/]*\.html[^\s\n]*/gi,  // any report*.html
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*playwright[^\/]*\.html[^\s\n]*/gi,  // playwright*.html
@@ -236,17 +278,41 @@ export async function GET(request: NextRequest) {
     ]
     
     let s3HtmlReportUrl = null
-    for (const pattern of htmlReportUrlPatterns) {
-      const match = allLogsText.match(pattern)
-      if (match && match.length > 0) {
-        // Use the last match (most recent)
-        let url = match[match.length - 1].trim()
-        // Extract URL from capture group if pattern has one, otherwise use the full match
-        url = url.includes('http') ? url : (match[1] || url)
+    for (const patternStr of htmlReportUrlPatterns) {
+      // Create new regex instance for each iteration to avoid state issues
+      const pattern = new RegExp(patternStr.source, patternStr.flags)
+      
+      // Use exec to get capture groups properly
+      let match
+      const matches: string[] = []
+      while ((match = pattern.exec(allLogsText)) !== null) {
+        matches.push(match[0])
+        // If pattern has capture group, prefer it
+        if (match[1]) {
+          matches.push(match[1])
+        }
+      }
+      
+      if (matches.length > 0) {
+        // Use the last match (most recent) - prefer capture group if available
+        let url = matches[matches.length - 1].trim()
         
-        // Clean up URL - remove query parameters if present (but keep them if they're part of S3 signed URL)
-        // S3 signed URLs have query params that are important, so we only remove trailing whitespace/newlines
-        url = url.trim()
+        // For markdown links like [View Playwright Report](https://...), extract URL from parentheses
+        if (url.includes('](') && url.includes(')')) {
+          const urlMatch = url.match(/\]\((https:\/\/[^\)]+)\)/)
+          if (urlMatch && urlMatch[1]) {
+            url = urlMatch[1]
+          }
+        }
+        
+        // Extract URL if it's embedded in text
+        const urlMatch = url.match(/(https:\/\/[^\s\)\n]+)/)
+        if (urlMatch && urlMatch[1]) {
+          url = urlMatch[1]
+        }
+        
+        // Clean up URL - remove trailing parentheses, whitespace, etc.
+        url = url.replace(/[\)\s\n]+$/, '').trim()
         
         // If URL doesn't end with .html and looks like a base S3 path, try to append index.html
         if (url.includes('s3.') && !url.endsWith('.html') && !url.includes('?')) {
@@ -297,12 +363,18 @@ export async function GET(request: NextRequest) {
       console.log('🔍 Found S3 URL for AI Errors Summary:', s3Url.substring(0, 100) + '...')
       
       try {
-        // Fetch the content from S3
+        // Fetch the content from S3 with timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+        
         const summaryResponse = await fetch(s3Url, {
           headers: {
             'Accept': 'text/plain, text/*, */*'
-          }
+          },
+          signal: controller.signal,
         })
+        
+        clearTimeout(timeoutId)
         
         if (summaryResponse.ok) {
           const summaryText = await summaryResponse.text()
@@ -311,8 +383,12 @@ export async function GET(request: NextRequest) {
         } else {
           console.warn('⚠️ Failed to fetch AI Errors Summary from S3:', summaryResponse.status)
         }
-      } catch (error) {
-        console.error('❌ Error fetching AI Errors Summary from S3:', error)
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.warn('⏱️ Timeout fetching AI Errors Summary from S3')
+        } else {
+          console.error('❌ Error fetching AI Errors Summary from S3:', error)
+        }
       }
     }
     

@@ -45,20 +45,60 @@ export async function POST(request: NextRequest) {
     // No need to generate acceptance criteria first - executePlaywrightMCP will interpret it
     let playwrightMCPData: any
     try {
+      console.log('📦 Importing executePlaywrightMCP...')
       // Importar y llamar directamente la función (mismo flujo que Jira)
       // executePlaywrightMCP interpretará el input directamente usando interpretAcceptanceCriteria
       const { executePlaywrightMCP } = await import('../playwright-mcp/route')
       
-      playwrightMCPData = await executePlaywrightMCP(
-        userRequest, // Pass natural language directly - it will be interpreted
-        `NL-${Date.now()}`, // Natural Language ticket ID
-        userRequest // ticketTitle
-      )
-    } catch (mcpError) {
-      console.error('❌ Error calling Playwright MCP:', mcpError)
-      throw new Error(
-        `Failed to execute Playwright MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`
-      )
+      console.log('🚀 Starting executePlaywrightMCP...')
+      const startTime = Date.now()
+      
+      // Wrap in Promise.race to add a safety timeout (280 seconds to leave buffer for Vercel's 300s limit)
+      playwrightMCPData = await Promise.race([
+        executePlaywrightMCP(
+          userRequest, // Pass natural language directly - it will be interpreted
+          `NL-${Date.now()}`, // Natural Language ticket ID
+          userRequest // ticketTitle
+        ),
+        new Promise((_, reject) => 
+          setTimeout(() => {
+            const elapsed = Date.now() - startTime
+            reject(new Error(`Timeout after ${elapsed}ms. The test generation is taking too long.`))
+          }, 280000) // 280 seconds (4m 40s) - leave 20s buffer for Vercel
+        )
+      ])
+      
+      const elapsed = Date.now() - startTime
+      console.log(`✅ executePlaywrightMCP completed in ${elapsed}ms`)
+    } catch (mcpError: any) {
+      const errorMessage = mcpError instanceof Error ? mcpError.message : String(mcpError)
+      console.error('❌ Error calling Playwright MCP:', errorMessage)
+      
+      // Check if it's a timeout error
+      if (errorMessage.includes('Timeout')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `La generación del test excedió el tiempo límite. ${errorMessage}. Por favor, intenta con un test más simple o divídelo en pasos más pequeños.`,
+            mode: 'natural-language-claude-mcp'
+          },
+          { status: 504 } // Gateway Timeout
+        )
+      }
+      
+      // Detectar error específico de 'p' antes de inicialización
+      if (errorMessage.includes("Cannot access 'p' before initialization") || (errorMessage.includes("Cannot access") && errorMessage.includes("before initialization"))) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Error en la generación del locator. Por favor, intenta nuevamente o revisa los logs del servidor.`,
+            mode: 'natural-language-claude-mcp'
+          },
+          { status: 500 }
+        )
+      }
+      
+      throw new Error(`Error al ejecutar Playwright MCP: ${errorMessage}`)
     }
 
     // Step 2: Return results (same format as Jira flow)

@@ -283,14 +283,13 @@ export default function TestGenerator() {
     try {
       addProgressLog({
         step: 'fallback',
-        message: 'Smart Synapse deshabilitado - Playwright MCP falló',
+        message: 'Error en la generación del test',
         status: 'error',
         timestamp: Date.now()
       })
 
-      // ⚠️ Smart Synapse deshabilitado temporalmente
-      // El usuario reportó que genera tests incorrectos
-      setError('Playwright MCP failed and Smart Synapse is disabled. Please check the server logs for more details.')
+      // Mostrar error sin mencionar Smart Synapse (ya no existe)
+      setError('Error al generar el test. Por favor, revisa los logs del servidor para más detalles.')
       return
       
       /* COMENTADO: Smart Synapse deshabilitado
@@ -382,17 +381,48 @@ export default function TestGenerator() {
       })
 
       // Call new endpoint that uses Claude to interpret and generate test
-      const response = await fetch('/api/generate-test-from-natural-language', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userRequest: naturalLanguageInput,
-          chatHistory: chatMessages
+      // Use AbortController for timeout (5 minutes + buffer)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 310000) // 5m 10s (slightly more than backend timeout)
+      
+      let response: Response
+      try {
+        response = await fetch('/api/generate-test-from-natural-language', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userRequest: naturalLanguageInput,
+            chatHistory: chatMessages
+          }),
+          signal: controller.signal
         })
-      })
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. The test generation is taking too long. Please try with a simpler test or break it into smaller steps.')
+        }
+        throw fetchError
+      }
+      
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new Error(`Generation failed: ${response.status} ${response.statusText}`)
+        const errorText = await response.text().catch(() => '')
+        let errorData
+        try {
+          errorData = errorText ? JSON.parse(errorText) : {}
+        } catch {
+          errorData = {}
+        }
+        
+        const errorMessage = errorData.error || `Generation failed: ${response.status} ${response.statusText}`
+        
+        // Special handling for 504 Gateway Timeout
+        if (response.status === 504) {
+          throw new Error(`Gateway Timeout: ${errorMessage}. The test generation exceeded the time limit. Please try with a simpler test or break it into smaller steps.`)
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -483,9 +513,9 @@ export default function TestGenerator() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-2xl font-bold text-gray-900 mb-3"
+              className="text-2xl font-bold text-gray-900 mb-3 font-mono"
             >
-              Application Error
+              Error
             </motion.h2>
             
             {/* Error message */}
@@ -493,7 +523,7 @@ export default function TestGenerator() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-gray-600 mb-6 leading-relaxed text-sm"
+              className="text-gray-700 mb-6 leading-relaxed text-sm font-mono"
             >
               {error}
             </motion.p>
@@ -509,9 +539,9 @@ export default function TestGenerator() {
                 setAcceptanceCriteria(null)
                 setGeneratedTest(null)
               }}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 transform hover:scale-105 active:scale-95 w-full sm:w-auto min-w-[140px]"
+              className="font-mono text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-2 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded border-2 border-blue-700 shadow-md transition-colors font-semibold w-full sm:w-auto"
             >
-              Reset Application
+              Reiniciar
             </motion.button>
           </div>
         </motion.div>
@@ -836,31 +866,17 @@ export default function TestGenerator() {
                     </p>
                   </div>
 
-                  {/* Smart Synapse Analysis */}
-                  {generatedTest.synapse && (
+                  {/* MCP Analysis */}
+                  {generatedTest.mcpData && (
                     <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <h4 className="font-semibold text-blue-800 mb-2 text-sm">🧠 Smart Synapse Analysis</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <h5 className="font-medium text-blue-700 mb-1 text-xs">👤 UsersHelper</h5>
-                          <p className="text-xs text-blue-600">{generatedTest.synapse?.usersHelper?.method || 'N/A'}</p>
-                          <p className="text-xs text-blue-500">Confidence: {generatedTest.synapse?.usersHelper?.confidence ? Math.round(generatedTest.synapse.usersHelper.confidence * 100) : 0}%</p>
+                      <h4 className="font-semibold text-blue-800 mb-2 text-sm font-mono">📊 Análisis MCP</h4>
+                      {generatedTest.mcpData.interpretation && (
+                        <div className="text-xs text-blue-600 font-mono">
+                          <p><strong>Contexto:</strong> {generatedTest.mcpData.interpretation.context || 'N/A'}</p>
+                          <p><strong>Acciones:</strong> {generatedTest.mcpData.interpretation.actions?.length || 0}</p>
+                          <p><strong>Assertions:</strong> {generatedTest.mcpData.interpretation.assertions?.length || 0}</p>
                         </div>
-                        <div>
-                          <h5 className="font-medium text-blue-700 mb-1 text-xs">🎯 Keywords Detected</h5>
-                          <div className="flex flex-wrap gap-1">
-                            {Array.isArray(generatedTest.synapse?.keywords) ? (
-                              generatedTest.synapse.keywords.map((keyword: any, index: number) => (
-                                <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                                  {keyword?.name || keyword}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-blue-500">No keywords detected</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   )}
 
