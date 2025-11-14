@@ -341,7 +341,8 @@ export async function GET(request: NextRequest) {
     // Asociar workflows a cada patrón
     for (const pattern of groupedPatterns) {
       const workflowSet = new Set<string>()
-      for (const [workflowName, summaries] of summariesByWorkflow.entries()) {
+      const summariesByWorkflowArray = Array.from(summariesByWorkflow.entries())
+      for (const [workflowName, summaries] of summariesByWorkflowArray) {
         for (const summary of summaries) {
           const normalized = summary.toLowerCase().replace(/\s+/g, ' ')
           if (normalized.includes(pattern.pattern.toLowerCase())) {
