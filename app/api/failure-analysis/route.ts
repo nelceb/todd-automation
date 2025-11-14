@@ -97,7 +97,7 @@ function groupSimilarPatterns(patterns: Map<string, { count: number; examples: s
       if (processed.has(otherPattern) || pattern === otherPattern) continue
       
       const otherWords = new Set(otherPattern.split(' '))
-      const commonWords = [...patternWords].filter(w => otherWords.has(w))
+      const commonWords = Array.from(patternWords).filter(w => otherWords.has(w))
       
       // Si comparten al menos 2 palabras clave, son similares
       if (commonWords.length >= 2) {
