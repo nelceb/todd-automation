@@ -764,34 +764,6 @@ export default function MetricsDashboard() {
                   </div>
                 </div>
 
-                {/* Workflows with Most Failures (from failure analysis - last 7 days) */}
-                {failureAnalysis.workflow_failure_counts.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
-                      Workflows with Most Failures
-                      <span className="text-xs font-normal ml-2" style={{ color: '#6B7280' }}>
-                        (last 7 days)
-                      </span>
-                    </h4>
-                    <div className="space-y-2">
-                      {failureAnalysis.workflow_failure_counts.slice(0, 5).map((workflow, index) => (
-                        <div
-                          key={index}
-                          className="bg-white/30 border border-gray-300/50 rounded-lg p-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
-                              #{index + 1} {workflow.workflow_name}
-                            </span>
-                            <span className="text-sm font-mono font-bold px-2 py-1 rounded bg-red-100 text-red-800">
-                              {workflow.failed_runs} failures
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full">
