@@ -650,12 +650,29 @@ export default function MetricsDashboard() {
               </p>
             </div>
             {loadingFailureAnalysis && (
-              <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
+              <div className="flex items-center space-x-2">
+                <div className="relative w-4 h-4">
+                  <SmallCube speedMultiplier={2} />
+                </div>
+                <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
+              </div>
             )}
           </div>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
-            {failureAnalysis ? (
+            {loadingFailureAnalysis && !failureAnalysis ? (
+              // Estado de loading - componente colapsado
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="relative w-8 h-8 mx-auto mb-2">
+                    <SmallCube speedMultiplier={2} />
+                  </div>
+                  <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                    Analyzing failures...
+                  </p>
+                </div>
+              </div>
+            ) : failureAnalysis ? (
               <div className="space-y-6">
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3">
@@ -775,12 +792,6 @@ export default function MetricsDashboard() {
                     </div>
                   </div>
                 )}
-              </div>
-            ) : loadingFailureAnalysis ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
-                  Analyzing failures...
-                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full">
