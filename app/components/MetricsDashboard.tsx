@@ -319,6 +319,25 @@ export default function MetricsDashboard() {
   }
 
   const getFailedWorkflowsDetails = () => {
+    // Si tenemos failureAnalysis y timeRange es 7d, usar esos datos para consistencia
+    if (failureAnalysis && timeRange === '7d' && failureAnalysis.workflow_failure_counts.length > 0) {
+      // Mapear los datos de failureAnalysis al formato esperado
+      return failureAnalysis.workflow_failure_counts.map((wf, index) => {
+        // Buscar el workflow completo en metrics para obtener más datos si está disponible
+        const fullWorkflow = metrics?.workflows?.find(w => w.workflow_name === wf.workflow_name)
+        return {
+          workflow_id: fullWorkflow?.workflow_id || `failure-${index}`,
+          workflow_name: wf.workflow_name,
+          failed_runs: wf.failed_runs,
+          total_runs: fullWorkflow?.total_runs || wf.failed_runs, // Aproximación si no tenemos total
+          cancelled_runs: fullWorkflow?.cancelled_runs || 0,
+          success_rate: fullWorkflow?.success_rate || (wf.failed_runs > 0 ? 0 : 100),
+          last_run: fullWorkflow?.last_run || ''
+        }
+      }).slice(0, 10)
+    }
+    
+    // Fallback a metrics si no hay failureAnalysis o timeRange no es 7d
     if (!metrics?.workflows) return []
     
     return metrics.workflows
@@ -631,10 +650,7 @@ export default function MetricsDashboard() {
               </p>
             </div>
             {loadingFailureAnalysis && (
-              <div className="flex items-center space-x-2">
-                <SmallCube speedMultiplier={2} />
-                <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
-              </div>
+              <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
             )}
           </div>
           
@@ -643,19 +659,19 @@ export default function MetricsDashboard() {
               <div className="space-y-6">
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-red-300">
+                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold" style={{ color: '#A63D40' }}>
                       {failureAnalysis.total_failed_runs}
                     </div>
-                    <div className="text-xs font-mono text-gray-300 mt-1">
+                    <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>
                       Failed Runs
                     </div>
                   </div>
-                  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-blue-300">
+                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold" style={{ color: '#6494AA' }}>
                       {failureAnalysis.workflows_analyzed}
                     </div>
-                    <div className="text-xs font-mono text-gray-300 mt-1">
+                    <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>
                       Workflows Analyzed
                     </div>
                   </div>
@@ -671,51 +687,46 @@ export default function MetricsDashboard() {
                       failureAnalysis.top_failures.map((failure, index) => (
                         <div
                           key={index}
-                          className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-colors"
+                          className="bg-white/30 border border-gray-300/50 rounded-lg p-4"
                         >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-redwood-500 text-white text-xs font-mono font-bold">
-                                  {index + 1}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
+                                #{index + 1} {failure.pattern}
+                              </span>
+                            </div>
+                            <span className="text-xs font-mono px-2 py-1 rounded bg-red-100 text-red-800">
+                              {failure.count} {failure.count === 1 ? 'time' : 'times'}
+                            </span>
+                          </div>
+                          {failure.workflows.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2 mb-2">
+                              {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
+                                <span
+                                  key={wIdx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-100 border border-gray-300"
+                                  style={{ color: '#4B5563' }}
+                                >
+                                  {workflow}
                                 </span>
-                                <span className="text-sm font-mono font-semibold" style={{ color: '#344055' }}>
-                                  {failure.count} {failure.count === 1 ? 'time' : 'times'}
+                              ))}
+                              {failure.workflows.length > 3 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-100 border border-gray-300" style={{ color: '#6B7280' }}>
+                                  +{failure.workflows.length - 3} more
                                 </span>
-                              </div>
-                              <p className="text-sm font-mono mb-2" style={{ color: '#344055' }}>
-                                {failure.pattern}
-                              </p>
-                              {failure.workflows.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
-                                    <span
-                                      key={wIdx}
-                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700/50 border border-gray-600/50"
-                                      style={{ color: '#6B7280' }}
-                                    >
-                                      {workflow}
-                                    </span>
-                                  ))}
-                                  {failure.workflows.length > 3 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700/50 border border-gray-600/50" style={{ color: '#9CA3AF' }}>
-                                      +{failure.workflows.length - 3} more
-                                    </span>
-                                  )}
-                                </div>
                               )}
                             </div>
-                          </div>
+                          )}
                           {failure.examples.length > 0 && (
                             <details className="mt-2">
-                              <summary className="text-xs font-mono cursor-pointer" style={{ color: '#6B7280' }}>
+                              <summary className="text-xs font-mono cursor-pointer hover:underline" style={{ color: '#6B7280' }}>
                                 View examples ({failure.examples.length})
                               </summary>
                               <div className="mt-2 space-y-2">
                                 {failure.examples.map((example, exIdx) => (
                                   <div
                                     key={exIdx}
-                                    className="bg-white/80 border border-gray-300 rounded p-2 text-xs font-mono line-clamp-5"
+                                    className="bg-white border border-gray-200 rounded p-3 text-xs font-mono"
                                     style={{ color: '#1F2937' }}
                                   >
                                     {example}
@@ -749,22 +760,14 @@ export default function MetricsDashboard() {
                       {failureAnalysis.workflow_failure_counts.slice(0, 5).map((workflow, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between bg-gray-800/30 border border-gray-700/30 rounded-lg p-3"
+                          className="bg-white/30 border border-gray-300/50 rounded-lg p-3"
                         >
-                          <div className="flex items-center space-x-3 flex-1 min-w-0">
-                            <span className="text-sm font-mono font-semibold flex-shrink-0" style={{ color: '#344055' }}>
-                              {index + 1}.
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
+                              #{index + 1} {workflow.workflow_name}
                             </span>
-                            <span className="text-sm font-mono truncate" style={{ color: '#344055' }}>
-                              {workflow.workflow_name}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2 flex-shrink-0">
-                            <span className="text-sm font-mono font-bold" style={{ color: '#A63D40' }}>
-                              {workflow.failed_runs}
-                            </span>
-                            <span className="text-xs font-mono" style={{ color: '#6B7280' }}>
-                              failures
+                            <span className="text-sm font-mono font-bold px-2 py-1 rounded bg-red-100 text-red-800">
+                              {workflow.failed_runs} failures
                             </span>
                           </div>
                         </div>
@@ -775,8 +778,7 @@ export default function MetricsDashboard() {
               </div>
             ) : loadingFailureAnalysis ? (
               <div className="flex flex-col items-center justify-center h-full">
-                <SmallCube speedMultiplier={2} />
-                <p className="text-sm font-mono mt-4" style={{ color: '#6B7280' }}>
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
                   Analyzing failures...
                 </p>
               </div>
