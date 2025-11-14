@@ -808,20 +808,20 @@ export default function MetricsDashboard() {
               >
                 {/* Front of card - Pie Chart with Summary Cards */}
                 <div 
-                  className="absolute w-full h-full flex flex-col p-4 bg-white/20 rounded-xl"
+                  className="absolute w-full h-full flex flex-col p-3 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(0deg)',
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-xl font-mono font-semibold mb-3 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-lg font-mono font-semibold mb-2 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
-                    <span className="ml-2 text-sm opacity-50">(Click for details)</span>
+                    <span className="ml-2 text-xs opacity-50">(Click for details)</span>
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-4 flex-1" style={{ minHeight: '350px' }}>
+                  <div className="flex items-center justify-center w-full px-3 flex-1" style={{ minHeight: '350px' }}>
                     {getSuccessRateChartData() && (
                       <div className="w-full max-w-2xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
@@ -834,24 +834,24 @@ export default function MetricsDashboard() {
                   </div>
                   
                   {/* Summary Cards - Integrated at bottom */}
-                  <div className="grid grid-cols-4 gap-2 mt-4">
-                    <div className="bg-white/30 border border-gray-300/50 p-3 rounded-lg text-center">
-                      <div className="text-xl font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
-                      <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>Workflows</div>
+                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
+                      <div className="text-lg font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
+                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Workflows</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-3 rounded-lg text-center">
-                      <div className="text-xl font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
-                      <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>Runs</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
+                      <div className="text-lg font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
+                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Runs</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-3 rounded-lg text-center">
-                      <div className="text-xl font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
-                      <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>Success</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
+                      <div className="text-lg font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
+                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Success</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-3 rounded-lg text-center">
-                      <div className="text-lg font-mono font-bold" style={{ color: '#F59E0B' }}>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
+                      <div className="text-base font-mono font-bold" style={{ color: '#F59E0B' }}>
                         {formatDuration(metrics.summary.avg_response_time)}
                       </div>
-                      <div className="text-xs font-mono mt-1" style={{ color: '#6B7280' }}>Avg Time</div>
+                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Avg Time</div>
                     </div>
                   </div>
                 </div>
