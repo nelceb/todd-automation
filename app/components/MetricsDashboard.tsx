@@ -75,6 +75,29 @@ interface MetricsData {
   last_updated: string
 }
 
+interface FailurePattern {
+  pattern: string
+  count: number
+  workflows: string[]
+  examples: string[]
+}
+
+interface FailureAnalysis {
+  period: {
+    start_date: string
+    end_date: string
+    days: number
+  }
+  total_failed_runs: number
+  workflows_analyzed: number
+  top_failures: FailurePattern[]
+  workflow_failure_counts: Array<{
+    workflow_name: string
+    failed_runs: number
+    failure_rate: number
+  }>
+}
+
 export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -86,9 +109,37 @@ export default function MetricsDashboard() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [pieChartFlipped, setPieChartFlipped] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [failureAnalysis, setFailureAnalysis] = useState<FailureAnalysis | null>(null)
+  const [loadingFailureAnalysis, setLoadingFailureAnalysis] = useState(false)
 
-  // Load cached metrics on mount
+  // Load state from sessionStorage on mount to preserve state between tab switches
   useEffect(() => {
+    // Try to restore complete state from sessionStorage first
+    const sessionState = sessionStorage.getItem('metrics-dashboard-state')
+    if (sessionState) {
+      try {
+        const state = JSON.parse(sessionState)
+        // Only restore if it's from the same timeRange
+        if (state.timeRange === timeRange) {
+          setMetrics(state.metrics)
+          setFailureAnalysis(state.failureAnalysis)
+          setLoading(false)
+          setLoadingFailureAnalysis(false)
+          setError(state.error)
+          // Restore other UI state
+          setSelectedTriggerType(state.selectedTriggerType)
+          setSortColumn(state.sortColumn)
+          setSortDirection(state.sortDirection)
+          setSearchQuery(state.searchQuery)
+          setPieChartFlipped(state.pieChartFlipped)
+          return // State restored, no need to fetch
+        }
+      } catch (e) {
+        console.error('Error parsing session state:', e)
+      }
+    }
+    
+    // If no session state, try localStorage cache
     const cachedData = localStorage.getItem(`metrics-${timeRange}`)
     const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
     
@@ -101,6 +152,17 @@ export default function MetricsDashboard() {
           const parsedData = JSON.parse(cachedData)
           setMetrics(parsedData)
           setLoading(false)
+          // If we have metrics and it's 7d, try to restore failure analysis from session
+          if (parsedData && timeRange === '7d') {
+            const sessionFailureAnalysis = sessionStorage.getItem('metrics-failure-analysis')
+            if (sessionFailureAnalysis) {
+              try {
+                setFailureAnalysis(JSON.parse(sessionFailureAnalysis))
+              } catch (e) {
+                // If parsing fails, will fetch it below
+              }
+            }
+          }
           return
         } catch (e) {
           console.error('Error parsing cached metrics:', e)
@@ -111,6 +173,61 @@ export default function MetricsDashboard() {
     // Si no hay cache válido, cargar datos
     fetchMetrics()
   }, [timeRange])
+
+  // Save state to sessionStorage whenever it changes (excluding loading states)
+  useEffect(() => {
+    // Only save when we have actual data (not during loading)
+    if ((metrics !== null || failureAnalysis !== null) && !loading && !loadingFailureAnalysis) {
+      const state = {
+        timeRange,
+        metrics,
+        failureAnalysis,
+        error,
+        selectedTriggerType,
+        sortColumn,
+        sortDirection,
+        searchQuery,
+        pieChartFlipped
+      }
+      sessionStorage.setItem('metrics-dashboard-state', JSON.stringify(state))
+    }
+  }, [timeRange, metrics, failureAnalysis, error, selectedTriggerType, sortColumn, sortDirection, searchQuery, pieChartFlipped, loading, loadingFailureAnalysis])
+
+  // Save failure analysis separately for easier access
+  useEffect(() => {
+    if (failureAnalysis) {
+      sessionStorage.setItem('metrics-failure-analysis', JSON.stringify(failureAnalysis))
+    }
+  }, [failureAnalysis])
+
+  // Fetch failure analysis when metrics are loaded
+  useEffect(() => {
+    if (metrics && timeRange === '7d' && !failureAnalysis) {
+      // Only fetch if we don't already have it
+      fetchFailureAnalysis()
+    }
+  }, [metrics, timeRange])
+
+  const fetchFailureAnalysis = async () => {
+    try {
+      setLoadingFailureAnalysis(true)
+      const repo = metrics?.repository || 'Cook-Unity/pw-cookunity-automation'
+      const repoName = repo.split('/')[1] || 'pw-cookunity-automation'
+      
+      const response = await fetch(`/api/failure-analysis?repo=${repo}&days=7`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch failure analysis')
+      }
+      
+      const data = await response.json()
+      setFailureAnalysis(data)
+    } catch (err) {
+      console.error('Error fetching failure analysis:', err)
+    } finally {
+      setLoadingFailureAnalysis(false)
+    }
+  }
 
 
   const fetchMetrics = async (forceRefresh: boolean = false) => {
@@ -504,18 +621,169 @@ export default function MetricsDashboard() {
 
       {/* Charts and Summary Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch max-w-7xl mx-auto">
-        {/* Left Column: Workflow Distribution (Full Height) */}
+        {/* Left Column: Failure Analysis (Full Height) */}
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg flex flex-col" style={{ height: '900px' }}>
-          <h3 className="text-xl font-mono font-semibold mb-2" style={{ color: '#344055' }}>Workflow Distribution</h3>
-          <p className="text-base font-mono mb-4" style={{ color: '#6B7280' }}>
-            Total runs per workflow ({timeRange === '24h' ? 'last 24 hours' : timeRange === '7d' ? 'last 7 days' : 'last 30 days'})
-          </p>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
-            <div style={{ minHeight: '800px', paddingRight: '8px' }}>
-              {getWorkflowChartData() && (
-                <Bar data={getWorkflowChartData()!} options={barChartOptions} />
-              )}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-mono font-semibold mb-1" style={{ color: '#344055' }}>Análisis de Fallos</h3>
+              <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                Fallos más comunes en los últimos 7 días
+              </p>
             </div>
+            {loadingFailureAnalysis && (
+              <div className="flex items-center space-x-2">
+                <SmallCube speedMultiplier={2} />
+                <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analizando...</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
+            {failureAnalysis ? (
+              <div className="space-y-6">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-red-300">
+                      {failureAnalysis.total_failed_runs}
+                    </div>
+                    <div className="text-xs font-mono text-red-200 mt-1">
+                      Runs Fallidos
+                    </div>
+                  </div>
+                  <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-orange-300">
+                      {failureAnalysis.workflows_analyzed}
+                    </div>
+                    <div className="text-xs font-mono text-orange-200 mt-1">
+                      Workflows Analizados
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Failures */}
+                <div>
+                  <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
+                    Top Fallos Más Comunes
+                  </h4>
+                  <div className="space-y-3">
+                    {failureAnalysis.top_failures.length > 0 ? (
+                      failureAnalysis.top_failures.map((failure, index) => (
+                        <div
+                          key={index}
+                          className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-900 text-red-300 text-xs font-mono font-bold">
+                                  {index + 1}
+                                </span>
+                                <span className="text-sm font-mono font-semibold text-white">
+                                  {failure.count} {failure.count === 1 ? 'vez' : 'veces'}
+                                </span>
+                              </div>
+                              <p className="text-sm font-mono text-gray-300 mb-2">
+                                {failure.pattern}
+                              </p>
+                              {failure.workflows.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
+                                    <span
+                                      key={wIdx}
+                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-300"
+                                    >
+                                      {workflow}
+                                    </span>
+                                  ))}
+                                  {failure.workflows.length > 3 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-400">
+                                      +{failure.workflows.length - 3} más
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {failure.examples.length > 0 && (
+                            <details className="mt-2">
+                              <summary className="text-xs font-mono text-gray-400 cursor-pointer hover:text-gray-300">
+                                Ver ejemplos ({failure.examples.length})
+                              </summary>
+                              <div className="mt-2 space-y-2">
+                                {failure.examples.map((example, exIdx) => (
+                                  <div
+                                    key={exIdx}
+                                    className="bg-gray-900/50 border border-gray-800/50 rounded p-2 text-xs font-mono text-gray-400 line-clamp-3"
+                                  >
+                                    {example}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-sm font-mono text-gray-400">
+                          No se encontraron patrones de fallos
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Workflows with Most Failures */}
+                {failureAnalysis.workflow_failure_counts.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
+                      Workflows con Más Fallos
+                    </h4>
+                    <div className="space-y-2">
+                      {failureAnalysis.workflow_failure_counts.slice(0, 5).map((workflow, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-gray-800/30 border border-gray-700/30 rounded-lg p-3"
+                        >
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <span className="text-sm font-mono font-semibold text-white flex-shrink-0">
+                              {index + 1}.
+                            </span>
+                            <span className="text-sm font-mono text-gray-300 truncate">
+                              {workflow.workflow_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2 flex-shrink-0">
+                            <span className="text-sm font-mono font-bold text-red-300">
+                              {workflow.failed_runs}
+                            </span>
+                            <span className="text-xs font-mono text-gray-400">
+                              fallos
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : loadingFailureAnalysis ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <SmallCube speedMultiplier={2} />
+                <p className="text-sm font-mono mt-4" style={{ color: '#6B7280' }}>
+                  Analizando fallos...
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full">
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                  {timeRange === '7d' 
+                    ? 'No hay datos de análisis de fallos disponibles'
+                    : 'El análisis de fallos está disponible solo para el período de 7 días'}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
