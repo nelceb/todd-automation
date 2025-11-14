@@ -489,23 +489,20 @@ export default function TestGenerator() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 relative overflow-hidden"
+          className="max-w-md w-full bg-gray-800 rounded-lg border border-gray-700 shadow-xl p-8 relative overflow-hidden"
         >
-          {/* Decorative gradient background */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-500"></div>
-          
           <div className="text-center">
-            {/* Error icon with animated pulse */}
+            {/* Error badge */}
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-              className="w-20 h-20 bg-gradient-to-br from-red-50 to-red-100 rounded-full flex items-center justify-center mx-auto mb-6 relative"
+              className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-red-900 text-red-300 mb-6 font-mono text-sm font-semibold"
             >
-              <div className="absolute inset-0 bg-red-200 rounded-full animate-ping opacity-20"></div>
-              <svg className="w-10 h-10 text-red-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
+              Error
             </motion.div>
             
             {/* Error title */}
@@ -513,9 +510,9 @@ export default function TestGenerator() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-2xl font-bold text-gray-900 mb-3 font-mono"
+              className="text-2xl font-bold text-white mb-3 font-mono"
             >
-              Error
+              Error al generar el test
             </motion.h2>
             
             {/* Error message */}
@@ -523,7 +520,7 @@ export default function TestGenerator() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-gray-700 mb-6 leading-relaxed text-sm font-mono"
+              className="text-gray-300 mb-6 leading-relaxed text-sm font-mono"
             >
               {error}
             </motion.p>
@@ -539,7 +536,7 @@ export default function TestGenerator() {
                 setAcceptanceCriteria(null)
                 setGeneratedTest(null)
               }}
-              className="font-mono text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-2 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded border-2 border-blue-700 shadow-md transition-colors font-semibold w-full sm:w-auto"
+              className="font-mono text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-2 min-h-[44px] bg-gray-600 hover:bg-gray-700 text-white rounded-lg border border-gray-700 transition-colors font-semibold w-full sm:w-auto"
             >
               Reiniciar
             </motion.button>

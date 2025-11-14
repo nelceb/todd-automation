@@ -5598,24 +5598,48 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
   
   // 🎯 REUTILIZAR MÉTODOS EXISTENTES: Buscar métodos disponibles del codebase
   const codebasePatterns = interpretation.codebasePatterns;
+  // 🎯 MEJORADO: Buscar métodos en múltiples lugares y variantes de nombres
   const availableMethods = codebasePatterns?.methods || {};
+  const methodsWithTestIds = codebasePatterns?.methodsWithTestIds || {};
   
   // Función helper para buscar método existente que coincida por intención, nombre o testId observado
   function findExistingMethod(elementName: string, actionType: string, context: string, intent?: string, observedTestId?: string): string | null {
     if (!codebasePatterns) return null;
     
-    // Determinar qué page object buscar según el contexto
+    // Determinar qué page object buscar según el contexto (con variantes)
     let pageObjectName = 'HomePage';
+    let pageObjectNameVariants: string[] = [];
+    
     if (context === 'pastOrders' || context === 'ordersHub') {
       pageObjectName = 'OrdersHubPage';
+      pageObjectNameVariants = ['OrdersHubPage', 'ordersHubPage', 'ordershubpage'];
     } else if (context === 'homepage' || context === 'home' || context === 'menu') {
       pageObjectName = 'HomePage';
+      pageObjectNameVariants = ['HomePage', 'homePage', 'homepage'];
     } else if (context === 'cart') {
-      pageObjectName = 'HomePage'; // Cart navigation usually from HomePage
+      pageObjectName = 'HomePage';
+      pageObjectNameVariants = ['HomePage', 'homePage', 'homepage', 'CartPage', 'cartPage'];
     }
     
-    const methods = availableMethods[pageObjectName] || [];
-    const methodsWithTestIds = codebasePatterns.methodsWithTestIds?.[pageObjectName] || [];
+    // Buscar métodos en todas las variantes de nombres y en ambos lugares (methods y methodsWithTestIds)
+    let methods: string[] = [];
+    let methodsWithTestIdsList: any[] = [];
+    
+    for (const variant of pageObjectNameVariants) {
+      if (availableMethods[variant]) {
+        methods = methods.concat(availableMethods[variant]);
+      }
+      if (methodsWithTestIds[variant]) {
+        methodsWithTestIdsList = methodsWithTestIdsList.concat(methodsWithTestIds[variant]);
+      }
+    }
+    
+    // Extraer nombres de métodos de methodsWithTestIds
+    const methodNamesFromTestIds = methodsWithTestIdsList.map((m: any) => typeof m === 'string' ? m : m.name);
+    methods = methods.concat(methodNamesFromTestIds);
+    
+    // Eliminar duplicados
+    methods = Array.from(new Set(methods));
     const elementLower = elementName.toLowerCase();
     const intentLower = (intent || '').toLowerCase();
     
@@ -5623,7 +5647,7 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
     // Si observamos un elemento con testId, buscar qué método usa ese mismo testId
     if (observedTestId) {
       const testIdLower = observedTestId.toLowerCase();
-      for (const methodInfo of methodsWithTestIds) {
+      for (const methodInfo of methodsWithTestIdsList) {
         const methodName = typeof methodInfo === 'string' ? methodInfo : methodInfo.name;
         const methodTestIds = typeof methodInfo === 'object' ? (methodInfo.testIds || []) : [];
         
@@ -5696,6 +5720,53 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
       }
     }
     
+    // 🎯 PRIORIDAD 2: Mapeo específico de elementos a métodos conocidos (ANTES de búsqueda genérica)
+    // Esto permite reutilizar métodos existentes de forma más precisa
+      const elementMappings: { [key: string]: string[] } = {
+        'pastorderstab': ['clickOnPastOrdersTab', 'pastOrdersTab', 'pastOrders'],
+        'pastorder': ['clickOnPastOrdersTab', 'pastOrdersTab', 'pastOrders'],
+        'upcomingorderstab': ['clickOnUpcomingOrdersTab', 'upcomingOrdersTab', 'upcomingOrders'],
+        'upcomingorder': ['clickOnUpcomingOrdersTab', 'upcomingOrdersTab', 'upcomingOrders'],
+        'menuitem': ['addMeal', 'addMealButton', 'add'],
+        'menuitem1': ['addMeal', 'addMealButton', 'add'],
+        'menuitem2': ['addMeal', 'addMealButton', 'add'],
+        'addtocartbutton': ['addMeal', 'addMealButton', 'add'], // addToCartButton → clickOnAddMealButton
+        'addtocartbutton1': ['addMeal', 'addMealButton', 'add'], // addToCartButton1 → clickOnAddMealButton (primer elemento)
+        'addtocartbutton2': ['addMeal', 'addMealButton', 'add'], // addToCartButton2 → clickOnAddMealButton (segundo elemento)
+        'firstmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // firstMealAddToCartButton → clickOnAddMealButton
+        'secondmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // secondMealAddToCartButton → clickOnAddMealButton
+        'firstmeal': ['addMeal', 'addMealButton', 'add'], // firstMeal → clickOnAddMealButton
+        'secondmeal': ['addMeal', 'addMealButton', 'add'], // secondMeal → clickOnAddMealButton
+        'addtocart': ['addMeal', 'addMealButton', 'add'],
+        'cartpage': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
+        'cart': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
+        'carticon': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'], // cartIcon → clickOnViewCartButton (prioridad)
+        'cartitem': ['cartItem', 'cartItem1', 'cartItem2'], // Para assertions
+        'cartitem1': ['cartItem1', 'cartItem'], // Para assertions
+        'cartitem2': ['cartItem2', 'cartItem'], // Para assertions
+        'cartitemcount': ['cartItemCount', 'cartCount', 'cartMealsCount'], // Para assertions - usar getCartMealsCount
+        'cartitemslist': ['cartMealsCount', 'cartItemCount'], // Para assertions - usar getCartMealsCount
+        'firstmealincart': ['cartMealsCount', 'cartItemCount'], // Para assertions - verificar count > 0
+        'secondmealincart': ['cartMealsCount', 'cartItemCount'] // Para assertions - verificar count > 0
+      };
+    
+    // Buscar primero por mapeo específico (más preciso)
+    for (const [elemKey, methodPatterns] of Object.entries(elementMappings)) {
+      if (elementLower.includes(elemKey) || elemKey === elementLower) {
+        for (const pattern of methodPatterns) {
+          const patternLower = pattern.toLowerCase();
+          // Buscar método que coincida exactamente o contenga el pattern
+          for (const method of methods) {
+            const methodLower = method.toLowerCase();
+            if (methodLower === patternLower || methodLower.includes(patternLower) || patternLower.includes(methodLower)) {
+              console.log(`✅ Encontrado método existente por mapeo de elemento: ${method} para elemento ${elementName} (mapeo: ${elemKey} → ${pattern})`);
+              return method;
+            }
+          }
+        }
+      }
+    }
+    
     // Buscar métodos que coincidan con el elemento o acción
     for (const method of methods) {
       const methodLower = method.toLowerCase();
@@ -5733,42 +5804,6 @@ function generateTestFromObservations(interpretation: any, navigation: any, beha
         if (elementStem.includes('cart') && (methodLower.includes('cartbutton') || methodLower.includes('navigatetocart'))) {
           console.log(`✅ Encontrado método existente por stem cart: ${method} para elemento ${elementName} (stem: ${elementStem})`);
           return method;
-        }
-      }
-      
-      // Mapeo específico de elementos a métodos conocidos (mejorado para reutilizar métodos)
-      const elementMappings: { [key: string]: string[] } = {
-        'menuitem': ['addMeal', 'addMealButton', 'add'],
-        'menuitem1': ['addMeal', 'addMealButton', 'add'],
-        'menuitem2': ['addMeal', 'addMealButton', 'add'],
-        'addtocartbutton': ['addMeal', 'addMealButton', 'add'], // addToCartButton → clickOnAddMealButton
-        'addtocartbutton1': ['addMeal', 'addMealButton', 'add'], // addToCartButton1 → clickOnAddMealButton (primer elemento)
-        'addtocartbutton2': ['addMeal', 'addMealButton', 'add'], // addToCartButton2 → clickOnAddMealButton (segundo elemento)
-        'firstmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // firstMealAddToCartButton → clickOnAddMealButton
-        'secondmealaddtocartbutton': ['addMeal', 'addMealButton', 'add'], // secondMealAddToCartButton → clickOnAddMealButton
-        'firstmeal': ['addMeal', 'addMealButton', 'add'], // firstMeal → clickOnAddMealButton
-        'secondmeal': ['addMeal', 'addMealButton', 'add'], // secondMeal → clickOnAddMealButton
-        'addtocart': ['addMeal', 'addMealButton', 'add'],
-        'cartpage': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
-        'cart': ['cartButton', 'cart', 'viewCart', 'navigateToCart'],
-        'carticon': ['viewCart', 'cartButton', 'cart', 'navigateToCart', 'navigateToCartIcon'], // cartIcon → clickOnViewCartButton (prioridad)
-        'cartitem': ['cartItem', 'cartItem1', 'cartItem2'], // Para assertions
-        'cartitem1': ['cartItem1', 'cartItem'], // Para assertions
-        'cartitem2': ['cartItem2', 'cartItem'], // Para assertions
-        'cartitemcount': ['cartItemCount', 'cartCount', 'cartMealsCount'], // Para assertions - usar getCartMealsCount
-        'cartitemslist': ['cartMealsCount', 'cartItemCount'], // Para assertions - usar getCartMealsCount
-        'firstmealincart': ['cartMealsCount', 'cartItemCount'], // Para assertions - verificar count > 0
-        'secondmealincart': ['cartMealsCount', 'cartItemCount'] // Para assertions - verificar count > 0
-      };
-      
-      for (const [elemKey, methodPatterns] of Object.entries(elementMappings)) {
-        if (elementLower.includes(elemKey)) {
-          for (const pattern of methodPatterns) {
-            if (methodLower.includes(pattern.toLowerCase())) {
-              console.log(`✅ Encontrado método existente por mapeo de elemento: ${method} para elemento ${elementName}`);
-              return method;
-            }
-          }
         }
       }
       
@@ -8653,8 +8688,10 @@ async function createFeatureBranchAndPR(interpretation: any, codeGeneration: any
       }
     }
     
-    // 🎯 NO CREAR WORKFLOW: El test se ejecutará directamente usando workflow existente
-    console.log('ℹ️ No se creará workflow auto-test-pr.yml - el test se ejecutará directamente después del PR');
+    // 🎯 CREAR WORKFLOW: Siempre crear el workflow auto-test-pr.yml para draft PRs
+    // El workflow se ejecutará pero no bloqueará el PR (continue-on-error: true)
+    console.log('📝 Creando workflow auto-test-pr.yml para ejecutar el test generado...');
+    const workflowFile = generateGitHubActionsWorkflow(interpretation, ticketId || null, specFileInfo);
     
     // Verificar si husky pre-commit ya existe antes de agregarlo
     let huskyConfig = null;
@@ -8852,7 +8889,8 @@ npm run test:playwright || exit 1
     
     const allFiles = [
       ...filesToCommit,
-      ...(huskyConfig ? [huskyConfig] : [])
+      ...(huskyConfig ? [huskyConfig] : []),
+      ...(workflowFile ? [workflowFile] : []) // Agregar workflow siempre
     ];
     
     // 6. Crear un solo commit con todos los archivos usando GitHub API Tree
@@ -8860,6 +8898,7 @@ npm run test:playwright || exit 1
     console.log(`📦 Files breakdown:`);
     console.log(`   - Test files: ${filesToCommit.filter((f: any) => f.type === 'test').length}`);
     console.log(`   - Page object files: ${filesToCommit.filter((f: any) => f.type === 'page-object').length}`);
+    console.log(`   - Workflow file: ${workflowFile ? workflowFile.file : 'none'}`);
     console.log(`   - Husky config: ${huskyConfig ? 'yes' : 'no'}`);
     
     // Log each file that will be committed
@@ -9082,24 +9121,67 @@ npm run test:playwright || exit 1
       prUrl = prData.html_url;
       prNumber = prData.number;
       console.log(`✅ Pull Request creado: ${prUrl}`);
+      
+      // 🎯 ESPERAR A QUE EL WORKFLOW SE EJECUTE Y OBTENER RESULTADO
+      // El workflow auto-test-pr.yml se ejecutará automáticamente cuando se cree el PR
+      console.log('⏳ Esperando a que el workflow auto-test-pr se ejecute...');
+      
+      // Esperar un poco para que GitHub Actions detecte el PR y cree el workflow run
+      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 segundos
+      
+      // Buscar el workflow run del auto-test-pr
+      let workflowRunResult = null;
+      try {
+        workflowRunResult = await waitForWorkflowCompletion(
+          REPOSITORY,
+          branchName,
+          'auto-test-pr.yml',
+          GITHUB_TOKEN,
+          300000 // 5 minutos máximo
+        );
+        
+        if (workflowRunResult) {
+          console.log(`✅ Workflow completado: ${workflowRunResult.status} - ${workflowRunResult.conclusion}`);
+        } else {
+          console.log('⚠️ No se pudo obtener el resultado del workflow (puede estar aún ejecutándose)');
+        }
+      } catch (workflowError) {
+        console.warn('⚠️ Error esperando workflow:', workflowError);
+        // Continuar de todas formas
+      }
+      
+      return {
+        success: true,
+        branchName,
+        branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
+        prUrl,
+        prNumber,
+        filesCreated: allFiles.map(f => f.file),
+        testTriggerResult: testTriggerResult,
+        workflowResult: workflowRunResult,
+        message: workflowRunResult 
+          ? (workflowRunResult.conclusion === 'success' 
+              ? `✅ Test pasó exitosamente! PR: ${prUrl}` 
+              : `⚠️ Test falló. Revisa los logs en: ${workflowRunResult.htmlUrl || prUrl}`)
+          : (prUrl 
+              ? `✅ PR creado: ${prUrl} (workflow ejecutándose...)` 
+              : `✅ PR creado pero sin URL`)
+      };
     } else {
       const errorText = await prResponse.text();
       console.error(`⚠️ Error creando PR:`, errorText);
       // Continuar aunque falle el PR
+      return {
+        success: true,
+        branchName,
+        branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
+        prUrl: null,
+        prNumber: null,
+        filesCreated: allFiles.map(f => f.file),
+        testTriggerResult: testTriggerResult,
+        message: `⚠️ PR falló pero branch creado: ${branchName}`
+      };
     }
-    
-    return {
-      success: true,
-      branchName,
-      branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
-      prUrl,
-      prNumber,
-      filesCreated: allFiles.map(f => f.file),
-      testTriggerResult: testTriggerResult,
-      message: prUrl 
-        ? `✅ Test pasó y PR creado exitosamente: ${prUrl}` 
-        : `✅ Test pasó pero PR falló: ${branchName}`
-    };
     
   } catch (error) {
     console.error('❌ Error en createFeatureBranchAndPR:', error);
@@ -9454,21 +9536,22 @@ function generateGitHubActionsWorkflow(interpretation: any, ticketId: string | n
 on:
   pull_request:
     branches: [ main, develop ]
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
   run-generated-test:
     runs-on: arc-runner-dev-large
+    continue-on-error: true  # No bloquear el PR si el test falla
     container:
       image: mcr.microsoft.com/playwright:v1.56.1-jammy
     
     env:
       CI: true
+      ENVIRONMENT: qa  # Por defecto QA para draft PRs
+      TARGET_ENV: qa
     
     steps:
     - name: Checkout code
@@ -9478,156 +9561,125 @@ jobs:
         repository: \${{ github.event.pull_request.head.repo.full_name }}
         fetch-depth: 0
         
-    - name: Setup environment
-      run: |
-        echo "# ENVIRONMENT=\$ENVIRONMENT"
-        echo "# BASE_URL=\$BASE_URL"
-        
-        ENV_SPLIT=$(echo \$ENVIRONMENT | cut -d'-' -f1)
-        echo "## FINAL ENVIRONMENT=\$ENV_SPLIT"
-        
-        # Load environment variables from properties file if it exists
-        if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
-          echo "Loading environment variables from properties/\$ENV_SPLIT/.env.\$ENVIRONMENT"
-          set -a
-          source properties/\$ENV_SPLIT/.env.\$ENVIRONMENT || true
-          set +a
-        else
-          echo "Properties file not found, using environment variables from workflow"
-        fi
-        
-        # [ -n "\${BASE_URL+x}" ] checks if variable is defined, [ "\$BASE_URL" != "" ] checks if variable is not empty
-        if [ -n "\${BASE_URL+x}" ] && [ "\$BASE_URL" != "" ]; then
-          echo "Overriding BASE_URL in .env.\$ENVIRONMENT with \$BASE_URL"
-          if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
-            sed -i "s|^BASE_URL=.*|BASE_URL=\$BASE_URL|" properties/\$ENV_SPLIT/.env.\$ENVIRONMENT || true
-          fi
-        else
-          echo "No BASE_URL parameter provided or empty value, using the default from .env.\$ENVIRONMENT"
-          if [ -f "properties/\$ENV_SPLIT/.env.\$ENVIRONMENT" ]; then
-            DEFAULT_BASE_URL=$(grep "^BASE_URL=" properties/\$ENV_SPLIT/.env.\$ENVIRONMENT | cut -d'=' -f2 || echo "")
-            if [ -n "\$DEFAULT_BASE_URL" ]; then
-              echo "BASE_URL=\$DEFAULT_BASE_URL" >> \$GITHUB_ENV
-              echo "Loaded default BASE_URL: \$DEFAULT_BASE_URL from properties/\$ENV_SPLIT/.env.\$ENVIRONMENT"
-            fi
-          fi
-        fi
-        
     - name: Install dependencies
       run: npm ci
         
-    - name: Run generated test only
-      env:
-        PR_TITLE: \${{ github.event.pull_request.title }}
-        BRANCH_NAME: \${{ github.head_ref }}
-        ENVIRONMENT: \${{ github.event.pull_request.head.ref == 'main' && 'prod' || 'qa' }}
+    - name: Run generated test
+      if: github.event.pull_request.draft == true || github.event.action == 'ready_for_review'
       run: |
-        # Sanitize inputs
-        PR_TITLE_SAFE=\$(echo "\$PR_TITLE" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9[:space:]_-]//g')
-        BRANCH_NAME_SAFE=\$(echo "\$BRANCH_NAME" | tr -d '\\n\\r' | sed 's/[^a-zA-Z0-9_-]//g')
-        SPEC_FILE="${specFilePath}"
-        
-        # Validate that SPEC_FILE is a valid path (aceptar estructura real del proyecto)
-        if ! echo "\$SPEC_FILE" | grep -qE '^tests/[a-zA-Z0-9_/.-]+\.spec\.ts\$'; then
-          echo "Error: Invalid spec file path"
-          exit 1
-        fi
-        
-        # Extract QA-XXXX from PR title or branch name
-        TICKET_ID=""
-        if echo "\$PR_TITLE_SAFE" | grep -qE "QA-[0-9]+"; then
-          TICKET_ID=\$(echo "\$PR_TITLE_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-        elif echo "\$BRANCH_NAME_SAFE" | grep -qE "QA-[0-9]+"; then
-          TICKET_ID=\$(echo "\$BRANCH_NAME_SAFE" | grep -oE "QA-[0-9]+" | head -1)
-        fi
-        
-        # Validate ticketId format
-        if [ -n "\$TICKET_ID" ] && ! echo "\$TICKET_ID" | grep -qE '^QA-[0-9]+\$'; then
-          echo "Error: Invalid ticket ID format"
-          exit 1
-        fi
-        
-        # Determine environment from PR or branch (QA by default)
-        if [ -z "\$ENVIRONMENT" ]; then
-          ENVIRONMENT="qa"
-          if echo "\$PR_TITLE_SAFE" | grep -qiE "prod|production"; then
-            ENVIRONMENT="prod"
-          elif echo "\$BRANCH_NAME_SAFE" | grep -qiE "prod|production"; then
-            ENVIRONMENT="prod"
-          fi
-        fi
-        
-        # Configure BASE_URL based on environment if not already set
-        if [ -z "\$BASE_URL" ]; then
-          if [ "\$ENVIRONMENT" = "prod" ]; then
-            BASE_URL="https://www.cookunity.com"
-          else
-            BASE_URL="https://qa.cookunity.com"
-          fi
-        fi
-        
-        # Export environment variables for Playwright
-        export ENVIRONMENT=\$ENVIRONMENT
-        export BASE_URL=\$BASE_URL
-        export TARGET_ENV=\$ENVIRONMENT
-        
-        # Display environment information in console
         echo "=========================================="
-        echo "🚀 ENVIRONMENT: \$(echo \$ENVIRONMENT | tr '[:lower:]' '[:upper:]')"
-        echo "🌐 BASE_URL: \$BASE_URL"
-        echo "📁 Test file: \$SPEC_FILE"
-        echo "🔍 Test filter: \${TICKET_ID:+\"--grep \\\"\$TICKET_ID\\\"\"}"
+        echo "🚀 Running test: ${specFilePath}"
+        echo "🌐 Environment: \$ENVIRONMENT"
         echo "=========================================="
         
-        # Run test with QA-XXXX filter if found, otherwise run all tests in file
-        # Playwright --grep matches test names containing the pattern
-        if [ -n "\$TICKET_ID" ]; then
-          echo "Running test with filter: --grep \"\$TICKET_ID\" in file: \$SPEC_FILE"
-          # Use ticket ID directly (Playwright will match it in test names)
-          TARGET_ENV=\$ENVIRONMENT npx playwright test "\$SPEC_FILE" --grep "\$TICKET_ID" --project desktop
-        else
-          echo "No QA-XXXX found in PR title or branch, running all tests in file: \$SPEC_FILE"
-          TARGET_ENV=\$ENVIRONMENT npx playwright test "\$SPEC_FILE" --project desktop
-        fi
-        
-    - name: Update PR status on success
-      if: success()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { data: pr } = await github.rest.pulls.get({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            pull_number: context.issue.number
-          });
-          
-          if (pr.draft) {
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-              draft: false
-            });
-            
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: "✅ **Test passed!** PR moved from draft to ready for review.\\n\\nCheck the workflow logs for details."
-            });
-          }
-          
-    - name: Comment on failure
-      if: failure()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-              body: "❌ **Test failed!** PR remains in draft. Please check the test results and fix any issues.\\n\\nCheck the workflow logs for details."
-          });
+        npx playwright test "${specFilePath}" --project desktop
 `
   };
+}
+
+// 🎯 ESPERAR A QUE EL WORKFLOW SE EJECUTE Y OBTENER RESULTADO
+async function waitForWorkflowCompletion(
+  repository: string,
+  branchName: string,
+  workflowFileName: string,
+  githubToken: string,
+  maxWaitTime: number = 300000 // 5 minutos por defecto
+): Promise<{ status: string; conclusion: string; htmlUrl?: string } | null> {
+  const startTime = Date.now();
+  const pollInterval = 10000; // Poll cada 10 segundos
+  
+  console.log(`🔍 Buscando workflow run para: ${workflowFileName} en branch: ${branchName}`);
+  
+  while (Date.now() - startTime < maxWaitTime) {
+    try {
+      // Buscar el workflow por nombre
+      const workflowsResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/workflows`,
+        {
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      if (!workflowsResponse.ok) {
+        console.warn('⚠️ No se pudo obtener workflows');
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      const workflowsData = await workflowsResponse.json();
+      const workflow = workflowsData.workflows?.find((w: any) => 
+        w.path.includes(workflowFileName) || w.name.includes('Auto Test PR')
+      );
+      
+      if (!workflow) {
+        console.log('⏳ Workflow aún no detectado, esperando...');
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      // Buscar el run más reciente para este branch
+      const runsResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1&branch=${branchName}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      if (!runsResponse.ok) {
+        console.warn('⚠️ No se pudo obtener workflow runs');
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      const runsData = await runsResponse.json();
+      
+      if (!runsData.workflow_runs || runsData.workflow_runs.length === 0) {
+        console.log('⏳ Workflow run aún no creado, esperando...');
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      const run = runsData.workflow_runs[0];
+      console.log(`📊 Workflow run encontrado: ${run.status} (${run.conclusion || 'pending'})`);
+      
+      // Si el workflow terminó, retornar resultado
+      if (run.status === 'completed') {
+        return {
+          status: run.status,
+          conclusion: run.conclusion || 'unknown',
+          htmlUrl: run.html_url
+        };
+      }
+      
+      // Si está en progreso, seguir esperando
+      if (run.status === 'in_progress' || run.status === 'queued') {
+        console.log(`⏳ Workflow ejecutándose... (${run.status})`);
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        continue;
+      }
+      
+      // Si falló o fue cancelado, retornar
+      if (run.status === 'failed' || run.status === 'cancelled') {
+        return {
+          status: run.status,
+          conclusion: run.conclusion || run.status,
+          htmlUrl: run.html_url
+        };
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Error en polling:', error);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
+  }
+  
+  console.log('⏱️ Timeout esperando workflow completion');
+  return null;
 }

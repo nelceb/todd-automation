@@ -266,7 +266,8 @@ export async function GET(request: NextRequest) {
       /View\s+Playwright\s+Report[:\s]*\(?(https:\/\/[^\s\)\n]+)/gi,  // "View Playwright Report: https://..." or "[View Playwright Report](https://...)"
       /\[View\s+Playwright\s+Report\]\(https:\/\/[^\s\)\n]+\)/gi,  // Markdown link format
       /View\s+Playwright\s+Report[:\s]+(https:\/\/[^\s\n]+)/gi,  // "View Playwright Report: https://..."
-      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/index\.html[^\s\n]*/gi,  // index.html (most common)
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/playwright-report\/index\.html[^\s\n]*/gi,  // playwright-report/index.html (most common)
+      /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/index\.html[^\s\n]*/gi,  // index.html (fallback)
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*report[^\/]*\.html[^\s\n]*/gi,  // any report*.html
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*playwright[^\/]*\.html[^\s\n]*/gi,  // playwright*.html
       /https:\/\/[^\/]+\.s3\.[^\/]+\/reports\/[^\/]+\/[^\/]*\.html[^\s\n]*/gi,  // any .html file in reports folder
@@ -314,15 +315,32 @@ export async function GET(request: NextRequest) {
         // Clean up URL - remove trailing parentheses, whitespace, etc.
         url = url.replace(/[\)\s\n]+$/, '').trim()
         
-        // If URL doesn't end with .html and looks like a base S3 path, try to append index.html
-        if (url.includes('s3.') && !url.endsWith('.html') && !url.includes('?')) {
+        // Extract query parameters if they exist (before modifying the path)
+        const urlParts = url.split('?')
+        const baseUrl = urlParts[0]
+        const queryParams = urlParts.length > 1 ? '?' + urlParts.slice(1).join('?') : ''
+        
+        // If URL already contains playwright-report/index.html, use it as-is
+        if (baseUrl.includes('playwright-report/index.html')) {
+          s3HtmlReportUrl = url
+          console.log('✅ Found S3 URL with playwright-report/index.html:', s3HtmlReportUrl.substring(0, 100) + '...')
+          break
+        }
+        
+        // If URL doesn't end with .html and looks like a base S3 path, try to append playwright-report/index.html first
+        if (baseUrl.includes('s3.') && !baseUrl.endsWith('.html') && !baseUrl.includes('playwright-report')) {
           // Check if it's a base path (ends with / or just a folder path)
-          if (url.endsWith('/')) {
-            url = url + 'index.html'
-          } else if (!url.match(/\.(html|zip|json|txt)$/i)) {
+          let newUrl = baseUrl
+          if (newUrl.endsWith('/')) {
+            // Try playwright-report/index.html first (most common for Playwright reports)
+            newUrl = newUrl + 'playwright-report/index.html'
+          } else if (!newUrl.match(/\.(html|zip|json|txt)$/i)) {
             // If it doesn't have a file extension, it's likely a folder path
-            url = url + '/index.html'
+            // Try playwright-report/index.html first (most common for Playwright reports)
+            newUrl = newUrl + '/playwright-report/index.html'
           }
+          // Reattach query parameters if they existed
+          url = newUrl + queryParams
         }
         
         s3HtmlReportUrl = url

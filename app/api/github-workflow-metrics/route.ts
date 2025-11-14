@@ -150,12 +150,26 @@ export async function GET(request: NextRequest) {
       page++
     }
     
-    // Filtrar workflows activos y excluir templates (igual que en /api/repositories)
-    const activeWorkflows = allWorkflows.filter((workflow: any) => 
-      workflow.state === 'active' && 
-      !workflow.name.toLowerCase().includes('template') &&
-      !workflow.path.toLowerCase().includes('template')
-    )
+    // Filtrar workflows activos y excluir templates y workflows dinámicos (igual que en /api/repositories)
+    const activeWorkflows = allWorkflows.filter((workflow: any) => {
+      const nameLower = workflow.name.toLowerCase()
+      const pathLower = workflow.path.toLowerCase()
+      
+      // Excluir templates
+      if (nameLower.includes('template') || pathLower.includes('template')) {
+        return false
+      }
+      
+      // Excluir workflows dinámicos generados por PRs (auto-test-pr)
+      if (nameLower.includes('auto test pr') || 
+          nameLower.includes('auto-test-pr') ||
+          pathLower.includes('auto-test-pr.yml') ||
+          pathLower.includes('auto_test_pr')) {
+        return false
+      }
+      
+      return workflow.state === 'active'
+    })
     
     const workflows = activeWorkflows
     console.log(`📊 Metrics: Total workflows obtenidos (con paginación) para ${repo}: ${allWorkflows.length}`)
