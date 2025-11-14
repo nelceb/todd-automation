@@ -26,6 +26,71 @@ interface FailureAnalysis {
   }>
 }
 
+// Función para extraer ejemplo conciso y relevante del summary
+function extractConciseExample(summary: string, patternName: string): string | null {
+  // Eliminar texto genérico al inicio
+  let cleaned = summary
+    .replace(/^Based on (the|your).*?here (are|is).*?:\s*/i, '')
+    .replace(/^Let's analyze.*?:\s*/i, '')
+    .trim()
+  
+  // Buscar el primer error o issue específico
+  const errorMatch = cleaned.match(/(?:##?\s*|\*\*)?(\d+\.\s*)?\*\*([^:]+?)\*\*:\s*\*\*(Error|Errors?|Issue|Problem)[:\s]*\*\*([^\n]+)/i)
+  if (errorMatch) {
+    const errorType = errorMatch[2]?.trim()
+    const errorMessage = errorMatch[4]?.trim()
+    if (errorType && errorMessage) {
+      // Limitar mensaje de error a 150 caracteres
+      const shortMessage = errorMessage.length > 150 
+        ? errorMessage.substring(0, 147) + '...' 
+        : errorMessage
+      return `**${errorType}**: ${shortMessage}`
+    }
+  }
+  
+  // Buscar formato "Error: mensaje"
+  const simpleErrorMatch = cleaned.match(/\*\*Error[:\s]*\*\*[:\s]*([^\n]+)/i)
+  if (simpleErrorMatch && simpleErrorMatch[1]) {
+    const errorMsg = simpleErrorMatch[1].trim()
+    const shortMsg = errorMsg.length > 200 ? errorMsg.substring(0, 197) + '...' : errorMsg
+    return `**Error**: ${shortMsg}`
+  }
+  
+  // Buscar timeout errors específicos
+  const timeoutMatch = cleaned.match(/TimeoutError[:\s]+([^\n]+)/i)
+  if (timeoutMatch && timeoutMatch[1]) {
+    const timeoutMsg = timeoutMatch[1].trim()
+    const shortMsg = timeoutMsg.length > 150 ? timeoutMsg.substring(0, 147) + '...' : timeoutMsg
+    return `**TimeoutError**: ${shortMsg}`
+  }
+  
+  // Si no encuentra formato específico, tomar las primeras 2-3 líneas relevantes
+  const lines = cleaned.split('\n').map(l => l.trim()).filter(l => 
+    l.length > 20 && 
+    !l.toLowerCase().includes('based on') &&
+    !l.toLowerCase().includes('here are') &&
+    !l.toLowerCase().includes('possible cause') &&
+    !l.toLowerCase().includes('suggest')
+  )
+  
+  if (lines.length > 0) {
+    // Tomar hasta 2 líneas, máximo 200 caracteres
+    let result = lines.slice(0, 2).join(' ').trim()
+    if (result.length > 200) {
+      result = result.substring(0, 197) + '...'
+    }
+    return result
+  }
+  
+  // Último recurso: primeros 150 caracteres sin texto genérico
+  const fallback = cleaned.replace(/^[^:]*:\s*/, '').trim()
+  if (fallback.length > 20) {
+    return fallback.length > 150 ? fallback.substring(0, 147) + '...' : fallback
+  }
+  
+  return null
+}
+
 // Función para normalizar y extraer patrones de los AI summaries
 // Ahora recibe un mapa de summary -> run_id para poder contar runs únicos
 function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number }>): Map<string, { count: number; examples: string[]; runIds: Set<number> }> {
@@ -143,11 +208,11 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
       patternData.runIds.add(runId) // Agregar runId único
       patternData.count = patternData.runIds.size // Contar runs únicos
       
-      // Guardar ejemplo original (limitado a 3 ejemplos por patrón)
+      // Extraer ejemplo conciso y relevante (limitado a 3 ejemplos por patrón)
       if (patternData.examples.length < 3) {
-        const originalExample = summary.substring(0, 300).trim()
-        if (!patternData.examples.includes(originalExample)) {
-          patternData.examples.push(originalExample)
+        const conciseExample = extractConciseExample(summary, matchedPattern.name)
+        if (conciseExample && !patternData.examples.includes(conciseExample)) {
+          patternData.examples.push(conciseExample)
         }
       }
     }
