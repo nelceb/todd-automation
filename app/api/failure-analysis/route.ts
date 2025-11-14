@@ -85,14 +85,15 @@ function groupSimilarPatterns(patterns: Map<string, { count: number; examples: s
   const grouped: FailurePattern[] = []
   const processed = new Set<string>()
   
-  for (const [pattern, data] of patterns.entries()) {
+  const patternsArray = Array.from(patterns.entries())
+  for (const [pattern, data] of patternsArray) {
     if (processed.has(pattern)) continue
     
     // Buscar patrones similares (que compartan al menos 2 palabras clave)
     const similarPatterns: string[] = [pattern]
     const patternWords = new Set(pattern.split(' '))
     
-    for (const [otherPattern, otherData] of patterns.entries()) {
+    for (const [otherPattern, otherData] of patternsArray) {
       if (processed.has(otherPattern) || pattern === otherPattern) continue
       
       const otherWords = new Set(otherPattern.split(' '))
