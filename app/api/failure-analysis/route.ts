@@ -27,8 +27,9 @@ interface FailureAnalysis {
 }
 
 // Función para normalizar y extraer patrones de los AI summaries
-function extractFailurePatterns(summaries: string[]): Map<string, { count: number; examples: string[] }> {
-  const patterns = new Map<string, { count: number; examples: string[] }>()
+// Ahora recibe un mapa de summary -> run_id para poder contar runs únicos
+function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number }>): Map<string, { count: number; examples: string[]; runIds: Set<number> }> {
+  const patterns = new Map<string, { count: number; examples: string[]; runIds: Set<number> }>()
   
   // Patrones de errores comunes a buscar
   const errorPatterns = [
@@ -46,7 +47,7 @@ function extractFailurePatterns(summaries: string[]): Map<string, { count: numbe
     { pattern: /authentication.*failed|login.*failed|auth.*error/i, name: 'Authentication failed' },
   ]
   
-  for (const summary of summaries) {
+  for (const { summary, runId } of summariesWithRuns) {
     if (!summary || summary.trim().length === 0) continue
     
     const normalized = summary.toLowerCase()
@@ -135,11 +136,12 @@ function extractFailurePatterns(summaries: string[]): Map<string, { count: numbe
       const patternKey = matchedPattern.name
       
       if (!patterns.has(patternKey)) {
-        patterns.set(patternKey, { count: 0, examples: [] })
+        patterns.set(patternKey, { count: 0, examples: [], runIds: new Set<number>() })
       }
       
       const patternData = patterns.get(patternKey)!
-      patternData.count++
+      patternData.runIds.add(runId) // Agregar runId único
+      patternData.count = patternData.runIds.size // Contar runs únicos
       
       // Guardar ejemplo original (limitado a 3 ejemplos por patrón)
       if (patternData.examples.length < 3) {
@@ -155,14 +157,14 @@ function extractFailurePatterns(summaries: string[]): Map<string, { count: numbe
 }
 
 // Función para convertir patrones a formato de respuesta (sin agrupación compleja ya que los patrones son específicos)
-function groupSimilarPatterns(patterns: Map<string, { count: number; examples: string[] }>): FailurePattern[] {
+function groupSimilarPatterns(patterns: Map<string, { count: number; examples: string[]; runIds: Set<number> }>): FailurePattern[] {
   const patternsArray = Array.from(patterns.entries())
   
   // Convertir directamente a FailurePattern[] y ordenar por count
   return patternsArray
     .map(([pattern, data]) => ({
       pattern: pattern,
-      count: data.count,
+      count: data.count, // Ahora cuenta runs únicos
       workflows: [], // Se llenará después
       examples: data.examples
     }))
@@ -309,13 +311,15 @@ export async function GET(request: NextRequest) {
     
     // Obtener AI summaries de los runs fallidos (limitado a los top workflows)
     const topWorkflowNames = new Set(sortedWorkflows.map(([name]) => name))
+    // Aumentar límite a 100 runs, pero priorizar los más recientes
     const runsToAnalyze = failedRuns
       .filter(run => topWorkflowNames.has(run.workflow_name))
-      .slice(0, 50) // Limitar a 50 runs para evitar timeout
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // Más recientes primero
+      .slice(0, 100) // Limitar a 100 runs para evitar timeout
     
     console.log(`🔍 Analyzing ${runsToAnalyze.length} failed runs for AI summaries`)
 
-    const aiSummaries: string[] = []
+    const aiSummariesWithRuns: Array<{ summary: string; runId: number }> = []
     const summariesByWorkflow = new Map<string, string[]>()
     
     // Obtener AI summaries en paralelo (con límite de concurrencia)
@@ -348,7 +352,7 @@ export async function GET(request: NextRequest) {
               summariesByWorkflow.set(run.workflow_name, [])
             }
             summariesByWorkflow.get(run.workflow_name)!.push(aiSummary)
-            return aiSummary
+            return { summary: aiSummary, runId: run.run_id }
           }
           
           return null
@@ -359,8 +363,8 @@ export async function GET(request: NextRequest) {
       })
       
       const batchResults = await Promise.all(batchPromises)
-      const validSummaries = batchResults.filter((s): s is string => s !== null)
-      aiSummaries.push(...validSummaries)
+      const validSummaries = batchResults.filter((s): s is { summary: string; runId: number } => s !== null)
+      aiSummariesWithRuns.push(...validSummaries)
       
       // Pequeña pausa entre batches para evitar rate limiting
       if (i + batchSize < runsToAnalyze.length) {
@@ -368,10 +372,10 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    console.log(`✅ Collected ${aiSummaries.length} AI summaries`)
+    console.log(`✅ Collected ${aiSummariesWithRuns.length} AI summaries from ${aiSummariesWithRuns.length} unique runs`)
 
-    // Extraer patrones de fallos
-    const patterns = extractFailurePatterns(aiSummaries)
+    // Extraer patrones de fallos (ahora con información de runId para contar runs únicos)
+    const patterns = extractFailurePatterns(aiSummariesWithRuns)
     const groupedPatterns = groupSimilarPatterns(patterns)
     
     // Asociar workflows a cada patrón

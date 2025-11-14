@@ -715,8 +715,8 @@ export default function MetricsDashboard() {
                                 {failure.examples.map((example, exIdx) => (
                                   <div
                                     key={exIdx}
-                                    className="bg-gray-800/30 border border-gray-700/30 rounded p-2 text-xs font-mono line-clamp-3"
-                                    style={{ color: '#4B5563' }}
+                                    className="bg-white/80 border border-gray-300 rounded p-2 text-xs font-mono line-clamp-5"
+                                    style={{ color: '#1F2937' }}
                                   >
                                     {example}
                                   </div>
@@ -736,11 +736,14 @@ export default function MetricsDashboard() {
                   </div>
                 </div>
 
-                {/* Workflows with Most Failures */}
+                {/* Workflows with Most Failures (from failure analysis - last 7 days) */}
                 {failureAnalysis.workflow_failure_counts.length > 0 && (
                   <div>
                     <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
                       Workflows with Most Failures
+                      <span className="text-xs font-normal ml-2" style={{ color: '#6B7280' }}>
+                        (last 7 days)
+                      </span>
                     </h4>
                     <div className="space-y-2">
                       {failureAnalysis.workflow_failure_counts.slice(0, 5).map((workflow, index) => (
