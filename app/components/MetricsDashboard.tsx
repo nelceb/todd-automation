@@ -625,15 +625,15 @@ export default function MetricsDashboard() {
         <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg flex flex-col" style={{ height: '900px' }}>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xl font-mono font-semibold mb-1" style={{ color: '#344055' }}>Análisis de Fallos</h3>
+              <h3 className="text-xl font-mono font-semibold mb-1" style={{ color: '#344055' }}>Failure Analysis</h3>
               <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
-                Fallos más comunes en los últimos 7 días
+                Most common failures in the last 7 days
               </p>
             </div>
             {loadingFailureAnalysis && (
               <div className="flex items-center space-x-2">
                 <SmallCube speedMultiplier={2} />
-                <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analizando...</span>
+                <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
               </div>
             )}
           </div>
@@ -643,20 +643,20 @@ export default function MetricsDashboard() {
               <div className="space-y-6">
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-red-300">
+                  <div className="bg-red-900 border border-red-700 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-red-200">
                       {failureAnalysis.total_failed_runs}
                     </div>
-                    <div className="text-xs font-mono text-red-200 mt-1">
-                      Runs Fallidos
+                    <div className="text-xs font-mono text-red-300 mt-1">
+                      Failed Runs
                     </div>
                   </div>
-                  <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-orange-300">
+                  <div className="bg-orange-900 border border-orange-700 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-orange-200">
                       {failureAnalysis.workflows_analyzed}
                     </div>
-                    <div className="text-xs font-mono text-orange-200 mt-1">
-                      Workflows Analizados
+                    <div className="text-xs font-mono text-orange-300 mt-1">
+                      Workflows Analyzed
                     </div>
                   </div>
                 </div>
@@ -664,14 +664,14 @@ export default function MetricsDashboard() {
                 {/* Top Failures */}
                 <div>
                   <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
-                    Top Fallos Más Comunes
+                    Top Most Common Failures
                   </h4>
                   <div className="space-y-3">
                     {failureAnalysis.top_failures.length > 0 ? (
                       failureAnalysis.top_failures.map((failure, index) => (
                         <div
                           key={index}
-                          className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-colors"
+                          className="bg-gray-800 border border-gray-600 rounded-lg p-4 hover:bg-gray-700 transition-colors"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
@@ -680,7 +680,7 @@ export default function MetricsDashboard() {
                                   {index + 1}
                                 </span>
                                 <span className="text-sm font-mono font-semibold text-white">
-                                  {failure.count} {failure.count === 1 ? 'vez' : 'veces'}
+                                  {failure.count} {failure.count === 1 ? 'time' : 'times'}
                                 </span>
                               </div>
                               <p className="text-sm font-mono text-gray-300 mb-2">
@@ -698,7 +698,7 @@ export default function MetricsDashboard() {
                                   ))}
                                   {failure.workflows.length > 3 && (
                                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-400">
-                                      +{failure.workflows.length - 3} más
+                                      +{failure.workflows.length - 3} more
                                     </span>
                                   )}
                                 </div>
@@ -707,14 +707,14 @@ export default function MetricsDashboard() {
                           </div>
                           {failure.examples.length > 0 && (
                             <details className="mt-2">
-                              <summary className="text-xs font-mono text-gray-400 cursor-pointer hover:text-gray-300">
-                                Ver ejemplos ({failure.examples.length})
+                              <summary className="text-xs font-mono text-gray-300 cursor-pointer hover:text-white">
+                                View examples ({failure.examples.length})
                               </summary>
                               <div className="mt-2 space-y-2">
                                 {failure.examples.map((example, exIdx) => (
                                   <div
                                     key={exIdx}
-                                    className="bg-gray-900/50 border border-gray-800/50 rounded p-2 text-xs font-mono text-gray-400 line-clamp-3"
+                                    className="bg-gray-900 border border-gray-700 rounded p-2 text-xs font-mono text-gray-300 line-clamp-3"
                                   >
                                     {example}
                                   </div>
@@ -726,8 +726,8 @@ export default function MetricsDashboard() {
                       ))
                     ) : (
                       <div className="text-center py-8">
-                        <p className="text-sm font-mono text-gray-400">
-                          No se encontraron patrones de fallos
+                        <p className="text-sm font-mono text-gray-300">
+                          No failure patterns found
                         </p>
                       </div>
                     )}
@@ -738,7 +738,7 @@ export default function MetricsDashboard() {
                 {failureAnalysis.workflow_failure_counts.length > 0 && (
                   <div>
                     <h4 className="text-lg font-mono font-semibold mb-3" style={{ color: '#344055' }}>
-                      Workflows con Más Fallos
+                      Workflows with Most Failures
                     </h4>
                     <div className="space-y-2">
                       {failureAnalysis.workflow_failure_counts.slice(0, 5).map((workflow, index) => (
@@ -759,7 +759,7 @@ export default function MetricsDashboard() {
                               {workflow.failed_runs}
                             </span>
                             <span className="text-xs font-mono text-gray-400">
-                              fallos
+                              failures
                             </span>
                           </div>
                         </div>
@@ -772,15 +772,15 @@ export default function MetricsDashboard() {
               <div className="flex flex-col items-center justify-center h-full">
                 <SmallCube speedMultiplier={2} />
                 <p className="text-sm font-mono mt-4" style={{ color: '#6B7280' }}>
-                  Analizando fallos...
+                  Analyzing failures...
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full">
                 <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
                   {timeRange === '7d' 
-                    ? 'No hay datos de análisis de fallos disponibles'
-                    : 'El análisis de fallos está disponible solo para el período de 7 días'}
+                    ? 'No failure analysis data available'
+                    : 'Failure analysis is only available for the 7-day period'}
                 </p>
               </div>
             )}

@@ -30,46 +30,72 @@ interface FailureAnalysis {
 function extractFailurePatterns(summaries: string[]): Map<string, { count: number; examples: string[] }> {
   const patterns = new Map<string, { count: number; examples: string[] }>()
   
+  // Patrones de errores comunes a buscar
+  const errorPatterns = [
+    { pattern: /timeout.*locator|locator.*timeout|waiting.*timeout/i, name: 'Timeout waiting for locator' },
+    { pattern: /element.*not.*found|locator.*not.*found|cannot.*find.*element/i, name: 'Element not found' },
+    { pattern: /element.*not.*visible|not.*visible|element.*hidden/i, name: 'Element not visible' },
+    { pattern: /network.*error|network.*timeout|request.*failed/i, name: 'Network error' },
+    { pattern: /assertion.*failed|expect.*failed|assertion.*error/i, name: 'Assertion failed' },
+    { pattern: /selector.*invalid|invalid.*selector|malformed.*selector/i, name: 'Invalid selector' },
+    { pattern: /page.*not.*loaded|page.*load.*timeout|navigation.*timeout/i, name: 'Page load timeout' },
+    { pattern: /click.*failed|click.*timeout|cannot.*click/i, name: 'Click action failed' },
+    { pattern: /fill.*failed|input.*failed|cannot.*fill/i, name: 'Fill action failed' },
+    { pattern: /stale.*element|stale.*reference/i, name: 'Stale element reference' },
+    { pattern: /javascript.*error|js.*error|script.*error/i, name: 'JavaScript error' },
+    { pattern: /authentication.*failed|login.*failed|auth.*error/i, name: 'Authentication failed' },
+  ]
+  
   for (const summary of summaries) {
     if (!summary || summary.trim().length === 0) continue
     
-    // Normalizar el texto: convertir a minúsculas, eliminar espacios extra, etc.
-    const normalized = summary
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim()
+    const normalized = summary.toLowerCase()
+    let matchedPattern: { pattern: RegExp; name: string } | null = null
     
-    // Extraer frases clave (oraciones completas o frases importantes)
-    // Dividir por puntos, saltos de línea, o signos de puntuación
-    const sentences = normalized
-      .split(/[.!?\n]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 20) // Filtrar frases muy cortas
+    // Buscar el primer patrón que coincida
+    for (const errorPattern of errorPatterns) {
+      if (errorPattern.pattern.test(summary)) {
+        matchedPattern = errorPattern
+        break
+      }
+    }
     
-    // Agrupar por similitud (usando palabras clave comunes)
-    for (const sentence of sentences) {
-      // Extraer palabras clave (palabras de 4+ caracteres, excluyendo palabras comunes)
-      const stopWords = new Set(['the', 'that', 'this', 'with', 'from', 'when', 'where', 'which', 'what', 'then', 'than', 'there', 'their', 'they', 'them', 'these', 'those', 'have', 'has', 'had', 'been', 'being', 'were', 'was', 'will', 'would', 'could', 'should', 'might', 'may', 'must', 'can', 'cannot', 'error', 'errors', 'failed', 'failure', 'test', 'tests', 'playwright', 'element', 'elements', 'page', 'pages', 'timeout', 'timeouts', 'waiting', 'wait', 'click', 'clicked', 'found', 'not found', 'visible', 'invisible'])
-      
-      const words = sentence
-        .split(/\s+/)
-        .filter(word => word.length >= 4 && !stopWords.has(word.toLowerCase()))
-        .slice(0, 5) // Tomar las primeras 5 palabras clave
-      
-      if (words.length === 0) continue
-      
-      // Crear un patrón basado en las palabras clave
-      const pattern = words.join(' ')
-      
-      if (!patterns.has(pattern)) {
-        patterns.set(pattern, { count: 0, examples: [] })
+    // Si no se encontró un patrón conocido, intentar extraer el error principal
+    if (!matchedPattern) {
+      // Buscar títulos o encabezados que indiquen el tipo de error
+      const titleMatch = summary.match(/^(?:##?\s*)?(?:error|failure|issue|problem)[:\s]+(.+?)(?:\n|$)/i)
+      if (titleMatch && titleMatch[1]) {
+        const errorTitle = titleMatch[1].trim().substring(0, 100)
+        if (errorTitle.length > 10) {
+          matchedPattern = { pattern: /./, name: errorTitle }
+        }
       }
       
-      const patternData = patterns.get(pattern)!
+      // Si aún no hay patrón, buscar la primera línea significativa
+      if (!matchedPattern) {
+        const lines = summary.split('\n').map(l => l.trim()).filter(l => l.length > 20)
+        if (lines.length > 0) {
+          const firstLine = lines[0].substring(0, 80)
+          if (firstLine.length > 15) {
+            matchedPattern = { pattern: /./, name: firstLine }
+          }
+        }
+      }
+    }
+    
+    if (matchedPattern) {
+      const patternKey = matchedPattern.name
+      
+      if (!patterns.has(patternKey)) {
+        patterns.set(patternKey, { count: 0, examples: [] })
+      }
+      
+      const patternData = patterns.get(patternKey)!
       patternData.count++
+      
       // Guardar ejemplo original (limitado a 3 ejemplos por patrón)
       if (patternData.examples.length < 3) {
-        const originalExample = summary.substring(0, 200) // Primeros 200 caracteres
+        const originalExample = summary.substring(0, 300).trim()
         if (!patternData.examples.includes(originalExample)) {
           patternData.examples.push(originalExample)
         }
@@ -80,57 +106,19 @@ function extractFailurePatterns(summaries: string[]): Map<string, { count: numbe
   return patterns
 }
 
-// Función para agrupar patrones similares
+// Función para convertir patrones a formato de respuesta (sin agrupación compleja ya que los patrones son específicos)
 function groupSimilarPatterns(patterns: Map<string, { count: number; examples: string[] }>): FailurePattern[] {
-  const grouped: FailurePattern[] = []
-  const processed = new Set<string>()
-  
   const patternsArray = Array.from(patterns.entries())
-  for (const [pattern, data] of patternsArray) {
-    if (processed.has(pattern)) continue
-    
-    // Buscar patrones similares (que compartan al menos 2 palabras clave)
-    const similarPatterns: string[] = [pattern]
-    const patternWords = new Set(pattern.split(' '))
-    
-    for (const [otherPattern, otherData] of patternsArray) {
-      if (processed.has(otherPattern) || pattern === otherPattern) continue
-      
-      const otherWords = new Set(otherPattern.split(' '))
-      const commonWords = Array.from(patternWords).filter(w => otherWords.has(w))
-      
-      // Si comparten al menos 2 palabras clave, son similares
-      if (commonWords.length >= 2) {
-        similarPatterns.push(otherPattern)
-        processed.add(otherPattern)
-        // Combinar datos
-        data.count += otherData.count
-        // Combinar ejemplos (máximo 3)
-        for (const example of otherData.examples) {
-          if (data.examples.length < 3 && !data.examples.includes(example)) {
-            data.examples.push(example)
-          }
-        }
-      }
-    }
-    
-    processed.add(pattern)
-    
-    // Crear un patrón representativo (el más largo o el que tiene más palabras)
-    const representativePattern = similarPatterns.reduce((best, current) => 
-      current.split(' ').length > best.split(' ').length ? current : best
-    )
-    
-    grouped.push({
-      pattern: representativePattern,
+  
+  // Convertir directamente a FailurePattern[] y ordenar por count
+  return patternsArray
+    .map(([pattern, data]) => ({
+      pattern: pattern,
       count: data.count,
       workflows: [], // Se llenará después
       examples: data.examples
-    })
-  }
-  
-  // Ordenar por count descendente
-  return grouped.sort((a, b) => b.count - a.count)
+    }))
+    .sort((a, b) => b.count - a.count)
 }
 
 export async function GET(request: NextRequest) {
