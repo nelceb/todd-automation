@@ -62,22 +62,70 @@ function extractFailurePatterns(summaries: string[]): Map<string, { count: numbe
     
     // Si no se encontró un patrón conocido, intentar extraer el error principal
     if (!matchedPattern) {
-      // Buscar títulos o encabezados que indiquen el tipo de error
-      const titleMatch = summary.match(/^(?:##?\s*)?(?:error|failure|issue|problem)[:\s]+(.+?)(?:\n|$)/i)
-      if (titleMatch && titleMatch[1]) {
-        const errorTitle = titleMatch[1].trim().substring(0, 100)
-        if (errorTitle.length > 10) {
-          matchedPattern = { pattern: /./, name: errorTitle }
+      // 1. Buscar títulos de errores en formato markdown (## o **)
+      const markdownTitleMatch = summary.match(/(?:##?\s*|\*\*)([^:]+?)(?:\*\*|:)/)
+      if (markdownTitleMatch && markdownTitleMatch[1]) {
+        const errorTitle = markdownTitleMatch[1].trim()
+        // Filtrar títulos genéricos
+        if (errorTitle.length > 10 && 
+            !errorTitle.toLowerCase().includes('possible causes') &&
+            !errorTitle.toLowerCase().includes('suggest') &&
+            !errorTitle.toLowerCase().includes('based on') &&
+            !errorTitle.toLowerCase().includes('here are')) {
+          matchedPattern = { pattern: /./, name: errorTitle.substring(0, 100) }
         }
       }
       
-      // Si aún no hay patrón, buscar la primera línea significativa
+      // 2. Buscar líneas que contengan palabras clave de errores seguidos de ":"
       if (!matchedPattern) {
-        const lines = summary.split('\n').map(l => l.trim()).filter(l => l.length > 20)
-        if (lines.length > 0) {
-          const firstLine = lines[0].substring(0, 80)
-          if (firstLine.length > 15) {
-            matchedPattern = { pattern: /./, name: firstLine }
+        const errorKeywords = ['timeout', 'error', 'failed', 'issue', 'problem', 'exception', 'warning']
+        const lines = summary.split('\n').map(l => l.trim())
+        for (const line of lines) {
+          // Buscar líneas con formato "Error Type:" o "**Error Type:**"
+          const keywordMatch = line.match(/(?:##?\s*|\*\*)?([^:]+?)(?:\*\*)?:\s*(.+)/i)
+          if (keywordMatch) {
+            const title = keywordMatch[1].trim()
+            const hasErrorKeyword = errorKeywords.some(kw => title.toLowerCase().includes(kw))
+            if (hasErrorKeyword && title.length > 10 && title.length < 100) {
+              // Filtrar títulos genéricos
+              if (!title.toLowerCase().includes('possible causes') &&
+                  !title.toLowerCase().includes('suggest') &&
+                  !title.toLowerCase().includes('based on')) {
+                matchedPattern = { pattern: /./, name: title }
+                break
+              }
+            }
+          }
+        }
+      }
+      
+      // 3. Buscar números seguidos de punto y título (formato "1. Error Type:")
+      if (!matchedPattern) {
+        const numberedMatch = summary.match(/\d+\.\s*\*\*([^:]+?)\*\*:/)
+        if (numberedMatch && numberedMatch[1]) {
+          const errorTitle = numberedMatch[1].trim()
+          if (errorTitle.length > 10 && errorTitle.length < 100) {
+            matchedPattern = { pattern: /./, name: errorTitle }
+          }
+        }
+      }
+      
+      // 4. Como último recurso, buscar la primera línea con palabras clave de error
+      if (!matchedPattern) {
+        const errorKeywords = ['timeout', 'error', 'failed', 'exception', 'not found', 'not visible']
+        const lines = summary.split('\n').map(l => l.trim()).filter(l => l.length > 20 && l.length < 150)
+        for (const line of lines) {
+          const hasErrorKeyword = errorKeywords.some(kw => line.toLowerCase().includes(kw))
+          if (hasErrorKeyword && 
+              !line.toLowerCase().includes('possible causes') &&
+              !line.toLowerCase().includes('suggest') &&
+              !line.toLowerCase().includes('based on')) {
+            // Extraer solo la parte relevante (hasta el primer punto o dos puntos)
+            const relevantPart = line.split(/[.:]/)[0].trim()
+            if (relevantPart.length > 15 && relevantPart.length < 100) {
+              matchedPattern = { pattern: /./, name: relevantPart }
+              break
+            }
           }
         }
       }

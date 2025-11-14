@@ -643,19 +643,19 @@ export default function MetricsDashboard() {
               <div className="space-y-6">
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-red-900 border border-red-700 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-red-200">
+                  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-red-300">
                       {failureAnalysis.total_failed_runs}
                     </div>
-                    <div className="text-xs font-mono text-red-300 mt-1">
+                    <div className="text-xs font-mono text-gray-300 mt-1">
                       Failed Runs
                     </div>
                   </div>
-                  <div className="bg-orange-900 border border-orange-700 rounded-lg p-3">
-                    <div className="text-2xl font-mono font-bold text-orange-200">
+                  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+                    <div className="text-2xl font-mono font-bold text-blue-300">
                       {failureAnalysis.workflows_analyzed}
                     </div>
-                    <div className="text-xs font-mono text-orange-300 mt-1">
+                    <div className="text-xs font-mono text-gray-300 mt-1">
                       Workflows Analyzed
                     </div>
                   </div>
@@ -671,19 +671,19 @@ export default function MetricsDashboard() {
                       failureAnalysis.top_failures.map((failure, index) => (
                         <div
                           key={index}
-                          className="bg-gray-800 border border-gray-600 rounded-lg p-4 hover:bg-gray-700 transition-colors"
+                          className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 hover:bg-gray-800/70 transition-colors"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-2">
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-900 text-red-300 text-xs font-mono font-bold">
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-redwood-500 text-white text-xs font-mono font-bold">
                                   {index + 1}
                                 </span>
-                                <span className="text-sm font-mono font-semibold text-white">
+                                <span className="text-sm font-mono font-semibold" style={{ color: '#344055' }}>
                                   {failure.count} {failure.count === 1 ? 'time' : 'times'}
                                 </span>
                               </div>
-                              <p className="text-sm font-mono text-gray-300 mb-2">
+                              <p className="text-sm font-mono mb-2" style={{ color: '#344055' }}>
                                 {failure.pattern}
                               </p>
                               {failure.workflows.length > 0 && (
@@ -691,13 +691,14 @@ export default function MetricsDashboard() {
                                   {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
                                     <span
                                       key={wIdx}
-                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-300"
+                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700/50 border border-gray-600/50"
+                                      style={{ color: '#6B7280' }}
                                     >
                                       {workflow}
                                     </span>
                                   ))}
                                   {failure.workflows.length > 3 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700 text-gray-400">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-gray-700/50 border border-gray-600/50" style={{ color: '#9CA3AF' }}>
                                       +{failure.workflows.length - 3} more
                                     </span>
                                   )}
@@ -707,14 +708,15 @@ export default function MetricsDashboard() {
                           </div>
                           {failure.examples.length > 0 && (
                             <details className="mt-2">
-                              <summary className="text-xs font-mono text-gray-300 cursor-pointer hover:text-white">
+                              <summary className="text-xs font-mono cursor-pointer" style={{ color: '#6B7280' }}>
                                 View examples ({failure.examples.length})
                               </summary>
                               <div className="mt-2 space-y-2">
                                 {failure.examples.map((example, exIdx) => (
                                   <div
                                     key={exIdx}
-                                    className="bg-gray-900 border border-gray-700 rounded p-2 text-xs font-mono text-gray-300 line-clamp-3"
+                                    className="bg-gray-800/30 border border-gray-700/30 rounded p-2 text-xs font-mono line-clamp-3"
+                                    style={{ color: '#4B5563' }}
                                   >
                                     {example}
                                   </div>
@@ -726,7 +728,7 @@ export default function MetricsDashboard() {
                       ))
                     ) : (
                       <div className="text-center py-8">
-                        <p className="text-sm font-mono text-gray-300">
+                        <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
                           No failure patterns found
                         </p>
                       </div>
@@ -747,18 +749,18 @@ export default function MetricsDashboard() {
                           className="flex items-center justify-between bg-gray-800/30 border border-gray-700/30 rounded-lg p-3"
                         >
                           <div className="flex items-center space-x-3 flex-1 min-w-0">
-                            <span className="text-sm font-mono font-semibold text-white flex-shrink-0">
+                            <span className="text-sm font-mono font-semibold flex-shrink-0" style={{ color: '#344055' }}>
                               {index + 1}.
                             </span>
-                            <span className="text-sm font-mono text-gray-300 truncate">
+                            <span className="text-sm font-mono truncate" style={{ color: '#344055' }}>
                               {workflow.workflow_name}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <span className="text-sm font-mono font-bold text-red-300">
+                            <span className="text-sm font-mono font-bold" style={{ color: '#A63D40' }}>
                               {workflow.failed_runs}
                             </span>
-                            <span className="text-xs font-mono text-gray-400">
+                            <span className="text-xs font-mono" style={{ color: '#6B7280' }}>
                               failures
                             </span>
                           </div>
