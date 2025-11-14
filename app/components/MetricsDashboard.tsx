@@ -661,17 +661,8 @@ export default function MetricsDashboard() {
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
             {loadingFailureAnalysis && !failureAnalysis ? (
-              // Estado de loading - componente colapsado
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <div className="relative w-8 h-8 mx-auto mb-2">
-                    <SmallCube speedMultiplier={2} />
-                  </div>
-                  <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
-                    Analyzing failures...
-                  </p>
-                </div>
-              </div>
+              // Estado de loading - componente colapsado, solo se muestra el indicador arriba
+              null
             ) : failureAnalysis ? (
               <div className="space-y-4">
                 {/* Summary Stats */}
