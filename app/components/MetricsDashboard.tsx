@@ -340,8 +340,13 @@ export default function MetricsDashboard() {
       setLoading(false)
       
       // Cargar Failure Analysis de forma lazy después de las métricas principales
+      // Esperar un poco para asegurar que el estado se actualizó
       if (timeRange === '7d') {
-        fetchFailureAnalysis()
+        console.log('📊 Metrics loaded, scheduling failure analysis fetch...')
+        setTimeout(() => {
+          console.log('⏰ Executing scheduled failure analysis fetch...')
+          fetchFailureAnalysis()
+        }, 300)
       }
       
     } catch (err) {
