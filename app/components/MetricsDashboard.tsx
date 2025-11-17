@@ -391,6 +391,15 @@ export default function MetricsDashboard() {
     }
   }
 
+  // Función para formatear porcentaje sin .0 cuando es entero
+  const formatPercentage = (value: number): string => {
+    const rounded = Math.round(value * 10) / 10
+    if (rounded % 1 === 0) {
+      return `${Math.round(rounded)}`
+    }
+    return rounded.toFixed(1)
+  }
+
   // Función para formatear tiempo de ms a formato legible
   const formatDuration = (ms: number): string => {
     if (ms < 1000) return `${Math.round(ms)}ms`
@@ -549,7 +558,7 @@ export default function MetricsDashboard() {
               const total = dataset.data.reduce((a: number, b: number) => a + b, 0);
               return data.labels.map((label: string, i: number) => {
                 const value = dataset.data[i];
-                const percentage = ((value / total) * 100).toFixed(1);
+                const percentage = formatPercentage((value / total) * 100);
                 return {
                   text: `${label} ${percentage}%`,
                   fillStyle: dataset.backgroundColor[i],
@@ -570,7 +579,7 @@ export default function MetricsDashboard() {
             const label = context.label || ''
             const value = context.parsed
             const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
-            const percentage = ((value / total) * 100).toFixed(1)
+            const percentage = formatPercentage((value / total) * 100)
             return `${label}: ${percentage}%`
           }
         },
@@ -624,7 +633,7 @@ export default function MetricsDashboard() {
             })
             
             if (workflow && context.dataset.label === 'Total Runs') {
-              const successRate = workflow.success_rate.toFixed(1)
+              const successRate = formatPercentage(workflow.success_rate)
               return `${label}: ${value} runs (Success Rate: ${successRate}%)`
             }
             return `${label}: ${value} runs`
@@ -989,7 +998,7 @@ export default function MetricsDashboard() {
                       <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Runs</div>
                     </div>
                     <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
-                      <div className="text-sm font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
+                      <div className="text-sm font-mono font-bold" style={{ color: '#8B5CF6' }}>{formatPercentage(metrics.summary.success_rate)}%</div>
                       <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Success</div>
                     </div>
                     <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
@@ -1032,7 +1041,7 @@ export default function MetricsDashboard() {
                                 ? 'bg-yellow-100 text-yellow-800' 
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {workflow.success_rate.toFixed(1)}%
+                              {formatPercentage(workflow.success_rate)}%
                             </span>
                           </div>
                           <div className="grid grid-cols-3 gap-2 text-xs font-mono" style={{ color: '#6B7280' }}>
