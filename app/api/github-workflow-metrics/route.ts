@@ -197,7 +197,24 @@ export async function GET(request: NextRequest) {
         }
 
         const runsData = await runsResponse.json()
-        const runs: WorkflowRun[] = runsData.workflow_runs || []
+        let runs: WorkflowRun[] = runsData.workflow_runs || []
+
+        // Filtrar runs según el queryRange seleccionado
+        if (queryRange !== '30d') {
+          const rangeStartDate = new Date()
+          switch (queryRange) {
+            case '24h':
+              rangeStartDate.setHours(rangeStartDate.getHours() - 24)
+              break
+            case '7d':
+              rangeStartDate.setDate(rangeStartDate.getDate() - 7)
+              break
+          }
+          runs = runs.filter(run => {
+            const runDate = new Date(run.created_at)
+            return runDate >= rangeStartDate
+          })
+        }
 
         // Calcular métricas
         const totalRuns = runs.length
