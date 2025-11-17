@@ -689,13 +689,25 @@ export default function MetricsDashboard() {
           <div className="flex-1 overflow-y-auto overflow-x-hidden flex items-center justify-center" style={{ maxHeight: '600px' }}>
             {loadingFailureAnalysis && !failureAnalysis ? (
               // Estado de loading - componente colapsado, mostrar loading centrado
-              <div className="flex flex-col items-center justify-center w-full py-8">
+              <div className="flex flex-col items-center justify-center w-full h-full py-8">
                 <div className="relative w-16 h-16 flex items-center justify-center mb-4">
                   <SmallCube speedMultiplier={2} />
                 </div>
-                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                <p className="text-sm font-mono mb-3" style={{ color: '#6B7280' }}>
                   Analyzing failures...
                 </p>
+                {/* Progress Bar */}
+                <div className="w-full max-w-xs px-4">
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-300 ease-out animate-pulse"
+                      style={{ 
+                        width: '60%',
+                        backgroundColor: '#A63D40'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             ) : failureAnalysis ? (
               <div className="space-y-2">
