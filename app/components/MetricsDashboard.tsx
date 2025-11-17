@@ -158,10 +158,21 @@ export default function MetricsDashboard() {
             const sessionFailureAnalysis = sessionStorage.getItem('metrics-failure-analysis')
             if (sessionFailureAnalysis) {
               try {
-                setFailureAnalysis(JSON.parse(sessionFailureAnalysis))
+                const parsedFailureAnalysis = JSON.parse(sessionFailureAnalysis)
+                setFailureAnalysis(parsedFailureAnalysis)
+                console.log('Restored failure analysis from session:', parsedFailureAnalysis)
               } catch (e) {
-                // If parsing fails, will fetch it below
+                console.error('Error parsing session failure analysis:', e)
+                // If parsing fails, fetch it
+                setTimeout(() => {
+                  fetchFailureAnalysis()
+                }, 100)
               }
+            } else {
+              // No session data, fetch it
+              setTimeout(() => {
+                fetchFailureAnalysis()
+              }, 100)
             }
           }
           return
