@@ -806,7 +806,7 @@ export default function MetricsDashboard() {
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-base font-mono font-semibold mb-1.5 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-base font-mono font-semibold mb-0.5 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
                     <span className="ml-2 text-xs opacity-50">(Click for details)</span>
                   </h3>
@@ -825,7 +825,7 @@ export default function MetricsDashboard() {
                   </div>
                   
                   {/* Summary Cards - Integrated at bottom */}
-                  <div className="grid grid-cols-4 gap-1 mt-1.5">
+                  <div className="grid grid-cols-4 gap-1 mt-0.5">
                     <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
                       <div className="text-sm font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
                       <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Workflows</div>
