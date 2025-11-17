@@ -686,10 +686,10 @@ export default function MetricsDashboard() {
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto overflow-x-hidden flex items-center justify-center" style={{ maxHeight: '600px' }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {loadingFailureAnalysis && !failureAnalysis ? (
               // Estado de loading - componente colapsado, mostrar loading centrado
-              <div className="flex flex-col items-center justify-center w-full h-full py-8">
+              <div className="flex flex-col items-center justify-center w-full min-h-[400px] py-8">
                 <div className="relative w-16 h-16 flex items-center justify-center mb-4">
                   <SmallCube speedMultiplier={2} />
                 </div>
