@@ -201,15 +201,12 @@ export default function MetricsDashboard() {
     }
   }, [failureAnalysis])
 
-  // Fetch failure analysis when metrics are loaded
-  useEffect(() => {
-    if (metrics && timeRange === '7d' && !failureAnalysis) {
-      // Only fetch if we don't already have it
-      fetchFailureAnalysis()
-    }
-  }, [metrics, timeRange])
-
   const fetchFailureAnalysis = async () => {
+    // Si ya está cargando las métricas principales o ya tenemos los datos, no hacer nada
+    if (loading || failureAnalysis) {
+      return
+    }
+    
     try {
       setLoadingFailureAnalysis(true)
       const repo = metrics?.repository || 'Cook-Unity/pw-cookunity-automation'
@@ -294,6 +291,11 @@ export default function MetricsDashboard() {
       setLoadingProgress(100)
       await new Promise(resolve => setTimeout(resolve, 200))
       setLoading(false)
+      
+      // Cargar Failure Analysis de forma lazy después de las métricas principales
+      if (timeRange === '7d') {
+        fetchFailureAnalysis()
+      }
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -684,10 +686,17 @@ export default function MetricsDashboard() {
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '600px' }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden flex items-center justify-center" style={{ maxHeight: '600px' }}>
             {loadingFailureAnalysis && !failureAnalysis ? (
-              // Estado de loading - componente colapsado, solo se muestra el indicador arriba
-              null
+              // Estado de loading - componente colapsado, mostrar loading centrado
+              <div className="flex flex-col items-center justify-center w-full py-8">
+                <div className="relative w-16 h-16 flex items-center justify-center mb-4">
+                  <SmallCube speedMultiplier={2} />
+                </div>
+                <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+                  Analyzing failures...
+                </p>
+              </div>
             ) : failureAnalysis ? (
               <div className="space-y-2">
                 {/* Summary Stats */}
