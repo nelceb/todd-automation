@@ -667,8 +667,8 @@ export default function MetricsDashboard() {
 
       {/* Charts and Summary Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch max-w-7xl mx-auto">
-        {/* Left Column: Failure Analysis (Full Height) */}
-        <div className="bg-white/20 border border-gray-300/50 p-4 rounded-xl shadow-lg flex flex-col" style={{ height: '700px' }}>
+        {/* Left Column: Failure Analysis (Dynamic Height) */}
+        <div className="bg-white/20 border border-gray-300/50 p-4 rounded-xl shadow-lg flex flex-col">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-lg font-mono font-semibold mb-0.5" style={{ color: '#344055' }}>Failure Analysis</h3>
@@ -815,7 +815,7 @@ export default function MetricsDashboard() {
         </div>
 
         {/* Right Column: Success Rate with Integrated Summary Cards */}
-        <div className="flex flex-col" style={{ height: '700px' }}>
+        <div className="flex flex-col">
           {/* Success Rate with Flip Card (with integrated summary cards) */}
           <div 
             className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1"
