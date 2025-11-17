@@ -301,33 +301,51 @@ export default function MetricsDashboard() {
       
       setLoading(true)
       setLoadingProgress(0)
-      
       setLoadingMessage('🔌 Connecting to GitHub API...')
-      setLoadingProgress(10)
-      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Simular progreso inicial
+      for (let i = 0; i <= 10; i++) {
+        setLoadingProgress(i)
+        await new Promise(resolve => setTimeout(resolve, 20))
+      }
       
       setLoadingMessage('📋 Fetching workflow list...')
-      setLoadingProgress(30)
+      // Progreso mientras se hace el fetch (puede tardar)
+      const progressInterval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev < 40) return prev + 1
+          return prev
+        })
+      }, 100)
+      
       const response = await fetch(`/api/github-workflow-metrics?range=${timeRange}`)
+      clearInterval(progressInterval)
       
       if (!response.ok) {
         throw new Error('Failed to fetch metrics')
       }
       
+      setLoadingProgress(45)
       setLoadingMessage('⚙️ Processing workflow runs...')
-      setLoadingProgress(50)
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Simular progreso mientras se procesa
+      for (let i = 45; i <= 60; i++) {
+        setLoadingProgress(i)
+        await new Promise(resolve => setTimeout(resolve, 30))
+      }
       
       setLoadingMessage('📊 Calculating success rates and averages...')
-      setLoadingProgress(70)
       const data = await response.json()
+      setLoadingProgress(70)
       
       setLoadingMessage('📈 Computing trends and statistics...')
-      setLoadingProgress(85)
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Simular progreso mientras se calculan trends
+      for (let i = 70; i <= 85; i++) {
+        setLoadingProgress(i)
+        await new Promise(resolve => setTimeout(resolve, 30))
+      }
       
       setLoadingMessage('🎨 Preparing charts and visualizations...')
-      setLoadingProgress(95)
+      setLoadingProgress(90)
       setMetrics(data)
       
       // Guardar en cache
@@ -641,7 +659,7 @@ export default function MetricsDashboard() {
           {/* Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
             <div 
-              className="h-full rounded-full transition-all duration-300 ease-out"
+              className="h-full rounded-full transition-all duration-200 ease-out"
               style={{ 
                 width: `${loadingProgress}%`,
                 backgroundColor: '#A63D40'
