@@ -253,6 +253,13 @@ export default function MetricsDashboard() {
               const parsedData = JSON.parse(cachedData)
               setMetrics(parsedData)
               setLoading(false)
+              // Cargar Failure Analysis después de cargar métricas desde cache
+              if (timeRange === '7d') {
+                // Pequeño delay para asegurar que el estado se actualizó
+                setTimeout(() => {
+                  fetchFailureAnalysis()
+                }, 100)
+              }
               return
             } catch (e) {
               console.error('Error parsing cached metrics:', e)
