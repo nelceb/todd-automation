@@ -311,15 +311,17 @@ export default function MetricsDashboard() {
       
       setLoadingMessage('📋 Fetching workflow list...')
       // Progreso mientras se hace el fetch (puede tardar)
+      let currentProgress = 10
       const progressInterval = setInterval(() => {
-        setLoadingProgress(prev => {
-          if (prev < 40) return prev + 1
-          return prev
-        })
-      }, 100)
+        if (currentProgress < 40) {
+          currentProgress += 1
+          setLoadingProgress(currentProgress)
+        }
+      }, 150)
       
       const response = await fetch(`/api/github-workflow-metrics?range=${timeRange}`)
       clearInterval(progressInterval)
+      setLoadingProgress(40)
       
       if (!response.ok) {
         throw new Error('Failed to fetch metrics')
