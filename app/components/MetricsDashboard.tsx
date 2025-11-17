@@ -421,7 +421,7 @@ export default function MetricsDashboard() {
     // Si tenemos failureAnalysis y timeRange es 7d, usar esos datos para consistencia
     if (failureAnalysis && timeRange === '7d' && failureAnalysis.workflow_failure_counts.length > 0) {
       // Mapear los datos de failureAnalysis al formato esperado
-      return failureAnalysis.workflow_failure_counts.map((wf, index) => {
+      const workflows = failureAnalysis.workflow_failure_counts.map((wf, index) => {
         // Buscar el workflow completo en metrics para obtener más datos si está disponible
         const fullWorkflow = metrics?.workflows?.find(w => w.workflow_name === wf.workflow_name)
         return {
@@ -433,7 +433,12 @@ export default function MetricsDashboard() {
           success_rate: fullWorkflow?.success_rate || (wf.failed_runs > 0 ? 0 : 100),
           last_run: fullWorkflow?.last_run || ''
         }
-      }).slice(0, 10)
+      })
+      
+      // Ordenar por success rate (menor primero, es decir, peor success rate primero)
+      return workflows
+        .sort((a, b) => a.success_rate - b.success_rate)
+        .slice(0, 10)
     }
     
     // Fallback a metrics si no hay failureAnalysis o timeRange no es 7d
@@ -442,14 +447,10 @@ export default function MetricsDashboard() {
     return metrics.workflows
       .filter(w => w.failed_runs > 0)
       .sort((a, b) => {
-        // Ordenar por cantidad de fallos (mayor primero)
-        if (b.failed_runs !== a.failed_runs) {
-          return b.failed_runs - a.failed_runs
-        }
-        // Si tienen la misma cantidad de fallos, ordenar por success rate (menor primero)
+        // Ordenar por success rate (menor primero, es decir, peor success rate primero)
         return a.success_rate - b.success_rate
       })
-      .slice(0, 10) // Top 10 workflows que más fallan
+      .slice(0, 10) // Top 10 workflows con peor success rate
   }
 
   const getWorkflowChartData = () => {
