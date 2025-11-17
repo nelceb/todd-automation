@@ -213,19 +213,30 @@ export default function MetricsDashboard() {
   }, [failureAnalysis])
 
   const fetchFailureAnalysis = async () => {
-    // Si ya está cargando las métricas principales o ya tenemos los datos, no hacer nada
-    if (loading || failureAnalysis) {
-      console.log('Skipping fetchFailureAnalysis - loading:', loading, 'failureAnalysis:', !!failureAnalysis)
+    // Si ya está cargando las métricas principales, esperar
+    if (loading) {
+      console.log('⏳ Skipping fetchFailureAnalysis - main metrics still loading')
+      return
+    }
+    
+    // Si ya tenemos los datos y no es un refresh, no hacer nada
+    if (failureAnalysis && !forceRefresh) {
+      console.log('✅ Skipping fetchFailureAnalysis - already have data')
       return
     }
     
     if (timeRange !== '7d') {
-      console.log('Skipping fetchFailureAnalysis - timeRange is not 7d:', timeRange)
+      console.log('⏭️ Skipping fetchFailureAnalysis - timeRange is not 7d:', timeRange)
+      return
+    }
+    
+    if (!metrics) {
+      console.log('⚠️ Skipping fetchFailureAnalysis - no metrics available yet')
       return
     }
     
     try {
-      console.log('Fetching failure analysis...')
+      console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange })
       setLoadingFailureAnalysis(true)
       const repo = metrics?.repository || 'Cook-Unity/pw-cookunity-automation'
       const repoName = repo.split('/')[1] || 'pw-cookunity-automation'
@@ -233,17 +244,26 @@ export default function MetricsDashboard() {
       const response = await fetch(`/api/failure-analysis?repo=${repo}&days=7`)
       
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, response.statusText, errorText)
         throw new Error(`Failed to fetch failure analysis: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
-      console.log('Failure analysis data received:', data)
+      console.log('✅ Failure analysis data received:', {
+        total_failed_runs: data.total_failed_runs,
+        workflows_analyzed: data.workflows_analyzed,
+        top_failures_count: data.top_failures?.length || 0,
+        fullData: data
+      })
       setFailureAnalysis(data)
+      console.log('✅ Failure analysis state updated')
     } catch (err) {
-      console.error('Error fetching failure analysis:', err)
+      console.error('❌ Error fetching failure analysis:', err)
       setFailureAnalysis(null)
     } finally {
       setLoadingFailureAnalysis(false)
+      console.log('🏁 fetchFailureAnalysis completed')
     }
   }
 
