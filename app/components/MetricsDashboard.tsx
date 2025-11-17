@@ -641,11 +641,11 @@ export default function MetricsDashboard() {
       {/* Charts and Summary Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch max-w-7xl mx-auto">
         {/* Left Column: Failure Analysis (Full Height) */}
-        <div className="bg-white/20 border border-gray-300/50 p-6 rounded-xl shadow-lg flex flex-col" style={{ height: '900px' }}>
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white/20 border border-gray-300/50 p-4 rounded-xl shadow-lg flex flex-col" style={{ height: '700px' }}>
+          <div className="flex items-center justify-between mb-2">
             <div>
-              <h3 className="text-xl font-mono font-semibold mb-1" style={{ color: '#344055' }}>Failure Analysis</h3>
-              <p className="text-sm font-mono" style={{ color: '#6B7280' }}>
+              <h3 className="text-lg font-mono font-semibold mb-0.5" style={{ color: '#344055' }}>Failure Analysis</h3>
+              <p className="text-xs font-mono" style={{ color: '#6B7280' }}>
                 Most common failures in the last 7 days
               </p>
             </div>
@@ -659,27 +659,27 @@ export default function MetricsDashboard() {
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '800px' }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ maxHeight: '600px' }}>
             {loadingFailureAnalysis && !failureAnalysis ? (
               // Estado de loading - componente colapsado, solo se muestra el indicador arriba
               null
             ) : failureAnalysis ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* Summary Stats */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-1.5">
-                    <div className="text-lg font-mono font-bold" style={{ color: '#A63D40' }}>
+                <div className="grid grid-cols-2 gap-1">
+                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-1">
+                    <div className="text-base font-mono font-bold" style={{ color: '#A63D40' }}>
                       {failureAnalysis.total_failed_runs}
                     </div>
-                    <div className="text-xs font-mono" style={{ color: '#6B7280' }}>
+                    <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>
                       Failed Runs
                     </div>
                   </div>
-                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-1.5">
-                    <div className="text-lg font-mono font-bold" style={{ color: '#6494AA' }}>
+                  <div className="bg-white/30 border border-gray-300/50 rounded-lg p-1">
+                    <div className="text-base font-mono font-bold" style={{ color: '#6494AA' }}>
                       {failureAnalysis.workflows_analyzed}
                     </div>
-                    <div className="text-xs font-mono" style={{ color: '#6B7280' }}>
+                    <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>
                       Workflows Analyzed
                     </div>
                   </div>
@@ -687,28 +687,28 @@ export default function MetricsDashboard() {
 
                 {/* Top Failures */}
                 <div>
-                  <h4 className="text-sm font-mono font-semibold mb-1.5" style={{ color: '#344055' }}>
+                  <h4 className="text-xs font-mono font-semibold mb-1" style={{ color: '#344055' }}>
                     Top Most Common Failures
                   </h4>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {failureAnalysis.top_failures.length > 0 ? (
                       failureAnalysis.top_failures.map((failure, index) => (
                         <div
                           key={index}
-                          className="bg-white/30 border border-gray-300/50 rounded-lg p-2"
+                          className="bg-white/30 border border-gray-300/50 rounded-lg p-1.5"
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-mono font-semibold" style={{ color: '#1F2937' }}>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <div className="flex items-center space-x-1">
+                              <span className="text-xs font-mono font-semibold" style={{ color: '#1F2937' }}>
                                 #{index + 1} {failure.pattern}
                               </span>
                             </div>
-                            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-red-100 text-red-800">
+                            <span className="text-xs font-mono px-1 py-0.5 rounded bg-red-100 text-red-800">
                               {failure.count} {failure.count === 1 ? 'time' : 'times'}
                             </span>
                           </div>
                           {failure.workflows.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1 mb-1">
+                            <div className="flex flex-wrap gap-0.5 mt-0.5 mb-0.5">
                               {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
                                 <span
                                   key={wIdx}
@@ -769,12 +769,12 @@ export default function MetricsDashboard() {
         </div>
 
         {/* Right Column: Success Rate with Integrated Summary Cards */}
-        <div className="flex flex-col" style={{ height: '900px' }}>
+        <div className="flex flex-col" style={{ height: '700px' }}>
           {/* Success Rate with Flip Card (with integrated summary cards) */}
           <div 
             className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1"
             style={{ 
-              minHeight: '400px',
+              minHeight: '300px',
               backgroundColor: '#AED4E6'
             }}
           >
@@ -806,13 +806,13 @@ export default function MetricsDashboard() {
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-lg font-mono font-semibold mb-2 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-base font-mono font-semibold mb-1.5 text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
                     <span className="ml-2 text-xs opacity-50">(Click for details)</span>
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-3 flex-1" style={{ minHeight: '350px' }}>
+                  <div className="flex items-center justify-center w-full px-2 flex-1" style={{ minHeight: '250px' }}>
                     {getSuccessRateChartData() && (
                       <div className="w-full max-w-2xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
@@ -825,24 +825,24 @@ export default function MetricsDashboard() {
                   </div>
                   
                   {/* Summary Cards - Integrated at bottom */}
-                  <div className="grid grid-cols-4 gap-1.5 mt-2">
-                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
-                      <div className="text-lg font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
-                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Workflows</div>
+                  <div className="grid grid-cols-4 gap-1 mt-1.5">
+                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
+                      <div className="text-sm font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
+                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Workflows</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
-                      <div className="text-lg font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
-                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Runs</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
+                      <div className="text-sm font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
+                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Runs</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
-                      <div className="text-lg font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
-                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Success</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
+                      <div className="text-sm font-mono font-bold" style={{ color: '#8B5CF6' }}>{metrics.summary.success_rate.toFixed(1)}%</div>
+                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Success</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-2 rounded-lg text-center">
-                      <div className="text-base font-mono font-bold" style={{ color: '#F59E0B' }}>
+                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
+                      <div className="text-xs font-mono font-bold" style={{ color: '#F59E0B' }}>
                         {formatDuration(metrics.summary.avg_response_time)}
                       </div>
-                      <div className="text-xs font-mono mt-0.5" style={{ color: '#6B7280' }}>Avg Time</div>
+                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Avg Time</div>
                     </div>
                   </div>
                 </div>
