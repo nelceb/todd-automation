@@ -913,7 +913,7 @@ export default function MetricsDashboard() {
         <div className="flex flex-col">
           {/* Success Rate with Flip Card (with integrated summary cards) */}
           <div 
-            className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1"
+            className="border border-gray-300/50 rounded-xl shadow-lg relative overflow-hidden flex-1 flex items-center"
             style={{ 
               minHeight: '300px',
               backgroundColor: '#AED4E6'
@@ -921,7 +921,7 @@ export default function MetricsDashboard() {
           >
             {/* Outer container - does NOT flip */}
             <div 
-              className="relative w-full h-full overflow-hidden"
+              className="relative w-full h-full overflow-hidden flex items-center"
               style={{
                 perspective: '1000px',
                 height: '100%'
@@ -929,7 +929,7 @@ export default function MetricsDashboard() {
             >
               {/* Inner content that flips - this is the green card */}
               <div
-                className="relative w-full h-full cursor-pointer"
+                className="relative w-full h-full cursor-pointer flex items-center"
                 style={{
                   transformStyle: 'preserve-3d',
                   transition: 'transform 0.6s',
@@ -940,7 +940,7 @@ export default function MetricsDashboard() {
               >
                 {/* Front of card - Pie Chart with Summary Cards */}
                 <div 
-                  className="absolute w-full h-full flex flex-col p-3 bg-white/20 rounded-xl"
+                  className="absolute w-full h-full flex flex-col justify-center p-3 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(0deg)',
@@ -953,7 +953,7 @@ export default function MetricsDashboard() {
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-2 flex-1" style={{ minHeight: '180px', maxHeight: '200px' }}>
+                  <div className="flex items-center justify-center w-full px-2" style={{ minHeight: '180px', maxHeight: '200px' }}>
                     {getSuccessRateChartData() && (
                       <div className="w-full max-w-xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
@@ -990,7 +990,7 @@ export default function MetricsDashboard() {
 
                 {/* Back of card - Failed Workflows Details */}
                 <div 
-                  className="absolute w-full h-full flex flex-col p-6 bg-white/20 rounded-xl"
+                  className="absolute w-full h-full flex flex-col justify-center p-6 bg-white/20 rounded-xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     WebkitBackfaceVisibility: 'hidden',
