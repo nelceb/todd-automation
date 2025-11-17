@@ -212,7 +212,21 @@ export default function MetricsDashboard() {
     }
   }, [failureAnalysis])
 
-  const fetchFailureAnalysis = async () => {
+  // Fetch failure analysis when metrics are loaded and not loading
+  useEffect(() => {
+    if (!loading && metrics && timeRange === '7d' && !failureAnalysis && !loadingFailureAnalysis) {
+      console.log('🔄 useEffect: Conditions met, calling fetchFailureAnalysis', {
+        loading,
+        hasMetrics: !!metrics,
+        timeRange,
+        hasFailureAnalysis: !!failureAnalysis,
+        loadingFailureAnalysis
+      })
+      fetchFailureAnalysis()
+    }
+  }, [loading, metrics, timeRange, failureAnalysis, loadingFailureAnalysis])
+
+  const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
     // Si ya está cargando las métricas principales, esperar
     if (loading) {
       console.log('⏳ Skipping fetchFailureAnalysis - main metrics still loading')
