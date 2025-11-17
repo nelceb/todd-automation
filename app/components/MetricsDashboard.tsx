@@ -837,11 +837,11 @@ export default function MetricsDashboard() {
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-2 flex-1" style={{ minHeight: '250px' }}>
+                  <div className="flex items-center justify-center w-full px-2 flex-1" style={{ minHeight: '180px', maxHeight: '200px' }}>
                     {getSuccessRateChartData() && (
-                      <div className="w-full max-w-2xl" style={{ 
+                      <div className="w-full max-w-xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
-                        transform: 'perspective(1000px) rotateX(5deg) scale(1.15)',
+                        transform: 'perspective(1000px) rotateX(5deg) scale(1.0)',
                         transformStyle: 'preserve-3d'
                       }}>
                         <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
