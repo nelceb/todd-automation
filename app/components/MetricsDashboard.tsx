@@ -102,6 +102,7 @@ export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMessage, setLoadingMessage] = useState('Loading metrics...')
+  const [loadingProgress, setLoadingProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d')
   const [selectedTriggerType, setSelectedTriggerType] = useState<string | null>(null)
@@ -255,10 +256,14 @@ export default function MetricsDashboard() {
       }
       
       setLoading(true)
+      setLoadingProgress(0)
+      
       setLoadingMessage('🔌 Connecting to GitHub API...')
+      setLoadingProgress(10)
       await new Promise(resolve => setTimeout(resolve, 200))
       
       setLoadingMessage('📋 Fetching workflow list...')
+      setLoadingProgress(30)
       const response = await fetch(`/api/github-workflow-metrics?range=${timeRange}`)
       
       if (!response.ok) {
@@ -266,15 +271,19 @@ export default function MetricsDashboard() {
       }
       
       setLoadingMessage('⚙️ Processing workflow runs...')
+      setLoadingProgress(50)
       await new Promise(resolve => setTimeout(resolve, 300))
       
       setLoadingMessage('📊 Calculating success rates and averages...')
+      setLoadingProgress(70)
       const data = await response.json()
       
       setLoadingMessage('📈 Computing trends and statistics...')
+      setLoadingProgress(85)
       await new Promise(resolve => setTimeout(resolve, 300))
       
       setLoadingMessage('🎨 Preparing charts and visualizations...')
+      setLoadingProgress(95)
       setMetrics(data)
       
       // Guardar en cache
@@ -282,7 +291,9 @@ export default function MetricsDashboard() {
       localStorage.setItem(`metrics-${timeRange}-timestamp`, Date.now().toString())
       
       // Pequeño delay para mostrar el último mensaje
+      setLoadingProgress(100)
       await new Promise(resolve => setTimeout(resolve, 200))
+      setLoading(false)
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -566,13 +577,27 @@ export default function MetricsDashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4" style={{ backgroundColor: '#AED4E6' }}>
+      <div className="flex flex-col items-center justify-center h-64 space-y-4 px-8" style={{ backgroundColor: '#AED4E6' }}>
         <div className="relative w-32 h-32 flex items-center justify-center">
           <SmallCube speedMultiplier={2.5} />
         </div>
-        <div className="text-center">
-          <p className="text-lg font-mono font-medium" style={{ color: '#344055' }}>{loadingMessage}</p>
-          <p className="text-sm font-mono mt-2" style={{ color: '#6B7280' }}>This may take a few moments...</p>
+        <div className="text-center w-full max-w-md">
+          <p className="text-lg font-mono font-medium mb-4" style={{ color: '#344055' }}>{loadingMessage}</p>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
+            <div 
+              className="h-full rounded-full transition-all duration-300 ease-out"
+              style={{ 
+                width: `${loadingProgress}%`,
+                backgroundColor: '#A63D40'
+              }}
+            />
+          </div>
+          
+          <p className="text-xs font-mono" style={{ color: '#6B7280' }}>
+            {loadingProgress}% complete
+          </p>
         </div>
       </div>
     )
