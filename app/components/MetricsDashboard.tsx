@@ -204,10 +204,17 @@ export default function MetricsDashboard() {
   const fetchFailureAnalysis = async () => {
     // Si ya está cargando las métricas principales o ya tenemos los datos, no hacer nada
     if (loading || failureAnalysis) {
+      console.log('Skipping fetchFailureAnalysis - loading:', loading, 'failureAnalysis:', !!failureAnalysis)
+      return
+    }
+    
+    if (timeRange !== '7d') {
+      console.log('Skipping fetchFailureAnalysis - timeRange is not 7d:', timeRange)
       return
     }
     
     try {
+      console.log('Fetching failure analysis...')
       setLoadingFailureAnalysis(true)
       const repo = metrics?.repository || 'Cook-Unity/pw-cookunity-automation'
       const repoName = repo.split('/')[1] || 'pw-cookunity-automation'
@@ -215,13 +222,15 @@ export default function MetricsDashboard() {
       const response = await fetch(`/api/failure-analysis?repo=${repo}&days=7`)
       
       if (!response.ok) {
-        throw new Error('Failed to fetch failure analysis')
+        throw new Error(`Failed to fetch failure analysis: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
+      console.log('Failure analysis data received:', data)
       setFailureAnalysis(data)
     } catch (err) {
       console.error('Error fetching failure analysis:', err)
+      setFailureAnalysis(null)
     } finally {
       setLoadingFailureAnalysis(false)
     }
