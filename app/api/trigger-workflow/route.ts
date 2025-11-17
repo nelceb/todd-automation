@@ -102,21 +102,21 @@ export async function POST(request: NextRequest) {
     const perPage = 100
     
     while (true) {
-      const workflowsResponse = await fetch(
+    const workflowsResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/actions/workflows?page=${page}&per_page=${perPage}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
-        }
-      )
-
-      if (!workflowsResponse.ok) {
-        throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
       }
+    )
 
-      const workflowsData = await workflowsResponse.json()
+    if (!workflowsResponse.ok) {
+      throw new Error(`Error al obtener workflows: ${workflowsResponse.status}`)
+    }
+
+    const workflowsData = await workflowsResponse.json()
       const pageWorkflows = workflowsData.workflows || []
       
       if (pageWorkflows.length === 0) {

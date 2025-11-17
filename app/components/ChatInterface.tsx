@@ -971,7 +971,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   // If workflow is completed, show final status (don't show TESTS RUNNING)
                                   if (runStatus === 'completed') {
                                     if (runConclusion === 'success') {
-                                      return (
+                                    return (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-200 text-green-900 border border-green-400 shadow-sm">
                                           TESTS PASSED
                                         </span>
@@ -979,9 +979,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                     } else if (runConclusion === 'failure') {
                                       return (
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-200 text-red-900 border border-red-400 shadow-sm">
-                                          TESTS FAILED
-                                        </span>
-                                      )
+                                        TESTS FAILED
+                                      </span>
+                                    )
                                     } else {
                                       // Other completed states
                                       return (
@@ -1294,8 +1294,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                       : logs.run.status.toUpperCase()}
                                   </span>
                                 </div>
-                              </div>
-                            </div>
+            </div>
+          </div>
                           )}
 
                           {/* Actions */}
@@ -1314,18 +1314,18 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                   </svg>
                                 </a>
                               )}
-                              {logs.run.htmlUrl && (
-                                <a
-                                  href={logs.run.htmlUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                          {logs.run.htmlUrl && (
+                              <a
+                                href={logs.run.htmlUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                   className="inline-flex items-center space-x-2 text-sm sm:text-base font-mono text-white transition-colors px-3 py-2 sm:px-4 sm:py-2 border-2 border-airforce-600 rounded-lg hover:border-airforce-500 bg-airforce-500 hover:bg-airforce-600 shadow-md min-h-[44px]"
-                                >
-                                  <span>View on GitHub</span>
+                              >
+                                <span>View on GitHub</span>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </a>
                               )}
                               
                               {/* Cancel button - only show for in_progress workflows and if we can determine repository */}
@@ -1414,14 +1414,14 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
               {/* Botones de la derecha */}
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                   <motion.button
-                    type="button"
-                    onClick={handleMicrophoneClick}
+                  type="button"
+                onClick={handleMicrophoneClick}
                     className={`relative transition-colors flex items-center justify-center ${
-                      isListening 
+                  isListening 
                         ? '' 
                         : 'text-gray-700 hover:text-gray-900'
-                    }`}
-                  >
+                }`}
+              >
                     <motion.div
                       animate={isListening ? {
                         scale: [1, 1.2, 1],

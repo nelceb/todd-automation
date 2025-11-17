@@ -9142,21 +9142,21 @@ npm run test:playwright || exit 1
         
         if (workflowRunResult) {
           console.log(`✅ Workflow completado: ${workflowRunResult.status} - ${workflowRunResult.conclusion}`);
-        } else {
+    } else {
           console.log('⚠️ No se pudo obtener el resultado del workflow (puede estar aún ejecutándose)');
         }
       } catch (workflowError) {
         console.warn('⚠️ Error esperando workflow:', workflowError);
         // Continuar de todas formas
-      }
-      
-      return {
-        success: true,
-        branchName,
-        branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
-        prUrl,
-        prNumber,
-        filesCreated: allFiles.map(f => f.file),
+    }
+    
+    return {
+      success: true,
+      branchName,
+      branchUrl: `https://github.com/${REPOSITORY}/tree/${branchName}`,
+      prUrl,
+      prNumber,
+      filesCreated: allFiles.map(f => f.file),
         testTriggerResult: testTriggerResult,
         workflowResult: workflowRunResult,
         message: workflowRunResult 
@@ -9180,7 +9180,7 @@ npm run test:playwright || exit 1
         filesCreated: allFiles.map(f => f.file),
         testTriggerResult: testTriggerResult,
         message: `⚠️ PR falló pero branch creado: ${branchName}`
-      };
+    };
     }
     
   } catch (error) {

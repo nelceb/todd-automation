@@ -302,7 +302,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       const inputs = getWorkflowInputs(workflowName, repository)
       
       // Trigger workflow with specific inputs
-      const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
+        const result = await triggerWorkflow(workflowName, inputs, githubToken, repoName, 'main')
       
       if (result && result.runId) {
         // Update with real run information
@@ -610,31 +610,31 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       })
     : [
         // Fallback structure while loading (only shown briefly)
-        {
-          name: 'pw-cookunity-automation',
-          fullName: 'Cook-Unity/pw-cookunity-automation',
-          technology: 'playwright',
-          icon: GlobeAltIcon,
-          color: 'asparagus',
+    {
+      name: 'pw-cookunity-automation',
+      fullName: 'Cook-Unity/pw-cookunity-automation',
+      technology: 'playwright',
+      icon: GlobeAltIcon,
+      color: 'asparagus',
           workflows: []
-        },
-        {
-          name: 'maestro-test',
-          fullName: 'Cook-Unity/maestro-test',
-          technology: 'maestro',
-          icon: DevicePhoneMobileIcon,
-          color: 'airforce',
+    },
+    {
+      name: 'maestro-test',
+      fullName: 'Cook-Unity/maestro-test',
+      technology: 'maestro',
+      icon: DevicePhoneMobileIcon,
+      color: 'airforce',
           workflows: []
-        },
-        {
-          name: 'automation-framework',
-          fullName: 'Cook-Unity/automation-framework',
-          technology: 'selenium',
-          icon: CodeBracketIcon,
-          color: 'earth',
+    },
+    {
+      name: 'automation-framework',
+      fullName: 'Cook-Unity/automation-framework',
+      technology: 'selenium',
+      icon: CodeBracketIcon,
+      color: 'earth',
           workflows: []
-        }
-      ]
+    }
+  ]
 
   return (
     <div className="w-full max-w-none mx-auto px-8 sm:px-12 lg:px-16 xl:px-20 pt-4 sm:pt-8 lg:pt-20">
@@ -751,13 +751,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                             </div>
                             <div className="flex items-center flex-wrap gap-1.5">
                               {showEnvironmentTag && (
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                                   environment === 'prod' 
-                                    ? 'bg-red-200 text-red-800' 
+                                  ? 'bg-red-200 text-red-800' 
                                     : 'bg-blue-200 text-blue-800'
-                                }`}>
+                              }`}>
                                   {environment.toUpperCase()}
-                                </span>
+                              </span>
                               )}
                               {hasSchedule && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 whitespace-nowrap">

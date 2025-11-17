@@ -374,7 +374,7 @@ async function generateMethodWithAI(missingMethod: any, context: any) {
     
     const { Prompts } = await import('@/app/utils/prompts');
     const systemPrompt = Prompts.getPageObjectMethodGenerationPrompt();
-    
+
     const userMessage = `Generate a Playwright page object method for:
 - Method name: ${missingMethod.name}
 - Context: ${missingMethod.context}

@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
     const perPage = 100
     
     while (true) {
-      const workflowsResponse = await fetch(
+    const workflowsResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/actions/workflows?page=${page}&per_page=${perPage}`,
         {
           headers: {
@@ -166,13 +166,13 @@ export async function GET(request: NextRequest) {
     try {
       const specificWorkflowResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/actions/workflows/qa_us_coreux_regression.yml`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
-        }
-      )
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
       
       if (specificWorkflowResponse.ok) {
         const specificWorkflow = await specificWorkflowResponse.json()
