@@ -79,7 +79,7 @@ interface FailurePattern {
   pattern: string
   count: number
   workflows: string[]
-  examples: string[]
+  examples: Array<{ text: string; workflow: string }>
 }
 
 interface FailureAnalysis {
