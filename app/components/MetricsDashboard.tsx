@@ -872,22 +872,27 @@ export default function MetricsDashboard() {
                                 View examples ({failure.examples.length})
                               </summary>
                               <div className="mt-1 space-y-1">
-                                {failure.examples.map((example, exIdx) => (
-                                  <div
-                                    key={exIdx}
-                                    className="bg-white border border-gray-200 rounded p-1.5 text-xs font-mono"
-                                    style={{ color: '#1F2937' }}
-                                  >
-                                    <div className="mb-1">
-                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-blue-100 border border-blue-300" style={{ color: '#1E40AF' }}>
-                                        {typeof example === 'object' && example.workflow ? example.workflow : (failure.workflows[0] || 'Unknown')}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {typeof example === 'object' && example.text ? example.text : example}
-                                    </div>
-                                  </div>
-                                ))}
+                                {failure.examples.map((example, exIdx) => {
+                                  const exampleText = typeof example === 'object' && 'text' in example ? example.text : String(example)
+                                  const exampleWorkflow = typeof example === 'object' && 'workflow' in example ? example.workflow : (failure.workflows[0] || 'Unknown')
+                                  
+                                  return (
+                                    <div
+                                      key={exIdx}
+                                      className="bg-white border border-gray-200 rounded p-1.5 text-xs font-mono"
+                                      style={{ color: '#1F2937' }}
+                                    >
+                                      <div className="mb-1">
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-blue-100 border border-blue-300" style={{ color: '#1E40AF' }}>
+                                          {exampleWorkflow}
+                                        </span>
+              </div>
+                                      <div>
+                                        {exampleText}
+              </div>
+              </div>
+                                  )
+                                })}
                               </div>
                             </details>
                           )}
