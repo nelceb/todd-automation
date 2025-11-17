@@ -7,7 +7,7 @@ interface FailurePattern {
   pattern: string
   count: number
   workflows: string[]
-  examples: string[]
+  examples: Array<{ text: string; workflow: string }>
 }
 
 interface FailureAnalysis {
@@ -125,9 +125,9 @@ function extractConciseExample(summary: string, patternName: string): string | n
 }
 
 // Función para normalizar y extraer patrones de los AI summaries
-// Ahora recibe un mapa de summary -> run_id para poder contar runs únicos
-function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number }>): Map<string, { count: number; examples: string[]; runIds: Set<number> }> {
-  const patterns = new Map<string, { count: number; examples: string[]; runIds: Set<number> }>()
+// Ahora recibe un mapa de summary -> run_id y workflow_name para poder contar runs únicos y asociar workflows
+function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number; workflow_name: string }>): Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }> {
+  const patterns = new Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }>()
   
   // Patrones de errores comunes a buscar
   const errorPatterns = [
@@ -145,7 +145,7 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
     { pattern: /authentication.*failed|login.*failed|auth.*error/i, name: 'Authentication failed' },
   ]
   
-  for (const { summary, runId } of summariesWithRuns) {
+  for (const { summary, runId, workflow_name } of summariesWithRuns) {
     if (!summary || summary.trim().length === 0) continue
     
     const normalized = summary.toLowerCase()
@@ -244,8 +244,14 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
       // Extraer ejemplo conciso y relevante (limitado a 3 ejemplos por patrón)
       if (patternData.examples.length < 3) {
         const conciseExample = extractConciseExample(summary, matchedPattern.name)
-        if (conciseExample && !patternData.examples.includes(conciseExample)) {
-          patternData.examples.push(conciseExample)
+        if (conciseExample) {
+          // Verificar que no exista ya un ejemplo con el mismo texto y workflow
+          const exampleExists = patternData.examples.some(
+            ex => ex.text === conciseExample && ex.workflow === workflow_name
+          )
+          if (!exampleExists) {
+            patternData.examples.push({ text: conciseExample, workflow: workflow_name })
+          }
         }
       }
     }
@@ -255,17 +261,23 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
 }
 
 // Función para convertir patrones a formato de respuesta (sin agrupación compleja ya que los patrones son específicos)
-function groupSimilarPatterns(patterns: Map<string, { count: number; examples: string[]; runIds: Set<number> }>): FailurePattern[] {
+function groupSimilarPatterns(patterns: Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }>): FailurePattern[] {
   const patternsArray = Array.from(patterns.entries())
   
   // Convertir directamente a FailurePattern[] y ordenar por count
   return patternsArray
-    .map(([pattern, data]) => ({
-      pattern: pattern,
-      count: data.count, // Ahora cuenta runs únicos
-      workflows: [], // Se llenará después
-      examples: data.examples
-    }))
+    .map(([pattern, data]) => {
+      // Extraer workflows únicos de los ejemplos
+      const workflowSet = new Set<string>()
+      data.examples.forEach(ex => workflowSet.add(ex.workflow))
+      
+      return {
+        pattern: pattern,
+        count: data.count, // Ahora cuenta runs únicos
+        workflows: Array.from(workflowSet), // Workflows únicos de los ejemplos
+        examples: data.examples
+      }
+    })
     .sort((a, b) => b.count - a.count)
 }
 
@@ -417,7 +429,7 @@ export async function GET(request: NextRequest) {
     
     console.log(`🔍 Analyzing ${runsToAnalyze.length} failed runs for AI summaries`)
 
-    const aiSummariesWithRuns: Array<{ summary: string; runId: number }> = []
+    const aiSummariesWithRuns: Array<{ summary: string; runId: number; workflow_name: string }> = []
     const summariesByWorkflow = new Map<string, string[]>()
     
     // Obtener AI summaries en paralelo (con límite de concurrencia)
@@ -450,7 +462,7 @@ export async function GET(request: NextRequest) {
               summariesByWorkflow.set(run.workflow_name, [])
             }
             summariesByWorkflow.get(run.workflow_name)!.push(aiSummary)
-            return { summary: aiSummary, runId: run.run_id }
+            return { summary: aiSummary, runId: run.run_id, workflow_name: run.workflow_name }
           }
           
           return null
@@ -461,7 +473,7 @@ export async function GET(request: NextRequest) {
       })
       
       const batchResults = await Promise.all(batchPromises)
-      const validSummaries = batchResults.filter((s): s is { summary: string; runId: number } => s !== null)
+      const validSummaries = batchResults.filter((s): s is { summary: string; runId: number; workflow_name: string } => s !== null)
       aiSummariesWithRuns.push(...validSummaries)
       
       // Pequeña pausa entre batches para evitar rate limiting
@@ -472,24 +484,9 @@ export async function GET(request: NextRequest) {
     
     console.log(`✅ Collected ${aiSummariesWithRuns.length} AI summaries from ${aiSummariesWithRuns.length} unique runs`)
 
-    // Extraer patrones de fallos (ahora con información de runId para contar runs únicos)
+    // Extraer patrones de fallos (ahora con información de runId y workflow_name)
     const patterns = extractFailurePatterns(aiSummariesWithRuns)
     const groupedPatterns = groupSimilarPatterns(patterns)
-    
-    // Asociar workflows a cada patrón
-    for (const pattern of groupedPatterns) {
-      const workflowSet = new Set<string>()
-      const summariesByWorkflowArray = Array.from(summariesByWorkflow.entries())
-      for (const [workflowName, summaries] of summariesByWorkflowArray) {
-        for (const summary of summaries) {
-          const normalized = summary.toLowerCase().replace(/\s+/g, ' ')
-          if (normalized.includes(pattern.pattern.toLowerCase())) {
-            workflowSet.add(workflowName)
-          }
-        }
-      }
-      pattern.workflows = Array.from(workflowSet)
-    }
     
     // Top 10 fallos más comunes
     const topFailures = groupedPatterns.slice(0, 10)

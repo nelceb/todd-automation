@@ -457,7 +457,7 @@ export default function MetricsDashboard() {
 
     // Filtrar workflows que nunca se ejecutaron (total_runs === 0)
     const workflowsWithRuns = metrics.workflows.filter(w => w.total_runs > 0)
-    
+
     // Ordenar workflows por total_runs (mayor a menor) para mejor visualización
     const sortedWorkflows = [...workflowsWithRuns].sort((a, b) => b.total_runs - a.total_runs)
     
@@ -769,8 +769,8 @@ export default function MetricsDashboard() {
                 </div>
                 <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
               </div>
-            )}
-          </div>
+              )}
+            </div>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {(() => {
@@ -823,8 +823,8 @@ export default function MetricsDashboard() {
                     <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>
                       Workflows Analyzed
                     </div>
-                  </div>
-                </div>
+          </div>
+        </div>
 
                 {/* Top Failures */}
                 <div>
@@ -843,11 +843,11 @@ export default function MetricsDashboard() {
                               <span className="text-xs font-mono font-semibold" style={{ color: '#1F2937' }}>
                                 #{index + 1} {failure.pattern}
                               </span>
-                            </div>
+            </div>
                             <span className="text-xs font-mono px-1 py-0.5 rounded bg-red-100 text-red-800">
                               {failure.count} {failure.count === 1 ? 'time' : 'times'}
                             </span>
-                          </div>
+            </div>
                           {failure.workflows.length > 0 && (
                             <div className="flex flex-wrap gap-0.5 mt-0.5 mb-0.5">
                               {failure.workflows.slice(0, 3).map((workflow, wIdx) => (
@@ -864,7 +864,7 @@ export default function MetricsDashboard() {
                                   +{failure.workflows.length - 3} more
                                 </span>
                               )}
-                            </div>
+            </div>
                           )}
                           {failure.examples.length > 0 && (
                             <details className="mt-1">
@@ -878,13 +878,20 @@ export default function MetricsDashboard() {
                                     className="bg-white border border-gray-200 rounded p-1.5 text-xs font-mono"
                                     style={{ color: '#1F2937' }}
                                   >
-                                    {example}
+                                    <div className="mb-1">
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-blue-100 border border-blue-300" style={{ color: '#1E40AF' }}>
+                                        {typeof example === 'object' && example.workflow ? example.workflow : (failure.workflows[0] || 'Unknown')}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      {typeof example === 'object' && example.text ? example.text : example}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
                             </details>
                           )}
-                        </div>
+              </div>
                       ))
                     ) : (
                       <div className="text-center py-8">
@@ -893,8 +900,8 @@ export default function MetricsDashboard() {
                         </p>
                       </div>
                     )}
-                  </div>
-                </div>
+            </div>
+          </div>
 
               </div>
             ) : (
@@ -947,17 +954,17 @@ export default function MetricsDashboard() {
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-base font-mono font-semibold mb-0 text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-base font-mono font-semibold mb-[10%] text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
                     <span className="ml-2 text-xs opacity-50">(Click for details)</span>
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-2" style={{ minHeight: '180px', maxHeight: '200px' }}>
+                  <div className="flex items-center justify-center w-full px-2 mb-[10%]" style={{ minHeight: '180px', maxHeight: '200px' }}>
                     {getSuccessRateChartData() && (
                       <div className="w-full max-w-xl" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
-                        transform: 'perspective(1000px) rotateX(5deg) scale(1.0)',
+                        transform: 'perspective(1000px) rotateX(5deg) scale(1.15)',
                         transformStyle: 'preserve-3d'
                       }}>
                         <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
@@ -966,7 +973,7 @@ export default function MetricsDashboard() {
                   </div>
                   
                   {/* Summary Cards - Integrated at bottom */}
-                  <div className="grid grid-cols-4 gap-1 mt-0">
+                  <div className="grid grid-cols-4 gap-1">
                     <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
                       <div className="text-sm font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
                       <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Workflows</div>
