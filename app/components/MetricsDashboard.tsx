@@ -714,6 +714,15 @@ export default function MetricsDashboard() {
           </div>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            {(() => {
+              console.log('🔍 Failure Analysis Render State:', {
+                loadingFailureAnalysis,
+                hasFailureAnalysis: !!failureAnalysis,
+                timeRange,
+                failureAnalysisData: failureAnalysis
+              })
+              return null
+            })()}
             {loadingFailureAnalysis && !failureAnalysis ? (
               // Estado de loading - componente colapsado, mostrar loading centrado
               <div className="flex flex-col items-center justify-center w-full min-h-[400px] py-8">
