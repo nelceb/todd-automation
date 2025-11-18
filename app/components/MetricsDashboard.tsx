@@ -765,22 +765,22 @@ export default function MetricsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch max-w-7xl mx-auto">
         {/* Left Column: Failure Analysis (Dynamic Height) */}
         <div className="bg-white/20 border border-gray-300/50 p-4 rounded-xl shadow-lg flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <div>
+          <div className="relative mb-2">
+            <div className="text-center">
               <h3 className="text-lg font-mono font-semibold mb-0.5" style={{ color: '#344055' }}>Failure Analysis</h3>
               <p className="text-xs font-mono" style={{ color: '#6B7280' }}>
                 Most common failures in the last 7 days
               </p>
             </div>
             {loadingFailureAnalysis && (
-              <div className="flex items-center space-x-2">
+              <div className="absolute top-0 right-0 flex items-center space-x-2">
                 <div className="relative w-4 h-4">
                   <SmallCube speedMultiplier={2} />
                 </div>
                 <span className="text-xs font-mono" style={{ color: '#6B7280' }}>Analyzing...</span>
               </div>
-              )}
-            </div>
+            )}
+          </div>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {(() => {
