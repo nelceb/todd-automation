@@ -866,11 +866,11 @@ export default function TestGenerator() {
                   {/* MCP Analysis */}
                   {generatedTest.mcpData && (
                     <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <h4 className="font-semibold text-blue-800 mb-2 text-sm font-mono">📊 Análisis MCP</h4>
+                      <h4 className="font-semibold text-blue-800 mb-2 text-sm font-mono">📊 MCP Analysis</h4>
                       {generatedTest.mcpData.interpretation && (
                         <div className="text-xs text-blue-600 font-mono">
-                          <p><strong>Contexto:</strong> {generatedTest.mcpData.interpretation.context || 'N/A'}</p>
-                          <p><strong>Acciones:</strong> {generatedTest.mcpData.interpretation.actions?.length || 0}</p>
+                          <p><strong>Context:</strong> {generatedTest.mcpData.interpretation.context || 'N/A'}</p>
+                          <p><strong>Actions:</strong> {generatedTest.mcpData.interpretation.actions?.length || 0}</p>
                           <p><strong>Assertions:</strong> {generatedTest.mcpData.interpretation.assertions?.length || 0}</p>
                         </div>
                       )}
