@@ -352,12 +352,12 @@ export async function GET(request: NextRequest) {
         }
       }))
       
-      // Filtrar nulls y agregar a workflowMetrics
-      batchResults.forEach(result => {
-        if (result !== null) {
+      // Filter nulls and add to workflowMetrics
+      batchResults
+        .filter((result): result is WorkflowMetrics => result !== null)
+        .forEach(result => {
           workflowMetrics.push(result)
-        }
-      })
+        })
       
       // Longer pause between batches to avoid rate limiting
       if (i + BATCH_SIZE < workflows.length) {
