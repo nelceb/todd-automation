@@ -57,7 +57,19 @@ export async function GET(request: NextRequest) {
           })
 
           if (!repoResponse.ok) {
-            throw new Error(`Failed to fetch repo ${repoName}: ${repoResponse.status}`)
+            const errorText = await repoResponse.text().catch(() => repoResponse.statusText)
+            // Si es rate limit, devolver datos básicos
+            if (repoResponse.status === 403 && errorText.includes('rate limit')) {
+              console.warn(`⚠️ Rate limit reached while fetching repo ${repoName}, returning minimal data`)
+              return {
+                name: repoName.split('/')[1],
+                full_name: repoName,
+                error: 'Rate limit exceeded',
+                workflows: [],
+                workflow_count: 0
+              }
+            }
+            throw new Error(`Failed to fetch repo ${repoName}: ${repoResponse.status} - ${errorText}`)
           }
 
           const repo = await repoResponse.json()
@@ -79,7 +91,13 @@ export async function GET(request: NextRequest) {
             )
 
             if (!workflowsResponse.ok) {
-              throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status}`)
+              const errorText = await workflowsResponse.text().catch(() => workflowsResponse.statusText)
+              // Si es rate limit, no lanzar error, devolver datos parciales
+              if (workflowsResponse.status === 403 && errorText.includes('rate limit')) {
+                console.warn(`⚠️ Rate limit reached while fetching workflows for ${repoName}, using partial data`)
+                break // Usar los workflows que ya obtuvimos
+              }
+              throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status} - ${errorText}`)
             }
 
             const workflowsData = await workflowsResponse.json()
@@ -175,7 +193,13 @@ export async function GET(request: NextRequest) {
                 }
               }
             } catch (error) {
-              console.error(`Error checking YAML for workflow ${workflow.name}:`, error)
+              // Si es rate limit, continuar sin los datos del YAML
+              const errorMessage = error instanceof Error ? error.message : String(error)
+              if (errorMessage.includes('rate limit')) {
+                console.warn(`⚠️ Rate limit while checking YAML for ${workflow.name}, skipping YAML check`)
+              } else {
+                console.error(`Error checking YAML for workflow ${workflow.name}:`, error)
+              }
             }
             
             return {
@@ -211,11 +235,52 @@ export async function GET(request: NextRequest) {
             workflow_count: classifiedWorkflows.length
           }
         } catch (error) {
-          console.error(`Error processing repository ${repoName}:`, error)
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          console.error(`Error processing repository ${repoName}:`, errorMessage)
+          
+          // Si es rate limit, devolver datos parciales si los hay
+          if (errorMessage.includes('rate limit')) {
+            console.warn(`⚠️ Rate limit for ${repoName}, returning partial data if available`)
+            // Si ya obtuvimos algunos workflows, devolverlos
+            if (allWorkflowsFromAPI && allWorkflowsFromAPI.length > 0) {
+              const activeWorkflows = allWorkflowsFromAPI.filter((workflow: any) => {
+                const nameLower = workflow.name.toLowerCase()
+                const pathLower = workflow.path.toLowerCase()
+                if (nameLower.includes('template') || pathLower.includes('template')) return false
+                if (nameLower.includes('auto test pr') || nameLower.includes('auto-test-pr')) return false
+                return workflow.state === 'active'
+              })
+              
+              return {
+                name: repoName.split('/')[1],
+                full_name: repoName,
+                error: 'Rate limit exceeded - partial data',
+                workflows: activeWorkflows.map((w: any) => ({
+                  id: w.id,
+                  name: w.name,
+                  path: w.path,
+                  html_url: w.html_url,
+                  badge_url: w.badge_url,
+                  technology: REPO_CLASSIFICATION[repoName as keyof typeof REPO_CLASSIFICATION]?.technology || 'Unknown',
+                  platforms: REPO_CLASSIFICATION[repoName as keyof typeof REPO_CLASSIFICATION]?.platforms || [],
+                  description: w.name,
+                  category: categorizeWorkflow(w.name, REPO_CLASSIFICATION[repoName as keyof typeof REPO_CLASSIFICATION]?.technology || ''),
+                  environment: extractEnvironment(w.name),
+                  region: extractRegion(w.name),
+                  hasSchedule: false,
+                  hasWorkflowDispatch: false,
+                  isDependabot: false,
+                  canExecute: false
+                })),
+                workflow_count: activeWorkflows.length
+              }
+            }
+          }
+          
           return {
             name: repoName.split('/')[1],
             full_name: repoName,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             workflows: [],
             workflow_count: 0
           }
