@@ -98,6 +98,16 @@ interface FailureAnalysis {
   }>
 }
 
+// Helper function to convert timeRange to days
+const getDaysFromTimeRange = (range: '24h' | '7d' | '30d'): number => {
+  switch (range) {
+    case '24h': return 1
+    case '7d': return 7
+    case '30d': return 30
+    default: return 7
+  }
+}
+
 export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -153,14 +163,25 @@ export default function MetricsDashboard() {
           const parsedData = JSON.parse(cachedData)
           setMetrics(parsedData)
           setLoading(false)
-          // If we have metrics and it's 7d, try to restore failure analysis from session
-          if (parsedData && timeRange === '7d') {
-            const sessionFailureAnalysis = sessionStorage.getItem('metrics-failure-analysis')
+          // Try to restore failure analysis from session for current timeRange
+          if (parsedData) {
+            const cachedKey = `failure-analysis-${timeRange}`
+            const sessionFailureAnalysis = sessionStorage.getItem(cachedKey)
             if (sessionFailureAnalysis) {
               try {
                 const parsedFailureAnalysis = JSON.parse(sessionFailureAnalysis)
-                setFailureAnalysis(parsedFailureAnalysis)
-                console.log('Restored failure analysis from session:', parsedFailureAnalysis)
+                // Verificar que el cache sea para el timeRange correcto
+                const expectedDays = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30
+                if (parsedFailureAnalysis.period.days === expectedDays) {
+                  setFailureAnalysis(parsedFailureAnalysis)
+                  console.log('Restored failure analysis from session for', timeRange, ':', parsedFailureAnalysis)
+                } else {
+                  // Cache no coincide, limpiar y recargar
+                  sessionStorage.removeItem(cachedKey)
+                  setTimeout(() => {
+                    fetchFailureAnalysis()
+                  }, 100)
+                }
               } catch (e) {
                 console.error('Error parsing session failure analysis:', e)
                 // If parsing fails, fetch it
@@ -205,42 +226,71 @@ export default function MetricsDashboard() {
     }
   }, [timeRange, metrics, failureAnalysis, error, selectedTriggerType, sortColumn, sortDirection, searchQuery, pieChartFlipped, loading, loadingFailureAnalysis])
 
-  // Save failure analysis separately for easier access
+  // Save failure analysis separately for easier access (by timeRange)
   useEffect(() => {
     if (failureAnalysis) {
+      const cachedKey = `failure-analysis-${timeRange}`
+      sessionStorage.setItem(cachedKey, JSON.stringify(failureAnalysis))
+      // También guardar en la key legacy para compatibilidad
       sessionStorage.setItem('metrics-failure-analysis', JSON.stringify(failureAnalysis))
     }
-  }, [failureAnalysis])
+  }, [failureAnalysis, timeRange])
 
-  // Fetch failure analysis when metrics are loaded and not loading
+  // Fetch failure analysis when metrics are loaded and timeRange changes
   useEffect(() => {
-    if (!loading && metrics && timeRange === '7d' && !failureAnalysis && !loadingFailureAnalysis) {
+    if (!loading && metrics && !loadingFailureAnalysis) {
+      const expectedDays = getDaysFromTimeRange(timeRange)
+      
+      // Verificar si ya tenemos datos para este timeRange específico en cache
+      const cachedKey = `failure-analysis-${timeRange}`
+      const cached = sessionStorage.getItem(cachedKey)
+      
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          // Verificar que el cache sea para el mismo timeRange
+          if (parsed.period.days === expectedDays) {
+            console.log('✅ Using cached failure analysis for', timeRange)
+            setFailureAnalysis(parsed)
+            return
+          } else {
+            // Cache no coincide, limpiarlo
+            sessionStorage.removeItem(cachedKey)
+          }
+        } catch (e) {
+          console.error('Error parsing cached failure analysis:', e)
+          sessionStorage.removeItem(cachedKey)
+        }
+      }
+      
+      // Si no hay cache válido, cargar
       console.log('🔄 useEffect: Conditions met, calling fetchFailureAnalysis', {
         loading,
         hasMetrics: !!metrics,
         timeRange,
-        hasFailureAnalysis: !!failureAnalysis,
+        expectedDays,
+        hasCache: !!cached,
         loadingFailureAnalysis
       })
       fetchFailureAnalysis()
     }
-  }, [loading, metrics, timeRange, failureAnalysis, loadingFailureAnalysis])
-
+  }, [loading, metrics, timeRange, loadingFailureAnalysis])
+  
+  // Limpiar failureAnalysis cuando cambia el timeRange si no coincide
+  useEffect(() => {
+    if (failureAnalysis) {
+      const expectedDays = getDaysFromTimeRange(timeRange)
+      if (failureAnalysis.period.days !== expectedDays) {
+        console.log('🔄 TimeRange changed, clearing failure analysis (was', failureAnalysis.period.days, 'days, now', expectedDays, 'days)')
+        setFailureAnalysis(null)
+      }
+    }
+  }, [timeRange])
+  
   const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
     // Si ya está cargando las métricas principales, esperar
     if (loading) {
       console.log('⏳ Skipping fetchFailureAnalysis - main metrics still loading')
-      return
-    }
-    
-    // Si ya tenemos los datos y no es un refresh, no hacer nada
-    if (failureAnalysis && !forceRefresh) {
-      console.log('✅ Skipping fetchFailureAnalysis - already have data')
-      return
-    }
-    
-    if (timeRange !== '7d') {
-      console.log('⏭️ Skipping fetchFailureAnalysis - timeRange is not 7d:', timeRange)
       return
     }
     
@@ -249,13 +299,33 @@ export default function MetricsDashboard() {
       return
     }
     
+    // Verificar cache antes de hacer fetch
+    const days = getDaysFromTimeRange(timeRange)
+    const cachedKey = `failure-analysis-${timeRange}`
+    
+    if (!forceRefresh) {
+      const cached = sessionStorage.getItem(cachedKey)
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          // Verificar que el cache sea para el mismo timeRange
+          if (parsed.period.days === days) {
+            console.log('✅ Using cached failure analysis for', timeRange)
+            setFailureAnalysis(parsed)
+            return
+          }
+        } catch (e) {
+          console.error('Error parsing cached failure analysis:', e)
+        }
+      }
+    }
+    
     try {
-      console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange })
+      console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange, days })
       setLoadingFailureAnalysis(true)
       const repo = metrics?.repository || 'Cook-Unity/pw-cookunity-automation'
-      const repoName = repo.split('/')[1] || 'pw-cookunity-automation'
       
-      const response = await fetch(`/api/failure-analysis?repo=${repo}&days=7`)
+      const response = await fetch(`/api/failure-analysis?repo=${repo}&days=${days}`)
       
       if (!response.ok) {
         const errorText = await response.text()
@@ -268,10 +338,14 @@ export default function MetricsDashboard() {
         total_failed_runs: data.total_failed_runs,
         workflows_analyzed: data.workflows_analyzed,
         top_failures_count: data.top_failures?.length || 0,
+        days: data.period.days,
         fullData: data
       })
       setFailureAnalysis(data)
-      console.log('✅ Failure analysis state updated')
+      
+      // Guardar en cache por timeRange
+      sessionStorage.setItem(cachedKey, JSON.stringify(data))
+      console.log('✅ Failure analysis cached for', timeRange)
     } catch (err) {
       console.error('❌ Error fetching failure analysis:', err)
       setFailureAnalysis(null)
@@ -877,7 +951,7 @@ export default function MetricsDashboard() {
             </div>
                           )}
                           {failure.examples.length > 0 && (
-                            <details className="mt-1" open>
+                            <details className="mt-1">
                               <summary className="text-xs font-mono cursor-pointer hover:underline font-semibold mb-1" style={{ color: '#4B5563' }}>
                                 View examples ({failure.examples.length})
                               </summary>
@@ -1029,43 +1103,49 @@ export default function MetricsDashboard() {
                     WebkitBackfaceVisibility: 'hidden'
                   }}
                 >
-                  <h3 className="text-base font-mono font-semibold mb-[10%] text-center" style={{ color: '#344055' }}>
+                  <h3 className="text-sm sm:text-base font-mono font-semibold mb-2 sm:mb-[10%] text-center" style={{ color: '#344055' }}>
                     Overall Success Rate
                     <span className="ml-2 text-xs opacity-50">(Click for details)</span>
                   </h3>
                   
                   {/* Pie Chart - More prominent */}
-                  <div className="flex items-center justify-center w-full px-2 mb-[10%]" style={{ minHeight: '180px', maxHeight: '200px' }}>
+                  <div className="flex items-center justify-center w-full px-2 mb-2 sm:mb-[10%]" style={{ minHeight: '120px', maxHeight: '140px' }}>
                     {getSuccessRateChartData() && (
-                      <div className="w-full max-w-xl" style={{ 
+                      <div className="w-full max-w-xl scale-90 sm:scale-100" style={{ 
                         filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25)) drop-shadow(0 4px 8px rgba(0,0,0,0.15))',
-                        transform: 'perspective(1000px) rotateX(5deg) scale(1.15)',
                         transformStyle: 'preserve-3d'
                       }}>
-                        <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+                        <div className="hidden sm:block" style={{
+                          transform: 'perspective(1000px) rotateX(5deg) scale(1.15)'
+                        }}>
+                          <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+                        </div>
+                        <div className="block sm:hidden">
+                          <Pie data={getSuccessRateChartData()!} options={pieChartOptions} />
+                        </div>
                       </div>
                     )}
                   </div>
                   
                   {/* Summary Cards - Integrated at bottom */}
-                  <div className="grid grid-cols-4 gap-1">
-                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
-                      <div className="text-sm font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
-                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Workflows</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1">
+                    <div className="bg-white/30 border border-gray-300/50 p-2 sm:p-1 rounded-lg text-center">
+                      <div className="text-base sm:text-sm font-mono font-bold" style={{ color: '#3B82F6' }}>{metrics.summary.total_workflows}</div>
+                      <div className="text-xs sm:text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Workflows</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
-                      <div className="text-sm font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
-                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Runs</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 sm:p-1 rounded-lg text-center">
+                      <div className="text-base sm:text-sm font-mono font-bold" style={{ color: '#10B981' }}>{metrics.summary.total_runs}</div>
+                      <div className="text-xs sm:text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Runs</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
-                      <div className="text-sm font-mono font-bold" style={{ color: '#8B5CF6' }}>{formatPercentage(metrics.summary.success_rate)}%</div>
-                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Success</div>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 sm:p-1 rounded-lg text-center">
+                      <div className="text-base sm:text-sm font-mono font-bold" style={{ color: '#8B5CF6' }}>{formatPercentage(metrics.summary.success_rate)}%</div>
+                      <div className="text-xs sm:text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Success</div>
                     </div>
-                    <div className="bg-white/30 border border-gray-300/50 p-1 rounded-lg text-center">
-                      <div className="text-xs font-mono font-bold" style={{ color: '#F59E0B' }}>
+                    <div className="bg-white/30 border border-gray-300/50 p-2 sm:p-1 rounded-lg text-center">
+                      <div className="text-sm sm:text-xs font-mono font-bold" style={{ color: '#F59E0B' }}>
                         {formatDuration(metrics.summary.avg_response_time)}
                       </div>
-                      <div className="text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Avg Time</div>
+                      <div className="text-xs sm:text-xs font-mono leading-tight" style={{ color: '#6B7280' }}>Avg Time</div>
                     </div>
                   </div>
                 </div>
