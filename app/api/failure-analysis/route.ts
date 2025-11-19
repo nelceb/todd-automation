@@ -140,8 +140,8 @@ function extractDetailedExample(summary: string, patternName: string): { text: s
 
 // Función para normalizar y extraer patrones de los AI summaries
 // Ahora recibe un mapa de summary -> run_id y workflow_name para poder contar runs únicos y asociar workflows
-function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number; workflow_name: string }>): Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }> {
-  const patterns = new Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }>()
+function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runId: number; workflow_name: string }>): Map<string, { count: number; examples: Array<{ text: string; workflow: string; runId?: number; fullSummary?: string }>; runIds: Set<number> }> {
+  const patterns = new Map<string, { count: number; examples: Array<{ text: string; workflow: string; runId?: number; fullSummary?: string }>; runIds: Set<number> }>()
   
   // Patrones de errores comunes a buscar
   const errorPatterns = [
@@ -280,7 +280,7 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
 }
 
 // Función para convertir patrones a formato de respuesta (sin agrupación compleja ya que los patrones son específicos)
-function groupSimilarPatterns(patterns: Map<string, { count: number; examples: Array<{ text: string; workflow: string }>; runIds: Set<number> }>): FailurePattern[] {
+function groupSimilarPatterns(patterns: Map<string, { count: number; examples: Array<{ text: string; workflow: string; runId?: number; fullSummary?: string }>; runIds: Set<number> }>): FailurePattern[] {
   const patternsArray = Array.from(patterns.entries())
   
   // Convertir directamente a FailurePattern[] y ordenar por count
