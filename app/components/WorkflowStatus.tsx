@@ -76,18 +76,19 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   }
 
   useEffect(() => {
-    // Con GitHub App, el backend maneja la autenticación automáticamente
-    // No necesitamos validar el token del frontend
+    // With GitHub App, backend handles authentication automatically
+    // We don't need to validate frontend token
     fetchRepositories(githubToken)
     fetchWorkflowRuns(githubToken)
     
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchRepositories(githubToken)
-      fetchWorkflowRuns(githubToken)
-    }, 30000)
-    
-    return () => clearInterval(interval)
+    // DISABLED auto-refresh to avoid rate limits during presentation
+    // If you need refresh, do it manually
+    // const interval = setInterval(() => {
+    //   fetchRepositories(githubToken)
+    //   fetchWorkflowRuns(githubToken)
+    // }, 30000)
+    // 
+    // return () => clearInterval(interval)
   }, [fetchRepositories, fetchWorkflowRuns, githubToken])
 
   // Smart expansion logic based on device type and running workflows

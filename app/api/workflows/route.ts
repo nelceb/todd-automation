@@ -265,7 +265,6 @@ export async function GET(request: NextRequest) {
           retries: 2,
           retryDelay: 1500,
           checkRateLimit: true
-          },
         }
       )
       

@@ -123,6 +123,7 @@ export default function MetricsDashboard() {
   const [failureAnalysis, setFailureAnalysis] = useState<FailureAnalysis | null>(null)
   const [failureAnalysisByRange, setFailureAnalysisByRange] = useState<Record<string, FailureAnalysis>>({})
   const [loadingFailureAnalysis, setLoadingFailureAnalysis] = useState(false)
+  const [rateLimitMode, setRateLimitMode] = useState(false)
 
   // Load state from sessionStorage on mount to preserve state between tab switches
   useEffect(() => {
@@ -397,33 +398,41 @@ export default function MetricsDashboard() {
 
   const fetchMetrics = async (forceRefresh: boolean = false) => {
     try {
-      // If not a forced refresh, check cache first
-      if (!forceRefresh) {
-        const cachedData = localStorage.getItem(`metrics-${timeRange}`)
-        const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
-        
-        if (cachedData && cachedTimestamp) {
-          const timestamp = parseInt(cachedTimestamp, 10)
-          const now = Date.now()
-          // Cache valid for 30 minutes to avoid rate limits
-          if (now - timestamp < 30 * 60 * 1000) {
-            try {
-              const parsedData = JSON.parse(cachedData)
-              setMetrics(parsedData)
-              setLoading(false)
-              // Load Failure Analysis after loading metrics from cache
-              if (timeRange === '7d') {
-                // Small delay to ensure state is updated
-                setTimeout(() => {
-                  fetchFailureAnalysis()
-                }, 100)
-              }
-              return
-            } catch (e) {
-              console.error('Error parsing cached metrics:', e)
+      // ALWAYS check cache first - if we have cache, use it (especially important for rate limits)
+      const cachedData = localStorage.getItem(`metrics-${timeRange}`)
+      const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
+      
+      if (cachedData && cachedTimestamp) {
+        const timestamp = parseInt(cachedTimestamp, 10)
+        const now = Date.now()
+        // Use cache if it's less than 24 hours old (very permissive for presentation)
+        if (now - timestamp < 24 * 60 * 60 * 1000) {
+          try {
+            const parsedData = JSON.parse(cachedData)
+            setMetrics(parsedData)
+            setLoading(false)
+            // Load Failure Analysis after loading metrics from cache
+            if (timeRange === '7d') {
+              // Small delay to ensure state is updated
+              setTimeout(() => {
+                fetchFailureAnalysis()
+              }, 100)
             }
+            // If we have cache, don't make new API calls (rate limit protection)
+            if (!forceRefresh) {
+              console.log('✅ Using cached metrics (rate limit protection mode)')
+              return
+            }
+          } catch (e) {
+            console.error('Error parsing cached metrics:', e)
           }
         }
+      }
+      
+      // Only make API call if forced refresh AND no valid cache
+      if (!forceRefresh && cachedData) {
+        console.log('⚠️ Skipping API call - using cache to avoid rate limits')
+        return
       }
       
       setLoading(true)
@@ -511,11 +520,29 @@ export default function MetricsDashboard() {
       
       // Detect rate limit and show clearer message
       if (errorMessage.includes('rate limit')) {
+        // Try to use cache even on error
+        const cachedData = localStorage.getItem(`metrics-${timeRange}`)
+        if (cachedData) {
+          try {
+            const parsedData = JSON.parse(cachedData)
+            setMetrics(parsedData)
+            setLoading(false)
+            setRateLimitMode(true)
+            setError(
+              '⚠️ GitHub API rate limit reached. ' +
+              'Showing cached data. ' +
+              'The app is in read-only mode to avoid further rate limits.'
+            )
+            return
+          } catch (e) {
+            console.error('Error parsing cached metrics on rate limit:', e)
+          }
+        }
+        setRateLimitMode(true)
         setError(
           '⚠️ GitHub API rate limit reached. ' +
-          'Data is cached for 30 minutes. ' +
-          'Please wait a few minutes before reloading. ' +
-          'If you need fresh data, you can do a manual refresh.'
+          'No cached data available. ' +
+          'Please wait before trying again.'
         )
       } else {
         setError(errorMessage)
@@ -842,9 +869,14 @@ export default function MetricsDashboard() {
         <p className="font-mono text-red-600" style={{ color: '#DC2626' }}>Error loading metrics: {error}</p>
         <button 
           onClick={() => fetchMetrics(true)}
-          className="mt-2 px-4 py-2 font-mono bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          disabled={rateLimitMode}
+          className={`mt-2 px-4 py-2 font-mono rounded transition-colors ${
+            rateLimitMode 
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+              : 'bg-red-600 text-white hover:bg-red-700'
+          }`}
         >
-          Retry
+          {rateLimitMode ? 'Rate Limited - Use Cached Data' : 'Retry'}
         </button>
       </div>
     )
