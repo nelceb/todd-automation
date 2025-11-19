@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitHubToken } from '../utils/github'
+import { throttledFetch } from '../utils/github-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -313,31 +314,35 @@ export async function GET(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Calcular fechas
+    // Calculate dates
     const now = new Date()
     const startDate = new Date()
     startDate.setDate(now.getDate() - days)
     
     console.log(`🔍 Analyzing failures for ${repo} from ${startDate.toISOString()} to ${now.toISOString()}`)
 
-    // Obtener todos los workflows
+    // Get all workflows
     let allWorkflows: any[] = []
     let page = 1
     const perPage = 100
     
     while (true) {
-      const workflowsResponse = await fetch(
+      const workflowsResponse = await throttledFetch(
         `https://api.github.com/repos/${repo}/actions/workflows?page=${page}&per_page=${perPage}`,
         {
           headers: {
             'Authorization': `token ${token}`,
             'Accept': 'application/vnd.github.v3+json',
-          }
+          },
+          retries: 3,
+          retryDelay: 2000,
+          checkRateLimit: true
         }
       )
 
       if (!workflowsResponse.ok) {
-        throw new Error(`GitHub API error: ${workflowsResponse.statusText}`)
+        const errorText = await workflowsResponse.text().catch(() => workflowsResponse.statusText)
+        throw new Error(`GitHub API error: ${workflowsResponse.status} ${errorText}`)
       }
 
       const workflowsData = await workflowsResponse.json()
@@ -351,7 +356,7 @@ export async function GET(request: NextRequest) {
       page++
     }
     
-    // Filtrar workflows activos y excluir templates y workflows dinámicos
+    // Filter active workflows and exclude templates and dynamic workflows
     const activeWorkflows = allWorkflows.filter((workflow: any) => {
       const nameLower = workflow.name.toLowerCase()
       const pathLower = workflow.path.toLowerCase()
@@ -372,7 +377,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`📊 Found ${activeWorkflows.length} active workflows`)
 
-    // Obtener runs fallidos de los últimos N días
+    // Get failed runs from the last N days
     const failedRuns: Array<{
       workflow_name: string
       workflow_id: string
@@ -384,23 +389,33 @@ export async function GET(request: NextRequest) {
     
     const workflowFailureCounts = new Map<string, number>()
     
-    // Limitar a los top 10 workflows con más fallos para evitar timeout
-    const workflowRunsPromises = activeWorkflows.map(async (workflow: any) => {
-      try {
-        const runsResponse = await fetch(
-          `https://api.github.com/repos/${repo}/actions/workflows/${workflow.id}/runs?per_page=100&status=completed&created=>${startDate.toISOString().split('T')[0]}`,
-          {
-            headers: {
-              'Authorization': `token ${token}`,
-              'Accept': 'application/vnd.github.v3+json',
+    // Limit to top 5 workflows with most failures to avoid rate limits
+    // Process in very small batches
+    const BATCH_SIZE = 2
+    const workflowRunsPromises: Promise<any[]>[] = []
+    
+    for (let i = 0; i < activeWorkflows.length; i += BATCH_SIZE) {
+      const batch = activeWorkflows.slice(i, i + BATCH_SIZE)
+      const batchPromises = batch.map(async (workflow: any) => {
+        try {
+          const runsResponse = await throttledFetch(
+            `https://api.github.com/repos/${repo}/actions/workflows/${workflow.id}/runs?per_page=100&status=completed&created=>${startDate.toISOString().split('T')[0]}`,
+            {
+              headers: {
+                'Authorization': `token ${token}`,
+                'Accept': 'application/vnd.github.v3+json',
+              },
+              retries: 2,
+              retryDelay: 1500,
+              checkRateLimit: true
             }
-          }
-        )
+          )
 
-        if (!runsResponse.ok) {
-          console.warn(`Failed to fetch runs for workflow ${workflow.name}`)
-          return []
-        }
+          if (!runsResponse.ok) {
+            const errorText = await runsResponse.text().catch(() => runsResponse.statusText)
+            console.warn(`Failed to fetch runs for workflow ${workflow.name}: ${runsResponse.status} ${errorText}`)
+            return []
+          }
 
         const runsData = await runsResponse.json()
         const runs = runsData.workflow_runs || []
@@ -427,7 +442,15 @@ export async function GET(request: NextRequest) {
         console.warn(`Error processing workflow ${workflow.name}:`, error)
         return []
       }
-    })
+      })
+      
+      workflowRunsPromises.push(...batchPromises)
+      
+      // Longer pause between batches to avoid rate limiting
+      if (i + BATCH_SIZE < activeWorkflows.length) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+      }
+    }
     
     await Promise.all(workflowRunsPromises)
     
@@ -436,14 +459,14 @@ export async function GET(request: NextRequest) {
     // Ordenar workflows por cantidad de fallos
     const sortedWorkflows = Array.from(workflowFailureCounts.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 workflows con más fallos
+      .slice(0, 5) // Top 5 workflows with most failures (reduced to avoid rate limits)
     
     // Obtener AI summaries de los runs fallidos (limitado a los top workflows)
     const topWorkflowNames = new Set(sortedWorkflows.map(([name]) => name))
-    // Aumentar límite a 100 runs, pero priorizar los más recientes
+    // Increase limit to 100 runs, but prioritize most recent ones
     const runsToAnalyze = failedRuns
       .filter(run => topWorkflowNames.has(run.workflow_name))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // Más recientes primero
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // Most recent first
       .slice(0, 100) // Limitar a 100 runs para evitar timeout
     
     console.log(`🔍 Analyzing ${runsToAnalyze.length} failed runs for AI summaries`)
@@ -451,7 +474,7 @@ export async function GET(request: NextRequest) {
     const aiSummariesWithRuns: Array<{ summary: string; runId: number; workflow_name: string }> = []
     const summariesByWorkflow = new Map<string, string[]>()
     
-    // Obtener AI summaries en paralelo (con límite de concurrencia)
+    // Get AI summaries in parallel (with concurrency limit)
     const batchSize = 5
     for (let i = 0; i < runsToAnalyze.length; i += batchSize) {
       const batch = runsToAnalyze.slice(i, i + batchSize)
@@ -495,7 +518,7 @@ export async function GET(request: NextRequest) {
       const validSummaries = batchResults.filter((s): s is { summary: string; runId: number; workflow_name: string } => s !== null)
       aiSummariesWithRuns.push(...validSummaries)
       
-      // Pequeña pausa entre batches para evitar rate limiting
+      // Small pause between batches to avoid rate limiting
       if (i + batchSize < runsToAnalyze.length) {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
@@ -503,11 +526,11 @@ export async function GET(request: NextRequest) {
     
     console.log(`✅ Collected ${aiSummariesWithRuns.length} AI summaries from ${aiSummariesWithRuns.length} unique runs`)
 
-    // Extraer patrones de fallos (ahora con información de runId y workflow_name)
+    // Extract failure patterns (now with runId and workflow_name information)
     const patterns = extractFailurePatterns(aiSummariesWithRuns)
     const groupedPatterns = groupSimilarPatterns(patterns)
     
-    // Top 10 fallos más comunes
+    // Top 10 most common failures
     const topFailures = groupedPatterns.slice(0, 10)
     
     // Calcular failure rates por workflow
@@ -518,7 +541,7 @@ export async function GET(request: NextRequest) {
         return {
           workflow_name: name,
           failed_runs: failedCount,
-          failure_rate: 0 // Se calculará si tenemos datos de total runs
+          failure_rate: 0 // Will be calculated if we have total runs data
         }
       })
       .sort((a, b) => b.failed_runs - a.failed_runs)
@@ -540,10 +563,25 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error analyzing failures:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // Detect rate limit specifically
+    if (errorMessage.includes('rate limit')) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: errorMessage,
+          rateLimitExceeded: true
+        },
+        { status: 429 }
+      )
+    }
+    
     return NextResponse.json(
       { 
+        success: false,
         error: 'Failed to analyze failures',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: errorMessage
       },
       { status: 500 }
     )

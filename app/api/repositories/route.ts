@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitHubToken } from '../utils/github'
+import { throttledFetch } from '../utils/github-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,15 +50,19 @@ export async function GET(request: NextRequest) {
       TARGET_REPOS.map(async (repoName) => {
         try {
           // Get repository info
-          const repoResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
+          const repoResponse = await throttledFetch(`https://api.github.com/repos/${repoName}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/vnd.github.v3+json'
-            }
+            },
+            retries: 2,
+            retryDelay: 1500,
+            checkRateLimit: true
           })
 
           if (!repoResponse.ok) {
-            throw new Error(`Failed to fetch repo ${repoName}: ${repoResponse.status}`)
+            const errorText = await repoResponse.text().catch(() => repoResponse.statusText)
+            throw new Error(`Failed to fetch repo ${repoName}: ${repoResponse.status} ${errorText}`)
           }
 
           const repo = await repoResponse.json()
@@ -68,18 +73,22 @@ export async function GET(request: NextRequest) {
           const perPage = 100
           
           while (true) {
-            const workflowsResponse = await fetch(
+            const workflowsResponse = await throttledFetch(
               `https://api.github.com/repos/${repoName}/actions/workflows?page=${page}&per_page=${perPage}`,
               {
                 headers: {
                   'Authorization': `Bearer ${token}`,
                   'Accept': 'application/vnd.github.v3+json'
-                }
+                },
+                retries: 2,
+                retryDelay: 1500,
+                checkRateLimit: true
               }
             )
 
             if (!workflowsResponse.ok) {
-              throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status}`)
+              const errorText = await workflowsResponse.text().catch(() => workflowsResponse.statusText)
+              throw new Error(`Failed to fetch workflows for ${repoName}: ${workflowsResponse.status} ${errorText}`)
             }
 
             const workflowsData = await workflowsResponse.json()
@@ -149,13 +158,16 @@ export async function GET(request: NextRequest) {
             let isDependabot = false
             
             try {
-              const yamlResponse = await fetch(
+              const yamlResponse = await throttledFetch(
                 `https://api.github.com/repos/${repoName}/contents/${workflow.path}`,
                 {
                   headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/vnd.github.v3+json',
                   },
+                  retries: 2,
+                  retryDelay: 1000,
+                  checkRateLimit: true
                 }
               )
               

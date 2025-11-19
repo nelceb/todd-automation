@@ -294,7 +294,7 @@ export default function MetricsDashboard() {
   }, [loading, metrics, timeRange, loadingFailureAnalysis])
   
   const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
-    // Si ya está cargando las métricas principales, esperar
+    // If main metrics are still loading, wait
     if (loading) {
       console.log('⏳ Skipping fetchFailureAnalysis - main metrics still loading')
       return
@@ -305,7 +305,7 @@ export default function MetricsDashboard() {
       return
     }
     
-    // Verificar cache ANTES de establecer loading
+    // Check cache BEFORE setting loading
     const days = getDaysFromTimeRange(timeRange)
     const cachedKey = `failure-analysis-${timeRange}`
     
@@ -314,12 +314,12 @@ export default function MetricsDashboard() {
       if (cached) {
         try {
           const parsed = JSON.parse(cached)
-          // Verificar que el cache sea para el mismo timeRange
+          // Verify cache is for the same timeRange
           if (parsed.period.days === days) {
             console.log('✅ Using cached failure analysis for', timeRange, '- skipping fetch')
             setFailureAnalysis(parsed)
-            setLoadingFailureAnalysis(false) // Asegurar que no esté en loading
-            return // Salir temprano, no hacer fetch
+            setLoadingFailureAnalysis(false) // Ensure it's not in loading state
+            return // Early exit, don't fetch
           }
         } catch (e) {
           console.error('Error parsing cached failure analysis:', e)
@@ -327,7 +327,7 @@ export default function MetricsDashboard() {
       }
     }
     
-    // Solo establecer loading si realmente vamos a hacer fetch
+    // Only set loading if we're actually going to fetch
     try {
       console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange, days })
       setLoadingFailureAnalysis(true)
@@ -336,9 +336,18 @@ export default function MetricsDashboard() {
       const response = await fetch(`/api/failure-analysis?repo=${repo}&days=${days}`)
       
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ API Error:', response.status, response.statusText, errorText)
-        throw new Error(`Failed to fetch failure analysis: ${response.status} ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        console.error('❌ API Error:', response.status, response.statusText, errorData)
+        
+        // Manejar rate limit específicamente
+        if (response.status === 429 || errorData.rateLimitExceeded) {
+          throw new Error(
+            errorData.error || 
+            'GitHub API rate limit exceeded. Please wait a few minutes and try again.'
+          )
+        }
+        
+        throw new Error(`Failed to fetch failure analysis: ${response.status} ${errorData.error || response.statusText}`)
       }
       
       const data = await response.json()
@@ -351,13 +360,34 @@ export default function MetricsDashboard() {
       })
       setFailureAnalysis(data)
       
-      // Guardar en cache por timeRange (sessionStorage y memoria)
+      // Save to cache by timeRange (sessionStorage and memory)
       sessionStorage.setItem(cachedKey, JSON.stringify(data))
       setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: data }))
       console.log('✅ Failure analysis cached for', timeRange, '(sessionStorage + memory)')
     } catch (err) {
       console.error('❌ Error fetching failure analysis:', err)
-      setFailureAnalysis(null)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      
+      // If it's rate limit, don't show critical error, just log
+      if (errorMessage.includes('rate limit')) {
+        console.warn('⚠️ Rate limit in failure analysis, using cache if available')
+        // Try to use cache if available
+        const cached = sessionStorage.getItem(cachedKey)
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached)
+            setFailureAnalysis(parsed)
+            setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: parsed }))
+            console.log('✅ Using cached failure analysis due to rate limit')
+          } catch (e) {
+            setFailureAnalysis(null)
+          }
+        } else {
+          setFailureAnalysis(null)
+        }
+      } else {
+        setFailureAnalysis(null)
+      }
     } finally {
       setLoadingFailureAnalysis(false)
       console.log('🏁 fetchFailureAnalysis completed')
@@ -367,7 +397,7 @@ export default function MetricsDashboard() {
 
   const fetchMetrics = async (forceRefresh: boolean = false) => {
     try {
-      // Si no es un refresh forzado, verificar cache primero
+      // If not a forced refresh, check cache first
       if (!forceRefresh) {
         const cachedData = localStorage.getItem(`metrics-${timeRange}`)
         const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
@@ -375,15 +405,15 @@ export default function MetricsDashboard() {
         if (cachedData && cachedTimestamp) {
           const timestamp = parseInt(cachedTimestamp, 10)
           const now = Date.now()
-          // Cache válido por 5 minutos
-          if (now - timestamp < 5 * 60 * 1000) {
+          // Cache valid for 30 minutes to avoid rate limits
+          if (now - timestamp < 30 * 60 * 1000) {
             try {
               const parsedData = JSON.parse(cachedData)
               setMetrics(parsedData)
               setLoading(false)
-              // Cargar Failure Analysis después de cargar métricas desde cache
+              // Load Failure Analysis after loading metrics from cache
               if (timeRange === '7d') {
-                // Pequeño delay para asegurar que el estado se actualizó
+                // Small delay to ensure state is updated
                 setTimeout(() => {
                   fetchFailureAnalysis()
                 }, 100)
@@ -400,14 +430,14 @@ export default function MetricsDashboard() {
       setLoadingProgress(0)
       setLoadingMessage('🔌 Connecting to GitHub API...')
       
-      // Simular progreso inicial
+      // Simulate initial progress
       for (let i = 0; i <= 10; i++) {
         setLoadingProgress(i)
         await new Promise(resolve => setTimeout(resolve, 20))
       }
       
       setLoadingMessage('📋 Fetching workflow list...')
-      // Progreso mientras se hace el fetch (puede tardar)
+      // Progress while fetching (may take time)
       let currentProgress = 10
       const progressInterval = setInterval(() => {
         if (currentProgress < 40) {
@@ -421,7 +451,17 @@ export default function MetricsDashboard() {
       setLoadingProgress(40)
       
       if (!response.ok) {
-        throw new Error('Failed to fetch metrics')
+        const errorData = await response.json().catch(() => ({ error: response.statusText }))
+        
+        // Manejar rate limit específicamente
+        if (response.status === 429 || errorData.rateLimitExceeded) {
+          throw new Error(
+            errorData.error || 
+            'GitHub API rate limit exceeded. Please wait a few minutes and try again.'
+          )
+        }
+        
+        throw new Error(`Failed to fetch metrics: ${response.status} ${errorData.error || response.statusText}`)
       }
       
       setLoadingProgress(45)
@@ -447,17 +487,17 @@ export default function MetricsDashboard() {
       setLoadingProgress(90)
       setMetrics(data)
       
-      // Guardar en cache
+      // Save to cache
       localStorage.setItem(`metrics-${timeRange}`, JSON.stringify(data))
       localStorage.setItem(`metrics-${timeRange}-timestamp`, Date.now().toString())
       
-      // Pequeño delay para mostrar el último mensaje
+      // Small delay to show last message
       setLoadingProgress(100)
       await new Promise(resolve => setTimeout(resolve, 200))
       setLoading(false)
       
-      // Cargar Failure Analysis de forma lazy después de las métricas principales
-      // Esperar un poco para asegurar que el estado se actualizó
+      // Load Failure Analysis lazily after main metrics
+      // Wait a bit to ensure state is updated
       if (timeRange === '7d') {
         console.log('📊 Metrics loaded, scheduling failure analysis fetch...')
         setTimeout(() => {
@@ -467,7 +507,19 @@ export default function MetricsDashboard() {
       }
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      
+      // Detect rate limit and show clearer message
+      if (errorMessage.includes('rate limit')) {
+        setError(
+          '⚠️ GitHub API rate limit reached. ' +
+          'Data is cached for 30 minutes. ' +
+          'Please wait a few minutes before reloading. ' +
+          'If you need fresh data, you can do a manual refresh.'
+        )
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
       setLoadingMessage('Loading metrics...')
