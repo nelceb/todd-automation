@@ -487,7 +487,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             Testing Workflows
           </h1>
           <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
-            Real-time monitoring of test execution across multiple repositories
+            Execute and monitor individual workflows across multiple repositories
           </p>
         </div>
         
@@ -546,7 +546,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
             Testing Workflows
           </h1>
           <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
-            Real-time monitoring of test execution across multiple repositories
+            Execute and monitor individual workflows across multiple repositories
           </p>
         </div>
         
@@ -644,7 +644,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
           Testing Workflows
         </h1>
         <p className="text-lg font-mono" style={{ color: '#4B5563' }}>
-          Real-time monitoring of test execution across multiple repositories
+          Execute and monitor individual workflows across multiple repositories
         </p>
       </div>
 
