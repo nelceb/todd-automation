@@ -819,16 +819,16 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center space-x-2 flex-wrap gap-1">
+                            <div className="flex items-center space-x-2 flex-wrap gap-1.5">
                               {workflowState?.canCancel && workflowState?.runId && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleCancelWorkflow(workflowId, workflowState.runId!, repo.fullName)
                                   }}
-                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-redwood-600 hover:border-redwood-500 bg-redwood-500 hover:bg-redwood-600 shadow-md transition-colors min-h-[44px]"
+                                  className="text-xs font-mono text-white flex items-center px-2.5 py-1.5 rounded-lg border-2 border-redwood-600 hover:border-redwood-500 bg-redwood-500 hover:bg-redwood-600 shadow-md transition-colors"
                                 >
-                                  <XCircleIcon className="w-4 h-4 mr-1.5" />
+                                  <XCircleIcon className="w-3.5 h-3.5 mr-1" />
                                   Cancel Run
                                 </button>
                               )}
@@ -837,10 +837,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.reportUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-asparagus-600 hover:border-asparagus-500 bg-asparagus-500 hover:bg-asparagus-600 shadow-md transition-colors min-h-[44px]"
+                                  className="text-xs font-mono text-white flex items-center px-2.5 py-1.5 rounded-lg border-2 border-asparagus-600 hover:border-asparagus-500 bg-asparagus-500 hover:bg-asparagus-600 shadow-md transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <span className="mr-1.5">📊</span>
+                                  <span className="mr-1 text-xs">📊</span>
                                   {workflowState.reportIsViewable ? 'View Report' : 'View Report (Download)'}
                                 </a>
                               )}
@@ -849,10 +849,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-mono text-blue-400 hover:text-blue-300 flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors min-h-[44px]"
+                                  className="text-xs font-mono text-blue-400 hover:text-blue-300 flex items-center px-2.5 py-1.5 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
+                                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 mr-1" />
                                   View on GitHub
                                 </a>
                               )}
@@ -893,10 +893,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={githubUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-mono text-blue-400 hover:text-blue-300 flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors min-h-[44px]"
+                                  className="text-xs font-mono text-blue-400 hover:text-blue-300 flex items-center px-2.5 py-1.5 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
+                                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 mr-1" />
                                   View on GitHub
                                 </a>
                               </div>
