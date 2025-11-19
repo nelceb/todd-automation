@@ -148,7 +148,7 @@ export async function fetchWithRateLimit(
  * Adds a small delay between calls to avoid rate limits
  */
 let lastRequestTime = 0
-const MIN_REQUEST_INTERVAL = 300 // 300ms between requests (increased to avoid rate limits)
+const MIN_REQUEST_INTERVAL = 500 // 500ms between requests (increased to avoid rate limits)
 
 export async function throttledFetch(
   url: string,
