@@ -123,7 +123,6 @@ export default function MetricsDashboard() {
   const [failureAnalysis, setFailureAnalysis] = useState<FailureAnalysis | null>(null)
   const [failureAnalysisByRange, setFailureAnalysisByRange] = useState<Record<string, FailureAnalysis>>({})
   const [loadingFailureAnalysis, setLoadingFailureAnalysis] = useState(false)
-  const [rateLimitMode, setRateLimitMode] = useState(false)
 
   // Load state from sessionStorage on mount to preserve state between tab switches
   useEffect(() => {
@@ -295,7 +294,7 @@ export default function MetricsDashboard() {
   }, [loading, metrics, timeRange, loadingFailureAnalysis])
   
   const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
-    // If main metrics are still loading, wait
+    // Si ya está cargando las métricas principales, esperar
     if (loading) {
       console.log('⏳ Skipping fetchFailureAnalysis - main metrics still loading')
       return
@@ -306,7 +305,7 @@ export default function MetricsDashboard() {
       return
     }
     
-    // Check cache BEFORE setting loading
+    // Verificar cache ANTES de establecer loading
     const days = getDaysFromTimeRange(timeRange)
     const cachedKey = `failure-analysis-${timeRange}`
     
@@ -315,12 +314,12 @@ export default function MetricsDashboard() {
       if (cached) {
         try {
           const parsed = JSON.parse(cached)
-          // Verify cache is for the same timeRange
+          // Verificar que el cache sea para el mismo timeRange
           if (parsed.period.days === days) {
             console.log('✅ Using cached failure analysis for', timeRange, '- skipping fetch')
             setFailureAnalysis(parsed)
-            setLoadingFailureAnalysis(false) // Ensure it's not in loading state
-            return // Early exit, don't fetch
+            setLoadingFailureAnalysis(false) // Asegurar que no esté en loading
+            return // Salir temprano, no hacer fetch
           }
         } catch (e) {
           console.error('Error parsing cached failure analysis:', e)
@@ -328,7 +327,7 @@ export default function MetricsDashboard() {
       }
     }
     
-    // Only set loading if we're actually going to fetch
+    // Solo establecer loading si realmente vamos a hacer fetch
     try {
       console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange, days })
       setLoadingFailureAnalysis(true)
@@ -337,18 +336,9 @@ export default function MetricsDashboard() {
       const response = await fetch(`/api/failure-analysis?repo=${repo}&days=${days}`)
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }))
-        console.error('❌ API Error:', response.status, response.statusText, errorData)
-        
-        // Manejar rate limit específicamente
-        if (response.status === 429 || errorData.rateLimitExceeded) {
-          throw new Error(
-            errorData.error || 
-            'GitHub API rate limit exceeded. Please wait a few minutes and try again.'
-          )
-        }
-        
-        throw new Error(`Failed to fetch failure analysis: ${response.status} ${errorData.error || response.statusText}`)
+        const errorText = await response.text()
+        console.error('❌ API Error:', response.status, response.statusText, errorText)
+        throw new Error(`Failed to fetch failure analysis: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
@@ -361,34 +351,13 @@ export default function MetricsDashboard() {
       })
       setFailureAnalysis(data)
       
-      // Save to cache by timeRange (sessionStorage and memory)
+      // Guardar en cache por timeRange (sessionStorage y memoria)
       sessionStorage.setItem(cachedKey, JSON.stringify(data))
       setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: data }))
       console.log('✅ Failure analysis cached for', timeRange, '(sessionStorage + memory)')
     } catch (err) {
       console.error('❌ Error fetching failure analysis:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      
-      // If it's rate limit, don't show critical error, just log
-      if (errorMessage.includes('rate limit')) {
-        console.warn('⚠️ Rate limit in failure analysis, using cache if available')
-        // Try to use cache if available
-        const cached = sessionStorage.getItem(cachedKey)
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached)
-            setFailureAnalysis(parsed)
-            setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: parsed }))
-            console.log('✅ Using cached failure analysis due to rate limit')
-          } catch (e) {
-            setFailureAnalysis(null)
-          }
-        } else {
-          setFailureAnalysis(null)
-        }
-      } else {
-        setFailureAnalysis(null)
-      }
+      setFailureAnalysis(null)
     } finally {
       setLoadingFailureAnalysis(false)
       console.log('🏁 fetchFailureAnalysis completed')
@@ -398,55 +367,47 @@ export default function MetricsDashboard() {
 
   const fetchMetrics = async (forceRefresh: boolean = false) => {
     try {
-      // ALWAYS check cache first - if we have cache, use it (especially important for rate limits)
-      const cachedData = localStorage.getItem(`metrics-${timeRange}`)
-      const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
-      
-      if (cachedData && cachedTimestamp) {
-        const timestamp = parseInt(cachedTimestamp, 10)
-        const now = Date.now()
-        // Use cache if it's less than 24 hours old (very permissive for presentation)
-        if (now - timestamp < 24 * 60 * 60 * 1000) {
-          try {
-            const parsedData = JSON.parse(cachedData)
-            setMetrics(parsedData)
-            setLoading(false)
-            // Load Failure Analysis after loading metrics from cache
-            if (timeRange === '7d') {
-              // Small delay to ensure state is updated
-              setTimeout(() => {
-                fetchFailureAnalysis()
-              }, 100)
-            }
-            // If we have cache, don't make new API calls (rate limit protection)
-            if (!forceRefresh) {
-              console.log('✅ Using cached metrics (rate limit protection mode)')
+      // Si no es un refresh forzado, verificar cache primero
+      if (!forceRefresh) {
+        const cachedData = localStorage.getItem(`metrics-${timeRange}`)
+        const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
+        
+        if (cachedData && cachedTimestamp) {
+          const timestamp = parseInt(cachedTimestamp, 10)
+          const now = Date.now()
+          // Cache válido por 5 minutos
+          if (now - timestamp < 5 * 60 * 1000) {
+            try {
+              const parsedData = JSON.parse(cachedData)
+              setMetrics(parsedData)
+              setLoading(false)
+              // Cargar Failure Analysis después de cargar métricas desde cache
+              if (timeRange === '7d') {
+                // Pequeño delay para asegurar que el estado se actualizó
+                setTimeout(() => {
+                  fetchFailureAnalysis()
+                }, 100)
+              }
               return
+            } catch (e) {
+              console.error('Error parsing cached metrics:', e)
             }
-          } catch (e) {
-            console.error('Error parsing cached metrics:', e)
           }
         }
-      }
-      
-      // Only make API call if forced refresh AND no valid cache
-      if (!forceRefresh && cachedData) {
-        console.log('⚠️ Skipping API call - using cache to avoid rate limits')
-        return
       }
       
       setLoading(true)
       setLoadingProgress(0)
       setLoadingMessage('🔌 Connecting to GitHub API...')
       
-      // Simulate initial progress
+      // Simular progreso inicial
       for (let i = 0; i <= 10; i++) {
         setLoadingProgress(i)
         await new Promise(resolve => setTimeout(resolve, 20))
       }
       
       setLoadingMessage('📋 Fetching workflow list...')
-      // Progress while fetching (may take time)
+      // Progreso mientras se hace el fetch (puede tardar)
       let currentProgress = 10
       const progressInterval = setInterval(() => {
         if (currentProgress < 40) {
@@ -460,17 +421,7 @@ export default function MetricsDashboard() {
       setLoadingProgress(40)
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }))
-        
-        // Manejar rate limit específicamente
-        if (response.status === 429 || errorData.rateLimitExceeded) {
-          throw new Error(
-            errorData.error || 
-            'GitHub API rate limit exceeded. Please wait a few minutes and try again.'
-          )
-        }
-        
-        throw new Error(`Failed to fetch metrics: ${response.status} ${errorData.error || response.statusText}`)
+        throw new Error('Failed to fetch metrics')
       }
       
       setLoadingProgress(45)
@@ -496,17 +447,17 @@ export default function MetricsDashboard() {
       setLoadingProgress(90)
       setMetrics(data)
       
-      // Save to cache
+      // Guardar en cache
       localStorage.setItem(`metrics-${timeRange}`, JSON.stringify(data))
       localStorage.setItem(`metrics-${timeRange}-timestamp`, Date.now().toString())
       
-      // Small delay to show last message
+      // Pequeño delay para mostrar el último mensaje
       setLoadingProgress(100)
       await new Promise(resolve => setTimeout(resolve, 200))
       setLoading(false)
       
-      // Load Failure Analysis lazily after main metrics
-      // Wait a bit to ensure state is updated
+      // Cargar Failure Analysis de forma lazy después de las métricas principales
+      // Esperar un poco para asegurar que el estado se actualizó
       if (timeRange === '7d') {
         console.log('📊 Metrics loaded, scheduling failure analysis fetch...')
         setTimeout(() => {
@@ -516,37 +467,7 @@ export default function MetricsDashboard() {
       }
       
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      
-      // Detect rate limit and show clearer message
-      if (errorMessage.includes('rate limit')) {
-        // Try to use cache even on error
-        const cachedData = localStorage.getItem(`metrics-${timeRange}`)
-        if (cachedData) {
-          try {
-            const parsedData = JSON.parse(cachedData)
-            setMetrics(parsedData)
-            setLoading(false)
-            setRateLimitMode(true)
-            setError(
-              '⚠️ GitHub API rate limit reached. ' +
-              'Showing cached data. ' +
-              'The app is in read-only mode to avoid further rate limits.'
-            )
-            return
-          } catch (e) {
-            console.error('Error parsing cached metrics on rate limit:', e)
-          }
-        }
-        setRateLimitMode(true)
-        setError(
-          '⚠️ GitHub API rate limit reached. ' +
-          'No cached data available. ' +
-          'Please wait before trying again.'
-        )
-      } else {
-        setError(errorMessage)
-      }
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
       setLoadingMessage('Loading metrics...')
@@ -869,14 +790,9 @@ export default function MetricsDashboard() {
         <p className="font-mono text-red-600" style={{ color: '#DC2626' }}>Error loading metrics: {error}</p>
         <button 
           onClick={() => fetchMetrics(true)}
-          disabled={rateLimitMode}
-          className={`mt-2 px-4 py-2 font-mono rounded transition-colors ${
-            rateLimitMode 
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-              : 'bg-red-600 text-white hover:bg-red-700'
-          }`}
+          className="mt-2 px-4 py-2 font-mono bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
         >
-          {rateLimitMode ? 'Rate Limited - Use Cached Data' : 'Retry'}
+          Retry
         </button>
       </div>
     )

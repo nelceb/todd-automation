@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitHubToken } from '../utils/github'
-import { throttledFetch } from '../utils/github-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,27 +122,24 @@ export async function GET(request: NextRequest) {
     const perPage = 100
     
     while (true) {
-      const workflowsResponse = await throttledFetch(
+    const workflowsResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/actions/workflows?page=${page}&per_page=${perPage}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json',
           },
-          retries: 3,
-          retryDelay: 2000,
-          checkRateLimit: true
         }
       )
       
       if (!workflowsResponse.ok) {
-        const errorText = await workflowsResponse.text().catch(() => workflowsResponse.statusText)
         if (page === 1) {
-          // If it fails on the first page, throw error
+          // Si falla en la primera página, lanzar error
+          const errorText = await workflowsResponse.text()
           console.log('🔍 Error response body:', errorText)
           throw new Error(`Error al obtener workflows: ${workflowsResponse.status} - ${errorText}`)
         }
-        break // If it fails on subsequent pages, assume we're done
+        break // Si falla en páginas siguientes, asumimos que terminamos
       }
       
       const workflowsData = await workflowsResponse.json()
@@ -166,20 +162,17 @@ export async function GET(request: NextRequest) {
     
     console.log(`📋 Total workflows obtenidos (todas las páginas): ${allWorkflowsFromAPI.length}`)
     
-    // Also try to get the specific workflow directly by its path
+    // También intentar obtener el workflow específico directamente por su path
     try {
-      const specificWorkflowResponse = await throttledFetch(
+      const specificWorkflowResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/actions/workflows/qa_us_coreux_regression.yml`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
-          retries: 2,
-          retryDelay: 1500,
-          checkRateLimit: true
-        }
-      )
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    )
       
       if (specificWorkflowResponse.ok) {
         const specificWorkflow = await specificWorkflowResponse.json()
@@ -253,18 +246,15 @@ export async function GET(request: NextRequest) {
     console.log(`📊 Resumen de workflows: Total=${workflows.length}, Active=${workflows.filter((w: any) => w.state === 'active').length}, Disabled=${workflows.filter((w: any) => w.state === 'disabled_manually').length}`)
     console.log(`📊 NO se aplican filtros - todos los workflows se devuelven`)
     
-    // 🔍 NEW: Check if the file exists directly in GitHub
+    // 🔍 NUEVO: Verificar si el archivo existe directamente en GitHub
     try {
-      const fileCheckResponse = await throttledFetch(
+      const fileCheckResponse = await fetch(
         `https://api.github.com/repos/${fullRepoName}/contents/.github/workflows/qa_us_coreux_regression.yml`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/vnd.github.v3+json',
           },
-          retries: 2,
-          retryDelay: 1500,
-          checkRateLimit: true
         }
       )
       
@@ -283,18 +273,15 @@ export async function GET(request: NextRequest) {
       } else if (fileCheckResponse.status === 404) {
         console.log(`❌ El archivo qa_us_coreux_regression.yml NO existe en .github/workflows/`)
         
-        // Try to find the file with name variations
-        console.log(`🔍 Searching for similar files in .github/workflows/...`)
-        const workflowsDirResponse = await throttledFetch(
+        // Intentar buscar el archivo con variaciones del nombre
+        console.log(`🔍 Buscando archivos similares en .github/workflows/...`)
+        const workflowsDirResponse = await fetch(
           `https://api.github.com/repos/${fullRepoName}/contents/.github/workflows`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Accept': 'application/vnd.github.v3+json',
             },
-            retries: 2,
-            retryDelay: 1500,
-            checkRateLimit: true
           }
         )
         
@@ -315,29 +302,21 @@ export async function GET(request: NextRequest) {
       console.error(`❌ Error verificando archivo:`, fileError)
     }
 
-    // Get detailed information for each workflow
+    // Obtener información detallada de cada workflow
     const workflowsWithInputs: WorkflowInfo[] = []
     
-    // Process workflows in small batches to avoid rate limits
-    const WORKFLOW_BATCH_SIZE = 3
-    for (let i = 0; i < workflows.length; i += WORKFLOW_BATCH_SIZE) {
-      const batch = workflows.slice(i, i + WORKFLOW_BATCH_SIZE)
-      
-      await Promise.all(batch.map(async (workflow: any) => {
-        try {
-          // Get workflow YAML file
-          const yamlResponse = await throttledFetch(
-            `https://api.github.com/repos/${fullRepoName}/contents/${workflow.path}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/vnd.github.v3+json',
-              },
-              retries: 2,
-              retryDelay: 1500,
-              checkRateLimit: true
-            }
-          )
+    for (const workflow of workflows) {
+      try {
+        // Obtener el archivo YAML del workflow
+        const yamlResponse = await fetch(
+          `https://api.github.com/repos/${fullRepoName}/contents/${workflow.path}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        )
         
         let inputs: WorkflowInput[] = []
         if (yamlResponse.ok) {
@@ -348,31 +327,25 @@ export async function GET(request: NextRequest) {
           }
         }
         
-          workflowsWithInputs.push({
-            id: workflow.id,
-            name: workflow.name,
-            path: workflow.path,
-            state: workflow.state,
-            inputs: inputs,
-            html_url: workflow.html_url
-          })
-        } catch (error) {
-          console.error(`Error getting workflow ${workflow.name}:`, error)
-          // Add workflow without inputs if there's an error
-          workflowsWithInputs.push({
-            id: workflow.id,
-            name: workflow.name,
-            path: workflow.path,
-            state: workflow.state,
-            inputs: [],
-            html_url: workflow.html_url
-          })
-        }
-      }))
-      
-      // Delay between batches to avoid rate limits
-      if (i + WORKFLOW_BATCH_SIZE < workflows.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        workflowsWithInputs.push({
+          id: workflow.id,
+          name: workflow.name,
+          path: workflow.path,
+          state: workflow.state,
+          inputs: inputs,
+          html_url: workflow.html_url
+        })
+      } catch (error) {
+        console.error(`Error getting workflow ${workflow.name}:`, error)
+        // Agregar workflow sin inputs si hay error
+        workflowsWithInputs.push({
+          id: workflow.id,
+          name: workflow.name,
+          path: workflow.path,
+          state: workflow.state,
+          inputs: [],
+          html_url: workflow.html_url
+        })
       }
     }
 
