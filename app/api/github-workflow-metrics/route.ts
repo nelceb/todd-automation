@@ -326,7 +326,7 @@ export async function GET(request: NextRequest) {
         if (secondHalfRuns > firstHalfRuns * 1.1) trend = 'up'
         else if (secondHalfRuns < firstHalfRuns * 0.9) trend = 'down'
 
-        workflowMetrics.push({
+        return {
           workflow_id: workflow.id.toString(),
           workflow_name: workflow.name,
           total_runs: totalRuns,
@@ -344,7 +344,7 @@ export async function GET(request: NextRequest) {
           automatic_runs: automaticRuns,
           manual_run_percentage: manualRunPercentage,
           trigger_breakdown: triggerBreakdown
-        })
+        }
 
         } catch (error) {
           console.warn(`Error processing workflow ${workflow.name}:`, error)
@@ -353,11 +353,11 @@ export async function GET(request: NextRequest) {
       }))
       
       // Filter nulls and add to workflowMetrics
-      batchResults
-        .filter((result): result is WorkflowMetrics => result !== null)
-        .forEach(result => {
+      for (const result of batchResults) {
+        if (result !== null) {
           workflowMetrics.push(result)
-        })
+        }
+      }
       
       // Longer pause between batches to avoid rate limiting
       if (i + BATCH_SIZE < workflows.length) {
