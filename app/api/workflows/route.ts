@@ -323,7 +323,7 @@ export async function GET(request: NextRequest) {
     for (let i = 0; i < workflows.length; i += WORKFLOW_BATCH_SIZE) {
       const batch = workflows.slice(i, i + WORKFLOW_BATCH_SIZE)
       
-      await Promise.all(batch.map(async (workflow) => {
+      await Promise.all(batch.map(async (workflow: any) => {
         try {
           // Get workflow YAML file
           const yamlResponse = await throttledFetch(
