@@ -1319,7 +1319,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                                 href={logs.run.htmlUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                  className="inline-flex items-center space-x-2 text-sm sm:text-base font-mono text-white transition-colors px-3 py-2 sm:px-4 sm:py-2 border-2 border-airforce-600 rounded-lg hover:border-airforce-500 bg-airforce-500 hover:bg-airforce-600 shadow-md min-h-[44px]"
+                                  className="inline-flex items-center space-x-2 text-sm sm:text-base font-mono text-blue-400 hover:text-blue-300 transition-colors px-3 py-2 sm:px-4 sm:py-2 border border-blue-500/30 rounded-lg hover:border-blue-500/50 bg-transparent min-h-[44px]"
                               >
                                 <span>View on GitHub</span>
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -7,7 +7,7 @@ interface FailurePattern {
   pattern: string
   count: number
   workflows: string[]
-  examples: Array<{ text: string; workflow: string }>
+  examples: Array<{ text: string; workflow: string; runId?: number; fullSummary?: string }>
 }
 
 interface FailureAnalysis {
@@ -26,99 +26,113 @@ interface FailureAnalysis {
   }>
 }
 
-// Función para extraer ejemplo conciso y relevante del summary
-function extractConciseExample(summary: string, patternName: string): string | null {
+// Función para extraer ejemplo con más información del summary
+function extractDetailedExample(summary: string, patternName: string): { text: string; fullSummary: string } | null {
   // Eliminar texto genérico al inicio
   let cleaned = summary
     .replace(/^Based on (the|your).*?here (are|is).*?:\s*/i, '')
     .replace(/^Let's analyze.*?:\s*/i, '')
     .trim()
   
+  // Buscar secciones completas de error con más contexto
+  // Intentar extraer: nombre del test, tipo de error, mensaje completo, y código/locator si está disponible
+  
   // Buscar formato "1. **Test Name** o **Error Type**: **Error**: mensaje"
-  const numberedErrorMatch = cleaned.match(/(\d+\.\s*)?\*\*([^:]+?)\*\*[:\s]*\*\*(Error|Errors?|Issue|Problem|Timeout)[:\s]*\*\*[:\s]*([^\n]+)/i)
+  const numberedErrorMatch = cleaned.match(/(\d+\.\s*)?\*\*([^:]+?)\*\*[:\s]*\*\*(Error|Errors?|Issue|Problem|Timeout)[:\s]*\*\*[:\s]*([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n\d+\.|\n\*\*|$)/i)
   if (numberedErrorMatch) {
     const testName = numberedErrorMatch[2]?.trim()
     const errorType = numberedErrorMatch[3]?.trim()
     const errorMessage = numberedErrorMatch[4]?.trim()
     
     if (testName && errorMessage) {
-      // Incluir nombre del test y mensaje de error
-      const testPart = testName.length > 50 ? testName.substring(0, 47) + '...' : testName
-      const msgPart = errorMessage.length > 100 ? errorMessage.substring(0, 97) + '...' : errorMessage
-      return `**${testPart}**: ${msgPart}`
+      // Buscar código o locator en el mensaje
+      const codeMatch = errorMessage.match(/(?:locator|page\.|element|selector)[^\n]{0,200}/i)
+      const codeSnippet = codeMatch ? codeMatch[0] : null
+      
+      // Construir mensaje con más contexto
+      let detailedText = `**${testName}**: **${errorType}**: ${errorMessage.substring(0, 300)}`
+      if (codeSnippet && !detailedText.includes(codeSnippet)) {
+        detailedText += `\n\n**Code/Locator**: \`${codeSnippet.substring(0, 150)}\``
+      }
+      
+      return {
+        text: detailedText.length > 500 ? detailedText.substring(0, 497) + '...' : detailedText,
+        fullSummary: summary
+      }
     }
   }
   
-  // Buscar formato "**Error Type**: **Error**: mensaje" o "**Error Type**: mensaje"
-  const errorTypeMatch = cleaned.match(/\*\*([^:]+?)\*\*[:\s]*\*\*(Error|Errors?|Timeout)[:\s]*\*\*[:\s]*([^\n]+)/i)
+  // Buscar formato "**Error Type**: **Error**: mensaje" con más líneas
+  const errorTypeMatch = cleaned.match(/\*\*([^:]+?)\*\*[:\s]*\*\*(Error|Errors?|Timeout)[:\s]*\*\*[:\s]*([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n\*\*|$)/i)
   if (errorTypeMatch) {
     const errorType = errorTypeMatch[1]?.trim()
     const errorMessage = errorTypeMatch[3]?.trim()
     if (errorType && errorMessage) {
-      const typePart = errorType.length > 40 ? errorType.substring(0, 37) + '...' : errorType
-      const msgPart = errorMessage.length > 120 ? errorMessage.substring(0, 117) + '...' : errorMessage
-      return `**${typePart}**: ${msgPart}`
+      // Buscar código o locator
+      const codeMatch = errorMessage.match(/(?:locator|page\.|element|selector|\.click|\.fill|\.waitFor)[^\n]{0,200}/i)
+      const codeSnippet = codeMatch ? codeMatch[0] : null
+      
+      let detailedText = `**${errorType}**: ${errorMessage.substring(0, 400)}`
+      if (codeSnippet && !detailedText.includes(codeSnippet)) {
+        detailedText += `\n\n**Code/Locator**: \`${codeSnippet.substring(0, 150)}\``
+      }
+      
+      return {
+        text: detailedText.length > 600 ? detailedText.substring(0, 597) + '...' : detailedText,
+        fullSummary: summary
+      }
     }
   }
   
-  // Buscar formato simple "**Error**: mensaje" pero con más contexto
-  const simpleErrorMatch = cleaned.match(/\*\*Error[:\s]*\*\*[:\s]*([^\n]+)/i)
-  if (simpleErrorMatch && simpleErrorMatch[1]) {
-    const errorMsg = simpleErrorMatch[1].trim()
-    // Buscar si hay un test name o elemento antes del error
-    const beforeError = cleaned.substring(0, simpleErrorMatch.index || 0)
-    const testNameMatch = beforeError.match(/\*\*([^:]+?)\*\*[:\s]*$/)
-    if (testNameMatch && testNameMatch[1]) {
-      const testName = testNameMatch[1].trim()
-      const shortMsg = errorMsg.length > 100 ? errorMsg.substring(0, 97) + '...' : errorMsg
-      return `**${testName}**: ${shortMsg}`
-    }
-    const shortMsg = errorMsg.length > 200 ? errorMsg.substring(0, 197) + '...' : errorMsg
-    return `**Error**: ${shortMsg}`
-  }
-  
-  // Buscar timeout errors con contexto
-  const timeoutMatch = cleaned.match(/(?:TimeoutError|timeout)[:\s]+([^\n]+)/i)
+  // Buscar timeout errors con más contexto
+  const timeoutMatch = cleaned.match(/(?:TimeoutError|timeout)[:\s]+([^\n]+(?:\n[^\n]+)*?)(?=\n\n|\n\*\*|$)/i)
   if (timeoutMatch && timeoutMatch[1]) {
+    const timeoutMsg = timeoutMatch[1].trim()
     // Buscar qué elemento o acción causó el timeout
     const beforeTimeout = cleaned.substring(0, timeoutMatch.index || 0)
-    const elementMatch = beforeTimeout.match(/(?:element|locator|page\.(?:click|fill|waitFor))[^\n]*$/i)
-    const timeoutMsg = timeoutMatch[1].trim()
-    const shortMsg = timeoutMsg.length > 150 ? timeoutMsg.substring(0, 147) + '...' : timeoutMsg
+    const elementMatch = beforeTimeout.match(/(?:element|locator|page\.(?:click|fill|waitFor|getBy))[^\n]{0,150}/i)
     
+    let detailedText = ''
     if (elementMatch) {
-      const element = elementMatch[0].trim()
-      const elementShort = element.length > 40 ? element.substring(0, 37) + '...' : element
-      return `**${elementShort}**: ${shortMsg}`
+      detailedText = `**Element/Locator**: \`${elementMatch[0].trim()}\`\n\n**TimeoutError**: ${timeoutMsg.substring(0, 400)}`
+    } else {
+      detailedText = `**TimeoutError**: ${timeoutMsg.substring(0, 500)}`
     }
-    return `**TimeoutError**: ${shortMsg}`
+    
+    return {
+      text: detailedText.length > 600 ? detailedText.substring(0, 597) + '...' : detailedText,
+      fullSummary: summary
+    }
   }
   
-  // Buscar líneas con información de test/error (más contexto)
+  // Buscar líneas con información de test/error (más contexto - hasta 5 líneas)
   const lines = cleaned.split('\n').map(l => l.trim()).filter(l => 
     l.length > 15 && 
     !l.toLowerCase().includes('based on') &&
     !l.toLowerCase().includes('here are') &&
     !l.toLowerCase().includes('possible cause') &&
     !l.toLowerCase().includes('suggest') &&
-    (l.includes('Error') || l.includes('failed') || l.includes('timeout') || l.includes('**'))
+    (l.includes('Error') || l.includes('failed') || l.includes('timeout') || l.includes('**') || l.includes('locator') || l.includes('page.'))
   )
   
   if (lines.length > 0) {
-    // Tomar hasta 2 líneas, máximo 250 caracteres para más contexto
-    let result = lines.slice(0, 2).join(' ').trim()
+    // Tomar hasta 5 líneas para más contexto
+    let result = lines.slice(0, 5).join('\n').trim()
     // Limpiar markdown extra pero mantener estructura
     result = result.replace(/\*\*\*\*/g, '**')
-    if (result.length > 250) {
-      result = result.substring(0, 247) + '...'
+    return {
+      text: result.length > 800 ? result.substring(0, 797) + '...' : result,
+      fullSummary: summary
     }
-    return result
   }
   
-  // Último recurso: primeros 200 caracteres con contexto
+  // Último recurso: primeros 500 caracteres con contexto
   const fallback = cleaned.replace(/^[^:]*:\s*/, '').trim()
   if (fallback.length > 20) {
-    return fallback.length > 200 ? fallback.substring(0, 197) + '...' : fallback
+    return {
+      text: fallback.length > 500 ? fallback.substring(0, 497) + '...' : fallback,
+      fullSummary: summary
+    }
   }
   
   return null
@@ -241,16 +255,21 @@ function extractFailurePatterns(summariesWithRuns: Array<{ summary: string; runI
       patternData.runIds.add(runId) // Agregar runId único
       patternData.count = patternData.runIds.size // Contar runs únicos
       
-      // Extraer ejemplo conciso y relevante (limitado a 3 ejemplos por patrón)
-      if (patternData.examples.length < 3) {
-        const conciseExample = extractConciseExample(summary, matchedPattern.name)
-        if (conciseExample) {
+      // Extraer ejemplo detallado y relevante (limitado a 5 ejemplos por patrón)
+      if (patternData.examples.length < 5) {
+        const detailedExample = extractDetailedExample(summary, matchedPattern.name)
+        if (detailedExample) {
           // Verificar que no exista ya un ejemplo con el mismo texto y workflow
           const exampleExists = patternData.examples.some(
-            ex => ex.text === conciseExample && ex.workflow === workflow_name
+            ex => ex.text === detailedExample.text && ex.workflow === workflow_name
           )
           if (!exampleExists) {
-            patternData.examples.push({ text: conciseExample, workflow: workflow_name })
+            patternData.examples.push({ 
+              text: detailedExample.text, 
+              workflow: workflow_name,
+              runId: runId,
+              fullSummary: detailedExample.fullSummary
+            })
           }
         }
       }

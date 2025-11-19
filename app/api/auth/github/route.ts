@@ -6,21 +6,43 @@ export const dynamic = 'force-dynamic'
 // Función para generar JWT token para GitHub App
 function generateJWT() {
   const appId = process.env.GITHUB_APP_ID
-  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  let privateKey = process.env.GITHUB_APP_PRIVATE_KEY
   
-  if (!appId || !privateKey) {
-    throw new Error('GitHub App credentials not configured')
+  if (!appId) {
+    console.error('❌ GITHUB_APP_ID no está configurado')
+    throw new Error('GitHub App ID not configured')
+  }
+  
+  if (!privateKey) {
+    console.error('❌ GITHUB_APP_PRIVATE_KEY no está configurado')
+    throw new Error('GitHub App Private Key not configured')
+  }
+  
+  // Procesar la private key: reemplazar \\n con saltos de línea reales
+  privateKey = privateKey.replace(/\\n/g, '\n')
+  
+  // Validar que la private key tenga el formato correcto
+  if (!privateKey.includes('BEGIN RSA PRIVATE KEY') && !privateKey.includes('BEGIN PRIVATE KEY')) {
+    console.error('❌ GITHUB_APP_PRIVATE_KEY no tiene el formato correcto (debe ser una clave privada RSA)')
+    throw new Error('GitHub App Private Key has invalid format')
   }
 
-  const now = Math.floor(Date.now() / 1000)
-  
-  const payload = {
-    iat: now - 60, // Issued at (1 minute ago)
-    exp: now + 600, // Expires in 10 minutes
-    iss: appId // GitHub App ID
-  }
+  try {
+    const now = Math.floor(Date.now() / 1000)
+    
+    const payload = {
+      iat: now - 60, // Issued at (1 minute ago)
+      exp: now + 600, // Expires in 10 minutes
+      iss: appId // GitHub App ID
+    }
 
-  return jwt.sign(payload, privateKey, { algorithm: 'RS256' })
+    const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' })
+    console.log('✅ JWT generado exitosamente')
+    return token
+  } catch (error) {
+    console.error('❌ Error al generar JWT:', error instanceof Error ? error.message : 'Unknown error')
+    throw new Error(`Failed to generate JWT: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }
 
 // Función para obtener installation access token
@@ -37,7 +59,10 @@ async function getInstallationToken(installationId: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to get installation token: ${response.statusText}`)
+    const errorText = await response.text()
+    console.error(`❌ Error al obtener installation token: ${response.status} ${response.statusText}`)
+    console.error(`❌ Respuesta de GitHub: ${errorText}`)
+    throw new Error(`Failed to get installation token: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
   const data = await response.json()
@@ -57,7 +82,10 @@ async function getInstallations() {
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to get installations: ${response.statusText}`)
+    const errorText = await response.text()
+    console.error(`❌ Error al obtener instalaciones: ${response.status} ${response.statusText}`)
+    console.error(`❌ Respuesta de GitHub: ${errorText}`)
+    throw new Error(`Failed to get installations: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
   const installations = await response.json()
@@ -109,9 +137,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(installUrl)
 
   } catch (error) {
-    console.error('GitHub App error:', error)
+    console.error('❌ GitHub App error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Error de autenticación'
+    console.error('❌ Error details:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error de autenticación' },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      },
       { status: 500 }
     )
   }

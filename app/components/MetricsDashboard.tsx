@@ -79,7 +79,7 @@ interface FailurePattern {
   pattern: string
   count: number
   workflows: string[]
-  examples: Array<{ text: string; workflow: string }>
+  examples: Array<{ text: string; workflow: string; runId?: number; fullSummary?: string }>
 }
 
 interface FailureAnalysis {
@@ -877,30 +877,90 @@ export default function MetricsDashboard() {
             </div>
                           )}
                           {failure.examples.length > 0 && (
-                            <details className="mt-1">
-                              <summary className="text-xs font-mono cursor-pointer hover:underline" style={{ color: '#6B7280' }}>
+                            <details className="mt-1" open>
+                              <summary className="text-xs font-mono cursor-pointer hover:underline font-semibold mb-1" style={{ color: '#4B5563' }}>
                                 View examples ({failure.examples.length})
                               </summary>
-                              <div className="mt-1 space-y-1">
+                              <div className="mt-1 space-y-2">
                                 {failure.examples.map((example, exIdx) => {
                                   const exampleText = typeof example === 'object' && 'text' in example ? example.text : String(example)
                                   const exampleWorkflow = typeof example === 'object' && 'workflow' in example ? example.workflow : (failure.workflows[0] || 'Unknown')
+                                  const runId = typeof example === 'object' && 'runId' in example ? example.runId : undefined
+                                  const fullSummary = typeof example === 'object' && 'fullSummary' in example ? example.fullSummary : undefined
                                   
                                   return (
                                     <div
                                       key={exIdx}
-                                      className="bg-white border border-gray-200 rounded p-1.5 text-xs font-mono"
+                                      className="bg-white border border-gray-200 rounded-lg p-3 text-xs font-mono shadow-sm"
                                       style={{ color: '#1F2937' }}
                                     >
-                                      <div className="mb-1">
-                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-blue-100 border border-blue-300" style={{ color: '#1E40AF' }}>
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-blue-100 border border-blue-300 font-semibold" style={{ color: '#1E40AF' }}>
                                           {exampleWorkflow}
                                         </span>
-              </div>
-                                      <div>
-                                        {exampleText}
-              </div>
-              </div>
+                                        {runId && (
+                                          <a
+                                            href={`https://github.com/${metrics?.repository || 'Cook-Unity/pw-cookunity-automation'}/actions/runs/${runId}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800 hover:underline text-xs"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            View Run →
+                                          </a>
+                                        )}
+                                      </div>
+                                      <div className="whitespace-pre-wrap leading-relaxed mb-2">
+                                        {exampleText.split('\n').map((line, lineIdx) => {
+                                          // Renderizar markdown básico
+                                          if (line.startsWith('**') && line.includes('**:')) {
+                                            const parts = line.split('**:')
+                                            const boldPart = parts[0].replace(/\*\*/g, '')
+                                            const rest = parts.slice(1).join('**:')
+                                            return (
+                                              <div key={lineIdx} className="mb-1">
+                                                <strong className="font-semibold">{boldPart}</strong>
+                                                {rest && <span>{rest}</span>}
+                                              </div>
+                                            )
+                                          }
+                                          if (line.startsWith('**') && line.endsWith('**')) {
+                                            return (
+                                              <div key={lineIdx} className="mb-1">
+                                                <strong className="font-semibold">{line.replace(/\*\*/g, '')}</strong>
+                                              </div>
+                                            )
+                                          }
+                                          if (line.includes('`')) {
+                                            const codeParts = line.split('`')
+                                            return (
+                                              <div key={lineIdx} className="mb-1">
+                                                {codeParts.map((part, partIdx) => 
+                                                  partIdx % 2 === 1 ? (
+                                                    <code key={partIdx} className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono" style={{ color: '#DC2626' }}>
+                                                      {part}
+                                                    </code>
+                                                  ) : (
+                                                    <span key={partIdx}>{part}</span>
+                                                  )
+                                                )}
+                                              </div>
+                                            )
+                                          }
+                                          return <div key={lineIdx} className="mb-1">{line || '\u00A0'}</div>
+                                        })}
+                                      </div>
+                                      {fullSummary && fullSummary.length > exampleText.length && (
+                                        <details className="mt-2">
+                                          <summary className="text-xs cursor-pointer hover:underline" style={{ color: '#6B7280' }}>
+                                            Show full error details
+                                          </summary>
+                                          <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200 text-xs font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+                                            {fullSummary}
+                                          </div>
+                                        </details>
+                                      )}
+                                    </div>
                                   )
                                 })}
                               </div>

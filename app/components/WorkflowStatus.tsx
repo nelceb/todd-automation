@@ -849,7 +849,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={workflowState.htmlUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-sm font-mono text-white flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border-2 border-airforce-600 hover:border-airforce-500 bg-airforce-500 hover:bg-airforce-600 shadow-md transition-colors min-h-[44px]"
+                                  className="text-sm font-mono text-blue-400 hover:text-blue-300 flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors min-h-[44px]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
@@ -893,10 +893,10 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                                   href={githubUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center px-2 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 transition-colors"
+                                  className="text-sm font-mono text-blue-400 hover:text-blue-300 flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-blue-500/30 hover:border-blue-500/50 bg-transparent transition-colors min-h-[44px]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ArrowTopRightOnSquareIcon className="w-3 h-3 mr-1" />
+                                  <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-1.5" />
                                   View on GitHub
                                 </a>
                               </div>

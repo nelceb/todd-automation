@@ -9262,15 +9262,51 @@ async function triggerTestExecution(
     
     console.log(`✅ Workflow encontrado: ${workflow.name} (ID: ${workflow.id})`);
     
+    // Obtener el YAML del workflow para verificar qué inputs acepta
+    let branchInputName: string | null = null;
+    try {
+      const workflowFileResponse = await fetch(
+        `https://api.github.com/repos/${repository}/contents/${workflow.path}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      if (workflowFileResponse.ok) {
+        const workflowFileData = await workflowFileResponse.json();
+        if (workflowFileData.content) {
+          const yamlContent = Buffer.from(workflowFileData.content, 'base64').toString('utf-8');
+          // Buscar el nombre exacto del input de branch
+          const branchMatch = yamlContent.match(/(branch):/i);
+          if (branchMatch) {
+            branchInputName = branchMatch[1];
+            console.log(`🔍 Workflow acepta branch como input: ${branchInputName}`);
+          }
+        }
+      }
+    } catch (yamlError) {
+      console.log('⚠️ No se pudo verificar inputs del workflow, asumiendo que acepta branch');
+      branchInputName = 'branch'; // Asumir que acepta branch por defecto
+    }
+    
     // Preparar inputs para el workflow
-    // Necesitamos pasar el spec file y el ticket ID como inputs
     const inputs: Record<string, string> = {
       environment: 'qa',
       groups: '@coreUx'
     };
     
-    // Si el workflow acepta test_file o spec_file como input, pasarlo
-    // Esto depende de cómo esté configurado el workflow
+    // Agregar branch si el workflow lo acepta y tenemos un branch name
+    if (branchName) {
+      // Si encontramos el nombre del input, usarlo; si no, usar 'branch' como default
+      const inputName = branchInputName || 'branch';
+      inputs[inputName] = branchName;
+      console.log(`✅ Agregado ${inputName}: ${branchName}`);
+    }
+    
+    console.log(`📋 Inputs preparados:`, inputs);
     
     // Triggerear el workflow en el branch recién creado
     const triggerUrl = `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/dispatches`;
