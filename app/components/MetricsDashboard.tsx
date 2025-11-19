@@ -121,6 +121,7 @@ export default function MetricsDashboard() {
   const [pieChartFlipped, setPieChartFlipped] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [failureAnalysis, setFailureAnalysis] = useState<FailureAnalysis | null>(null)
+  const [failureAnalysisByRange, setFailureAnalysisByRange] = useState<Record<string, FailureAnalysis>>({})
   const [loadingFailureAnalysis, setLoadingFailureAnalysis] = useState(false)
 
   // Load state from sessionStorage on mount to preserve state between tab switches
@@ -174,6 +175,8 @@ export default function MetricsDashboard() {
                 const expectedDays = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30
                 if (parsedFailureAnalysis.period.days === expectedDays) {
                   setFailureAnalysis(parsedFailureAnalysis)
+                  // También guardar en memoria
+                  setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: parsedFailureAnalysis }))
                   console.log('Restored failure analysis from session for', timeRange, ':', parsedFailureAnalysis)
                 } else {
                   // Cache no coincide, limpiar y recargar
@@ -240,9 +243,17 @@ export default function MetricsDashboard() {
   useEffect(() => {
     if (!loading && metrics && !loadingFailureAnalysis) {
       const expectedDays = getDaysFromTimeRange(timeRange)
-      
-      // Verificar si ya tenemos datos para este timeRange específico en cache
       const cachedKey = `failure-analysis-${timeRange}`
+      
+      // PRIMERO: Verificar si ya tenemos datos en failureAnalysisByRange para este timeRange
+      if (failureAnalysisByRange[timeRange] && failureAnalysisByRange[timeRange].period.days === expectedDays) {
+        console.log('✅ Failure analysis already in memory for', timeRange, '- using it, NO FETCH, NO LOADING')
+        setFailureAnalysis(failureAnalysisByRange[timeRange])
+        setLoadingFailureAnalysis(false)
+        return
+      }
+      
+      // SEGUNDO: Verificar cache en sessionStorage ANTES de hacer cualquier cosa
       const cached = sessionStorage.getItem(cachedKey)
       
       if (cached) {
@@ -250,11 +261,15 @@ export default function MetricsDashboard() {
           const parsed = JSON.parse(cached)
           // Verificar que el cache sea para el mismo timeRange
           if (parsed.period.days === expectedDays) {
-            console.log('✅ Using cached failure analysis for', timeRange)
+            console.log('✅ Using cached failure analysis for', timeRange, 'from sessionStorage - NO FETCH, NO LOADING')
             setFailureAnalysis(parsed)
-            return
+            // Guardar en memoria también
+            setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: parsed }))
+            setLoadingFailureAnalysis(false) // Asegurar que no esté en loading
+            return // Usar cache, NO hacer fetch, NO mostrar loading
           } else {
             // Cache no coincide, limpiarlo
+            console.log('⚠️ Cache mismatch, clearing', cachedKey)
             sessionStorage.removeItem(cachedKey)
           }
         } catch (e) {
@@ -263,29 +278,20 @@ export default function MetricsDashboard() {
         }
       }
       
-      // Si no hay cache válido, cargar
-      console.log('🔄 useEffect: Conditions met, calling fetchFailureAnalysis', {
+      // TERCERO: Si no hay cache válido ni en memoria, hacer fetch
+      console.log('🔄 useEffect: No cache found, calling fetchFailureAnalysis', {
         loading,
         hasMetrics: !!metrics,
         timeRange,
         expectedDays,
         hasCache: !!cached,
+        hasInMemory: !!failureAnalysisByRange[timeRange],
         loadingFailureAnalysis
       })
       fetchFailureAnalysis()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, metrics, timeRange, loadingFailureAnalysis])
-  
-  // Limpiar failureAnalysis cuando cambia el timeRange si no coincide
-  useEffect(() => {
-    if (failureAnalysis) {
-      const expectedDays = getDaysFromTimeRange(timeRange)
-      if (failureAnalysis.period.days !== expectedDays) {
-        console.log('🔄 TimeRange changed, clearing failure analysis (was', failureAnalysis.period.days, 'days, now', expectedDays, 'days)')
-        setFailureAnalysis(null)
-      }
-    }
-  }, [timeRange])
   
   const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
     // Si ya está cargando las métricas principales, esperar
@@ -299,7 +305,7 @@ export default function MetricsDashboard() {
       return
     }
     
-    // Verificar cache antes de hacer fetch
+    // Verificar cache ANTES de establecer loading
     const days = getDaysFromTimeRange(timeRange)
     const cachedKey = `failure-analysis-${timeRange}`
     
@@ -310,9 +316,10 @@ export default function MetricsDashboard() {
           const parsed = JSON.parse(cached)
           // Verificar que el cache sea para el mismo timeRange
           if (parsed.period.days === days) {
-            console.log('✅ Using cached failure analysis for', timeRange)
+            console.log('✅ Using cached failure analysis for', timeRange, '- skipping fetch')
             setFailureAnalysis(parsed)
-            return
+            setLoadingFailureAnalysis(false) // Asegurar que no esté en loading
+            return // Salir temprano, no hacer fetch
           }
         } catch (e) {
           console.error('Error parsing cached failure analysis:', e)
@@ -320,6 +327,7 @@ export default function MetricsDashboard() {
       }
     }
     
+    // Solo establecer loading si realmente vamos a hacer fetch
     try {
       console.log('🚀 Fetching failure analysis...', { repo: metrics?.repository, timeRange, days })
       setLoadingFailureAnalysis(true)
@@ -343,9 +351,10 @@ export default function MetricsDashboard() {
       })
       setFailureAnalysis(data)
       
-      // Guardar en cache por timeRange
+      // Guardar en cache por timeRange (sessionStorage y memoria)
       sessionStorage.setItem(cachedKey, JSON.stringify(data))
-      console.log('✅ Failure analysis cached for', timeRange)
+      setFailureAnalysisByRange(prev => ({ ...prev, [timeRange]: data }))
+      console.log('✅ Failure analysis cached for', timeRange, '(sessionStorage + memory)')
     } catch (err) {
       console.error('❌ Error fetching failure analysis:', err)
       setFailureAnalysis(null)
