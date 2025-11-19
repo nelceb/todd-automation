@@ -125,6 +125,62 @@ export default function MetricsDashboard() {
   const [loadingFailureAnalysis, setLoadingFailureAnalysis] = useState(false)
   const [metricsByRange, setMetricsByRange] = useState<Record<string, MetricsData>>({})
 
+  // Restore all metrics from cache on mount (to preserve state when switching tabs)
+  useEffect(() => {
+    // Restore metricsByRange from localStorage for all timeRanges
+    const ranges: ('24h' | '7d' | '30d')[] = ['24h', '7d', '30d']
+    const restoredMetricsByRange: Record<string, MetricsData> = {}
+    
+    ranges.forEach(range => {
+      const cachedData = localStorage.getItem(`metrics-${range}`)
+      const cachedTimestamp = localStorage.getItem(`metrics-${range}-timestamp`)
+      
+      if (cachedData && cachedTimestamp) {
+        const timestamp = parseInt(cachedTimestamp, 10)
+        const now = Date.now()
+        // Cache válido por 5 minutos
+        if (now - timestamp < 5 * 60 * 1000) {
+          try {
+            const parsedData = JSON.parse(cachedData)
+            restoredMetricsByRange[range] = parsedData
+          } catch (e) {
+            console.error(`Error parsing cached metrics for ${range}:`, e)
+          }
+        }
+      }
+    })
+    
+    // Restore failureAnalysisByRange from sessionStorage for all timeRanges
+    const restoredFailureAnalysisByRange: Record<string, FailureAnalysis> = {}
+    
+    ranges.forEach(range => {
+      const cachedKey = `failure-analysis-${range}`
+      const sessionFailureAnalysis = sessionStorage.getItem(cachedKey)
+      if (sessionFailureAnalysis) {
+        try {
+          const parsedFailureAnalysis = JSON.parse(sessionFailureAnalysis)
+          const expectedDays = range === '24h' ? 1 : range === '7d' ? 7 : 30
+          if (parsedFailureAnalysis.period.days === expectedDays) {
+            restoredFailureAnalysisByRange[range] = parsedFailureAnalysis
+          }
+        } catch (e) {
+          console.error(`Error parsing cached failure analysis for ${range}:`, e)
+        }
+      }
+    })
+    
+    // Restore to state if we found any cached data
+    if (Object.keys(restoredMetricsByRange).length > 0) {
+      setMetricsByRange(restoredMetricsByRange)
+      console.log('✅ Restored metricsByRange from cache:', Object.keys(restoredMetricsByRange))
+    }
+    
+    if (Object.keys(restoredFailureAnalysisByRange).length > 0) {
+      setFailureAnalysisByRange(restoredFailureAnalysisByRange)
+      console.log('✅ Restored failureAnalysisByRange from cache:', Object.keys(restoredFailureAnalysisByRange))
+    }
+  }, []) // Only run on mount
+
   // Load metrics when timeRange changes - check memory first, then cache, then fetch
   useEffect(() => {
     // PRIMERO: Verificar si ya tenemos datos en memoria para este timeRange
@@ -186,7 +242,7 @@ export default function MetricsDashboard() {
     // TERCERO: Si no hay cache válido ni en memoria, hacer fetch
     console.log('🔄 No cache found for', timeRange, '- fetching metrics')
     fetchMetrics()
-  }, [timeRange])
+  }, [timeRange, metricsByRange, failureAnalysisByRange])
 
   // Save state to sessionStorage whenever it changes (excluding loading states)
   useEffect(() => {
