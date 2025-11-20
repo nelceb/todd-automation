@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
     // Fetch all target repositories with their workflows
     const repositories = await Promise.all(
       TARGET_REPOS.map(async (repoName) => {
+        // Declarar allWorkflowsFromAPI fuera del try para que esté disponible en el catch
+        let allWorkflowsFromAPI: any[] = []
+        
         try {
           // Get repository info
           const repoResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
@@ -75,7 +78,6 @@ export async function GET(request: NextRequest) {
           const repo = await repoResponse.json()
 
           // Get workflows with pagination to get ALL workflows
-          let allWorkflowsFromAPI: any[] = []
           let page = 1
           const perPage = 100
           
