@@ -138,8 +138,8 @@ export default function MetricsDashboard() {
       if (cachedData && cachedTimestamp) {
         const timestamp = parseInt(cachedTimestamp, 10)
         const now = Date.now()
-        // Cache válido por 5 minutos
-        if (now - timestamp < 5 * 60 * 1000) {
+        // Cache válido por 1 hora (más permisivo para evitar recargas)
+        if (now - timestamp < 60 * 60 * 1000) {
           try {
             const parsedData = JSON.parse(cachedData)
             restoredMetricsByRange[range] = parsedData
@@ -173,11 +173,26 @@ export default function MetricsDashboard() {
     if (Object.keys(restoredMetricsByRange).length > 0) {
       setMetricsByRange(restoredMetricsByRange)
       console.log('✅ Restored metricsByRange from cache:', Object.keys(restoredMetricsByRange))
+      
+      // IMPORTANTE: Restaurar inmediatamente el estado actual basado en timeRange
+      if (restoredMetricsByRange[timeRange]) {
+        setMetrics(restoredMetricsByRange[timeRange])
+        setLoading(false)
+        setError(null)
+        console.log('✅ Restored current metrics for', timeRange, 'from cache - NO FETCH, NO LOADING')
+      }
     }
     
     if (Object.keys(restoredFailureAnalysisByRange).length > 0) {
       setFailureAnalysisByRange(restoredFailureAnalysisByRange)
       console.log('✅ Restored failureAnalysisByRange from cache:', Object.keys(restoredFailureAnalysisByRange))
+      
+      // IMPORTANTE: Restaurar inmediatamente el failure analysis actual
+      if (restoredFailureAnalysisByRange[timeRange]) {
+        setFailureAnalysis(restoredFailureAnalysisByRange[timeRange])
+        setLoadingFailureAnalysis(false)
+        console.log('✅ Restored current failure analysis for', timeRange, 'from cache - NO FETCH, NO LOADING')
+      }
     }
   }, []) // Only run on mount
 
@@ -198,15 +213,15 @@ export default function MetricsDashboard() {
       return
     }
     
-    // SEGUNDO: Verificar cache en localStorage
+    // SEGUNDO: Verificar cache en localStorage (solo si no está en memoria)
     const cachedData = localStorage.getItem(`metrics-${timeRange}`)
     const cachedTimestamp = localStorage.getItem(`metrics-${timeRange}-timestamp`)
     
     if (cachedData && cachedTimestamp) {
       const timestamp = parseInt(cachedTimestamp, 10)
       const now = Date.now()
-      // Cache válido por 5 minutos
-      if (now - timestamp < 5 * 60 * 1000) {
+      // Cache válido por 1 hora (más permisivo para evitar recargas)
+      if (now - timestamp < 60 * 60 * 1000) {
         try {
           const parsedData = JSON.parse(cachedData)
           setMetrics(parsedData)
@@ -240,9 +255,14 @@ export default function MetricsDashboard() {
     }
     
     // TERCERO: Si no hay cache válido ni en memoria, hacer fetch
-    console.log('🔄 No cache found for', timeRange, '- fetching metrics')
-    fetchMetrics()
-  }, [timeRange, metricsByRange, failureAnalysisByRange])
+    // PERO solo si realmente no hay datos (no hacer fetch si ya tenemos datos de otro timeRange)
+    if (!metrics) {
+      console.log('🔄 No cache found for', timeRange, '- fetching metrics')
+      fetchMetrics()
+    } else {
+      console.log('⚠️ No cache for', timeRange, 'but have metrics for other range - not fetching')
+    }
+  }, [timeRange]) // Removed metricsByRange and failureAnalysisByRange from dependencies to avoid re-runs
 
   // Save state to sessionStorage whenever it changes (excluding loading states)
   useEffect(() => {
