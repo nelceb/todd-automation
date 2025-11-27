@@ -347,6 +347,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
     set({ isPollingLogs: true })
     
+    let finalCheckScheduled = false
+    
     const pollInterval = setInterval(async () => {
       const { isPollingLogs: stillPolling } = get()
       if (!stillPolling) {
@@ -358,18 +360,24 @@ export const useWorkflowStore = create<WorkflowStore>()(
       
       // Check the updated logs after fetching
       const { currentLogs: updatedLogs } = get()
-      console.log('🔍 Polling logs - Current status:', updatedLogs?.run.status, 'Conclusion:', updatedLogs?.run.conclusion)
+      console.log('🔍 Polling logs - Current status:', updatedLogs?.run.status, 'Conclusion:', updatedLogs?.run.conclusion, 'Has reportArtifact:', !!updatedLogs?.reportArtifact)
       
       // Check if workflow is finished (including external cancellations)
       if (updatedLogs?.run.status === 'completed' || updatedLogs?.run.status === 'failed' || updatedLogs?.run.status === 'cancelled') {
-        console.log('🛑 Stopping polling - workflow finished with status:', updatedLogs?.run.status, 'conclusion:', updatedLogs?.run.conclusion)
-        
-        // If workflow was cancelled externally, show a message
-        if (updatedLogs?.run.status === 'cancelled') {
-          console.log('🔄 Workflow was cancelled externally from GitHub')
+        // Schedule a final check after a delay to ensure we get the final artifact (S3 URL may appear after completion)
+        if (!finalCheckScheduled) {
+          finalCheckScheduled = true
+          console.log('🛑 Workflow finished - scheduling final check for artifacts in 3 seconds...')
+          
+          setTimeout(async () => {
+            console.log('🔍 Final check - fetching logs one more time to get final artifacts')
+            await get().fetchWorkflowLogs(runId, token, repository)
+            const { currentLogs: finalLogs } = get()
+            console.log('✅ Final check complete - Has reportArtifact:', !!finalLogs?.reportArtifact, 'isViewable:', finalLogs?.reportArtifact?.isViewable)
+            
+            get().stopPollingLogs()
+          }, 3000) // Wait 3 seconds before final check
         }
-        
-        get().stopPollingLogs()
         return
       }
       
@@ -380,11 +388,20 @@ export const useWorkflowStore = create<WorkflowStore>()(
         )
         
         if (allJobsCompleted) {
-          const failedJobs = updatedLogs.logs.filter((log: any) => 
-            log.conclusion === 'failure' || log.conclusion === 'cancelled'
-          )
-          console.log('🛑 Stopping polling - all jobs completed. Failed jobs:', failedJobs.map((job: any) => job.jobName))
-          get().stopPollingLogs()
+          // Schedule a final check after a delay to ensure we get the final artifact
+          if (!finalCheckScheduled) {
+            finalCheckScheduled = true
+            console.log('🛑 All jobs completed - scheduling final check for artifacts in 3 seconds...')
+            
+            setTimeout(async () => {
+              console.log('🔍 Final check - fetching logs one more time to get final artifacts')
+              await get().fetchWorkflowLogs(runId, token, repository)
+              const { currentLogs: finalLogs } = get()
+              console.log('✅ Final check complete - Has reportArtifact:', !!finalLogs?.reportArtifact, 'isViewable:', finalLogs?.reportArtifact?.isViewable)
+              
+              get().stopPollingLogs()
+            }, 3000) // Wait 3 seconds before final check
+          }
           return
         }
       }
@@ -399,6 +416,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
     if (isPollingLogs) return
 
     set({ isPollingLogs: true })
+    
+    const finishedRunIds = new Set<string>()
+    let finalCheckScheduled = false
     
     const pollInterval = setInterval(async () => {
       const { isPollingLogs: stillPolling } = get()
@@ -426,6 +446,19 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
       const logs = await Promise.all(logsPromises)
       const validLogs = logs.filter(log => log !== null)
+      
+      // Track which workflows just finished
+      validLogs.forEach(log => {
+        const workflowFinished = log.run.status === 'completed' || log.run.status === 'failed' || log.run.status === 'cancelled'
+        const allJobsCompleted = log.logs ? log.logs.every((jobLog: any) => 
+          jobLog.status === 'completed' || jobLog.status === 'failed' || jobLog.status === 'cancelled'
+        ) : true
+        
+        if (workflowFinished && allJobsCompleted && !finishedRunIds.has(log.run.id.toString())) {
+          finishedRunIds.add(log.run.id.toString())
+          console.log('🛑 Workflow finished:', log.run.id, 'Has reportArtifact:', !!log.reportArtifact, 'isViewable:', log.reportArtifact?.isViewable)
+        }
+      })
       
       // Update existing logs or add new ones
       set(state => {
@@ -470,10 +503,59 @@ export const useWorkflowStore = create<WorkflowStore>()(
       })
       
       if (allWorkflowsFinished) {
-        console.log('🛑 Stopping multiple logs polling - all workflows and jobs completed')
-        // Force a final update to ensure UI reflects the final state
-        set(state => ({ multipleLogs: state.multipleLogs }))
-        get().stopPollingLogs()
+        // Schedule a final check after a delay to ensure we get the final artifacts for all workflows
+        if (!finalCheckScheduled) {
+          finalCheckScheduled = true
+          console.log('🛑 All workflows finished - scheduling final check for artifacts in 3 seconds...')
+          
+          setTimeout(async () => {
+            console.log('🔍 Final check - fetching logs one more time to get final artifacts for all workflows')
+            
+            // Fetch logs for all run IDs one more time
+            const finalLogsPromises = runIds.map(async (runId, index) => {
+              try {
+                const repository = repositories?.[index] || 'maestro-test'
+                const repoParam = repository ? `&repository=${repository}` : ''
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+                const response = await fetch(`/api/workflow-logs?runId=${runId}${repoParam}`, { headers })
+                if (response.ok) {
+                  return await response.json()
+                }
+                return null
+              } catch (error) {
+                console.error(`Error fetching final logs for run ${runId}:`, error)
+                return null
+              }
+            })
+
+            const finalLogs = await Promise.all(finalLogsPromises)
+            const validFinalLogs = finalLogs.filter(log => log !== null)
+            
+            // Update with final logs
+            set(state => {
+              const existingLogs = state.multipleLogs
+              const updatedLogs = [...existingLogs]
+              
+              validFinalLogs.forEach(newLog => {
+                const existingIndex = updatedLogs.findIndex(log => log.run.id === newLog.run.id)
+                if (existingIndex >= 0) {
+                  updatedLogs[existingIndex] = newLog
+                } else {
+                  updatedLogs.push(newLog)
+                }
+              })
+              
+              return { multipleLogs: updatedLogs }
+            })
+            
+            console.log('✅ Final check complete for all workflows')
+            validFinalLogs.forEach(log => {
+              console.log(`  - Run ${log.run.id}: Has reportArtifact: ${!!log.reportArtifact}, isViewable: ${log.reportArtifact?.isViewable}`)
+            })
+            
+            get().stopPollingLogs()
+          }, 3000) // Wait 3 seconds before final check
+        }
       }
     }, 5000) // Poll every 5 seconds
 
