@@ -424,8 +424,9 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         
         // Collect all matches first with pattern priority
         branchPatterns.forEach((pattern, patternIndex) => {
-          const matches = [...userMessage.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))]
-          for (const match of matches) {
+          const regex = new RegExp(pattern.source, pattern.flags + 'g')
+          let match: RegExpExecArray | null
+          while ((match = regex.exec(userMessage)) !== null) {
             if (match[1]) {
               allMatches.push({ branch: match[1], index: match.index || 0, patternIndex })
             }
