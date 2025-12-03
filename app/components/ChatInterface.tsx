@@ -388,25 +388,85 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         // Extract branch from user message if specified
         // Only look for explicit branch mentions, not environment names
         const branchPatterns = [
-          /(?:on|in|from)\s+([a-zA-Z0-9\-_\/]+)\s+branch/i,
+          // Pattern 1: "on branch <branch-name>" or "in branch <branch-name>" (most specific - highest priority)
+          /(?:on|in)\s+branch\s+([a-zA-Z0-9\-_\/]+)/i,
+          // Pattern 2: "branch <branch-name>" but only if it looks like a valid branch name
+          // This pattern will match but we'll validate it later
           /branch\s+([a-zA-Z0-9\-_\/]+)/i,
-          /(?:on|in|from)\s+(main|master|develop|dev|staging|feature-[a-zA-Z0-9\-_]+|hotfix-[a-zA-Z0-9\-_]+|release-[a-zA-Z0-9\-_]+)/i
+          // Pattern 3: "on <branch-name>" or "in <branch-name>" (only for known branch patterns with prefixes)
+          /(?:on|in|from)\s+(feature\/[a-zA-Z0-9\-_\/]+|hotfix\/[a-zA-Z0-9\-_\/]+|release\/[a-zA-Z0-9\-_\/]+|bugfix\/[a-zA-Z0-9\-_\/]+|feature-[a-zA-Z0-9\-_]+|hotfix-[a-zA-Z0-9\-_]+|release-[a-zA-Z0-9\-_]+|bugfix-[a-zA-Z0-9\-_]+)/i,
+          // Pattern 4: Standard branch names (main, master, develop) - only if explicitly mentioned
+          /(?:on|in|from)\s+(main|master|develop)(?:\s|$)/i
         ]
         
         // Common environment names that should NOT be treated as branches
         const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
         
+        // Common words that should NOT be treated as branches
+        const invalidBranchWords = ['run', 'core', 'ux', 'smoke', 'regression', 'tests', 'test', 'e2e', 'qa', 'us', 'ca', 'signup', 'landings', 'growth', 'segment']
+        
+        // Valid branch name patterns
+        const validBranchPatterns = [
+          /^feature\/.+/,           // feature/xxx
+          /^hotfix\/.+/,            // hotfix/xxx
+          /^release\/.+/,           // release/xxx
+          /^bugfix\/.+/,            // bugfix/xxx
+          /^feature-.+/,            // feature-xxx
+          /^hotfix-.+/,             // hotfix-xxx
+          /^release-.+/,            // release-xxx
+          /^bugfix-.+/,             // bugfix-xxx
+          /^(main|master|develop)$/i, // main, master, develop
+          /^[a-zA-Z0-9\-_\/]{4,}$/  // At least 4 characters (to avoid "run", "qa", etc.)
+        ]
+        
         let targetBranch: string | undefined
-        for (const pattern of branchPatterns) {
-          const match = userMessage.match(pattern)
-          if (match) {
-            const potentialBranch = match[1]
-            // Only use as branch if it's not a common environment name
-            if (!environmentNames.includes(potentialBranch.toLowerCase())) {
-              targetBranch = potentialBranch
-              break
+        let allMatches: Array<{ branch: string; index: number; patternIndex: number }> = []
+        
+        // Collect all matches first with pattern priority
+        branchPatterns.forEach((pattern, patternIndex) => {
+          const matches = [...userMessage.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))]
+          for (const match of matches) {
+            if (match[1]) {
+              allMatches.push({ branch: match[1], index: match.index || 0, patternIndex })
             }
           }
+        })
+        
+        // Sort by pattern priority first (lower index = higher priority), then by position (last match)
+        allMatches.sort((a, b) => {
+          if (a.patternIndex !== b.patternIndex) {
+            return a.patternIndex - b.patternIndex // Lower pattern index = higher priority
+          }
+          return b.index - a.index // Later in text = higher priority for same pattern
+        })
+        
+        // Find the first valid branch (starting from highest priority)
+        for (const match of allMatches) {
+          const potentialBranch = match.branch
+          const potentialBranchLower = potentialBranch.toLowerCase()
+          
+          // Skip if it's an environment name or invalid word
+          if (environmentNames.includes(potentialBranchLower) || 
+              invalidBranchWords.includes(potentialBranchLower)) {
+            continue
+          }
+          
+          // For pattern 2 (just "branch <name>"), validate more strictly
+          if (match.patternIndex === 1) {
+            // Must match a valid branch pattern
+            const isValidBranch = validBranchPatterns.some(pattern => pattern.test(potentialBranch))
+            if (!isValidBranch) {
+              continue
+            }
+          }
+          
+          // Additional validation: must be at least 3 characters
+          if (potentialBranch.length < 3) {
+            continue
+          }
+          
+          targetBranch = potentialBranch
+          break
         }
         
         if (targetBranch) {

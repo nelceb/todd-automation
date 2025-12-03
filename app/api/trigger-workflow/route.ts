@@ -521,10 +521,27 @@ export async function POST(request: NextRequest) {
     // Disparar el workflow directamente
     // Always use 'main' as default branch
     const environmentNames = ['prod', 'production', 'qa', 'staging', 'dev', 'development', 'test', 'testing']
+    // Common words that should NOT be treated as branches
+    const invalidBranchWords = ['run', 'core', 'ux', 'smoke', 'regression', 'tests', 'test', 'e2e', 'signup', 'landings', 'growth', 'segment']
+    
     console.log('Original branch received:', branch)
     console.log('Is branch an environment name?', branch ? environmentNames.includes(branch.toLowerCase()) : false)
-    // Use provided branch only if it's explicitly set and not an environment name, otherwise default to 'main'
-    const targetBranch = (branch && branch.trim() && !environmentNames.includes(branch.toLowerCase())) ? branch.trim() : 'main'
+    
+    // Validate branch: must not be an environment name, invalid word, or too short
+    let targetBranch = 'main' // default
+    if (branch && branch.trim()) {
+      const branchLower = branch.trim().toLowerCase()
+      const isEnvironment = environmentNames.includes(branchLower)
+      const isInvalidWord = invalidBranchWords.includes(branchLower)
+      const isTooShort = branch.trim().length <= 2
+      
+      if (!isEnvironment && !isInvalidWord && !isTooShort) {
+        targetBranch = branch.trim()
+      } else {
+        console.log(`⚠️ Branch "${branch}" rejected: isEnvironment=${isEnvironment}, isInvalidWord=${isInvalidWord}, isTooShort=${isTooShort}`)
+      }
+    }
+    
     console.log('Final target branch:', targetBranch)
     const triggerUrl = `https://api.github.com/repos/${fullRepoName}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
