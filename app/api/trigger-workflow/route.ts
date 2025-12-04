@@ -497,8 +497,34 @@ export async function POST(request: NextRequest) {
             
             validInputs = Object.keys(inputs).reduce((acc, key) => {
               if (availableInputs.hasOwnProperty(key)) {
-                acc[key] = inputs[key]
-                console.log(`✅ Input '${key}' is valid`)
+                const value = inputs[key]
+                
+                // Validar base_url o base-url: debe ser una URL válida
+                if ((key === 'base_url' || key === 'base-url') && value) {
+                  try {
+                    // Intentar crear una URL para validar
+                    const url = new URL(value)
+                    // Verificar que tenga protocolo http o https
+                    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                      console.log(`⚠️ Input '${key}' tiene un protocolo inválido: ${url.protocol}, omitiendo`)
+                      return acc
+                    }
+                    // Verificar que el hostname sea válido (no solo un dominio genérico)
+                    if (!url.hostname || url.hostname.length < 3) {
+                      console.log(`⚠️ Input '${key}' tiene un hostname inválido: ${url.hostname}, omitiendo`)
+                      return acc
+                    }
+                    acc[key] = value
+                    console.log(`✅ Input '${key}' es una URL válida: ${value}`)
+                  } catch (urlError) {
+                    // Si no es una URL válida, omitir el input
+                    console.log(`⚠️ Input '${key}' no es una URL válida: ${value}, omitiendo`)
+                    return acc
+                  }
+                } else {
+                  acc[key] = value
+                  console.log(`✅ Input '${key}' is valid`)
+                }
               } else {
                 console.log(`❌ Input '${key}' is not accepted by this workflow`)
               }
@@ -542,6 +568,37 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Verify that the branch exists in the repository
+    if (targetBranch !== 'main') {
+      try {
+        const branchCheckResponse = await fetch(
+          `https://api.github.com/repos/${fullRepoName}/git/ref/heads/${targetBranch}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        )
+        
+        if (!branchCheckResponse.ok) {
+          if (branchCheckResponse.status === 404) {
+            console.log(`⚠️ Branch "${targetBranch}" no existe en el repositorio, usando "main" como fallback`)
+            targetBranch = 'main'
+          } else {
+            const errorText = await branchCheckResponse.text()
+            console.warn(`⚠️ Error verificando branch "${targetBranch}": ${branchCheckResponse.status} - ${errorText}. Usando "main" como fallback`)
+            targetBranch = 'main'
+          }
+        } else {
+          console.log(`✅ Branch "${targetBranch}" existe en el repositorio`)
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error al verificar branch "${targetBranch}":`, error, '. Usando "main" como fallback')
+        targetBranch = 'main'
+      }
+    }
+    
     console.log('Final target branch:', targetBranch)
     const triggerUrl = `https://api.github.com/repos/${fullRepoName}/actions/workflows/${workflow.id}/dispatches`
     console.log('Trigger URL:', triggerUrl)
@@ -567,12 +624,6 @@ export async function POST(request: NextRequest) {
     if (!triggerResponse.ok) {
       const errorText = await triggerResponse.text()
       console.error(`❌ Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
-      
-      // Mensaje más específico si el workflow no tiene workflow_dispatch
-      if (triggerResponse.status === 422 && !hasWorkflowDispatch) {
-        throw new Error(`El workflow "${workflow.name}" no tiene workflow_dispatch configurado y no puede ser triggerado manualmente. Por favor, agrega 'workflow_dispatch:' a la configuración del workflow en GitHub.`)
-      }
-      
       throw new Error(`Error al disparar workflow: ${triggerResponse.status} - ${errorText}`)
     }
 
