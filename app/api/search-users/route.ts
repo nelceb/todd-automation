@@ -608,6 +608,12 @@ jobs:
     // Still running, wait and check again
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
+
+    if (!userEmail) {
+      throw new Error('Timeout waiting for workflow completion');
+    }
+
+    return userEmail;
   } finally {
     // Step 6: Cleanup - Delete temporary branch (this also removes the workflow file)
     if (tempBranchCreated) {
