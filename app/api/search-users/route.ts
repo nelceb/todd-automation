@@ -75,13 +75,13 @@ async function loadFrameworkStructure() {
   return JSON.parse(frameworkContent);
 }
 
-// Get all usersHelper methods
+// Get all usersHelper methods (based on actual UsersHelper class)
 function getAllUsersHelperMethods() {
   return [
     {
-      name: "getActiveUserEmailWithPastOrders",
-      description: "Gets a user with past orders",
-      keywords: ["past orders", "order history", "rate", "rating"],
+      name: "findCoreUxUserWithInvoicedOrder",
+      description: "Gets a Core UX user with invoiced orders (past orders)",
+      keywords: ["past orders", "order history", "rate", "rating", "invoiced order"],
       useCase: "For tests that require users with order history",
     },
     {
@@ -109,22 +109,22 @@ function getAllUsersHelperMethods() {
       useCase: "For tests with completed Orders Hub onboarding",
     },
     {
-      name: "getActiveUserEmailWithEmptyCart",
-      description: "Gets a user with an empty cart",
-      keywords: ["empty cart", "no items", "no items in cart"],
-      useCase: "For tests that require an empty cart",
+      name: "getActiveUserEmailWithoutOrders",
+      description: "Gets a user with no recent orders",
+      keywords: ["no orders", "empty cart", "no items", "no past orders"],
+      useCase: "For tests that require users without recent orders",
     },
     {
-      name: "getActiveUserEmailWithNoPastOrders",
-      description: "Gets a user with no past orders",
-      keywords: ["no past orders", "empty past orders", "no order history"],
-      useCase: "For tests that require users without order history",
+      name: "getActiveUserEmailWithoutOrdersForStoreAndRings",
+      description: "Gets a user with no orders for specific store and rings",
+      keywords: ["store", "rings", "no orders"],
+      useCase: "For tests that require users for specific store/rings",
     },
     {
-      name: "findCoreUxUserWithInvoicedOrder",
-      description: "Gets a Core UX user with invoiced orders",
-      keywords: ["invoiced order", "past orders"],
-      useCase: "For tests that require users with invoiced orders",
+      name: "getActiveCoreUxUserEmailNewlyCreated",
+      description: "Gets a newly created Core UX user",
+      keywords: ["newly created", "today", "new user"],
+      useCase: "For tests that require newly created users",
     },
   ];
 }
@@ -133,15 +133,18 @@ function getAllUsersHelperMethods() {
 function determineUsersHelperMethod(criteria: string, framework: any): string {
   const lowerCriteria = criteria.toLowerCase();
 
+  // Past orders / order history -> findCoreUxUserWithInvoicedOrder
   if (
     lowerCriteria.includes("past orders") ||
     lowerCriteria.includes("order history") ||
     lowerCriteria.includes("rate") ||
-    lowerCriteria.includes("rating")
+    lowerCriteria.includes("rating") ||
+    lowerCriteria.includes("invoiced order")
   ) {
-    return "getActiveUserEmailWithPastOrders";
+    return "findCoreUxUserWithInvoicedOrder";
   }
 
+  // Onboarding viewed
   if (
     lowerCriteria.includes("onboarding") &&
     lowerCriteria.includes("viewed") &&
@@ -153,6 +156,7 @@ function determineUsersHelperMethod(criteria: string, framework: any): string {
     return "getActiveUserEmailWithHomeOnboardingViewed";
   }
 
+  // Onboarding not viewed
   if (
     lowerCriteria.includes("onboarding") &&
     (lowerCriteria.includes("not") || lowerCriteria.includes("no"))
@@ -163,14 +167,27 @@ function determineUsersHelperMethod(criteria: string, framework: any): string {
     return "getActiveUserEmailWithHomeOnboardingNotViewed";
   }
 
-  if (lowerCriteria.includes("empty cart") || lowerCriteria.includes("no items")) {
-    return "getActiveUserEmailWithEmptyCart";
+  // No orders / empty cart
+  if (
+    lowerCriteria.includes("empty cart") ||
+    lowerCriteria.includes("no items") ||
+    lowerCriteria.includes("no orders") ||
+    lowerCriteria.includes("no past orders") ||
+    lowerCriteria.includes("no order history")
+  ) {
+    return "getActiveUserEmailWithoutOrders";
   }
 
-  if (lowerCriteria.includes("no past orders") || lowerCriteria.includes("no order history")) {
-    return "getActiveUserEmailWithNoPastOrders";
+  // Newly created user
+  if (
+    lowerCriteria.includes("newly created") ||
+    lowerCriteria.includes("today") ||
+    (lowerCriteria.includes("new") && lowerCriteria.includes("user"))
+  ) {
+    return "getActiveCoreUxUserEmailNewlyCreated";
   }
 
+  // Default: user with onboarding viewed
   return "getActiveUserEmailWithHomeOnboardingViewed";
 }
 
@@ -182,7 +199,7 @@ function getMethodDetails(methodName: string, allMethods: any[]) {
 // Generate explanation
 function generateExplanation(criteria: string, method: string): string {
   const explanations: Record<string, string> = {
-    getActiveUserEmailWithPastOrders:
+    findCoreUxUserWithInvoicedOrder:
       "This method is appropriate because the criteria mentions past orders, order history, or ratings.",
     getActiveUserEmailWithHomeOnboardingViewed:
       "This method is appropriate for users with completed onboarding or empty states.",
@@ -192,10 +209,8 @@ function generateExplanation(criteria: string, method: string): string {
       "This method is appropriate for tests related to Orders Hub onboarding.",
     getActiveUserEmailWithOrdersHubOnboardingViewed:
       "This method is appropriate for users who have viewed Orders Hub onboarding.",
-    getActiveUserEmailWithEmptyCart:
-      "This method is appropriate for tests that require an empty cart.",
-    getActiveUserEmailWithNoPastOrders:
-      "This method is appropriate for users without order history.",
+    getActiveUserEmailWithoutOrders: "This method is appropriate for users without recent orders.",
+    getActiveCoreUxUserEmailNewlyCreated: "This method is appropriate for newly created users.",
   };
 
   return explanations[method] || "This method matches your search criteria.";

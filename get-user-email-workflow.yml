@@ -33,34 +33,40 @@ jobs:
           
           (async () => {
             try {
-              const usersHelper = new UsersHelper();
               const methodName = process.env.METHOD_NAME;
               if (!methodName) {
                 throw new Error('METHOD_NAME environment variable is required');
               }
               
-              console.log('=== DEBUG INFO ===');
+              console.log('=== DEBUG: Method Selection ===');
               console.log('Method name received:', methodName);
-              console.log('UsersHelper instance type:', typeof usersHelper);
-              console.log('UsersHelper constructor:', usersHelper.constructor?.name);
               
-              // Get all methods from prototype
-              const prototypeMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(usersHelper))
-                .filter(name => name !== 'constructor');
-              console.log('Prototype methods:', prototypeMethods.join(', '));
+              console.log('=== DEBUG: Creating UsersHelper instance ===');
+              const usersHelper = new UsersHelper();
               
-              // Get all own properties
-              const ownProperties = Object.getOwnPropertyNames(usersHelper);
-              console.log('Own properties:', ownProperties.join(', '));
+              console.log('=== DEBUG: Inspecting UsersHelper ===');
+              console.log('Instance type:', typeof usersHelper);
+              console.log('Constructor name:', usersHelper.constructor?.name);
               
-              // Check if method exists in prototype
+              // Get ALL methods from prototype chain
+              let current = usersHelper;
+              const allMethods: string[] = [];
+              while (current && current !== Object.prototype) {
+                const methods = Object.getOwnPropertyNames(current)
+                  .filter(name => name !== 'constructor' && typeof current[name] === 'function');
+                allMethods.push(...methods);
+                current = Object.getPrototypeOf(current);
+              }
+              
+              const uniqueMethods = [...new Set(allMethods)];
+              console.log('All available methods:', uniqueMethods.join(', '));
+              
+              // Check if method exists
               const methodExists = typeof usersHelper[methodName] === 'function';
               console.log(`Method "${methodName}" exists:`, methodExists);
-              console.log(`Method "${methodName}" type:`, typeof usersHelper[methodName]);
               
               if (!methodExists) {
-                const allMethods = prototypeMethods.filter(name => typeof usersHelper[name] === 'function');
-                throw new Error(`Method "${methodName}" not found. Available methods: ${allMethods.join(', ')}`);
+                throw new Error(`Method "${methodName}" not found. Available methods: ${uniqueMethods.join(', ')}`);
               }
               
               console.log('=== EXECUTING METHOD ===');
