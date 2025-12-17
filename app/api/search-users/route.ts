@@ -245,6 +245,7 @@ jobs:
   // Check if workflow already exists
   const workflowFileName = 'get-user-email.yml';
   const workflowPath = `.github/workflows/${workflowFileName}`;
+  let workflowCreated = false;
 
   try {
     // Try to get existing workflow
@@ -260,6 +261,7 @@ jobs:
 
     // If workflow doesn't exist, create it
     if (existingWorkflowResponse.status === 404) {
+      console.log('Workflow does not exist, creating it...');
       const createWorkflowResponse = await fetch(
         `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
         {
@@ -279,39 +281,97 @@ jobs:
 
       if (!createWorkflowResponse.ok) {
         const errorText = await createWorkflowResponse.text();
-        throw new Error(`Failed to create workflow: ${createWorkflowResponse.status} - ${errorText}`);
+        console.error('Failed to create workflow:', errorText);
+        let errorMessage = `Failed to create workflow: ${createWorkflowResponse.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.message) {
+            errorMessage += ` - ${errorData.message}`;
+          }
+        } catch {
+          errorMessage += ` - ${errorText.substring(0, 200)}`;
+        }
+        throw new Error(errorMessage);
       }
+      
+      const createData = await createWorkflowResponse.json();
+      console.log('Workflow file created:', createData.content?.path);
 
-      // Wait a bit for GitHub to register the workflow
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      workflowCreated = true;
+      console.log('Workflow created successfully, waiting for GitHub to register it...');
+      
+      // Wait longer for GitHub to register the workflow (can take up to 10 seconds)
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    } else if (existingWorkflowResponse.ok) {
+      console.log('Workflow already exists');
     }
   } catch (error) {
     console.error('Error checking/creating workflow:', error);
-    // Continue anyway, workflow might already exist
+    // If creation failed, try to continue anyway - workflow might exist
   }
 
-  // Get the workflow ID
-  const workflowsResponse = await fetch(
-    `https://api.github.com/repos/${repository}/actions/workflows`,
-    {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
+  // Get the workflow ID - try multiple times if we just created it
+  let workflow = null;
+  let attempts = workflowCreated ? 5 : 1; // More attempts if we just created it
+  
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!workflowsResponse.ok) {
+      const errorText = await workflowsResponse.text();
+      throw new Error(`Failed to get workflows: ${workflowsResponse.status} - ${errorText}`);
     }
-  );
 
-  if (!workflowsResponse.ok) {
-    throw new Error(`Failed to get workflows: ${workflowsResponse.status}`);
+    const workflowsData = await workflowsResponse.json();
+    console.log(`Available workflows (attempt ${attempt}):`, workflowsData.workflows?.map((w: any) => ({ name: w.name, path: w.path })));
+    
+    // Try multiple ways to find the workflow
+    workflow = workflowsData.workflows?.find((w: any) => 
+      w.path.includes(workflowFileName) || 
+      w.path.includes('get-user-email') ||
+      w.name === 'Get User Email' ||
+      w.name.toLowerCase().includes('get user email')
+    );
+
+    if (workflow) {
+      console.log(`Found workflow: ${workflow.name} (${workflow.path})`);
+      break;
+    }
+
+    if (attempt < attempts) {
+      console.log(`Workflow not found yet, waiting before retry... (attempt ${attempt}/${attempts})`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
   }
-
-  const workflowsData = await workflowsResponse.json();
-  const workflow = workflowsData.workflows?.find((w: any) => 
-    w.path.includes(workflowFileName) || w.name === 'Get User Email'
-  );
 
   if (!workflow) {
-    throw new Error('Workflow not found. Please ensure the workflow exists in the repository.');
+    // List all workflows for debugging
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+    const workflowsData = await workflowsResponse.json();
+    const allWorkflows = workflowsData.workflows?.map((w: any) => `${w.name} (${w.path})`).join(', ') || 'none';
+    
+    throw new Error(
+      `Workflow not found after ${attempts} attempts.\n\n` +
+      `Looking for: ${workflowFileName} or "Get User Email"\n` +
+      `Available workflows: ${allWorkflows}\n\n` +
+      `The workflow may need to be created manually in the repository, or GitHub needs more time to register it.`
+    );
   }
 
   // Trigger the workflow
