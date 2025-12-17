@@ -31,6 +31,29 @@ jobs:
           # Create temporary TypeScript file in project root
           cat > ./execute-method.ts << 'EOF'
           import { UsersHelper } from './helpers/UsersHelper';
+          import * as dotenv from 'dotenv';
+          import * as fs from 'fs';
+          import * as path from 'path';
+          
+          // Load environment variables from properties/qa/.env.qa
+          const targetEnv = process.env.TARGET_ENV || 'qa';
+          const envFile = path.join(process.cwd(), `properties/${targetEnv}/.env.${targetEnv}`);
+          
+          console.log('=== DEBUG: Loading Environment Variables ===');
+          console.log('TARGET_ENV:', targetEnv);
+          console.log('ENV file path:', envFile);
+          console.log('File exists:', fs.existsSync(envFile));
+          
+          if (fs.existsSync(envFile)) {
+            const envConfig = dotenv.config({ path: envFile });
+            console.log('Environment variables loaded from:', envFile);
+            console.log('DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? '***' : 'NOT SET');
+            console.log('DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
+            console.log('DB_DATABASE:', process.env.SUBSCRIPTION_DB_DATABASE || 'NOT SET');
+          } else {
+            console.warn('⚠️ Environment file not found:', envFile);
+            console.warn('⚠️ Using process.env variables directly');
+          }
           
           (async () => {
             try {
