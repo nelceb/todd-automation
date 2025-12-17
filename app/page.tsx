@@ -18,6 +18,7 @@ import WorkflowStatus from './components/WorkflowStatus'
 import GitHubAuth from './components/GitHubAuth'
 import TestGenerator from './components/TestGenerator'
 import MetricsDashboard from './components/MetricsDashboard'
+import UserSearch from './components/UserSearch'
 import { useWorkflowStore } from './store/workflowStore'
 
 interface Message {
@@ -30,7 +31,7 @@ interface Message {
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'workflows' | 'generator' | 'metrics'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'workflows' | 'generator' | 'metrics' | 'users'>('chat')
   const [githubToken, setGithubToken] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -40,10 +41,10 @@ export default function Home() {
     setGithubToken(token)
   }
 
-  const handleTabChange = (tab: 'chat' | 'workflows' | 'generator' | 'metrics') => {
+  const handleTabChange = (tab: 'chat' | 'workflows' | 'generator' | 'metrics' | 'users') => {
     setActiveTab(tab)
-    if (tab === 'workflows' || tab === 'generator' || tab === 'metrics') {
-      // Scroll to top when switching to workflows, generator, or metrics
+    if (tab === 'workflows' || tab === 'generator' || tab === 'metrics' || tab === 'users') {
+      // Scroll to top when switching to workflows, generator, metrics, or users
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -171,6 +172,23 @@ export default function Home() {
               </svg>
               <span>Metrics</span>
             </button>
+            <button 
+              onClick={() => handleTabChange('users')}
+              className={`flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 sm:py-2 border rounded-lg transition-colors font-mono text-sm sm:text-base min-h-[44px] ${
+                activeTab === 'users'
+                  ? 'border-gray-600 bg-gray-600 text-white'
+                  : 'border-gray-600 hover:border-gray-700'
+              }`}
+              style={{ 
+                color: activeTab === 'users' ? 'white' : '#344055', 
+                backgroundColor: activeTab === 'users' ? '#4B5563' : 'transparent' 
+              }}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              <span>Find Users</span>
+            </button>
             <GitHubAuth onAuthSuccess={handleAuthSuccess} />
           </div>
 
@@ -224,6 +242,17 @@ export default function Home() {
                     <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                   </svg>
                   <span>Metrics</span>
+                </button>
+              )}
+              {activeTab === 'users' && (
+                <button 
+                  onClick={() => {}}
+                  className="flex items-center space-x-2 px-3 py-2 border border-gray-600 bg-gray-600 text-white rounded-lg font-mono text-sm min-h-[44px] w-auto"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                  </svg>
+                  <span>Find Users</span>
                 </button>
               )}
             </div>
@@ -308,6 +337,20 @@ export default function Home() {
                     </svg>
                     <span>Metrics</span>
                   </button>
+                  <button 
+                    onClick={() => {
+                      handleTabChange('users')
+                      setMobileMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors font-mono text-sm ${
+                      activeTab === 'users' ? 'bg-gray-600 text-white' : 'text-gray-700 hover:bg-gray-100/20'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                    </svg>
+                    <span>Find Users</span>
+                  </button>
                   
                   <div className="pt-2 border-t border-gray-600/30">
                     <div className="px-2">
@@ -365,6 +408,17 @@ export default function Home() {
               className="w-full"
             >
               <TestGenerator />
+            </motion.div>
+          ) : activeTab === 'users' ? (
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="w-full p-6"
+            >
+              <UserSearch />
             </motion.div>
           ) : (
             <motion.div
