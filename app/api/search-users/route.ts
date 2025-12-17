@@ -188,6 +188,11 @@ async function executeUsersHelperMethodViaGitHubActions(methodName: string, requ
 
   console.log(`Executing ${methodName} via GitHub Actions...`);
 
+  // Create a temporary branch name
+  const tempBranchName = `todd-get-user-${Date.now()}`;
+  const workflowFileName = 'get-user-email.yml';
+  const workflowPath = `.github/workflows/${workflowFileName}`;
+  
   // Create a workflow file that will execute UsersHelper method
   const workflowContent = `name: Get User Email
 
@@ -224,8 +229,6 @@ jobs:
               const usersHelper = new UsersHelper();
               const email = await usersHelper.\${{ github.event.inputs.method }}();
               console.log('USER_EMAIL_RESULT:', email);
-              // Output result to file for artifact
-              require('fs').writeFileSync('user-email-result.txt', email);
             } catch (error) {
               console.error('ERROR:', error.message);
               process.exit(1);
@@ -233,24 +236,17 @@ jobs:
           })();
           "
         id: get-user-email
-      
-      - name: Upload result as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: user-email-result
-          path: user-email-result.txt
-          retention-days: 1
 `;
 
-  // Check if workflow already exists
-  const workflowFileName = 'get-user-email.yml';
-  const workflowPath = `.github/workflows/${workflowFileName}`;
+  let tempBranchCreated = false;
   let workflowCreated = false;
+  let workflowSha: string | null = null;
 
   try {
-    // Try to get existing workflow
-    const existingWorkflowResponse = await fetch(
-      `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
+    // Step 1: Get the SHA of main branch to create temp branch from
+    console.log('Getting main branch SHA...');
+    const mainBranchResponse = await fetch(
+      `https://api.github.com/repos/${repository}/git/ref/heads/main`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -259,60 +255,98 @@ jobs:
       }
     );
 
-    // If workflow doesn't exist, create it
-    if (existingWorkflowResponse.status === 404) {
-      console.log('Workflow does not exist, creating it...');
-      const createWorkflowResponse = await fetch(
-        `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: 'Add workflow to get user email via UsersHelper',
-            content: Buffer.from(workflowContent).toString('base64'),
-            branch: 'main'
-          }),
-        }
-      );
-
-      if (!createWorkflowResponse.ok) {
-        const errorText = await createWorkflowResponse.text();
-        console.error('Failed to create workflow:', errorText);
-        let errorMessage = `Failed to create workflow: ${createWorkflowResponse.status}`;
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.message) {
-            errorMessage += ` - ${errorData.message}`;
-          }
-        } catch {
-          errorMessage += ` - ${errorText.substring(0, 200)}`;
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const createData = await createWorkflowResponse.json();
-      console.log('Workflow file created:', createData.content?.path);
-
-      workflowCreated = true;
-      console.log('Workflow created successfully, waiting for GitHub to register it...');
-      
-      // Wait longer for GitHub to register the workflow (can take up to 10 seconds)
-      await new Promise(resolve => setTimeout(resolve, 10000));
-    } else if (existingWorkflowResponse.ok) {
-      console.log('Workflow already exists');
+    if (!mainBranchResponse.ok) {
+      throw new Error(`Failed to get main branch: ${mainBranchResponse.status}`);
     }
+
+    const mainBranchData = await mainBranchResponse.json();
+    const mainSha = mainBranchData.object.sha;
+    console.log('Main branch SHA:', mainSha);
+
+    // Step 2: Create temporary branch from main
+    console.log(`Creating temporary branch: ${tempBranchName}...`);
+    const createBranchResponse = await fetch(
+      `https://api.github.com/repos/${repository}/git/refs`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ref: `refs/heads/${tempBranchName}`,
+          sha: mainSha
+        }),
+      }
+    );
+
+    if (!createBranchResponse.ok) {
+      const errorText = await createBranchResponse.text();
+      throw new Error(`Failed to create temp branch: ${createBranchResponse.status} - ${errorText}`);
+    }
+
+    tempBranchCreated = true;
+    console.log('Temporary branch created successfully');
+
+    // Step 3: Create workflow file in temporary branch
+    console.log('Creating workflow file in temporary branch...');
+    const createWorkflowResponse = await fetch(
+      `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `[TODD Temporary] Add workflow to get user email via UsersHelper`,
+          content: Buffer.from(workflowContent).toString('base64'),
+          branch: tempBranchName
+        }),
+      }
+    );
+
+    if (!createWorkflowResponse.ok) {
+      const errorText = await createWorkflowResponse.text();
+      throw new Error(`Failed to create workflow: ${createWorkflowResponse.status} - ${errorText}`);
+    }
+    
+    const createData = await createWorkflowResponse.json();
+    workflowSha = createData.content.sha;
+    workflowCreated = true;
+    console.log('Workflow file created in temporary branch, waiting for GitHub to register it...');
+    
+    // Wait for GitHub to register the workflow
+    await new Promise(resolve => setTimeout(resolve, 10000));
   } catch (error) {
-    console.error('Error checking/creating workflow:', error);
-    // If creation failed, try to continue anyway - workflow might exist
+    console.error('Error creating temporary workflow:', error);
+    // Cleanup: delete temp branch if created
+    if (tempBranchCreated) {
+      try {
+        await fetch(
+          `https://api.github.com/repos/${repository}/git/refs/heads/${tempBranchName}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp branch:', cleanupError);
+      }
+    }
+    throw error;
   }
 
-  // Get the workflow ID - try multiple times if we just created it
-  let workflow = null;
-  let attempts = workflowCreated ? 5 : 1; // More attempts if we just created it
+  // Wrap remaining steps in try-finally to ensure cleanup
+  try {
+    // Step 4: Get the workflow ID
+    let workflow = null;
+    let attempts = 5;
   
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const workflowsResponse = await fetch(
@@ -331,14 +365,12 @@ jobs:
     }
 
     const workflowsData = await workflowsResponse.json();
-    console.log(`Available workflows (attempt ${attempt}):`, workflowsData.workflows?.map((w: any) => ({ name: w.name, path: w.path })));
     
-    // Try multiple ways to find the workflow
+    // Find workflow in temp branch
     workflow = workflowsData.workflows?.find((w: any) => 
       w.path.includes(workflowFileName) || 
       w.path.includes('get-user-email') ||
-      w.name === 'Get User Email' ||
-      w.name.toLowerCase().includes('get user email')
+      w.name === 'Get User Email'
     );
 
     if (workflow) {
@@ -353,28 +385,10 @@ jobs:
   }
 
   if (!workflow) {
-    // List all workflows for debugging
-    const workflowsResponse = await fetch(
-      `https://api.github.com/repos/${repository}/actions/workflows`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }
-    );
-    const workflowsData = await workflowsResponse.json();
-    const allWorkflows = workflowsData.workflows?.map((w: any) => `${w.name} (${w.path})`).join(', ') || 'none';
-    
-    throw new Error(
-      `Workflow not found after ${attempts} attempts.\n\n` +
-      `Looking for: ${workflowFileName} or "Get User Email"\n` +
-      `Available workflows: ${allWorkflows}\n\n` +
-      `The workflow may need to be created manually in the repository, or GitHub needs more time to register it.`
-    );
+    throw new Error('Workflow not found after creation. GitHub may need more time to register it.');
   }
 
-  // Trigger the workflow
+  // Step 5: Trigger the workflow from temp branch
   const triggerUrl = `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/dispatches`;
   const triggerResponse = await fetch(triggerUrl, {
     method: 'POST',
@@ -384,7 +398,7 @@ jobs:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      ref: 'main',
+      ref: tempBranchName, // Use temp branch
       inputs: {
         method: methodName
       }
@@ -396,7 +410,7 @@ jobs:
     throw new Error(`Failed to trigger workflow: ${triggerResponse.status} - ${errorText}`);
   }
 
-  console.log('Workflow triggered, waiting for completion...');
+  console.log('Workflow triggered from temporary branch, waiting for completion...');
 
   // Wait for workflow to start
   await new Promise(resolve => setTimeout(resolve, 5000));
@@ -405,6 +419,7 @@ jobs:
   const maxWaitTime = 120000; // 2 minutes
   const pollInterval = 5000; // 5 seconds
   const startTime = Date.now();
+  let userEmail: string | null = null;
 
   while (Date.now() - startTime < maxWaitTime) {
     // Get the latest run
@@ -567,13 +582,17 @@ jobs:
             const logs = await logsResponse.text();
             const emailMatch = logs.match(/USER_EMAIL_RESULT:\s*(.+)/);
             if (emailMatch) {
-              return emailMatch[1].trim();
+              userEmail = emailMatch[1].trim();
+              console.log('✅ User email retrieved:', userEmail);
+              break; // Exit the polling loop
             }
           }
         }
       }
 
-      throw new Error('Workflow completed but could not extract user email from logs');
+      if (!userEmail) {
+        throw new Error('Workflow completed but could not extract user email from logs');
+      }
     }
 
     // If failed or cancelled
@@ -581,10 +600,40 @@ jobs:
       throw new Error(`Workflow ${run.conclusion}. Check GitHub Actions for details.`);
     }
 
+    // If we got the email, break out of the loop
+    if (userEmail) {
+      break;
+    }
+
     // Still running, wait and check again
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
+  } finally {
+    // Step 6: Cleanup - Delete temporary branch (this also removes the workflow file)
+    if (tempBranchCreated) {
+      try {
+        console.log('Cleaning up temporary branch...');
+        const deleteBranchResponse = await fetch(
+          `https://api.github.com/repos/${repository}/git/refs/heads/${tempBranchName}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
 
-  throw new Error('Timeout waiting for workflow completion');
+        if (deleteBranchResponse.ok) {
+          console.log('✅ Temporary branch deleted successfully');
+        } else {
+          console.warn('⚠️ Could not delete temporary branch (non-critical)');
+        }
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp branch (non-critical):', cleanupError);
+        // Don't throw - cleanup is not critical
+      }
+    }
+  }
 }
 
