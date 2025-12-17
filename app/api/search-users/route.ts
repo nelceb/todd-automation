@@ -366,9 +366,47 @@ async function executeUsersHelperMethodViaGitHubActions(
 
             if (logsResponse.ok) {
               const logs = await logsResponse.text();
-              const errorMatch = logs.match(/ERROR:\s*(.+)/);
-              if (errorMatch) {
-                throw new Error(errorMatch[1]);
+              // Remove ANSI color codes
+              const cleanLogs = logs.replace(/\u001b\[[0-9;]*m/g, "");
+
+              // Split logs into lines for better parsing
+              const logLines = cleanLogs.split("\n");
+
+              // Look for ERROR: line - should be: "ERROR: <actual error message>"
+              for (const line of logLines) {
+                const errorMatch = line.match(/ERROR:\s*(.+)/);
+                if (errorMatch && errorMatch[1]) {
+                  let errorMessage = errorMatch[1].trim();
+
+                  // Remove JavaScript code artifacts that might have been captured
+                  errorMessage = errorMessage
+                    .replace(/['"`].*error\.message.*['"`]\)?;?/gi, "")
+                    .replace(/console\.(log|error)\(.*\)/g, "")
+                    .replace(/process\.exit\(.*\)/g, "")
+                    .trim();
+
+                  // Only use if it looks like a real error message (not code)
+                  if (
+                    errorMessage &&
+                    !errorMessage.includes("error.message") &&
+                    errorMessage.length > 0
+                  ) {
+                    throw new Error(errorMessage);
+                  }
+                }
+              }
+
+              // Fallback: look for any error-like pattern in logs
+              const generalErrorMatch = cleanLogs.match(/(?:Error|error|ERROR):\s*([^\n\r]+)/);
+              if (generalErrorMatch && generalErrorMatch[1]) {
+                let errorMessage = generalErrorMatch[1].trim();
+                errorMessage = errorMessage
+                  .replace(/['"`].*error\.message.*['"`]\)?;?/gi, "")
+                  .replace(/console\.(log|error)\(.*\)/g, "")
+                  .trim();
+                if (errorMessage && !errorMessage.includes("error.message")) {
+                  throw new Error(errorMessage);
+                }
               }
             }
           }
