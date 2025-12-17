@@ -541,15 +541,15 @@ async function createMySQLConnection() {
       const deniedIP = ipMatch ? ipMatch[1] : 'unknown';
       
       if (isProduction) {
-        // Production error - likely a configuration issue
+        // Production deployment error - connecting to QA database
         throw new Error(
-          '❌ Database Access Denied\n\n' +
-          'The database rejected the connection in production.\n\n' +
+          '❌ Database Access Denied (QA Database)\n\n' +
+          'The QA database rejected the connection from Vercel.\n\n' +
           'Please verify:\n' +
           '1. Environment variables are correctly configured in Vercel\n' +
-          '2. Database credentials are correct\n' +
+          '2. QA database credentials are correct\n' +
           '3. RDS Security Group allows connections from Vercel IPs\n\n' +
-          `Connection attempted: ${user}@${host}/${database}\n` +
+          `QA Database: ${user}@${host}/${database}\n` +
           `Denied IP: ${deniedIP}\n\n` +
           'Contact DevOps team if this persists.'
         );
@@ -571,13 +571,13 @@ async function createMySQLConnection() {
       
       if (isProduction) {
         throw new Error(
-          'Cannot connect to database in production.\n\n' +
+          'Cannot connect to QA database from Vercel.\n\n' +
           'Please verify:\n' +
-          '1. Database host and port are correct\n' +
-          '2. Network connectivity from Vercel\n' +
-          '3. RDS Security Group allows Vercel IPs\n' +
-          '4. Environment variables are correctly set\n\n' +
-          `Host: ${host}:${port}\n\n` +
+          '1. QA database host and port are correct\n' +
+          '2. Network connectivity from Vercel to QA database\n' +
+          '3. RDS Security Group allows Vercel IPs to access QA database\n' +
+          '4. Environment variables are correctly set in Vercel\n\n' +
+          `QA Database Host: ${host}:${port}\n\n` +
           'Contact DevOps team if this persists.'
         );
       } else {
@@ -592,13 +592,20 @@ async function createMySQLConnection() {
         );
       }
     } else {
+      const isProduction = !!process.env.VERCEL;
       throw new Error(
-        `Database connection failed: ${error.message || error.code || 'Unknown error'}\n\n` +
-        'Troubleshooting:\n' +
-        '1. Ensure VPN is connected\n' +
-        '2. Verify database credentials\n' +
-        '3. Check network connectivity\n' +
-        '4. Contact DevOps if issue persists'
+        `QA Database connection failed: ${error.message || error.code || 'Unknown error'}\n\n` +
+        (isProduction 
+          ? 'Troubleshooting (Vercel → QA Database):\n' +
+            '1. Verify QA database credentials in Vercel env vars\n' +
+            '2. Check RDS Security Group allows Vercel IPs\n' +
+            '3. Verify network connectivity\n' +
+            '4. Contact DevOps if issue persists'
+          : 'Troubleshooting (Local → QA Database):\n' +
+            '1. Ensure VPN is connected\n' +
+            '2. Verify QA database credentials\n' +
+            '3. Check network connectivity\n' +
+            '4. Contact DevOps if issue persists')
       );
     }
   }
