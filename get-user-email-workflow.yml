@@ -46,10 +46,20 @@ jobs:
           
           if (fs.existsSync(envFile)) {
             const envConfig = dotenv.config({ path: envFile });
+            if (envConfig.error) {
+              console.error('Error loading env file:', envConfig.error);
+            }
             console.log('Environment variables loaded from:', envFile);
-            console.log('DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? '***' : 'NOT SET');
-            console.log('DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
-            console.log('DB_DATABASE:', process.env.SUBSCRIPTION_DB_DATABASE || 'NOT SET');
+            console.log('SUBSCRIPTION_DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? `${process.env.SUBSCRIPTION_DB_HOST.substring(0, 20)}...` : 'NOT SET');
+            console.log('SUBSCRIPTION_DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
+            console.log('SUBSCRIPTION_DB_DATABASE:', process.env.SUBSCRIPTION_DB_DATABASE || 'NOT SET');
+            console.log('SUBSCRIPTION_DB_PASSWORD:', process.env.SUBSCRIPTION_DB_PASSWORD ? '***' : 'NOT SET');
+            
+            // Verify all required DB variables are set
+            if (!process.env.SUBSCRIPTION_DB_HOST || !process.env.SUBSCRIPTION_DB_USER || !process.env.SUBSCRIPTION_DB_PASSWORD || !process.env.SUBSCRIPTION_DB_DATABASE) {
+              console.error('⚠️ Missing required database environment variables!');
+              console.error('Required: SUBSCRIPTION_DB_HOST, SUBSCRIPTION_DB_USER, SUBSCRIPTION_DB_PASSWORD, SUBSCRIPTION_DB_DATABASE');
+            }
           } else {
             console.warn('⚠️ Environment file not found:', envFile);
             console.warn('⚠️ Using process.env variables directly');
