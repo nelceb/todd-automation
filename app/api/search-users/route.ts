@@ -213,63 +213,14 @@ async function executeUsersHelperMethodViaGitHubActions(
 
   console.log(`Executing ${methodName} via GitHub Actions...`);
 
-  // Create a unique workflow filename with timestamp
-  const workflowFileName = `get-user-email-${Date.now()}.yml`;
-  const workflowPath = `.github/workflows/${workflowFileName}`;
+  // Step 1: Find the existing workflow
+  console.log("Looking for existing workflow 'Get User Email'...");
+  let workflow = null;
+  const attempts = 3;
 
-  // Create a workflow file that will execute UsersHelper method
-  const workflowContent = `name: Get User Email
-
-on:
-  workflow_dispatch:
-    inputs:
-      method:
-        description: 'UsersHelper method name'
-        required: true
-        type: string
-
-jobs:
-  get-user:
-    runs-on: arc-runner-dev-large
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Execute UsersHelper method
-        env:
-          TARGET_ENV: qa
-        run: |
-          node -e "
-          const { UsersHelper } = require('./helpers/UsersHelper');
-          (async () => {
-            try {
-              const usersHelper = new UsersHelper();
-              const email = await usersHelper.\${{ github.event.inputs.method }}();
-              console.log('USER_EMAIL_RESULT:', email);
-            } catch (error) {
-              console.error('ERROR:', error.message);
-              process.exit(1);
-            }
-          })();
-          "
-        id: get-user-email
-`;
-
-  let workflowCreated = false;
-  let workflowSha: string | null = null;
-
-  try {
-    // Step 1: Get the SHA of main branch to create workflow file
-    console.log("Getting main branch SHA...");
-    const mainBranchResponse = await fetch(
-      `https://api.github.com/repos/${repository}/git/ref/heads/main`,
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -278,284 +229,117 @@ jobs:
       }
     );
 
-    if (!mainBranchResponse.ok) {
-      throw new Error(`Failed to get main branch: ${mainBranchResponse.status}`);
+    if (!workflowsResponse.ok) {
+      const errorText = await workflowsResponse.text();
+      throw new Error(`Failed to get workflows: ${workflowsResponse.status} - ${errorText}`);
     }
 
-    const mainBranchData = await mainBranchResponse.json();
-    const mainSha = mainBranchData.object.sha;
-    console.log("Main branch SHA:", mainSha);
+    const workflowsData = await workflowsResponse.json();
 
-    // Step 2: Create workflow file directly in main branch
-    console.log("Creating temporary workflow file in main branch...");
-    const createWorkflowResponse = await fetch(
-      `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github.v3+json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: `[TODD Temporary] Add temporary workflow to get user email via UsersHelper`,
-          content: Buffer.from(workflowContent).toString("base64"),
-          branch: "main",
-        }),
-      }
+    // Find the existing workflow by name or path
+    workflow = workflowsData.workflows?.find(
+      (w: any) =>
+        w.name === "Get User Email" ||
+        w.path.includes("get-user-email") ||
+        w.path.endsWith("get-user-email.yml")
     );
 
-    if (!createWorkflowResponse.ok) {
-      const errorText = await createWorkflowResponse.text();
-      const errorData = JSON.parse(errorText);
-
-      // If error is about permissions, provide helpful message
-      if (
-        errorData.message?.includes("Resource not accessible") ||
-        createWorkflowResponse.status === 403
-      ) {
-        throw new Error(
-          `GitHub token does not have write permissions. ` +
-            `Please ensure the GitHub App has 'Contents: Write' permission, ` +
-            `or use a personal access token with 'repo' scope. ` +
-            `Error: ${errorText}`
-        );
-      }
-
-      throw new Error(`Failed to create workflow: ${createWorkflowResponse.status} - ${errorText}`);
+    if (workflow) {
+      console.log(`✅ Found workflow: ${workflow.name} (${workflow.path})`);
+      break;
     }
 
-    const createData = await createWorkflowResponse.json();
-    workflowSha = createData.content.sha;
-    workflowCreated = true;
-    console.log("Workflow file created successfully, waiting for GitHub to register it...");
-
-    // Wait for GitHub to register the workflow
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-  } catch (error) {
-    console.error("Error creating temporary workflow:", error);
-    throw error;
+    if (attempt < attempts) {
+      console.log(`Workflow not found yet, retrying... (attempt ${attempt}/${attempts})`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
   }
 
-  // Wrap remaining steps in try-finally to ensure cleanup
-  try {
-    // Step 4: Get the workflow ID
-    let workflow = null;
-    let attempts = 5;
-
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      const workflowsResponse = await fetch(
-        `https://api.github.com/repos/${repository}/actions/workflows`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
-
-      if (!workflowsResponse.ok) {
-        const errorText = await workflowsResponse.text();
-        throw new Error(`Failed to get workflows: ${workflowsResponse.status} - ${errorText}`);
-      }
-
-      const workflowsData = await workflowsResponse.json();
-
-      // Find workflow in temp branch
-      workflow = workflowsData.workflows?.find(
-        (w: any) =>
-          w.path.includes(workflowFileName) ||
-          w.path.includes("get-user-email") ||
-          w.name === "Get User Email"
-      );
-
-      if (workflow) {
-        console.log(`Found workflow: ${workflow.name} (${workflow.path})`);
-        break;
-      }
-
-      if (attempt < attempts) {
-        console.log(
-          `Workflow not found yet, waiting before retry... (attempt ${attempt}/${attempts})`
-        );
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      }
-    }
-
-    if (!workflow) {
-      throw new Error(
-        "Workflow not found after creation. GitHub may need more time to register it."
-      );
-    }
-
-    // Step 5: Trigger the workflow from temp branch
-    const triggerUrl = `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/dispatches`;
-    const triggerResponse = await fetch(triggerUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ref: "main", // Use main branch
-        inputs: {
-          method: methodName,
+  if (!workflow) {
+    // Get workflows list for error message
+    const workflowsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
         },
-      }),
-    });
+      }
+    );
+    const workflowsData = workflowsResponse.ok ? await workflowsResponse.json() : { workflows: [] };
+    const workflowsList =
+      workflowsData.workflows?.map((w: any) => `${w.name} (${w.path})`).join(", ") || "none";
+    throw new Error(
+      `Workflow 'Get User Email' not found in repository.\n\n` +
+        `Please ensure the workflow exists at .github/workflows/get-user-email.yml\n` +
+        `Available workflows: ${workflowsList}`
+    );
+  }
 
-    if (!triggerResponse.ok) {
-      const errorText = await triggerResponse.text();
-      throw new Error(`Failed to trigger workflow: ${triggerResponse.status} - ${errorText}`);
+  // Step 2: Trigger the workflow
+  const triggerUrl = `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/dispatches`;
+  const triggerResponse = await fetch(triggerUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ref: "main", // Use main branch
+      inputs: {
+        method: methodName,
+      },
+    }),
+  });
+
+  if (!triggerResponse.ok) {
+    const errorText = await triggerResponse.text();
+    throw new Error(`Failed to trigger workflow: ${triggerResponse.status} - ${errorText}`);
+  }
+
+  console.log("Workflow triggered, waiting for completion...");
+
+  // Wait for workflow to start
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  // Poll for workflow completion and get result
+  const maxWaitTime = 120000; // 2 minutes
+  const pollInterval = 5000; // 5 seconds
+  const startTime = Date.now();
+  let userEmail: string | null = null;
+
+  while (Date.now() - startTime < maxWaitTime) {
+    // Get the latest run
+    const runsResponse = await fetch(
+      `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+
+    if (!runsResponse.ok) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      continue;
     }
 
-    console.log("Workflow triggered from temporary branch, waiting for completion...");
+    const runsData = await runsResponse.json();
+    const run = runsData.workflow_runs?.[0];
 
-    // Wait for workflow to start
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    if (!run) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      continue;
+    }
 
-    // Poll for workflow completion and get result
-    const maxWaitTime = 120000; // 2 minutes
-    const pollInterval = 5000; // 5 seconds
-    const startTime = Date.now();
-    let userEmail: string | null = null;
+    console.log(`Workflow status: ${run.status} (${run.conclusion || "pending"})`);
 
-    while (Date.now() - startTime < maxWaitTime) {
-      // Get the latest run
-      const runsResponse = await fetch(
-        `https://api.github.com/repos/${repository}/actions/workflows/${workflow.id}/runs?per_page=1`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
-
-      if (!runsResponse.ok) {
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
-        continue;
-      }
-
-      const runsData = await runsResponse.json();
-      const run = runsData.workflow_runs?.[0];
-
-      if (!run) {
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
-        continue;
-      }
-
-      console.log(`Workflow status: ${run.status} (${run.conclusion || "pending"})`);
-
-      // If completed, get the result from logs
-      if (run.status === "completed") {
-        if (run.conclusion === "failure") {
-          // Try to get error from logs
-          const jobsResponse = await fetch(
-            `https://api.github.com/repos/${repository}/actions/runs/${run.id}/jobs`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3+json",
-              },
-            }
-          );
-
-          if (jobsResponse.ok) {
-            const jobsData = await jobsResponse.json();
-            const job = jobsData.jobs?.[0];
-            if (job) {
-              const logsResponse = await fetch(
-                `https://api.github.com/repos/${repository}/actions/jobs/${job.id}/logs`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/vnd.github.v3+json",
-                  },
-                }
-              );
-
-              if (logsResponse.ok) {
-                const logs = await logsResponse.text();
-                const errorMatch = logs.match(/ERROR:\s*(.+)/);
-                if (errorMatch) {
-                  throw new Error(errorMatch[1]);
-                }
-              }
-            }
-          }
-
-          throw new Error("Workflow failed. Check GitHub Actions for details.");
-        }
-
-        // Get artifact with result
-        const artifactsResponse = await fetch(
-          `https://api.github.com/repos/${repository}/actions/runs/${run.id}/artifacts`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/vnd.github.v3+json",
-            },
-          }
-        );
-
-        if (artifactsResponse.ok) {
-          const artifactsData = await artifactsResponse.json();
-          const artifact = artifactsData.artifacts?.find(
-            (a: any) => a.name === "user-email-result"
-          );
-
-          if (artifact) {
-            // Download artifact
-            const downloadResponse = await fetch(artifact.archive_download_url, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3+json",
-              },
-            });
-
-            if (downloadResponse.ok) {
-              // The artifact is a zip file, we need to extract it
-              // For simplicity, let's try to get the result from logs instead
-              const jobsResponse = await fetch(
-                `https://api.github.com/repos/${repository}/actions/runs/${run.id}/jobs`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: "application/vnd.github.v3+json",
-                  },
-                }
-              );
-
-              if (jobsResponse.ok) {
-                const jobsData = await jobsResponse.json();
-                const job = jobsData.jobs?.[0];
-                if (job) {
-                  const logsResponse = await fetch(
-                    `https://api.github.com/repos/${repository}/actions/jobs/${job.id}/logs`,
-                    {
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: "application/vnd.github.v3+json",
-                      },
-                    }
-                  );
-
-                  if (logsResponse.ok) {
-                    const logs = await logsResponse.text();
-                    const emailMatch = logs.match(/USER_EMAIL_RESULT:\s*(.+)/);
-                    if (emailMatch) {
-                      return emailMatch[1].trim();
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // Fallback: try to get result from logs
+    // If completed, get the result from logs
+    if (run.status === "completed") {
+      if (run.conclusion === "failure") {
+        // Try to get error from logs
         const jobsResponse = await fetch(
           `https://api.github.com/repos/${repository}/actions/runs/${run.id}/jobs`,
           {
@@ -582,75 +366,143 @@ jobs:
 
             if (logsResponse.ok) {
               const logs = await logsResponse.text();
-              const emailMatch = logs.match(/USER_EMAIL_RESULT:\s*(.+)/);
-              if (emailMatch) {
-                userEmail = emailMatch[1].trim();
-                console.log("✅ User email retrieved:", userEmail);
-                break; // Exit the polling loop
+              const errorMatch = logs.match(/ERROR:\s*(.+)/);
+              if (errorMatch) {
+                throw new Error(errorMatch[1]);
               }
             }
           }
         }
 
-        if (!userEmail) {
-          throw new Error("Workflow completed but could not extract user email from logs");
+        throw new Error("Workflow failed. Check GitHub Actions for details.");
+      }
+
+      // Get artifact with result
+      const artifactsResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/runs/${run.id}/artifacts`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
         }
-      }
+      );
 
-      // If failed or cancelled
-      if (
-        run.status === "completed" &&
-        (run.conclusion === "failure" || run.conclusion === "cancelled")
-      ) {
-        throw new Error(`Workflow ${run.conclusion}. Check GitHub Actions for details.`);
-      }
+      if (artifactsResponse.ok) {
+        const artifactsData = await artifactsResponse.json();
+        const artifact = artifactsData.artifacts?.find((a: any) => a.name === "user-email-result");
 
-      // If we got the email, break out of the loop
-      if (userEmail) {
-        break;
-      }
-
-      // Still running, wait and check again
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    }
-
-    if (!userEmail) {
-      throw new Error("Timeout waiting for workflow completion");
-    }
-
-    return userEmail;
-  } finally {
-    // Step 6: Cleanup - Delete temporary workflow file
-    if (workflowCreated && workflowSha) {
-      try {
-        console.log("Cleaning up temporary workflow file...");
-        const deleteWorkflowResponse = await fetch(
-          `https://api.github.com/repos/${repository}/contents/${workflowPath}`,
-          {
-            method: "DELETE",
+        if (artifact) {
+          // Download artifact
+          const downloadResponse = await fetch(artifact.archive_download_url, {
             headers: {
               Authorization: `Bearer ${token}`,
               Accept: "application/vnd.github.v3+json",
-              "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              message: `[TODD Temporary] Remove temporary workflow file`,
-              sha: workflowSha,
-              branch: "main",
-            }),
-          }
-        );
+          });
 
-        if (deleteWorkflowResponse.ok) {
-          console.log("✅ Temporary workflow file deleted successfully");
-        } else {
-          const errorText = await deleteWorkflowResponse.text();
-          console.warn(`⚠️ Could not delete temporary workflow file (non-critical): ${errorText}`);
+          if (downloadResponse.ok) {
+            // The artifact is a zip file, we need to extract it
+            // For simplicity, let's try to get the result from logs instead
+            const jobsResponse = await fetch(
+              `https://api.github.com/repos/${repository}/actions/runs/${run.id}/jobs`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            );
+
+            if (jobsResponse.ok) {
+              const jobsData = await jobsResponse.json();
+              const job = jobsData.jobs?.[0];
+              if (job) {
+                const logsResponse = await fetch(
+                  `https://api.github.com/repos/${repository}/actions/jobs/${job.id}/logs`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      Accept: "application/vnd.github.v3+json",
+                    },
+                  }
+                );
+
+                if (logsResponse.ok) {
+                  const logs = await logsResponse.text();
+                  const emailMatch = logs.match(/USER_EMAIL_RESULT:\s*(.+)/);
+                  if (emailMatch) {
+                    return emailMatch[1].trim();
+                  }
+                }
+              }
+            }
+          }
         }
-      } catch (cleanupError) {
-        console.error("Error cleaning up workflow file (non-critical):", cleanupError);
-        // Don't throw - cleanup is not critical
+      }
+
+      // Fallback: try to get result from logs
+      const jobsResponse = await fetch(
+        `https://api.github.com/repos/${repository}/actions/runs/${run.id}/jobs`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
+
+      if (jobsResponse.ok) {
+        const jobsData = await jobsResponse.json();
+        const job = jobsData.jobs?.[0];
+        if (job) {
+          const logsResponse = await fetch(
+            `https://api.github.com/repos/${repository}/actions/jobs/${job.id}/logs`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            }
+          );
+
+          if (logsResponse.ok) {
+            const logs = await logsResponse.text();
+            const emailMatch = logs.match(/USER_EMAIL_RESULT:\s*(.+)/);
+            if (emailMatch) {
+              userEmail = emailMatch[1].trim();
+              console.log("✅ User email retrieved:", userEmail);
+              break; // Exit the polling loop
+            }
+          }
+        }
+      }
+
+      if (!userEmail) {
+        throw new Error("Workflow completed but could not extract user email from logs");
       }
     }
+
+    // If failed or cancelled
+    if (
+      run.status === "completed" &&
+      (run.conclusion === "failure" || run.conclusion === "cancelled")
+    ) {
+      throw new Error(`Workflow ${run.conclusion}. Check GitHub Actions for details.`);
+    }
+
+    // If we got the email, break out of the loop
+    if (userEmail) {
+      break;
+    }
+
+    // Still running, wait and check again
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
+
+  if (!userEmail) {
+    throw new Error("Timeout waiting for workflow completion");
+  }
+
+  return userEmail;
 }
