@@ -25,6 +25,7 @@ jobs:
       - name: Execute UsersHelper method
         env:
           TARGET_ENV: qa
+          ENVIRONMENT: qa
           METHOD_NAME: ${{ github.event.inputs.method }}
         run: |
           # Create temporary TypeScript file in project root
@@ -37,6 +38,10 @@ jobs:
               if (!methodName) {
                 throw new Error('METHOD_NAME environment variable is required');
               }
+              
+              console.log('=== DEBUG: Environment Check ===');
+              console.log('ENVIRONMENT:', process.env.ENVIRONMENT);
+              console.log('TARGET_ENV:', process.env.TARGET_ENV);
               
               console.log('=== DEBUG: Method Selection ===');
               console.log('Method name received:', methodName);
@@ -81,9 +86,10 @@ jobs:
           })();
           EOF
           
-          # Execute using npx tsx with TARGET_ENV (same pattern as test workflows)
+          # Execute using npx tsx with TARGET_ENV and ENVIRONMENT
           # TARGET_ENV will be used by the code to load env vars from properties/qa/.env.qa
-          TARGET_ENV=qa npx tsx ./execute-method.ts
+          # ENVIRONMENT is required by UsersHelper methods to check if they should run
+          TARGET_ENV=qa ENVIRONMENT=qa npx tsx ./execute-method.ts
           
           # Cleanup
           rm -f ./execute-method.ts
