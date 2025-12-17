@@ -27,8 +27,12 @@ export async function POST(request: NextRequest) {
     const frameworkStructure = await loadFrameworkStructure();
     const suggestedMethod = determineUsersHelperMethod(criteria, frameworkStructure);
 
+    console.log(`📝 Criteria received: "${criteria}"`);
+    console.log(`✅ Determined method: "${suggestedMethod}"`);
+
     // If execute flag is true, get actual user email via GitHub Actions
     if (execute) {
+      console.log(`🚀 Executing method "${suggestedMethod}" via GitHub Actions...`);
       const userEmail = await executeUsersHelperMethodViaGitHubActions(suggestedMethod, request);
       return NextResponse.json({
         success: true,

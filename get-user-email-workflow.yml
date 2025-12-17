@@ -1,0 +1,85 @@
+name: Get User Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      method:
+        description: 'UsersHelper method name'
+        required: true
+        type: string
+
+jobs:
+  get-user:
+    runs-on: arc-runner-dev-large
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Execute UsersHelper method
+        env:
+          TARGET_ENV: qa
+          METHOD_NAME: ${{ github.event.inputs.method }}
+        run: |
+          # Create temporary TypeScript file in project root
+          cat > ./execute-method.ts << 'EOF'
+          import { UsersHelper } from './helpers/UsersHelper';
+          
+          (async () => {
+            try {
+              const usersHelper = new UsersHelper();
+              const methodName = process.env.METHOD_NAME;
+              if (!methodName) {
+                throw new Error('METHOD_NAME environment variable is required');
+              }
+              
+              console.log('=== DEBUG INFO ===');
+              console.log('Method name received:', methodName);
+              console.log('UsersHelper instance type:', typeof usersHelper);
+              console.log('UsersHelper constructor:', usersHelper.constructor?.name);
+              
+              // Get all methods from prototype
+              const prototypeMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(usersHelper))
+                .filter(name => name !== 'constructor');
+              console.log('Prototype methods:', prototypeMethods.join(', '));
+              
+              // Get all own properties
+              const ownProperties = Object.getOwnPropertyNames(usersHelper);
+              console.log('Own properties:', ownProperties.join(', '));
+              
+              // Check if method exists in prototype
+              const methodExists = typeof usersHelper[methodName] === 'function';
+              console.log(`Method "${methodName}" exists:`, methodExists);
+              console.log(`Method "${methodName}" type:`, typeof usersHelper[methodName]);
+              
+              if (!methodExists) {
+                const allMethods = prototypeMethods.filter(name => typeof usersHelper[name] === 'function');
+                throw new Error(`Method "${methodName}" not found. Available methods: ${allMethods.join(', ')}`);
+              }
+              
+              console.log('=== EXECUTING METHOD ===');
+              console.log(`Calling: usersHelper.${methodName}()`);
+              const email = await usersHelper[methodName]();
+              console.log('USER_EMAIL_RESULT:', email);
+            } catch (error: any) {
+              console.error('ERROR:', error.message);
+              console.error('Stack:', error.stack);
+              process.exit(1);
+            }
+          })();
+          EOF
+          
+          # Execute using npx tsx with TARGET_ENV (same pattern as test workflows)
+          # TARGET_ENV will be used by the code to load env vars from properties/qa/.env.qa
+          TARGET_ENV=qa npx tsx ./execute-method.ts
+          
+          # Cleanup
+          rm -f ./execute-method.ts
+        id: get-user-email
+
