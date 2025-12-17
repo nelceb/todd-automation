@@ -45,10 +45,19 @@ jobs:
           console.log('File exists:', fs.existsSync(envFile));
           
           if (fs.existsSync(envFile)) {
-            const envConfig = dotenv.config({ path: envFile });
+            // Read file content to debug
+            const fileContent = fs.readFileSync(envFile, 'utf8');
+            console.log('File content preview (first 300 chars):', fileContent.substring(0, 300));
+            
+            // Load with override to ensure variables are set
+            const envConfig = dotenv.config({ path: envFile, override: true });
             if (envConfig.error) {
               console.error('Error loading env file:', envConfig.error);
+            } else {
+              console.log('✅ Environment variables loaded successfully');
+              console.log('Parsed variables count:', Object.keys(envConfig.parsed || {}).length);
             }
+            
             console.log('Environment variables loaded from:', envFile);
             console.log('SUBSCRIPTION_DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? `${process.env.SUBSCRIPTION_DB_HOST.substring(0, 20)}...` : 'NOT SET');
             console.log('SUBSCRIPTION_DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
