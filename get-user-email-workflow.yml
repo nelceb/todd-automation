@@ -27,18 +27,39 @@ jobs:
           TARGET_ENV: qa
           ENVIRONMENT: qa
           METHOD_NAME: ${{ github.event.inputs.method }}
-          SUBSCRIPTION_DB_HOST: ${{ secrets.SUBSCRIPTION_DB_HOST }}
-          SUBSCRIPTION_DB_USER: ${{ secrets.SUBSCRIPTION_DB_USER }}
-          SUBSCRIPTION_DB_PASSWORD: ${{ secrets.SUBSCRIPTION_DB_PASSWORD }}
-          SUBSCRIPTION_DB_DATABASE: ${{ secrets.SUBSCRIPTION_DB_DATABASE }}
         run: |
           # Create temporary TypeScript file in project root
           cat > ./execute-method.ts << 'EOF'
           import { UsersHelper } from './helpers/UsersHelper';
+          import * as dotenv from 'dotenv';
+          import * as fs from 'fs';
+          import * as path from 'path';
           
-          // Verify environment variables are set (from GitHub Secrets)
+          // Load environment variables from properties/qa/.env.qa (same as Playwright workflows)
+          const targetEnv = process.env.TARGET_ENV || 'qa';
+          const envFile = path.join(process.cwd(), `properties/${targetEnv}/.env.${targetEnv}`);
+          
+          console.log('=== DEBUG: Loading Environment Variables ===');
+          console.log('TARGET_ENV:', targetEnv);
+          console.log('ENV file path:', envFile);
+          console.log('File exists:', fs.existsSync(envFile));
+          
+          if (fs.existsSync(envFile)) {
+            // Load environment variables from .env file (same way Playwright does)
+            const envConfig = dotenv.config({ path: envFile, override: true });
+            if (envConfig.error) {
+              console.error('Error loading env file:', envConfig.error);
+              process.exit(1);
+            }
+            console.log('✅ Environment variables loaded from:', envFile);
+          } else {
+            console.error('⚠️ Environment file not found:', envFile);
+            console.error('This file should exist in the repository (same as Playwright workflows use)');
+            process.exit(1);
+          }
+          
+          // Verify environment variables are set
           console.log('=== DEBUG: Environment Variables Check ===');
-          console.log('TARGET_ENV:', process.env.TARGET_ENV);
           console.log('ENVIRONMENT:', process.env.ENVIRONMENT);
           console.log('SUBSCRIPTION_DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? `${process.env.SUBSCRIPTION_DB_HOST.substring(0, 20)}...` : 'NOT SET');
           console.log('SUBSCRIPTION_DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
@@ -49,7 +70,7 @@ jobs:
           if (!process.env.SUBSCRIPTION_DB_HOST || !process.env.SUBSCRIPTION_DB_USER || !process.env.SUBSCRIPTION_DB_PASSWORD || !process.env.SUBSCRIPTION_DB_DATABASE) {
             console.error('⚠️ Missing required database environment variables!');
             console.error('Required: SUBSCRIPTION_DB_HOST, SUBSCRIPTION_DB_USER, SUBSCRIPTION_DB_PASSWORD, SUBSCRIPTION_DB_DATABASE');
-            console.error('Please configure these as GitHub Secrets in the repository settings.');
+            console.error('These should be loaded from:', envFile);
             process.exit(1);
           }
           
