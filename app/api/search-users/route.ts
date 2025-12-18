@@ -397,35 +397,57 @@ async function executeUsersHelperMethodViaGitHubActions(
                 if (errorMatch && errorMatch[1]) {
                   let errorMessage = errorMatch[1].trim();
 
-                  // Remove JavaScript code artifacts that might have been captured
+                  // Remove TypeScript/JavaScript code artifacts that might have been captured
                   errorMessage = errorMessage
                     .replace(/['"`].*error\.message.*['"`]\)?;?/gi, "")
                     .replace(/console\.(log|error)\(.*\)/g, "")
                     .replace(/process\.exit\(.*\)/g, "")
+                    .replace(/error:\s*any[\)\s]*\{/gi, "") // Remove "error: any) {"
+                    .replace(/catch\s*\(.*\)/gi, "") // Remove catch statements
+                    .replace(/:\s*any/gi, "") // Remove type annotations
                     .trim();
 
                   // Only use if it looks like a real error message (not code)
                   if (
                     errorMessage &&
                     !errorMessage.includes("error.message") &&
-                    errorMessage.length > 0
+                    !errorMessage.includes("error: any") &&
+                    !errorMessage.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*[:=]/) && // Not a variable declaration
+                    errorMessage.length > 3 && // At least 3 characters
+                    !errorMessage.match(/^[{}()\[\]]+$/) // Not just brackets
                   ) {
                     throw new Error(errorMessage);
                   }
                 }
               }
 
-              // Fallback: look for any error-like pattern in logs
-              const generalErrorMatch = cleanLogs.match(/(?:Error|error|ERROR):\s*([^\n\r]+)/);
-              if (generalErrorMatch && generalErrorMatch[1]) {
-                let errorMessage = generalErrorMatch[1].trim();
-                errorMessage = errorMessage
-                  .replace(/['"`].*error\.message.*['"`]\)?;?/gi, "")
-                  .replace(/console\.(log|error)\(.*\)/g, "")
-                  .trim();
-                if (errorMessage && !errorMessage.includes("error.message")) {
-                  throw new Error(errorMessage);
+              // Fallback: look for actual error messages in the logs
+              // Try to find lines that look like error messages (not code)
+              for (const line of logLines) {
+                // Look for patterns like "Error: message" or "ERROR: message"
+                const errorPattern = /(?:Error|ERROR):\s*([^{}\(\):]+(?:\([^)]+\))?[^{}\(\)]*)/;
+                const match = line.match(errorPattern);
+                if (match && match[1]) {
+                  let errorMessage = match[1].trim();
+
+                  // Filter out code-like patterns
+                  if (
+                    errorMessage &&
+                    !errorMessage.includes("error: any") &&
+                    !errorMessage.includes("catch") &&
+                    !errorMessage.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*\s*[:=]/) &&
+                    errorMessage.length > 3 &&
+                    !errorMessage.match(/^[{}()\[\]]+$/)
+                  ) {
+                    throw new Error(errorMessage);
+                  }
                 }
+              }
+
+              // Last resort: look for USER_EMAIL_RESULT to see if it succeeded
+              const emailMatch = cleanLogs.match(/USER_EMAIL_RESULT:\s*(.+)/);
+              if (emailMatch) {
+                return emailMatch[1].trim();
               }
             }
           }
