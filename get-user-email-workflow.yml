@@ -52,6 +52,31 @@ jobs:
               process.exit(1);
             }
             console.log('✅ Environment variables loaded from:', envFile);
+            
+            // Debug: Show what variables were actually parsed
+            if (envConfig.parsed) {
+              const parsedKeys = Object.keys(envConfig.parsed);
+              console.log(`📋 Parsed ${parsedKeys.length} variables from .env file`);
+              console.log('📋 Variable names (first 20):', parsedKeys.slice(0, 20).join(', '));
+              
+              // Look for DB-related variables (case-insensitive)
+              const dbVars = parsedKeys.filter(key => 
+                key.toLowerCase().includes('db') || 
+                key.toLowerCase().includes('subscription') ||
+                key.toLowerCase().includes('database')
+              );
+              console.log('📋 DB-related variables found:', dbVars.join(', '));
+              
+              // Show values (masked) for DB vars
+              dbVars.forEach(key => {
+                const value = envConfig.parsed![key];
+                if (key.toLowerCase().includes('password')) {
+                  console.log(`  ${key}: ***`);
+                } else {
+                  console.log(`  ${key}: ${value ? value.substring(0, 30) + '...' : 'empty'}`);
+                }
+              });
+            }
           } else {
             console.error('⚠️ Environment file not found:', envFile);
             console.error('This file should exist in the repository (same as Playwright workflows use)');
@@ -65,6 +90,20 @@ jobs:
           console.log('SUBSCRIPTION_DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
           console.log('SUBSCRIPTION_DB_DATABASE:', process.env.SUBSCRIPTION_DB_DATABASE || 'NOT SET');
           console.log('SUBSCRIPTION_DB_PASSWORD:', process.env.SUBSCRIPTION_DB_PASSWORD ? '***' : 'NOT SET');
+          
+          // Also check for alternative variable names
+          const altVars = [
+            'DB_HOST', 'DATABASE_HOST', 'MYSQL_HOST',
+            'DB_USER', 'DATABASE_USER', 'MYSQL_USER',
+            'DB_PASSWORD', 'DATABASE_PASSWORD', 'MYSQL_PASSWORD',
+            'DB_NAME', 'DATABASE_NAME', 'MYSQL_DATABASE'
+          ];
+          console.log('=== Checking alternative variable names ===');
+          altVars.forEach(varName => {
+            if (process.env[varName]) {
+              console.log(`Found ${varName}: ${varName.includes('PASSWORD') ? '***' : process.env[varName]?.substring(0, 20) + '...'}`);
+            }
+          });
           
           // Verify all required DB variables are set
           if (!process.env.SUBSCRIPTION_DB_HOST || !process.env.SUBSCRIPTION_DB_USER || !process.env.SUBSCRIPTION_DB_PASSWORD || !process.env.SUBSCRIPTION_DB_DATABASE) {
