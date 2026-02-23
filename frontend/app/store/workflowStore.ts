@@ -254,8 +254,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
     const results = []
     for (const workflow of workflows) {
       try {
-        // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
-        const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
+        // Extract repo name from full repository path (e.g., "Cook-Unity/pw-cookunity-automation" -> "pw-cookunity-automation")
+        const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'pw-cookunity-automation'
         const result = await get().triggerWorkflow(workflow.workflowName, workflow.inputs, token, repoName, branch)
         results.push({ ...result, workflow })
       } catch (error) {
@@ -377,7 +377,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
       // Fetch logs for all run IDs
       const logsPromises = runIds.map(async (runId, index) => {
         try {
-          const repository = repositories?.[index] || 'maestro-test'
+          const repository = repositories?.[index] || 'pw-cookunity-automation'
           const repoParam = repository ? `&repository=${repository}` : ''
           const headers: Record<string, string> = { 'Content-Type': 'application/json' }
           const response = await fetch(`/api/workflow-logs?runId=${runId}${repoParam}`, { headers })

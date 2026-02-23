@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const repository = searchParams.get('repository') || 'maestro-test'
+    const repository = searchParams.get('repository') || 'pw-cookunity-automation'
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching workflows:', error)
     const { searchParams } = new URL(request.url)
-    const repository = searchParams.get('repository') || 'maestro-test'
+    const repository = searchParams.get('repository') || 'pw-cookunity-automation'
     
     return NextResponse.json(
       { 

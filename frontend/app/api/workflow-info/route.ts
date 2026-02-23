@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const repository = searchParams.get('repository') || 'maestro-test'
+    const repository = searchParams.get('repository') || 'pw-cookunity-automation'
     const workflowId = searchParams.get('workflowId')
     
     const token = process.env.GITHUB_TOKEN

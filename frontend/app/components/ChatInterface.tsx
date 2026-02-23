@@ -449,8 +449,8 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         
         for (const workflow of preview.workflows) {
           try {
-            // Extract repo name from full repository path (e.g., "Cook-Unity/maestro-test" -> "maestro-test")
-            const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'maestro-test'
+            // Extract repo name from full repository path (e.g., "Cook-Unity/pw-cookunity-automation" -> "pw-cookunity-automation")
+            const repoName = workflow.repository ? workflow.repository.split('/').pop() : 'pw-cookunity-automation'
             const result = await triggerWorkflow(workflow.workflowName, workflow.inputs, githubToken, repoName, targetBranch)
             results.push({ ...result, workflow })
             
@@ -469,7 +469,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
         // Start polling for multiple logs if we have run IDs
         if (runIds.length > 0) {
           const repositories = results.map(result => {
-            const repoName = result.workflow?.repository ? result.workflow.repository.split('/').pop() : 'maestro-test'
+            const repoName = result.workflow?.repository ? result.workflow.repository.split('/').pop() : 'pw-cookunity-automation'
             return repoName
           })
           startPollingMultipleLogs(runIds, githubToken, repositories)
@@ -1140,7 +1140,7 @@ export default function ChatInterface({ githubToken, messages: externalMessages,
                               {/* Cancel button - only show for in_progress workflows */}
                               {logs.run.status === 'in_progress' && logs.run.id && (
                                 <button
-                                  onClick={() => handleCancelWorkflow(logs.run.id.toString(), 'maestro-test')}
+                                  onClick={() => handleCancelWorkflow(logs.run.id.toString(), 'pw-cookunity-automation')}
                                   className="inline-flex items-center space-x-1 text-sm text-red-400 hover:text-red-300 transition-colors px-2 py-1 border border-red-400/30 rounded-md hover:border-red-400/50"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

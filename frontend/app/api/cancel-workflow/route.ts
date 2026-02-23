@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       throw new Error('Repository es requerido')
     }
 
-    // Parse repository - handle both full names (Cook-Unity/maestro-test) and short names (maestro-test)
+    // Parse repository - handle both full names (Cook-Unity/pw-cookunity-automation) and short names (pw-cookunity-automation)
     let repo = repository
     if (repository.includes('/')) {
       repo = repository.split('/').pop() || repository

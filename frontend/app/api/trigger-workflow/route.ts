@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
-    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
+    const repo = repository || process.env.GITHUB_REPO || 'pw-cookunity-automation'
 
     if (!token) {
       console.error('GitHub token no configurado en variables de entorno')

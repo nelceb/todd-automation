@@ -28,7 +28,7 @@ export function useWorkflowInputs() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchWorkflowInputs = async (repositories: string[] = ['maestro-test', 'pw-cookunity-automation', 'automation-framework']) => {
+  const fetchWorkflowInputs = async (repositories: string[] = ['pw-cookunity-automation', 'wdio-cookunity-automation']) => {
     setIsLoading(true)
     setError(null)
     
@@ -62,7 +62,7 @@ export function useWorkflowInputs() {
   }
 
   const getWorkflowInputs = (workflowName: string, repository: string): Record<string, any> => {
-    const repoName = repository.split('/').pop() || 'maestro-test'
+    const repoName = repository.split('/').pop() || 'pw-cookunity-automation'
     const repoInputs = workflowInputs[repoName]
     
     if (!repoInputs || !repoInputs[workflowName]) {

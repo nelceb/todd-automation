@@ -260,7 +260,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
     
     try {
       // Extract repo name from full path
-      const repoName = repository.split('/').pop() || 'maestro-test'
+      const repoName = repository.split('/').pop() || 'pw-cookunity-automation'
       
       // Get appropriate inputs for this workflow
       const inputs = getWorkflowInputs(workflowName, repository)
@@ -300,7 +300,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
   const startWorkflowPolling = (workflowId: string, runId: string, repository: string) => {
     const pollInterval = setInterval(async () => {
       try {
-        const repoName = repository.split('/').pop() || 'maestro-test'
+        const repoName = repository.split('/').pop() || 'pw-cookunity-automation'
         const response = await fetch(`/api/workflow-status?runId=${runId}&repository=${repoName}`)
         
         if (response.ok) {
@@ -343,7 +343,7 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
 
   const handleCancelWorkflow = async (workflowId: string, runId: string, repository: string) => {
     try {
-      const repoName = repository.split('/').pop() || 'maestro-test'
+      const repoName = repository.split('/').pop() || 'pw-cookunity-automation'
       const response = await fetch('/api/cancel-workflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -539,36 +539,12 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
       ]
     },
     {
-      name: 'maestro-test',
-      fullName: 'Cook-Unity/maestro-test',
-      technology: 'maestro',
-      icon: DevicePhoneMobileIcon,
-      color: 'airforce',
-      workflows: [
-        'iOS Maestro Cloud Tests',
-        'Run BS iOS Maestro Test (Minimal Zip)',
-        'iOS Gauge Tests on LambdaTest',
-        'Maestro Mobile Tests - iOS and Android',
-        'Run Maestro Test on BrowserStack (iOS)',
-        'Run Maestro Test on BrowserStack',
-        'Maestro iOS Tests'
-      ]
-    },
-    {
-      name: 'automation-framework',
-      fullName: 'Cook-Unity/automation-framework',
-      technology: 'selenium',
+      name: 'wdio-cookunity-automation',
+      fullName: 'Cook-Unity/wdio-cookunity-automation',
+      technology: 'wdio',
       icon: CodeBracketIcon,
       color: 'earth',
-      workflows: [
-        'Prod Android Regression',
-        'Prod iOS Regression',
-        'QA E2E Web Regression',
-        'QA Android Regression',
-        'QA iOS Regression',
-        'QA API Kitchen Regression',
-        'QA Logistics Regression'
-      ]
+      workflows: []
     }
   ]
 
@@ -584,8 +560,8 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
         </p>
       </div>
 
-      {/* 3 Repository Columns */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-32">
+      {/* 2 Repository Columns */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-32">
         {repositoryData.map((repo) => {
           const isExpanded = expandedRepositories.has(repo.name)
           const IconComponent = repo.icon

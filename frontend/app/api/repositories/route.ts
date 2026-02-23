@@ -5,19 +5,12 @@ export const dynamic = 'force-dynamic'
 
 // Target repositories for Cook-Unity automation
 const TARGET_REPOS = [
-  'Cook-Unity/maestro-test',
-  'Cook-Unity/pw-cookunity-automation', 
-  'Cook-Unity/automation-framework'
+  'Cook-Unity/pw-cookunity-automation',
+  'Cook-Unity/wdio-cookunity-automation'
 ]
 
 // Repository classification based on real analysis
 const REPO_CLASSIFICATION = {
-  'Cook-Unity/maestro-test': {
-    technology: 'maestro',
-    platforms: ['ios', 'android'],
-    providers: ['browserstack', 'lambdatest', 'maestro-cloud'],
-    description: 'iOS Maestro Cloud Tests'
-  },
   'Cook-Unity/pw-cookunity-automation': {
     technology: 'playwright',
     platforms: ['web'],
@@ -25,11 +18,11 @@ const REPO_CLASSIFICATION = {
     regions: ['us', 'ca'],
     description: 'Playwright E2E Web Tests'
   },
-  'Cook-Unity/automation-framework': {
-    technology: 'selenium',
+  'Cook-Unity/wdio-cookunity-automation': {
+    technology: 'wdio',
     platforms: ['web', 'mobile'],
-    types: ['api', 'e2e', 'regression'],
-    description: 'Java + TestNG + Selenium Framework'
+    types: ['e2e', 'regression'],
+    description: 'WebdriverIO E2E Tests'
   }
 }
 

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
-    const repo = repository || process.env.GITHUB_REPO || 'maestro-test'
+    const repo = repository || process.env.GITHUB_REPO || 'pw-cookunity-automation'
 
     if (!runId) {
       return NextResponse.json({ error: 'Run ID is required' }, { status: 400 })

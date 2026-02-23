@@ -36,7 +36,7 @@ GITHUB_CLIENT_ID=tu_github_client_id
 GITHUB_CLIENT_SECRET=tu_github_client_secret
 GITHUB_TOKEN=tu_github_token
 GITHUB_OWNER=cook-unity
-GITHUB_REPO=maestro-test
+GITHUB_REPO=pw-cookunity-automation
 
 # OpenAI Configuration
 OPENAI_API_KEY=tu_clave_de_openai
@@ -116,7 +116,7 @@ frontend/
      GITHUB_CLIENT_SECRET=tu_github_client_secret
      GITHUB_TOKEN=tu_github_token
      GITHUB_OWNER=cook-unity
-     GITHUB_REPO=maestro-test
+     GITHUB_REPO=pw-cookunity-automation
      OPENAI_API_KEY=tu_clave_de_openai
      ```
 3. Desplegar automáticamente

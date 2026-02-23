@@ -85,7 +85,7 @@ function parseWorkflowInputs(yamlContent: string): WorkflowInput[] {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const repository = searchParams.get('repository') || 'maestro-test'
+    const repository = searchParams.get('repository') || 'pw-cookunity-automation'
     
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER || 'cook-unity'
