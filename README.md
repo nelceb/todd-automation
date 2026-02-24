@@ -2,8 +2,6 @@
 
 Interfaz web inteligente para ejecutar tests y workflows de CookUnity usando IA.
 
-<!-- Test deployment -->
-
 ## 🚀 Características
 
 - **Chat con IA**: Interfaz conversacional para ejecutar tests usando lenguaje natural
@@ -27,29 +25,17 @@ npm install
 ```
 
 2. Configurar variables de entorno:
-
-Crear archivo `.env.local` en el directorio `frontend/` con las siguientes variables:
-
-```env
-# GitHub Configuration
-GITHUB_CLIENT_ID=tu_github_client_id
-GITHUB_CLIENT_SECRET=tu_github_client_secret
-GITHUB_TOKEN=tu_github_token
-GITHUB_OWNER=cook-unity
-GITHUB_REPO=pw-cookunity-automation
-
-# OpenAI Configuration
-OPENAI_API_KEY=tu_clave_de_openai
+```bash
+cp .env.example .env.local
 ```
 
-**⚠️ Importante**: Para obtener las credenciales de GitHub:
-
-1. **GitHub Token**: Ve a GitHub → Settings → Developer settings → Personal access tokens → Generate new token
-   - Selecciona los scopes: `repo`, `workflow`, `actions`
-   
-2. **GitHub OAuth App** (para autenticación de usuarios):
-   - Ve a GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
-   - Authorization callback URL: `http://localhost:3000/api/auth/github` (desarrollo) o `https://tu-dominio.vercel.app/api/auth/github` (producción)
+Editar `.env.local` con tus credenciales:
+```env
+GITHUB_TOKEN=tu_token_de_github
+GITHUB_OWNER=cookunity
+GITHUB_REPO=test-runner-ai
+OPENAI_API_KEY=tu_clave_de_openai
+```
 
 3. Ejecutar en desarrollo:
 ```bash
@@ -107,24 +93,8 @@ frontend/
 ### Vercel (Recomendado)
 
 1. Conectar repositorio a Vercel
-2. **Configurar variables de entorno en el dashboard de Vercel**:
-   - Ve a tu proyecto en Vercel Dashboard
-   - Settings → Environment Variables
-   - Agrega las siguientes variables:
-     ```
-     GITHUB_CLIENT_ID=tu_github_client_id
-     GITHUB_CLIENT_SECRET=tu_github_client_secret
-     GITHUB_TOKEN=tu_github_token
-     GITHUB_OWNER=cook-unity
-     GITHUB_REPO=pw-cookunity-automation
-     OPENAI_API_KEY=tu_clave_de_openai
-     ```
+2. Configurar variables de entorno en el dashboard
 3. Desplegar automáticamente
-
-**🔧 Solución de problemas de autenticación**:
-- Si ves el error "Authentication Error", verifica que todas las variables de entorno estén configuradas correctamente en Vercel
-- Asegúrate de que el GitHub token tenga los permisos necesarios: `repo`, `workflow`, `actions`
-- Verifica que el GitHub OAuth App tenga la URL de callback correcta
 
 ### Docker
 
@@ -145,8 +115,4 @@ docker run -p 3000:3000 test-runner-ai-frontend
 
 Este proyecto está bajo la Licencia MIT.
 
----
-*Última actualización: $(date)*
-# Force redeploy - Tue Oct 14 11:32:59 -03 2025
-# Force new deployment - Tue Oct 14 11:36:43 -03 2025
-# Force deploy after root directory config - Tue Oct 14 11:53:41 -03 2025
+

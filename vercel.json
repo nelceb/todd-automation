@@ -1,12 +1,10 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "installCommand": "npm install",
   "framework": "nextjs",
   "functions": {
-    "app/api/**/*.ts": {
-      "runtime": "nodejs18.x"
+    "app/api/playwright-mcp/route.ts": {
+      "maxDuration": 60
     }
-  },
-  "version": 2
+  }
 }

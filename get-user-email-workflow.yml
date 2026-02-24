@@ -1,0 +1,178 @@
+name: Get User Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      method:
+        description: 'UsersHelper method name'
+        required: true
+        type: string
+
+jobs:
+  get-user:
+    runs-on: arc-runner-dev-large
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Execute UsersHelper method
+        env:
+          TARGET_ENV: qa
+          ENVIRONMENT: qa
+          METHOD_NAME: ${{ github.event.inputs.method }}
+        run: |
+          # Create temporary TypeScript file in project root
+          cat > ./execute-method.ts << 'EOF'
+          import { UsersHelper } from './helpers/UsersHelper';
+          import * as dotenv from 'dotenv';
+          import * as fs from 'fs';
+          import * as path from 'path';
+          
+          // Load environment variables from properties/qa/.env.qa (same as Playwright workflows)
+          const targetEnv = process.env.TARGET_ENV || 'qa';
+          const envFile = path.join(process.cwd(), `properties/${targetEnv}/.env.${targetEnv}`);
+          
+          console.log('=== DEBUG: Loading Environment Variables ===');
+          console.log('TARGET_ENV:', targetEnv);
+          console.log('ENV file path:', envFile);
+          console.log('File exists:', fs.existsSync(envFile));
+          
+          if (fs.existsSync(envFile)) {
+            // Load environment variables from .env file (same way Playwright does)
+            const envConfig = dotenv.config({ path: envFile, override: true });
+            if (envConfig.error) {
+              console.error('Error loading env file:', envConfig.error);
+              process.exit(1);
+            }
+            console.log('✅ Environment variables loaded from:', envFile);
+            
+            // Debug: Show what variables were actually parsed
+            if (envConfig.parsed) {
+              const parsedKeys = Object.keys(envConfig.parsed);
+              console.log(`📋 Parsed ${parsedKeys.length} variables from .env file`);
+              console.log('📋 Variable names (first 20):', parsedKeys.slice(0, 20).join(', '));
+              
+              // Look for DB-related variables (case-insensitive)
+              const dbVars = parsedKeys.filter(key => 
+                key.toLowerCase().includes('db') || 
+                key.toLowerCase().includes('subscription') ||
+                key.toLowerCase().includes('database')
+              );
+              console.log('📋 DB-related variables found:', dbVars.join(', '));
+              
+              // Show values (masked) for DB vars
+              dbVars.forEach(key => {
+                const value = envConfig.parsed![key];
+                if (key.toLowerCase().includes('password')) {
+                  console.log(`  ${key}: ***`);
+                } else {
+                  console.log(`  ${key}: ${value ? value.substring(0, 30) + '...' : 'empty'}`);
+                }
+              });
+            }
+          } else {
+            console.error('⚠️ Environment file not found:', envFile);
+            console.error('This file should exist in the repository (same as Playwright workflows use)');
+            process.exit(1);
+          }
+          
+          // Verify environment variables are set
+          console.log('=== DEBUG: Environment Variables Check ===');
+          console.log('ENVIRONMENT:', process.env.ENVIRONMENT);
+          console.log('SUBSCRIPTION_DB_HOST:', process.env.SUBSCRIPTION_DB_HOST ? `${process.env.SUBSCRIPTION_DB_HOST.substring(0, 20)}...` : 'NOT SET');
+          console.log('SUBSCRIPTION_DB_USER:', process.env.SUBSCRIPTION_DB_USER ? '***' : 'NOT SET');
+          console.log('SUBSCRIPTION_DB_DATABASE:', process.env.SUBSCRIPTION_DB_DATABASE || 'NOT SET');
+          console.log('SUBSCRIPTION_DB_PASSWORD:', process.env.SUBSCRIPTION_DB_PASSWORD ? '***' : 'NOT SET');
+          
+          // Also check for alternative variable names
+          const altVars = [
+            'DB_HOST', 'DATABASE_HOST', 'MYSQL_HOST',
+            'DB_USER', 'DATABASE_USER', 'MYSQL_USER',
+            'DB_PASSWORD', 'DATABASE_PASSWORD', 'MYSQL_PASSWORD',
+            'DB_NAME', 'DATABASE_NAME', 'MYSQL_DATABASE'
+          ];
+          console.log('=== Checking alternative variable names ===');
+          altVars.forEach(varName => {
+            if (process.env[varName]) {
+              console.log(`Found ${varName}: ${varName.includes('PASSWORD') ? '***' : process.env[varName]?.substring(0, 20) + '...'}`);
+            }
+          });
+          
+          // Verify all required DB variables are set
+          if (!process.env.SUBSCRIPTION_DB_HOST || !process.env.SUBSCRIPTION_DB_USER || !process.env.SUBSCRIPTION_DB_PASSWORD || !process.env.SUBSCRIPTION_DB_DATABASE) {
+            console.error('⚠️ Missing required database environment variables!');
+            console.error('Required: SUBSCRIPTION_DB_HOST, SUBSCRIPTION_DB_USER, SUBSCRIPTION_DB_PASSWORD, SUBSCRIPTION_DB_DATABASE');
+            console.error('These should be loaded from:', envFile);
+            process.exit(1);
+          }
+          
+          (async () => {
+            try {
+              const methodName = process.env.METHOD_NAME;
+              if (!methodName) {
+                throw new Error('METHOD_NAME environment variable is required');
+              }
+              
+              console.log('=== DEBUG: Environment Check ===');
+              console.log('ENVIRONMENT:', process.env.ENVIRONMENT);
+              console.log('TARGET_ENV:', process.env.TARGET_ENV);
+              
+              console.log('=== DEBUG: Method Selection ===');
+              console.log('Method name received:', methodName);
+              
+              console.log('=== DEBUG: Creating UsersHelper instance ===');
+              const usersHelper = new UsersHelper();
+              
+              console.log('=== DEBUG: Inspecting UsersHelper ===');
+              console.log('Instance type:', typeof usersHelper);
+              console.log('Constructor name:', usersHelper.constructor?.name);
+              
+              // Get ALL methods from prototype chain
+              let current = usersHelper;
+              const allMethods: string[] = [];
+              while (current && current !== Object.prototype) {
+                const methods = Object.getOwnPropertyNames(current)
+                  .filter(name => name !== 'constructor' && typeof current[name] === 'function');
+                allMethods.push(...methods);
+                current = Object.getPrototypeOf(current);
+              }
+              
+              const uniqueMethods = [...new Set(allMethods)];
+              console.log('All available methods:', uniqueMethods.join(', '));
+              
+              // Check if method exists
+              const methodExists = typeof usersHelper[methodName] === 'function';
+              console.log(`Method "${methodName}" exists:`, methodExists);
+              
+              if (!methodExists) {
+                throw new Error(`Method "${methodName}" not found. Available methods: ${uniqueMethods.join(', ')}`);
+              }
+              
+              console.log('=== EXECUTING METHOD ===');
+              console.log(`Calling: usersHelper.${methodName}()`);
+              const email = await usersHelper[methodName]();
+              console.log('USER_EMAIL_RESULT:', email);
+            } catch (error: any) {
+              console.error('ERROR:', error.message);
+              console.error('Stack:', error.stack);
+              process.exit(1);
+            }
+          })();
+          EOF
+          
+          # Execute using npx tsx with TARGET_ENV and ENVIRONMENT
+          # TARGET_ENV will be used by the code to load env vars from properties/qa/.env.qa
+          # ENVIRONMENT is required by UsersHelper methods to check if they should run
+          TARGET_ENV=qa ENVIRONMENT=qa npx tsx ./execute-method.ts
+          
+          # Cleanup
+          rm -f ./execute-method.ts
+        id: get-user-email
+

@@ -1,0 +1,198 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-24T13:36:30.739Z",
+  "pageObjects": {
+    "HomePage": {
+      "location": "tests/frontend/desktop/subscription/coreUx/homePage.ts",
+      "methods": [
+        {
+          "name": "scrollToOrderAgainSection()",
+          "description": "Scrolls to Order Again swimlane"
+        },
+        {
+          "name": "scrollToMealsSection()",
+          "description": "Scrolls to meals section"
+        },
+        {
+          "name": "isOrderAgainSwimlaneVisible()",
+          "description": "Checks if Order Again swimlane is visible"
+        },
+        {
+          "name": "isBannerCarouselDisplayed()",
+          "description": "Checks if banner carousel is displayed"
+        },
+        {
+          "name": "isMealsSectionVisible()",
+          "description": "Checks if meals section is visible"
+        },
+        {
+          "name": "clickOnAddMealButton(times: number)",
+          "description": "Clicks add meal button (uses forceScrollIntoView)"
+        },
+        {
+          "name": "clickOnSearchBar()",
+          "description": "Opens search page"
+        },
+        {
+          "name": "fillSearchInput(query: string)",
+          "description": "Fills search input"
+        },
+        {
+          "name": "clickOnSearchButton()",
+          "description": "Clicks search button"
+        },
+        {
+          "name": "skipHomeOnboardingTooltips()",
+          "description": "Skips home onboarding tooltips"
+        }
+      ]
+    },
+    "OrdersHubPage": {
+      "location": "tests/frontend/desktop/subscription/coreUx/ordersHub.ts",
+      "methods": [
+        {
+          "name": "clickOnPastOrdersTab()",
+          "description": "Clicks Past Orders tab"
+        },
+        {
+          "name": "isPastOrdersSectionVisible()",
+          "description": "Checks if Past Orders section is visible"
+        },
+        {
+          "name": "isEmptyPastOrdersStateVisible()",
+          "description": "Checks if empty past orders state is visible"
+        },
+        {
+          "name": "isPastOrdersListVisible()",
+          "description": "Checks if past orders list is visible"
+        },
+        {
+          "name": "isRatingSectionVisible()",
+          "description": "Checks if rating section is visible"
+        },
+        {
+          "name": "isOnboardingWalkthroughShown()",
+          "description": "Checks if onboarding walkthrough is shown"
+        },
+        {
+          "name": "isUpcomingOrdersSectionVisible()",
+          "description": "Checks if upcoming orders section is visible"
+        }
+      ]
+    },
+    "UsersHelper": {
+      "location": "tests/frontend/desktop/subscription/coreUx/usersHelper.ts",
+      "methods": [
+        {
+          "name": "getActiveUserEmailWithPastOrders()",
+          "description": "Gets user with past orders"
+        },
+        {
+          "name": "getActiveUserEmailWithHomeOnboardingViewed()",
+          "description": "Gets user with home onboarding viewed"
+        },
+        {
+          "name": "getActiveUserEmailWithHomeOnboardingNotViewed()",
+          "description": "Gets user with home onboarding not viewed"
+        },
+        {
+          "name": "getActiveUserEmailWithOrdersHubOnboardingNotViewed()",
+          "description": "Gets user with Orders Hub onboarding not viewed"
+        }
+      ]
+    }
+  },
+  "testGeneration": {
+    "frameworkDetection": {
+      "playwright": "Web tests, homepage, search, Orders Hub",
+      "maestro": "iOS mobile tests",
+      "selenium": "API/backend tests"
+    },
+    "categoryDetection": {
+      "home": "Tests related to homepage, banner, swimlane, meals",
+      "orders hub": "Tests related to orders, past orders, upcoming orders",
+      "core ux": "Tests related to core user experience"
+    },
+    "userSelection": {
+      "past orders": "Use getActiveUserEmailWithPastOrders()",
+      "empty state": "Use getActiveUserEmailWithHomeOnboardingViewed()",
+      "onboarding": "Use getActiveUserEmailWithOrdersHubOnboardingNotViewed()"
+    },
+    "navigationPatterns": {
+      "home to orders hub": "homePage.clickOnOrdersHubNavItem()",
+      "orders hub to past orders": "ordersHubPage.clickOnPastOrdersTab()",
+      "home to search": "homePage.clickOnSearchBar()"
+    },
+    "scrollPatterns": {
+      "order again swimlane": "homePage.scrollToOrderAgainSection()",
+      "meals section": "homePage.scrollToMealsSection()",
+      "banner": "No scroll needed (at top of page)"
+    },
+    "assertionPatterns": {
+      "visibility": "is[Element]Visible() or is[Element]Displayed()",
+      "empty state": "isEmpty[Element]StateVisible()",
+      "section": "is[Section]SectionVisible()"
+    }
+  },
+  "tags": {
+    "base": [
+      {
+        "name": "@qa",
+        "description": "All tests"
+      },
+      {
+        "name": "@e2e",
+        "description": "End-to-end tests"
+      }
+    ],
+    "feature": [
+      {
+        "name": "@coreUx",
+        "description": "Core UX tests"
+      },
+      {
+        "name": "@home",
+        "description": "Homepage tests"
+      },
+      {
+        "name": "@subscription",
+        "description": "Subscription tests"
+      },
+      {
+        "name": "@orders",
+        "description": "Orders related tests"
+      }
+    ],
+    "framework": [
+      {
+        "name": "@playwright",
+        "description": "Playwright tests"
+      },
+      {
+        "name": "@maestro",
+        "description": "Maestro tests"
+      },
+      {
+        "name": "@selenium",
+        "description": "Selenium tests"
+      }
+    ]
+  },
+  "fileStructure": {
+    "testFiles": {
+      "HomePage": "homePage.spec.ts",
+      "Orders Hub": "ordersHub.spec.ts",
+      "Subscription": "subscription.spec.ts"
+    },
+    "testPaths": {
+      "Playwright": "tests/frontend/desktop/subscription/coreUx/",
+      "Maestro": "maestro/tests/",
+      "Selenium": "src/test/kotlin/com/cookunity/frontend/desktop/"
+    }
+  },
+  "patterns": {
+    "given": "const userEmail = await usersHelper.getActiveUserEmailWith[SpecificType]();\nconst loginPage = await siteMap.loginPage(page);\nconst homePage = await loginPage.loginRetryingExpectingCoreUxWith(userEmail, process.env.VALID_LOGIN_PASSWORD);",
+    "when": "// For navigation\nconst ordersHubPage = await homePage.clickOnOrdersHubNavItem();\n\n// For scrolling\nawait homePage.scrollToOrderAgainSection();\n\n// For interactions\nawait ordersHubPage.clickOnPastOrdersTab();",
+    "then": "expect.soft(await homePage.isOrderAgainSwimlaneVisible(), 'Order Again swimlane is visible').toBeTruthy();"
+  }
+}

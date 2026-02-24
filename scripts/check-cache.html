@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check TODD Cache</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .section {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    .exists { color: green; }
+    .missing { color: red; }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      background: #0070f3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background: #0051cc; }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+      max-height: 200px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 TODD Cache Checker</h1>
+  
+  <div class="section">
+    <h2>Metrics Cache</h2>
+    <div id="metrics-status"></div>
+    <button onclick="checkMetrics()">Check Metrics Cache</button>
+    <button onclick="clearMetrics()">Clear Metrics Cache</button>
+  </div>
+  
+  <div class="section">
+    <h2>Failure Analysis Cache</h2>
+    <div id="failure-status"></div>
+    <button onclick="checkFailure()">Check Failure Cache</button>
+    <button onclick="clearFailure()">Clear Failure Cache</button>
+  </div>
+  
+  <div class="section">
+    <h2>Instructions</h2>
+    <ol>
+      <li>Wait for rate limit to reset (1 hour from last error)</li>
+      <li>Open the app and let it load data (this will populate cache)</li>
+      <li>Close the app</li>
+      <li>For presentation: Open app again - it will use cache automatically</li>
+    </ol>
+    <p><strong>Current Rate Limit Reset:</strong> Check the error timestamp + 1 hour</p>
+  </div>
+
+  <script>
+    function checkMetrics() {
+      const ranges = ['24h', '7d', '30d'];
+      const status = document.getElementById('metrics-status');
+      let html = '<ul>';
+      
+      ranges.forEach(range => {
+        const data = localStorage.getItem(`metrics-${range}`);
+        const timestamp = localStorage.getItem(`metrics-${range}-timestamp`);
+        
+        if (data && timestamp) {
+          const age = Math.floor((Date.now() - parseInt(timestamp)) / 1000 / 60);
+          html += `<li class="exists">✅ ${range}: Cached (${age} minutes old)</li>`;
+        } else {
+          html += `<li class="missing">❌ ${range}: Not cached</li>`;
+        }
+      });
+      
+      html += '</ul>';
+      status.innerHTML = html;
+    }
+    
+    function checkFailure() {
+      const ranges = ['24h', '7d', '30d'];
+      const status = document.getElementById('failure-status');
+      let html = '<ul>';
+      
+      ranges.forEach(range => {
+        const data = sessionStorage.getItem(`failure-analysis-${range}`);
+        
+        if (data) {
+          html += `<li class="exists">✅ ${range}: Cached</li>`;
+        } else {
+          html += `<li class="missing">❌ ${range}: Not cached</li>`;
+        }
+      });
+      
+      html += '</ul>';
+      status.innerHTML = html;
+    }
+    
+    function clearMetrics() {
+      const ranges = ['24h', '7d', '30d'];
+      ranges.forEach(range => {
+        localStorage.removeItem(`metrics-${range}`);
+        localStorage.removeItem(`metrics-${range}-timestamp`);
+      });
+      alert('Metrics cache cleared!');
+      checkMetrics();
+    }
+    
+    function clearFailure() {
+      const ranges = ['24h', '7d', '30d'];
+      ranges.forEach(range => {
+        sessionStorage.removeItem(`failure-analysis-${range}`);
+      });
+      alert('Failure analysis cache cleared!');
+      checkFailure();
+    }
+    
+    // Auto-check on load
+    window.onload = () => {
+      checkMetrics();
+      checkFailure();
+    };
+  </script>
+</body>
+</html>
+
