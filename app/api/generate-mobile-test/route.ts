@@ -277,7 +277,7 @@ Generate the complete spec file and any required page object files. Follow all f
         let claudeResult: any;
         try {
           const { response } = await callClaudeAPI(apiKey, systemPrompt, userMessage, {
-            maxTokens: 8000,
+            maxTokens: 4096,
           });
           if (!response.content || response.content.length === 0)
             throw new Error("Empty response from Claude");
