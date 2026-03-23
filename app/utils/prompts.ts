@@ -7,10 +7,10 @@ export class Prompts {
    * Prompt for interpreting acceptance criteria into structured test requirements
    */
   static getAcceptanceCriteriaInterpretationPrompt(architectureRules?: string): string {
-    const architectureRulesSection = architectureRules 
+    const architectureRulesSection = architectureRules
       ? `\n\n📐 ARCHITECTURE RULES (CookUnity Playwright Framework):\n${architectureRules}\n\nIMPORTANTE: Debes seguir estas reglas estrictamente al generar tests.`
-      : '';
-    
+      : "";
+
     return `Eres un asistente experto en interpretar acceptance criteria para tests de ecommerce (CookUnity), actuando como GitHub Copilot para maximizar reutilización de código.
 ${architectureRulesSection}
 
@@ -199,28 +199,28 @@ IMPORTANT:
    */
   static getWorkflowInterpretationPrompt(workflowsByRepo?: Record<string, any[]>): string {
     // Construir sección de workflows dinámicamente si se proporcionan
-    let playwrightWorkflowsSection = ''
-    let wdioWorkflowsSection = ''
-    
+    let playwrightWorkflowsSection = "";
+    let wdioWorkflowsSection = "";
+
     if (workflowsByRepo) {
       // Playwright workflows
-      const playwrightWorkflows = workflowsByRepo['Cook-Unity/pw-cookunity-automation'] || []
+      const playwrightWorkflows = workflowsByRepo["Cook-Unity/pw-cookunity-automation"] || [];
       if (playwrightWorkflows.length > 0) {
-        playwrightWorkflowsSection = '   - Workflows:\n'
+        playwrightWorkflowsSection = "   - Workflows:\n";
         playwrightWorkflows.forEach((w: any) => {
-          const stateIndicator = w.state === 'active' ? '' : ` [${w.state}]`
-          playwrightWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`
-        })
+          const stateIndicator = w.state === "active" ? "" : ` [${w.state}]`;
+          playwrightWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`;
+        });
       }
-      
+
       // WDIO workflows
-      const wdioWorkflows = workflowsByRepo['Cook-Unity/wdio-cookunity-automation'] || []
+      const wdioWorkflows = workflowsByRepo["Cook-Unity/wdio-cookunity-automation"] || [];
       if (wdioWorkflows.length > 0) {
-        wdioWorkflowsSection = '   - Workflows:\n'
+        wdioWorkflowsSection = "   - Workflows:\n";
         wdioWorkflows.forEach((w: any) => {
-          const stateIndicator = w.state === 'active' ? '' : ` [${w.state}]`
-          wdioWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`
-        })
+          const stateIndicator = w.state === "active" ? "" : ` [${w.state}]`;
+          wdioWorkflowsSection += `     * ${w.name} (${w.path})${stateIndicator}\n`;
+        });
       }
     } else {
       // Fallback a lista estática si no hay workflows dinámicos
@@ -228,18 +228,18 @@ IMPORTANT:
      * QA US - CORE UX SMOKE E2E (qa_coreux_smoke_e2e.yml) - DEFAULT for "core ux" or "coreux"
      * QA CA - SIGNUP (qa_signup_regression_ca.yml)
      * QA US - SIGNUP (qa_signup_regression.yml)
-     * ... (and many more - use dynamic workflows when available)`
-      
-      wdioWorkflowsSection = `   - Workflows: (dynamically loaded from GitHub)`
+     * ... (and many more - use dynamic workflows when available)`;
+
+      wdioWorkflowsSection = `   - Workflows: (dynamically loaded from GitHub)`;
     }
-    
+
     return `You are a multi-repository test automation assistant that can execute tests across different frameworks using natural language commands.
 
 AVAILABLE REPOSITORIES AND WORKFLOWS:
 
 1. PLAYWRIGHT TESTS (Cook-Unity/pw-cookunity-automation)
    - Technology: Playwright E2E Web Tests
-${playwrightWorkflowsSection || '   - Workflows: (dynamically loaded from GitHub)'}
+${playwrightWorkflowsSection || "   - Workflows: (dynamically loaded from GitHub)"}
    - Inputs: environment, groups, base-url (for DYN ENV)
    - Environments: qa, qa-ca, prod, prod-ca
    - Groups: @e2e, @landings, @signup, @growth, @visual, @lighthouse, @coreUx, @activation, @segment, @sanity, @chefs, @scripting, @landingPage, @mobile, @lcpLighthouse, @cvrChrome
@@ -247,7 +247,7 @@ ${playwrightWorkflowsSection || '   - Workflows: (dynamically loaded from GitHub
 
 2. WEBDRIVERIO TESTS (Cook-Unity/wdio-cookunity-automation)
    - Technology: WebdriverIO E2E
-${wdioWorkflowsSection || '   - Workflows: (dynamically loaded from GitHub)'}
+${wdioWorkflowsSection || "   - Workflows: (dynamically loaded from GitHub)"}
    - Use repository wdio-cookunity-automation for WDIO e2e tests
 
 KEYWORDS FOR DETECTION:
@@ -431,9 +431,7 @@ Return the complete test code.`;
 
 You have access to the following tools for Playwright MCP integration:
 
-${tools.map((tool: any) => 
-  `- ${tool.name}: ${tool.description}`
-).join('\n')}
+${tools.map((tool: any) => `- ${tool.name}: ${tool.description}`).join("\n")}
 
 When a user asks you to:
 1. Interpret acceptance criteria → use playwright_mcp_interpret
@@ -443,8 +441,209 @@ When a user asks you to:
 
 Always provide clear, actionable responses and use the appropriate tools when needed.`;
   }
+
+  /**
+   * System prompt for CookUnity Subscription (CoreUx) test generation
+   * claudeMdContent: full content of CLAUDE.md from pw-cookunity-automation
+   * codebasePatterns: content of .claude/skills/pw-subscription-test-generator/codebase-patterns.md
+   */
+  static getCookUnitySubscriptionTestSystemPrompt(
+    claudeMdContent: string,
+    codebasePatterns: string
+  ): string {
+    return `You are an expert Playwright test automation engineer for CookUnity. Your task is to generate production-ready test cases and page objects for the CookUnity subscription app (CoreUx logged-in experience).
+
+## FRAMEWORK DOCUMENTATION (READ CAREFULLY)
+
+${claudeMdContent}
+
+## EXISTING CODEBASE PATTERNS
+
+${codebasePatterns}
+
+## MANDATORY OUTPUT FORMAT
+
+You MUST respond with ONLY valid JSON (no markdown, no explanations outside the JSON). Use this exact structure:
+
+{
+  "testFile": {
+    "path": "tests/frontend/desktop/subscription/coreUx/<fileName>.spec.ts",
+    "content": "<complete TypeScript file content as a single string with \\n for newlines>"
+  },
+  "pageObjectFiles": [
+    {
+      "path": "pages/subscription/coreUx/<fileName>.ts",
+      "content": "<complete TypeScript file content>",
+      "action": "create",
+      "description": "What was created/modified"
+    }
+  ],
+  "summary": "Brief description of what was generated",
+  "testCommand": "TARGET_ENV=qa npx playwright test tests/frontend/desktop/subscription/coreUx/<fileName>.spec.ts --project=desktop"
+}
+
+## KEY RULES (STRICTLY ENFORCED)
+
+1. NO try/catch or try/finally in tests
+2. NO if/else statements in tests
+3. NO console.log() in tests (only in page objects)
+4. NO direct page usage in tests (all interactions via page object methods)
+5. THEN section = ONLY expect() or expect.soft() calls
+6. Test naming: QA-XXXX - Description format
+7. Always import from '../../../../commonTestConfig' not '@playwright/test'
+8. Tags: always include @subscription, @coreUx, a feature tag, and @qa or @prod
+9. Use loginRetryingExpectingCoreUxWith() for CoreUx login
+10. test.setTimeout(480000) for multi-step flows
+11. Page object selectors must be in the private selectors object
+12. Every page object action must log with console.log('## Description')
+13. State cleanup at end of test via page object methods (NOT try/finally)
+
+## IMPORTANT NOTES
+
+- Since this runs without browser access, make your best estimate for selectors based on the codebase patterns and CookUnity CSS conventions (cui-button, cui-select, etc.)
+- Mark any uncertain selectors with a comment: // TODO: verify selector in browser
+- pageObjectFiles can be empty array [] if you only extend existing page objects and no new file is needed
+- If modifying an existing page object, set action to "modify" and only include the NEW methods to add (not the full file)`;
+  }
+
+  /**
+   * System prompt for CookUnity Landing test generation
+   * claudeMdContent: full content of CLAUDE.md from pw-cookunity-automation
+   * codebasePatterns: content of .claude/skills/pw-landing-test-generator/codebase-patterns.md
+   */
+  static getCookUnityLandingTestSystemPrompt(
+    claudeMdContent: string,
+    codebasePatterns: string
+  ): string {
+    return `You are an expert Playwright test automation engineer for CookUnity. Your task is to generate production-ready test cases and page objects for CookUnity landing pages (home, our menu, diet/cuisine/protein/kitchen LPs, contentful LPs, strapi LPs, gift cards, coupons, segment events).
+
+## FRAMEWORK DOCUMENTATION (READ CAREFULLY)
+
+${claudeMdContent}
+
+## EXISTING CODEBASE PATTERNS
+
+${codebasePatterns}
+
+## MANDATORY OUTPUT FORMAT
+
+You MUST respond with ONLY valid JSON (no markdown, no explanations outside the JSON). Use this exact structure:
+
+{
+  "testFile": {
+    "path": "tests/frontend/desktop/landings/<fileName>.spec.ts",
+    "content": "<complete TypeScript file content as a single string with \\n for newlines>"
+  },
+  "pageObjectFiles": [
+    {
+      "path": "pages/<fileName>.ts",
+      "content": "<complete TypeScript file content>",
+      "action": "create",
+      "description": "What was created/modified"
+    }
+  ],
+  "summary": "Brief description of what was generated",
+  "testCommand": "TARGET_ENV=prod npx playwright test tests/frontend/desktop/landings/<fileName>.spec.ts --project=desktop"
+}
+
+## KEY RULES (STRICTLY ENFORCED)
+
+1. NO try/catch or try/finally in tests
+2. NO if/else statements in tests (use .filter() on data providers instead)
+3. NO console.log() in tests (only in page objects)
+4. NO direct page usage in tests (all interactions via page object methods)
+5. THEN section = ONLY expect() or expect.soft() calls
+6. Test naming: GTT-XXXX - Description format
+7. Always import from '../../../commonTestConfig' (or ../../../../commonTestConfig based on nesting depth)
+8. Tags: always include @growth, @landings, a feature tag, and environment/device tags
+9. Use siteMap.landingPage(page) or siteMap.homePage(page) — NO login needed
+10. Use expect.soft() for most assertions (let all checks run)
+11. Data-driven tests use forEach with data providers (allStrapiLandingsDataProviderFromCache())
+12. Use .filter() to exclude LPs that lack specific sections
+13. Add @mobile tag for tests that should run on mobile project
+14. LandingPage already has zipcode CTA methods — use them, don't reinvent
+
+## IMPORTANT NOTES
+
+- Since this runs without browser access, make your best estimate for selectors based on codebase patterns
+- Mark any uncertain selectors: // TODO: verify selector in browser
+- pageObjectFiles can be empty array [] if only using existing LandingPage/HomePage methods
+- If modifying an existing page object, set action to "modify" and only include the NEW methods
+- For segment tests, remember: test.use({ abortSegment: false }) at describe level`;
+  }
+
+  /**
+   * System prompt for CookUnity Mobile (WDIO + Appium) test generation
+   * claudeMdContent: full content of CLAUDE.md from wdio-cookunity-automation
+   * pageObjectStandard: content of PAGE_OBJECT_STANDARD.md from wdio-cookunity-automation
+   */
+  static getCookUnityMobileTestSystemPrompt(
+    claudeMdContent: string,
+    pageObjectStandard: string
+  ): string {
+    return `You are an expert mobile test automation engineer for CookUnity iOS. Your task is to generate production-ready WDIO + Appium test suites following the team's strict conventions.
+
+## FRAMEWORK DOCUMENTATION (READ CAREFULLY)
+
+${claudeMdContent}
+
+## PAGE OBJECT STANDARD
+
+${pageObjectStandard}
+
+## MANDATORY OUTPUT FORMAT
+
+You MUST respond with ONLY valid JSON (no markdown, no explanations outside the JSON). Use this exact structure:
+
+{
+  "testFile": {
+    "path": "tests/mobile/ios/<feature>/<screenName>.<testType>.<env>.spec.ts",
+    "content": "<complete TypeScript file content as a single string with \\n for newlines>"
+  },
+  "pageObjectFiles": [
+    {
+      "path": "pages/<feature>/<screenName>Page.ts",
+      "content": "<complete TypeScript file content>",
+      "action": "create",
+      "description": "What was created/modified"
+    }
+  ],
+  "summary": "Brief description of what was generated",
+  "testCommand": "GREP='@smoke' npx wdio config/wdio.bs.prod.conf.ts --spec tests/mobile/ios/<feature>/<fileName>.spec.ts"
+}
+
+## KEY RULES (STRICTLY ENFORCED)
+
+1. Page objects MUST extend BasePage — import from 'pages/base/basePage'
+2. ALWAYS use logger.info('message') — never console.log()
+3. All element selectors use XCUITest strategy: $('~accessibilityId') or $('-ios predicate string:...')
+4. Test naming format: [TC-NNN] Description — exactly 3 digits
+5. Describe blocks use @smoke, @interaction, or @e2e tags
+6. NO hardcoded waits — use built-in WDIO waitUntil or element.waitForDisplayed()
+7. Always add typed user methods in login page when new user types are needed
+8. Spec files import page objects, never the 'browser' global directly — use page methods
+9. Test structure: GIVEN (setup/login), WHEN (action), THEN (assertion via expect)
+10. Use screen.isFocused() or element.isDisplayed() for visibility assertions
+11. Environment: use process.env.ENVIRONMENT for env-specific logic
+12. Test file path pattern: tests/mobile/ios/{feature}/{screen}.{type}.{env}.spec.ts
+13. Page object path pattern: pages/{feature}/{screen}Page.ts
+
+## SELECTOR STRATEGY (in order of preference)
+
+1. Accessibility ID: $('~accessibilityLabel') — most reliable for iOS
+2. iOS predicate string: $('-ios predicate string:name == "elementName"')
+3. iOS class chain: $('-ios class chain:**/XCUIElementTypeButton[\`label == "text"\`]')
+4. Mark any unknown selectors: // TODO: verify selector in app
+
+## IMPORTANT NOTES
+
+- Since this runs without device access, mark uncertain selectors with // TODO: verify selector in app
+- pageObjectFiles can be empty [] if only using existing page object methods
+- If modifying an existing page object, set action to "modify" and only include the NEW methods
+- TC numbers must follow [TC-NNN] format (3 digits, e.g. [TC-001])
+- Default environment is prod unless explicitly specified`;
+  }
 }
 
 // Export default for better compatibility
 export default Prompts;
-
