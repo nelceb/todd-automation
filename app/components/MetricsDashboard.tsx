@@ -393,7 +393,7 @@ export default function MetricsDashboard() {
       fetchFailureAnalysis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, metrics, timeRange, loadingFailureAnalysis]);
+  }, [loading, metrics, timeRange, loadingFailureAnalysis, selectedRepo]);
 
   const fetchFailureAnalysis = async (forceRefresh: boolean = false) => {
     // Si ya está cargando las métricas principales, esperar
@@ -409,7 +409,7 @@ export default function MetricsDashboard() {
 
     // Verificar cache ANTES de establecer loading
     const days = getDaysFromTimeRange(timeRange);
-    const cachedKey = `failure-analysis-${timeRange}`;
+    const cachedKey = `failure-analysis-${selectedRepo}-${timeRange}`;
 
     if (!forceRefresh) {
       const cached = sessionStorage.getItem(cachedKey);
@@ -418,10 +418,10 @@ export default function MetricsDashboard() {
           const parsed = JSON.parse(cached);
           // Verificar que el cache sea para el mismo timeRange
           if (parsed.period.days === days) {
-            console.log("✅ Using cached failure analysis for", timeRange, "- skipping fetch");
+            console.log("✅ Using cached failure analysis for", cachedKey, "- skipping fetch");
             setFailureAnalysis(parsed);
-            setLoadingFailureAnalysis(false); // Asegurar que no esté en loading
-            return; // Salir temprano, no hacer fetch
+            setLoadingFailureAnalysis(false);
+            return;
           }
         } catch (e) {
           console.error("Error parsing cached failure analysis:", e);
@@ -437,7 +437,7 @@ export default function MetricsDashboard() {
         days,
       });
       setLoadingFailureAnalysis(true);
-      const repo = metrics?.repository || "Cook-Unity/pw-cookunity-automation";
+      const repo = `Cook-Unity/${selectedRepo}`;
 
       const response = await fetch(`/api/failure-analysis?repo=${repo}&days=${days}`);
 
@@ -459,9 +459,9 @@ export default function MetricsDashboard() {
       });
       setFailureAnalysis(data);
 
-      // Guardar en cache por timeRange (sessionStorage y memoria)
+      // Guardar en cache por timeRange + repo (sessionStorage y memoria)
       sessionStorage.setItem(cachedKey, JSON.stringify(data));
-      setFailureAnalysisByRange((prev) => ({ ...prev, [timeRange]: data }));
+      setFailureAnalysisByRange((prev) => ({ ...prev, [`${selectedRepo}-${timeRange}`]: data }));
       console.log("✅ Failure analysis cached for", timeRange, "(sessionStorage + memory)");
     } catch (err) {
       console.error("❌ Error fetching failure analysis:", err);
