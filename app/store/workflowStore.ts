@@ -295,7 +295,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
           const data = await response.json();
 
           // Handle case where API returns JSON as string in "response" field
-          let workflows = data.workflows || data;
+          let result = data;
 
           if (
             data.response &&
@@ -308,7 +308,7 @@ export const useWorkflowStore = create<WorkflowStore>()(
               if (jsonMatch) {
                 const parsedResponse = JSON.parse(jsonMatch[0]);
                 if (parsedResponse.workflows) {
-                  workflows = parsedResponse;
+                  result = parsedResponse;
                 }
               }
             } catch (parseError) {
@@ -316,8 +316,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
             }
           }
 
-          set({ workflowPreview: workflows });
-          return workflows;
+          set({ workflowPreview: result });
+          return result;
         } catch (error) {
           set({ error: error instanceof Error ? error.message : "Error generating preview" });
           return null;
