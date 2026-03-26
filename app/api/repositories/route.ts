@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGitHubToken } from "../utils/github";
+import { getGitHubToken, generateGitHubAppToken } from "../utils/github";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,11 +26,38 @@ const REPO_CLASSIFICATION = {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = await getGitHubToken(request);
+    const userToken = await getGitHubToken(request);
 
-    if (!token) {
+    if (!userToken) {
       return NextResponse.json({ error: "GitHub token required" }, { status: 401 });
     }
+
+    // Pre-generate the GitHub App token as fallback for repos the user token can't access
+    const appToken = await generateGitHubAppToken();
+
+    // Pick the best token for each repo: try user token first, fall back to app token
+    const getTokenForRepo = async (repoName: string): Promise<string> => {
+      const testResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+      if (testResponse.ok) return userToken!;
+      if (appToken) {
+        console.log(
+          `⚠️ User token can't access ${repoName} (${testResponse.status}), falling back to GitHub App token`
+        );
+        return appToken;
+      }
+      return userToken!;
+    };
+
+    // Resolve tokens for all repos in parallel
+    const repoTokens = await Promise.all(
+      TARGET_REPOS.map(async (repoName) => ({ repoName, token: await getTokenForRepo(repoName) }))
+    );
+    const tokenMap = Object.fromEntries(repoTokens.map(({ repoName, token }) => [repoName, token]));
 
     // Fetch all target repositories with their workflows
     const repositories = await Promise.all(
@@ -38,11 +65,12 @@ export async function GET(request: NextRequest) {
         // Declarar allWorkflowsFromAPI fuera del try para que esté disponible en el catch
         let allWorkflowsFromAPI: any[] = [];
 
+        const repoToken = tokenMap[repoName];
         try {
           // Get repository info
           const repoResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${repoToken}`,
               Accept: "application/vnd.github.v3+json",
             },
           });
@@ -78,7 +106,7 @@ export async function GET(request: NextRequest) {
               `https://api.github.com/repos/${repoName}/actions/workflows?page=${page}&per_page=${perPage}`,
               {
                 headers: {
-                  Authorization: `Bearer ${token}`,
+                  Authorization: `Bearer ${repoToken}`,
                   Accept: "application/vnd.github.v3+json",
                 },
               }
@@ -185,7 +213,7 @@ export async function GET(request: NextRequest) {
                   `https://api.github.com/repos/${repoName}/contents/${workflow.path}`,
                   {
                     headers: {
-                      Authorization: `Bearer ${token}`,
+                      Authorization: `Bearer ${repoToken}`,
                       Accept: "application/vnd.github.v3+json",
                     },
                   }
