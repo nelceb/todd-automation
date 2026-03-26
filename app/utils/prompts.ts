@@ -308,7 +308,8 @@ WDIO (iOS native):
 - "Run wdio tests" → wdio-cookunity-automation, select appropriate workflow from repo
 - "Run webdriverio e2e tests" → wdio-cookunity-automation
 - "Run ios smoke tests" → wdio-cookunity-automation, workflow matching "Sanity" or "Smoke" for iOS
-- "Run ios smoke tests in production" → wdio-cookunity-automation, "PROD iOS - Core UX Sanity", no inputs
+- "Run ios smoke tests in production" → wdio-cookunity-automation, "PROD iOS - Core UX Smoke", no inputs
+- "Run ios sanity tests in production" → wdio-cookunity-automation, "PROD iOS - Core UX Sanity", no inputs
 - "Run ios e2e in prod" → wdio-cookunity-automation, "PROD iOS - Core UX E2E", no inputs
 - "Run ios regression" → wdio-cookunity-automation, "PROD iOS - Core UX Regression", no inputs
 - "Run ios feature tests" → wdio-cookunity-automation, "PROD iOS - Core UX Feature", no inputs

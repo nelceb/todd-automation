@@ -334,7 +334,7 @@ export async function POST(request: NextRequest) {
         "Prod Android Regression": ["Prod Android Regression", "prod_android_regression.yml"],
         "Prod iOS Regression": ["Prod iOS Regression", "prod_ios_regression.yml"],
         // WDIO iOS workflows — map common LLM-generated names to actual workflow names
-        "PROD iOS - Core UX Smoke": ["PROD iOS – Core UX Sanity", "PROD iOS - Core UX Sanity"],
+        "PROD iOS - Core UX Smoke": ["PROD iOS – Core UX Smoke", "PROD iOS - Core UX Smoke"],
         "PROD iOS - Core UX Sanity": ["PROD iOS – Core UX Sanity", "PROD iOS - Core UX Sanity"],
         "PROD iOS – Core UX Sanity": ["PROD iOS – Core UX Sanity", "PROD iOS - Core UX Sanity"],
         "PROD iOS - Core UX E2E": ["PROD iOS – Core UX E2E", "PROD iOS - Core UX E2E"],
