@@ -269,8 +269,10 @@ PLAYWRIGHT (Web E2E):
 - scripting, script → Playwright scripting tests
 - mobile, mobile web → Playwright mobile tests
 
-WDIO (WebdriverIO E2E):
+WDIO (WebdriverIO E2E / iOS native):
 - wdio, webdriverio, webdriver io → WDIO tests
+- ios, iphone, ipad, native, appium → WDIO iOS tests (wdio-cookunity-automation)
+- mobile (when combined with ios/native/appium/wdio) → WDIO iOS tests
 
 ENVIRONMENTS:
 - prod, production → Production environment
@@ -302,9 +304,14 @@ PLAYWRIGHT:
 - "Execute smoke tests core ux" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 - "Run core ux smoke test" → pw-cookunity-automation, QA US - CORE UX SMOKE E2E, environment: "qa", groups: "@coreUx"
 
-WDIO:
+WDIO (iOS native):
 - "Run wdio tests" → wdio-cookunity-automation, select appropriate workflow from repo
 - "Run webdriverio e2e tests" → wdio-cookunity-automation
+- "Run ios smoke tests" → wdio-cookunity-automation, workflow matching "Sanity" or "Smoke" for iOS
+- "Run ios smoke tests in production" → wdio-cookunity-automation, "PROD iOS - Core UX Sanity", no inputs
+- "Run ios e2e in prod" → wdio-cookunity-automation, "PROD iOS - Core UX E2E", no inputs
+- "Run ios regression" → wdio-cookunity-automation, "PROD iOS - Core UX Regression", no inputs
+- "Run ios feature tests" → wdio-cookunity-automation, "PROD iOS - Core UX Feature", no inputs
 
 E2E RULES:
 - "e2e" alone = Playwright (pw-cookunity-automation) - DEFAULT TO PLAYWRIGHT
@@ -326,11 +333,12 @@ TAG COMBINATION RULES:
 - Always combine ALL mentioned tags, don't just use the last one
 
 FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
-1. If user mentions "playwright" specifically → use Playwright (pw-cookunity-automation)
-2. If user mentions "wdio" or "webdriverio" specifically → use WDIO (wdio-cookunity-automation)
-3. If user mentions "e2e" without context → use Playwright (pw-cookunity-automation) - DEFAULT
-4. If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
-5. If user mentions "signup" + "web" → use Playwright (pw-cookunity-automation)
+1. If user mentions "ios", "iphone", "ipad", "native", or "appium" → ALWAYS use WDIO (wdio-cookunity-automation) - HIGHEST PRIORITY
+2. If user mentions "playwright" specifically → use Playwright (pw-cookunity-automation)
+3. If user mentions "wdio" or "webdriverio" specifically → use WDIO (wdio-cookunity-automation)
+4. If user mentions "e2e" without context → use Playwright (pw-cookunity-automation) - DEFAULT
+5. If user mentions "web" without "e2e" → use Playwright (pw-cookunity-automation)
+6. If user mentions "signup" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "landings" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "growth" + "web" → use Playwright (pw-cookunity-automation)
 - If user mentions "visual" + "regression" → use Playwright PROD VISUAL REGRESSION (pw-cookunity-automation)
