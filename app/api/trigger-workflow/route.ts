@@ -62,19 +62,12 @@ export async function POST(request: NextRequest) {
     console.log("API received branch:", branch);
     console.log("API received inputs:", inputs);
 
-    // Intentar obtener token del header primero, luego del env
-    let token = await getGitHubToken(request);
-
-    // Si no hay token en el header, usar GITHUB_TOKEN del env (nelceb token)
-    if (!token) {
-      token = process.env.GITHUB_TOKEN || null;
-      console.log(
-        "🔑 Usando GITHUB_TOKEN del env:",
-        token ? `Token presente (${token.substring(0, 10)}...)` : "No encontrado"
-      );
-    } else {
-      console.log("🔑 Usando token del header:", token.substring(0, 10) + "...");
-    }
+    // Use service token (GITHUB_TOKEN) which has org-wide access + workflow scope.
+    // Fall back to user's browser token if service token is not configured.
+    const serviceToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
+    const userToken = await getGitHubToken(request);
+    let token = serviceToken ?? userToken;
+    console.log("🔑 Token source:", serviceToken ? "GITHUB_TOKEN env" : "user header");
 
     // Usar el mismo mapeo que funciona en /api/repositories
     const repoMapping: Record<string, string> = {
