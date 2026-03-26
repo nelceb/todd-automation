@@ -34,8 +34,10 @@ export async function GET(request: NextRequest) {
 
     // Pre-generate the GitHub App token as fallback for repos the user token can't access
     const appToken = await generateGitHubAppToken();
+    // PAT with org-wide read access — set GITHUB_ORG_TOKEN in Vercel env vars
+    const orgToken = process.env.GITHUB_ORG_TOKEN ?? null;
 
-    // Pick the best token for each repo: try user token first, fall back to app token
+    // Pick the best token for each repo: try user → app → org PAT
     const getTokenForRepo = async (repoName: string): Promise<string> => {
       const testResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
         headers: {
@@ -44,12 +46,25 @@ export async function GET(request: NextRequest) {
         },
       });
       if (testResponse.ok) return userToken!;
+      // Try GitHub App token
       if (appToken) {
-        console.log(
-          `⚠️ User token can't access ${repoName} (${testResponse.status}), falling back to GitHub App token`
-        );
-        return appToken;
+        const appTest = await fetch(`https://api.github.com/repos/${repoName}`, {
+          headers: {
+            Authorization: `Bearer ${appToken}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        });
+        if (appTest.ok) {
+          console.log(`✅ Using GitHub App token for ${repoName}`);
+          return appToken;
+        }
       }
+      // Try org PAT as last resort
+      if (orgToken) {
+        console.log(`⚠️ Falling back to GITHUB_ORG_TOKEN for ${repoName}`);
+        return orgToken;
+      }
+      console.warn(`❌ No working token found for ${repoName} (user: ${testResponse.status})`);
       return userToken!;
     };
 
