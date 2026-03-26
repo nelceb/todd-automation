@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGitHubToken, generateGitHubAppToken } from "../utils/github";
+import { getGitHubToken } from "../utils/github";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,39 +32,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "GitHub token required" }, { status: 401 });
     }
 
-    // Pre-generate the GitHub App token as fallback for repos the user token can't access
-    const appToken = await generateGitHubAppToken();
-    // PAT with org-wide read access — GITHUB_ORG_TOKEN takes priority, falls back to GITHUB_TOKEN
-    const orgToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
+    // For backend reads, prefer the service token (org-wide access) over the user's browser token.
+    // The user token may lack workflow/actions scopes needed for private org repos.
+    const serviceToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
 
-    // Pick the best token for each repo: try user → app → org PAT
-    const getTokenForRepo = async (repoName: string): Promise<string> => {
-      const testResponse = await fetch(`https://api.github.com/repos/${repoName}`, {
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
-      if (testResponse.ok) return userToken!;
-      // Try GitHub App token
-      if (appToken) {
-        const appTest = await fetch(`https://api.github.com/repos/${repoName}`, {
-          headers: {
-            Authorization: `Bearer ${appToken}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        });
-        if (appTest.ok) {
-          console.log(`✅ Using GitHub App token for ${repoName}`);
-          return appToken;
-        }
-      }
-      // Try org PAT as last resort
-      if (orgToken) {
-        console.log(`⚠️ Falling back to GITHUB_ORG_TOKEN for ${repoName}`);
-        return orgToken;
-      }
-      console.warn(`❌ No working token found for ${repoName} (user: ${testResponse.status})`);
+    const getTokenForRepo = async (_repoName: string): Promise<string> => {
+      // Use service token if available, otherwise fall back to user token
+      if (serviceToken) return serviceToken;
       return userToken!;
     };
 

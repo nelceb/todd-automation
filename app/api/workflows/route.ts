@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateGitHubAppToken, getGitHubToken } from "../utils/github";
+import { getGitHubToken } from "../utils/github";
 
 export const dynamic = "force-dynamic";
 
@@ -94,30 +94,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const repository = searchParams.get("repository") || "pw-cookunity-automation";
 
-    // Token resolution: user token → GitHub App → GITHUB_ORG_TOKEN env → GITHUB_TOKEN env
+    // For backend GitHub API reads, prefer the service token (GITHUB_TOKEN env var)
+    // which has org-wide access. Fall back to user token if not configured.
     const userToken = await getGitHubToken(request);
-    let token = userToken;
-
-    if (!token) {
-      token = process.env.GITHUB_TOKEN || null;
-    }
+    const serviceToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
+    let token = serviceToken ?? userToken;
 
     if (!token) {
       throw new Error("GitHub token no configurado");
-    }
-
-    // If the user token can't access this specific repo, try fallbacks
-    const testAccess = await fetch(
-      `https://api.github.com/repos/Cook-Unity/${repository === "wdio-cookunity-automation" ? repository : "pw-cookunity-automation"}`,
-      {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" },
-      }
-    );
-    if (!testAccess.ok) {
-      const appToken = await generateGitHubAppToken();
-      const orgToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
-      token = appToken ?? orgToken ?? token;
-      console.log(`⚠️ User token failed for ${repository} (${testAccess.status}), using fallback`);
     }
 
     // Mapear el nombre del repositorio al nombre completo
