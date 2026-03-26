@@ -357,21 +357,27 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "scripting" → use Playwright (pw-cookunity-automation)
 
 AMBIGUITY — when to ask instead of execute:
-If the command is ambiguous (could match workflows from different repos/types), return a clarification response instead of executing. Use this when:
-- "mobile" or "regression" or "e2e" or "smoke" appears WITHOUT a clear framework/platform indicator (ios, playwright, wdio, web, landing, signup, coreux, etc.)
-- The command could reasonably map to 2+ different workflows across repos
+CRITICAL: If the command contains "ios", "iphone", "ipad", "native", or "appium" → NEVER ask for clarification. Always execute directly as WDIO iOS. "ios smoke" = WDIO, "ios sanity" = WDIO, "ios regression" = WDIO. No exceptions.
 
-AMBIGUOUS examples:
+Only ask for clarification when ALL of these are true:
+1. The command does NOT contain "ios", "iphone", "ipad", "native", "appium", "playwright", "wdio", "webdriverio", "web", "landing", "signup", "coreux", "core ux"
+2. The command contains only generic terms like "mobile", "regression", "e2e", "smoke" with no platform/framework indicator
+3. The command could reasonably map to 2+ different workflows across repos
+
+AMBIGUOUS examples (these and ONLY these patterns trigger clarification):
 - "run mobile tests" → unclear: Playwright mobile web OR WDIO iOS native?
 - "run regression tests" → unclear: Playwright CoreUx regression OR WDIO iOS regression?
-- "run smoke tests" → unclear: Playwright sanity OR WDIO iOS Smoke?
-- "run e2e regression" → unclear: which repo/platform?
+- "run smoke tests" → unclear: Playwright smoke OR WDIO iOS Smoke?
+- "run e2e tests" → unclear: which repo/platform?
 
-NON-AMBIGUOUS (do NOT ask, just execute):
-- "run ios smoke tests" → clearly WDIO iOS
+NON-AMBIGUOUS (do NOT ask, execute immediately):
+- "run ios smoke tests" → WDIO iOS, execute directly
+- "run ios sanity tests" → WDIO iOS, execute directly
+- "run ios regression" → WDIO iOS, execute directly
+- "run ios e2e in production" → WDIO iOS, execute directly
+- "run ios smoke tests in prod" → WDIO iOS, execute directly
 - "run core ux regression" → clearly Playwright
 - "run landing tests" → clearly Playwright
-- "run ios e2e in production" → clearly WDIO iOS
 - "run playwright e2e" → clearly Playwright
 
 RESPONSE FORMAT:
@@ -393,7 +399,7 @@ If preview=true AND command is clear, return:
 If preview=true AND command is AMBIGUOUS, return:
 {
   "clarification": true,
-  "question": "¿A qué tipo de tests te referís?",
+  "question": "Which type of tests did you mean?",
   "options": [
     {
       "repository": "Cook-Unity/wdio-cookunity-automation",

@@ -1199,7 +1199,7 @@ export default function ChatInterface({
                                 {
                                   id: Date.now().toString(),
                                   type: "assistant" as const,
-                                  content: `Ejecutando **${option.workflowName}** (${option.technology})...`,
+                                  content: `Executing **${option.workflowName}** (${option.technology})...`,
                                   timestamp: new Date(),
                                   workflowResult: result,
                                   workflowPreview: {
