@@ -356,8 +356,26 @@ FRAMEWORK DETECTION PRIORITY RULES (APPLY IN ORDER):
 - If user mentions "chefs" → use Playwright PROD CHEFS IMAGES (pw-cookunity-automation)
 - If user mentions "scripting" → use Playwright (pw-cookunity-automation)
 
+AMBIGUITY — when to ask instead of execute:
+If the command is ambiguous (could match workflows from different repos/types), return a clarification response instead of executing. Use this when:
+- "mobile" or "regression" or "e2e" or "smoke" appears WITHOUT a clear framework/platform indicator (ios, playwright, wdio, web, landing, signup, coreux, etc.)
+- The command could reasonably map to 2+ different workflows across repos
+
+AMBIGUOUS examples:
+- "run mobile tests" → unclear: Playwright mobile web OR WDIO iOS native?
+- "run regression tests" → unclear: Playwright CoreUx regression OR WDIO iOS regression?
+- "run smoke tests" → unclear: Playwright sanity OR WDIO iOS Smoke?
+- "run e2e regression" → unclear: which repo/platform?
+
+NON-AMBIGUOUS (do NOT ask, just execute):
+- "run ios smoke tests" → clearly WDIO iOS
+- "run core ux regression" → clearly Playwright
+- "run landing tests" → clearly Playwright
+- "run ios e2e in production" → clearly WDIO iOS
+- "run playwright e2e" → clearly Playwright
+
 RESPONSE FORMAT:
-If preview=true, return:
+If preview=true AND command is clear, return:
 {
   "workflows": [
     {
@@ -370,6 +388,28 @@ If preview=true, return:
   ],
   "totalWorkflows": 1,
   "technologies": ["playwright"]
+}
+
+If preview=true AND command is AMBIGUOUS, return:
+{
+  "clarification": true,
+  "question": "¿A qué tipo de tests te referís?",
+  "options": [
+    {
+      "repository": "Cook-Unity/wdio-cookunity-automation",
+      "workflowName": "PROD iOS – Core UX Smoke",
+      "technology": "webdriverio",
+      "inputs": {},
+      "description": "iOS native smoke tests (WDIO + Appium)"
+    },
+    {
+      "repository": "Cook-Unity/pw-cookunity-automation",
+      "workflowName": "QA US - CORE UX SMOKE E2E",
+      "technology": "playwright",
+      "inputs": {"environment": "qa"},
+      "description": "Web smoke tests (Playwright)"
+    }
+  ]
 }
 
 If preview=false, return the workflow object with workflowId, name, and inputs for the selected workflow (Playwright or WDIO).`;

@@ -18,6 +18,13 @@ interface Message {
   timestamp: Date;
   workflowResult?: any;
   workflowPreview?: any;
+  clarificationOptions?: Array<{
+    repository: string;
+    workflowName: string;
+    technology: string;
+    inputs: Record<string, any>;
+    description: string;
+  }>;
 }
 
 interface ChatInterfaceProps {
@@ -447,6 +454,22 @@ export default function ChatInterface({
 
         // First, get preview of workflows
         const preview = await previewWorkflows(userMessage);
+
+        // Handle ambiguous commands — show clarification options to user
+        if (preview && preview.clarification && Array.isArray(preview.options)) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              type: "assistant" as const,
+              content: preview.question || "¿Cuál de estos workflows querés ejecutar?",
+              timestamp: new Date(),
+              clarificationOptions: preview.options,
+            },
+          ]);
+          setIsLoading(false);
+          return;
+        }
 
         if (
           preview &&
@@ -1140,6 +1163,83 @@ export default function ChatInterface({
                   )}
                 </div>
               </div>
+
+              {/* Clarification options — shown when command is ambiguous */}
+              {messages.length > 0 && messages[messages.length - 1]?.clarificationOptions && (
+                <div className="flex justify-center">
+                  <div className="max-w-4xl w-full mt-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-2"
+                    >
+                      {messages[messages.length - 1].clarificationOptions!.map((option, index) => (
+                        <button
+                          key={index}
+                          onClick={async () => {
+                            const repoName = option.repository.split("/").pop()!;
+                            setIsLoading(true);
+                            try {
+                              const result = await triggerWorkflow(
+                                option.workflowName,
+                                option.inputs,
+                                githubToken,
+                                repoName
+                              );
+                              if (result?.runId) {
+                                addRunningWorkflowFromTodd(
+                                  repoName,
+                                  option.workflowName,
+                                  result.runId
+                                );
+                                startPollingMultipleLogs([result.runId], githubToken, [repoName]);
+                              }
+                              setMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: Date.now().toString(),
+                                  type: "assistant" as const,
+                                  content: `Ejecutando **${option.workflowName}** (${option.technology})...`,
+                                  timestamp: new Date(),
+                                  workflowResult: result,
+                                  workflowPreview: {
+                                    workflows: [option],
+                                    totalWorkflows: 1,
+                                    technologies: [option.technology],
+                                  },
+                                },
+                              ]);
+                            } catch (err) {
+                              setMessages((prev) => [
+                                ...prev,
+                                {
+                                  id: Date.now().toString(),
+                                  type: "assistant" as const,
+                                  content: `Error al ejecutar ${option.workflowName}: ${err instanceof Error ? err.message : "Unknown error"}`,
+                                  timestamp: new Date(),
+                                },
+                              ]);
+                            } finally {
+                              setIsLoading(false);
+                            }
+                          }}
+                          className="w-full text-left px-4 py-3 rounded-xl border border-gray-300 bg-white hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center justify-between group"
+                        >
+                          <div>
+                            <div className="font-medium text-gray-800 text-sm">
+                              {option.workflowName}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">{option.description}</div>
+                          </div>
+                          <span className="text-xs text-gray-400 group-hover:text-blue-500 font-mono ml-4 flex-shrink-0">
+                            {option.technology}
+                          </span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  </div>
+                </div>
+              )}
 
               {/* Workflow Execution Info - Estilo log */}
               {messages.length > 0 && messages[messages.length - 1]?.workflowPreview && (
