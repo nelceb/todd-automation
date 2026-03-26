@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     );
     if (!testAccess.ok) {
       const appToken = await generateGitHubAppToken();
-      const orgToken = process.env.GITHUB_ORG_TOKEN ?? null;
+      const orgToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
       token = appToken ?? orgToken ?? token;
       console.log(`⚠️ User token failed for ${repository} (${testAccess.status}), using fallback`);
     }

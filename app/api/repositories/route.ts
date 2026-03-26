@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     // Pre-generate the GitHub App token as fallback for repos the user token can't access
     const appToken = await generateGitHubAppToken();
-    // PAT with org-wide read access — set GITHUB_ORG_TOKEN in Vercel env vars
-    const orgToken = process.env.GITHUB_ORG_TOKEN ?? null;
+    // PAT with org-wide read access — GITHUB_ORG_TOKEN takes priority, falls back to GITHUB_TOKEN
+    const orgToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
 
     // Pick the best token for each repo: try user → app → org PAT
     const getTokenForRepo = async (repoName: string): Promise<string> => {
