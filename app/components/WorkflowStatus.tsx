@@ -740,10 +740,13 @@ export default function WorkflowStatus({ githubToken }: WorkflowStatusProps) {
                 >
                   {(() => {
                     const isExpanded = expandedWorkflows[repo.name] || false;
+                    const runnableWorkflows = repo.workflows.filter(
+                      (w: any) => w.canExecute !== false
+                    );
                     const workflowsToShow = isExpanded
-                      ? repo.workflows
-                      : repo.workflows.slice(0, 7);
-                    const hasMoreWorkflows = repo.workflows.length > 7;
+                      ? runnableWorkflows
+                      : runnableWorkflows.slice(0, 7);
+                    const hasMoreWorkflows = runnableWorkflows.length > 7;
 
                     return (
                       <>
