@@ -481,6 +481,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Last resort: generate AI summary from job logs using Claude (for workflows without S3 summaries e.g. WDIO/iOS)
+    if (!aiErrorsSummary && effectiveConclusion === "failure" && allLogsText.length > 100) {
+      const claudeApiKey = process.env.CLAUDE_API_KEY;
+      if (claudeApiKey) {
+        try {
+          console.log("🤖 Generating AI summary from logs using Claude (no S3 summary found)...");
+          const { callClaudeAPI } = await import("../utils/claude");
+
+          // Trim logs to avoid token limits — keep the most relevant tail
+          const logSample = allLogsText.length > 8000 ? allLogsText.slice(-8000) : allLogsText;
+
+          const { response } = await callClaudeAPI(
+            claudeApiKey,
+            `You are a test automation expert analyzing CI/CD workflow failure logs.
+Extract and summarize the actual test failures in plain text. Be concise and specific.
+Focus on: test names that failed, error messages, assertion failures, element not found, timeouts.
+Format: list each distinct failure as "- <test/flow name>: <error>". Max 500 chars total.`,
+            `Workflow logs:\n${logSample}`,
+            { maxTokens: 600 }
+          );
+
+          const summaryText = response?.content?.[0]?.text;
+          if (summaryText && summaryText.trim().length > 0) {
+            aiErrorsSummary = summaryText.trim();
+            console.log("✅ Generated AI summary from logs using Claude");
+          }
+        } catch (err) {
+          console.warn("⚠️ Could not generate AI summary from logs:", err);
+        }
+      }
+    }
+
     return NextResponse.json({
       run: {
         id: runData.id,
