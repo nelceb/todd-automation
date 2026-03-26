@@ -89,7 +89,8 @@ export async function GET(request: NextRequest) {
     const range = (searchParams.get("range") as "24h" | "7d" | "30d" | "90d") || "30d";
     const repo = searchParams.get("repo") || "Cook-Unity/pw-cookunity-automation";
 
-    const token = await getGitHubToken(request);
+    const serviceToken = process.env.GITHUB_ORG_TOKEN ?? process.env.GITHUB_TOKEN ?? null;
+    const token = serviceToken ?? (await getGitHubToken(request));
     if (!token) {
       return NextResponse.json(
         {
